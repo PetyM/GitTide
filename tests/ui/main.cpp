@@ -22,6 +22,7 @@
 #include "test_smoke.cpp"
 #include "test_project_list_model.cpp"
 #include "test_repo_list_model.cpp"
+#include "test_project_controller.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -36,6 +37,10 @@ int main(int argc, char** argv) {
     }
     {
         TestRepoListModel t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestProjectController t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
