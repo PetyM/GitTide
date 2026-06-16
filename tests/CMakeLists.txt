@@ -4,6 +4,7 @@ add_executable(gitgui_core_tests
   test_path_util.cpp
   test_git_error.cpp
   test_temp_repo.cpp
+  test_git_repo.cpp
   support/TempRepo.cpp
 )
 target_link_libraries(gitgui_core_tests PRIVATE gitgui_core Catch2::Catch2WithMain)
