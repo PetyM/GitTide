@@ -30,11 +30,15 @@ TempRepo::~TempRepo() {
 }
 
 void TempRepo::write_file(std::string_view rel_path, std::string_view contents) {
-    std::ofstream out(dir_ / std::filesystem::path(rel_path), std::ios::binary);
+    std::filesystem::path file = dir_ / std::filesystem::path(rel_path);
+    std::ofstream out(file, std::ios::binary);
+    if (!out) throw std::runtime_error("write_file: could not open " + file.string());
     out.write(contents.data(), static_cast<std::streamsize>(contents.size()));
 }
 
 void TempRepo::commit_all(std::string_view message) {
+    // NOTE: leaks index/tree/sig if a check() throws mid-function. Test-only
+    // throwaway code on a short-lived binary — intentionally not RAII-wrapped.
     git_index* index = nullptr;
     check(git_repository_index(&index, repo_), "git_repository_index failed");
     check(git_index_add_all(index, nullptr, GIT_INDEX_ADD_DEFAULT, nullptr, nullptr),
