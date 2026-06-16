@@ -28,6 +28,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_session_store.cpp
   )
   set_source_files_properties(${gitgui_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

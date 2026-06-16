@@ -24,6 +24,7 @@
 #include "test_repo_list_model.cpp"
 #include "test_project_controller.cpp"
 #include "test_repo_controller.cpp"
+#include "test_session_store.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -46,6 +47,10 @@ int main(int argc, char** argv) {
     }
     {
         TestRepoController t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestSessionStore t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
