@@ -12,7 +12,11 @@ struct GitError {
 template <typename T>
 using Expected = std::expected<T, GitError>;
 
-// Build a GitError from the current libgit2 thread-local error after a failed call.
+// Build a GitError from libgit2's thread-local error slot.
+// CONTRACT: call this immediately after the failing libgit2 call, on the SAME
+// thread, before issuing any other libgit2 call. The error slot is overwritten
+// by the next libgit2 operation, so a delayed call captures a stale/unrelated
+// error. `code` is the return code of the failed call and is forwarded verbatim.
 GitError last_git_error(int code);
 
 }  // namespace gitgui

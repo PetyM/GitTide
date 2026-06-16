@@ -4,6 +4,7 @@
 namespace gitgui {
 GitError last_git_error(int code) {
     const git_error* e = git_error_last();
-    return GitError{code, e && e->message ? e->message : "unknown libgit2 error"};
+    if (e && e->message) return GitError{code, e->message};
+    return GitError{code, "unknown libgit2 error (code " + std::to_string(code) + ")"};
 }
 }  // namespace gitgui
