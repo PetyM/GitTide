@@ -2,6 +2,7 @@ add_executable(gitgui_core_tests
   test_smoke.cpp
   test_libgit2.cpp
   test_path_util.cpp
+  test_git_error.cpp
 )
 target_link_libraries(gitgui_core_tests PRIVATE gitgui_core Catch2::Catch2WithMain)
 
