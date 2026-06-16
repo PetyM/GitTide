@@ -25,6 +25,7 @@
 #include "test_project_controller.cpp"
 #include "test_repo_controller.cpp"
 #include "test_session_store.cpp"
+#include "test_dashboard_model.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -51,6 +52,10 @@ int main(int argc, char** argv) {
     }
     {
         TestSessionStore t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestDashboardModel t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
