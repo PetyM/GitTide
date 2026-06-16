@@ -1,6 +1,7 @@
 #include "gitgui/GitRepo.hpp"
 #include "gitgui/PathUtil.hpp"
 #include <git2.h>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -47,23 +48,30 @@ Expected<std::vector<FileStatus>> GitRepo::status() const {
     opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
                  GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
 
-    git_status_list* list = nullptr;
-    int rc = git_status_list_new(&list, repo_, &opts);
+    git_status_list* raw_list = nullptr;
+    int rc = git_status_list_new(&raw_list, repo_, &opts);
     if (rc < 0) return std::unexpected(last_git_error(rc));
+    // RAII so the list is freed even if a vector allocation below throws.
+    std::unique_ptr<git_status_list, decltype(&git_status_list_free)> list(
+        raw_list, git_status_list_free);
 
     std::vector<FileStatus> result;
-    size_t n = git_status_list_entrycount(list);
+    size_t n = git_status_list_entrycount(list.get());
     result.reserve(n);
     for (size_t i = 0; i < n; ++i) {
-        const git_status_entry* e = git_status_byindex(list, i);
+        const git_status_entry* e = git_status_byindex(list.get(), i);
         const char* raw =
             e->head_to_index    ? e->head_to_index->new_file.path
           : e->index_to_workdir ? e->index_to_workdir->new_file.path
           : nullptr;
         if (!raw) continue;
-        result.push_back(FileStatus{from_git_path(raw), map_status(e->status)});
+        StatusFlag flags = map_status(e->status);
+        // Skip statuses this milestone does not model (rename, typechange,
+        // conflict, ignored) — emitting them with flags==None would mislead
+        // callers. Add the corresponding StatusFlag values to represent them.
+        if (flags == StatusFlag::None) continue;
+        result.push_back(FileStatus{from_git_path(raw), flags});
     }
-    git_status_list_free(list);
     return result;
 }
 
