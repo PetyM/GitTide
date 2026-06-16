@@ -23,6 +23,7 @@
 #include "test_project_list_model.cpp"
 #include "test_repo_list_model.cpp"
 #include "test_project_controller.cpp"
+#include "test_repo_controller.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -41,6 +42,10 @@ int main(int argc, char** argv) {
     }
     {
         TestProjectController t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestRepoController t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;

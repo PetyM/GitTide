@@ -6,6 +6,8 @@ add_library(gitgui_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/RepoListModel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectController.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/ProjectController.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/RepoController.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/RepoController.hpp
 )
 set_target_properties(gitgui_ui PROPERTIES AUTOMOC ON)
 target_include_directories(gitgui_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
