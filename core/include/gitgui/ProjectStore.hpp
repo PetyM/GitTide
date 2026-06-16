@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <string>
 #include <vector>
 #include "gitgui/GitError.hpp"
@@ -37,6 +38,13 @@ public:
 
     std::string to_json() const;
     static Expected<ProjectStore> from_json(const std::string& json);
+
+    // Save atomically (temp file + rename). Returns error on I/O failure.
+    Expected<void> save(const std::filesystem::path& file) const;
+
+    // Load from disk. Missing file -> empty store. Corrupt file -> back it up
+    // to "<file>.corrupt" and return an empty store (never fails on bad data).
+    static Expected<ProjectStore> load(const std::filesystem::path& file);
 
 private:
     std::vector<Project> projects_;

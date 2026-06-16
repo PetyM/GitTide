@@ -59,3 +59,51 @@ TEST_CASE("non-object root is rejected", "[store]") {
     auto loaded = gitgui::ProjectStore::from_json("[1, 2, 3]");
     REQUIRE_FALSE(loaded.has_value());
 }
+
+#include <filesystem>
+#include <fstream>
+#include <random>
+
+namespace {
+std::filesystem::path temp_json_path() {
+    std::random_device rd;
+    return std::filesystem::temp_directory_path() /
+           ("gitgui_store_" + std::to_string(rd()) + ".json");
+}
+}
+
+TEST_CASE("save then load round-trips through disk", "[store]") {
+    auto path = temp_json_path();
+    gitgui::ProjectStore store;
+    gitgui::Project p; p.id = "x"; p.name = "Proj";
+    store.projects().push_back(p);
+
+    auto saved = store.save(path);
+    REQUIRE(saved.has_value());
+
+    auto loaded = gitgui::ProjectStore::load(path);
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects().size() == 1);
+    REQUIRE(loaded->projects()[0].name == "Proj");
+
+    std::filesystem::remove(path);
+}
+
+TEST_CASE("load of a missing file returns an empty store", "[store]") {
+    auto loaded = gitgui::ProjectStore::load(temp_json_path());
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects().empty());
+}
+
+TEST_CASE("load of corrupt JSON backs up the file and returns empty store", "[store]") {
+    auto path = temp_json_path();
+    { std::ofstream(path) << "{ this is not json"; }
+
+    auto loaded = gitgui::ProjectStore::load(path);
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects().empty());
+    REQUIRE(std::filesystem::exists(path.string() + ".corrupt"));
+
+    std::filesystem::remove(path);
+    std::filesystem::remove(path.string() + ".corrupt");
+}
