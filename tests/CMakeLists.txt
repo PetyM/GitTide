@@ -24,6 +24,7 @@ if(GITGUI_BUILD_UI)
   # without compiling them as separate translation units.
   set(gitgui_ui_test_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_smoke.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_list_model.cpp
   )
   set_source_files_properties(${gitgui_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

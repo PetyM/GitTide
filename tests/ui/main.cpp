@@ -20,12 +20,17 @@
 #include <QtTest/QtTest>
 
 #include "test_smoke.cpp"
+#include "test_project_list_model.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     int status = 0;
     {
         TestUiSmoke t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestProjectListModel t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
