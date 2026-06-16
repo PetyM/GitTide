@@ -8,8 +8,10 @@ target_sources(gitgui_core PRIVATE
 )
 target_include_directories(gitgui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(gitgui_core PUBLIC cxx_std_23)
-# libgit2package is a static lib target; its headers are not exported via
-# INTERFACE_INCLUDE_DIRECTORIES, so we must pull the include path manually.
-# FetchContent sets libgit2_SOURCE_DIR after FetchContent_MakeAvailable().
-target_link_libraries(gitgui_core PUBLIC libgit2package nlohmann_json::nlohmann_json)
-target_include_directories(gitgui_core PUBLIC ${libgit2_SOURCE_DIR}/include)
+# libgit2 and nlohmann/json are implementation details: no public header includes
+# them (GitRepo.hpp only forward-declares struct git_repository), so they are
+# PRIVATE and do not leak onto downstream consumers of gitgui_core.
+# libgit2package does not export its headers via INTERFACE_INCLUDE_DIRECTORIES,
+# so we pull the include path manually. FetchContent sets libgit2_SOURCE_DIR.
+target_link_libraries(gitgui_core PRIVATE libgit2package nlohmann_json::nlohmann_json)
+target_include_directories(gitgui_core PRIVATE ${libgit2_SOURCE_DIR}/include)
