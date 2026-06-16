@@ -30,12 +30,18 @@ public:
     const std::string& activeProject() const { return activeProject_; }
     void setActiveProject(std::string id) { activeProject_ = std::move(id); }
 
+    // Schema version read from the parsed document (kVersion for an in-memory
+    // store or a document with no "version" key). Lets a future migration step
+    // detect older on-disk schemas.
+    int loadedVersion() const { return loadedVersion_; }
+
     std::string to_json() const;
     static Expected<ProjectStore> from_json(const std::string& json);
 
 private:
     std::vector<Project> projects_;
     std::string activeProject_;
+    int loadedVersion_ = kVersion;
 };
 
 }  // namespace gitgui
