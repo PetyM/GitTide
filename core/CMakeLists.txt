@@ -1,6 +1,7 @@
 add_library(gitgui_core STATIC)
 target_sources(gitgui_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/LibGit2Context.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/PathUtil.cpp
 )
 target_include_directories(gitgui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(gitgui_core PUBLIC cxx_std_23)
