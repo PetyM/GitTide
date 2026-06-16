@@ -22,11 +22,23 @@ The application must be **fast**: no UI blocking, parallel work across repositor
 - Diff viewer (file, hunk, intra-line).
 - Per-repo commit graph (full branching: branches, merges, tags).
 - Project dashboard: **read-only** aggregated status across the project's repos.
+- **Multi-window (hybrid model):** each window keeps the in-window project switcher
+  (Layout A), AND a window can spawn a new top-level window via an "open project in
+  new window" action. Multiple windows may be open at once. Optional de-duplication
+  ("focus existing window for this project" instead of opening a second) is a
+  setting, off-or-on TBD; not required for first cut. Window/session state persists
+  for restore.
 
 ### Post-MVP (explicitly out of v1)
 - Network ops: push / pull / fetch, plus bulk "fetch/pull all" across a project.
 - Branch management: create/switch/delete, merge, conflict resolution UI.
 - Aggregated project timeline graph (commits of all repos on one axis).
+- **Submodule nested view:** show a repo's submodules as expandable children in the
+  RepoList; each submodule is itself a navigable `GitRepo`. Parent-repo status shows a
+  submodule as a single changed entry (pointer move), not its recursed internals
+  (`GIT_STATUS_OPT_EXCLUDE_SUBMODULES`). Enumeration via libgit2 `git_submodule_foreach`
+  (works for local repos regardless of the USE_SSH/USE_HTTPS=OFF build). Targeted for an
+  early post-MVP iteration since it touches both Core (submodule listing) and UI (tree).
 
 > Note: the Project concept includes "bulk actions", but the only bulk action in MVP is the read-only aggregated status dashboard. Bulk **network** actions land with the network feature set post-MVP.
 
@@ -50,7 +62,11 @@ The application must be **fast**: no UI blocking, parallel work across repositor
 Clean layering; each layer independently understandable and testable. Dependencies point downward only.
 
 ```
-┌─ UI (Qt Widgets) ───────────────────────┐
+┌─ App (Qt, process-wide) ────────────────┐
+│  WindowManager (owns N MainWindows),     │
+│  shared services: ProjectStore,          │
+│  GitRepo cache, thread pool              │
+├─ UI (Qt Widgets, per window) ───────────┤
 │  MainWindow, ProjectSidebar, RepoList,   │
 │  ChangesView, DiffView, GraphView        │
 ├─ ViewModels / Controllers ──────────────┤
@@ -60,6 +76,20 @@ Clean layering; each layer independently understandable and testable. Dependenci
 │  ProjectStore                            │
 └─ libgit2 ────────────────────────────────┘
 ```
+
+### Multi-window (hybrid)
+- A process-wide **WindowManager** owns multiple `MainWindow` instances. Core services
+  (`ProjectStore`, the repo/object caches, the thread pool) live once at app scope and
+  are shared across windows — windows are views over shared state.
+- **"Active project" is per-window UI state**, not a single global. Each window tracks
+  which project it currently shows; opening "in a new window" creates another `MainWindow`
+  bound to a project.
+- Optional de-dup: WindowManager can raise an existing window for a project instead of
+  opening a second (a setting). De-dup logic is isolated in WindowManager so the rest of
+  the UI is unaware.
+- **Session persistence**: which projects have open windows (and geometry) is saved for
+  restore on next launch. This session state is separate from the project *registry*
+  (`ProjectStore`); see §5.
 
 ### Layer boundary rule
 - **Core speaks std**: `std::string` (UTF-8), `std::vector`, `std::filesystem::path`, `std::expected`.
@@ -94,6 +124,24 @@ Clean layering; each layer independently understandable and testable. Dependenci
 - Paths absolute. A repo is only a reference to disk (no copying).
 - `version` for schema migrations.
 - **Atomic write**: write temp file + rename, to avoid data loss on crash.
+- `activeProject` is retained as the **last-focused** project (a hint for which window
+  to open at launch when there is no richer session). It is no longer "the one active
+  project" — under multi-window there can be several open at once.
+
+### Window session (multi-window restore) — separate file
+Window/session state is persisted separately from the project registry, e.g.
+`~/.config/gitgui/session.json`, so opening/closing/moving windows never rewrites the
+project registry:
+```json
+{
+  "version": 1,
+  "windows": [
+    {"projectId": "uuid", "geometry": "<base64 QByteArray>", "lastActiveRepo": "/home/u/api-server"}
+  ]
+}
+```
+Implemented in Plan 2 (UI shell), owned by WindowManager. Listed here so the data model
+is coherent; the Core `ProjectStore` (Plan 1) stays the registry only.
 
 ### Core types (no Qt)
 ```cpp
@@ -154,6 +202,11 @@ Chosen layout: **A — two-level sidebar** (GitHub-Desktop-like).
 - Main area: tabs **Changes** / **History + Graph**.
 - Changes tab: staged/unstaged file list beside the diff view; commit message box at the bottom.
 - History tab: commit graph + log.
+- **Multi-window (hybrid):** the in-window project switcher stays. An "open project in
+  new window" action (sidebar context menu / shortcut) asks WindowManager for another
+  window. Layout A is the per-window layout, replicated across windows.
+- **Submodules (post-MVP):** RepoList rows are a tree — submodules appear as expandable
+  children under their parent repo; selecting one navigates into it as its own repo view.
 
 ## 11. Testing
 
