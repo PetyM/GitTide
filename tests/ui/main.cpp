@@ -28,6 +28,7 @@
 #include "test_dashboard_model.cpp"
 #include "test_project_sidebar.cpp"
 #include "test_main_window.cpp"
+#include "test_window_manager.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -66,6 +67,10 @@ int main(int argc, char** argv) {
     }
     {
         TestMainWindow t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestWindowManager t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
