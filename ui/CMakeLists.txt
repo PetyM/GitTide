@@ -10,6 +10,8 @@ add_library(gitgui_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/RepoController.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/DashboardModel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/DashboardModel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectSidebar.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/ProjectSidebar.hpp
 )
 set_target_properties(gitgui_ui PROPERTIES AUTOMOC ON)
 target_include_directories(gitgui_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
