@@ -103,6 +103,7 @@ TEST_CASE("load of corrupt JSON backs up the file and returns empty store", "[st
     REQUIRE(loaded.has_value());
     REQUIRE(loaded->projects().empty());
     REQUIRE(std::filesystem::exists(path.string() + ".corrupt"));
+    REQUIRE_FALSE(std::filesystem::exists(path));  // original was renamed away
 
     std::filesystem::remove(path);
     std::filesystem::remove(path.string() + ".corrupt");

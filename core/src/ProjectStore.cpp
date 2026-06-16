@@ -89,6 +89,11 @@ Expected<void> ProjectStore::save(const std::filesystem::path& file) const {
     // exists create_directories succeeds silently; any real failure will surface
     // as a rename error below.
 
+    // rename-over-existing is atomic on POSIX and on modern Windows (where
+    // std::filesystem::rename performs a replace). We deliberately do not fsync
+    // the temp file before renaming: for a small project-registry file the
+    // durability gap on a hard crash is acceptable (worst case is losing the most
+    // recent save, never corrupting the prior on-disk copy).
     std::filesystem::rename(tmp, file, ec);
     if (ec) {
         std::filesystem::remove(tmp);  // best-effort cleanup of stale .tmp
@@ -99,7 +104,12 @@ Expected<void> ProjectStore::save(const std::filesystem::path& file) const {
 
 Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
     std::error_code ec;
-    if (!std::filesystem::exists(file, ec))
+    bool present = std::filesystem::exists(file, ec);
+    // A stat failure (e.g. permission denied on the path) is hard I/O, not
+    // "missing" — surface it rather than masking it as an empty store.
+    if (ec)
+        return std::unexpected(GitError{-1, "cannot stat project store: " + ec.message()});
+    if (!present)
         return ProjectStore{};  // missing file -> empty store
 
     std::ifstream in(file, std::ios::binary);
@@ -113,6 +123,8 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
     if (!parsed.has_value()) {
         // Corrupt data: back the file up, return an empty store — never propagate
         // a parse error to callers (bad data must not prevent the app from starting).
+        // An existing "<file>.corrupt" is intentionally overwritten (POSIX rename
+        // replaces the destination): we keep only the most recent bad copy.
         std::filesystem::path backup = file;
         backup += ".corrupt";
         std::filesystem::rename(file, backup, ec);  // best-effort; ignore ec
