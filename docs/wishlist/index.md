@@ -16,6 +16,12 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
+| [Branch management — create / switch / delete](branch-management.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Merge — with conflict resolution](merge.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
 | [GitHub-Desktop-style UI refactor](github-desktop-ui-refactor.md) | 2026-06-17 | `idea` | product, design, engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |

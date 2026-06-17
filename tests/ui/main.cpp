@@ -42,6 +42,22 @@
 #include <cstdlib>
 #include <git2.h>
 
+// Direct, unbuffered stderr marker that survives an abnormal exit, so CI logs
+// show exactly which stage/test was running when the process died.
+#define MARK(msg)                                                                                                              \
+    do                                                                                                                         \
+    {                                                                                                                          \
+        std::fprintf(stderr, "[mark] %s\n", msg);                                                                             \
+        std::fflush(stderr);                                                                                                   \
+    } while (0)
+#define RUN(T)                                                                                                                 \
+    do                                                                                                                         \
+    {                                                                                                                          \
+        MARK("run " #T);                                                                                                       \
+        T t;                                                                                                                   \
+        status |= QTest::qExec(&t, argc, argv);                                                                                \
+    } while (0)
+
 int main(int argc, char** argv)
 {
     // Unbuffer stdout/stderr so QTest output reaches ctest's capture pipe
@@ -49,8 +65,10 @@ int main(int argc, char** argv)
     // discard the entire buffer, leaving an empty "***Failed" with no diagnostics.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     std::setvbuf(stderr, nullptr, _IONBF, 0);
+    MARK("main entered");
 
     QApplication app(argc, argv);
+    MARK("QApplication constructed");
 
     // Hold a process-wide libgit2 reference for the whole run. The per-test repo
     // helpers each call git_libgit2_init()/git_libgit2_shutdown(); without this
@@ -62,84 +80,29 @@ int main(int argc, char** argv)
     // these test repos — that filter ran on a worker thread and crashed.
     for (int level : {GIT_CONFIG_LEVEL_PROGRAMDATA, GIT_CONFIG_LEVEL_SYSTEM, GIT_CONFIG_LEVEL_XDG, GIT_CONFIG_LEVEL_GLOBAL})
         git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, level, "");
+    MARK("libgit2 initialised");
 
     int status = 0;
-    {
-        TestUiSmoke t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestProjectListModel t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestRepoListModel t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestProjectController t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestRepoController t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestSessionStore t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestDashboardModel t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestProjectSidebar t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestMainWindow t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestWindowManager t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestQCoroSmoke t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestAsyncRepo t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestDashboardAsync t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestDiffView t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestChangesView t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestHistoryModel t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestTheme t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestThemeStyle t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
-    {
-        TestThemeManager t;
-        status |= QTest::qExec(&t, argc, argv);
-    }
+    RUN(TestUiSmoke);
+    RUN(TestProjectListModel);
+    RUN(TestRepoListModel);
+    RUN(TestProjectController);
+    RUN(TestRepoController);
+    RUN(TestSessionStore);
+    RUN(TestDashboardModel);
+    RUN(TestProjectSidebar);
+    RUN(TestMainWindow);
+    RUN(TestWindowManager);
+    RUN(TestQCoroSmoke);
+    RUN(TestAsyncRepo);
+    RUN(TestDashboardAsync);
+    RUN(TestDiffView);
+    RUN(TestChangesView);
+    RUN(TestHistoryModel);
+    RUN(TestTheme);
+    RUN(TestThemeStyle);
+    RUN(TestThemeManager);
+    MARK("all tests done");
     // Hard-exit instead of returning, to skip global/static destructors. AsyncRepo
     // runs git operations on the global QThreadPool, whose worker threads are
     // joined only during static teardown; on Windows that teardown touches
