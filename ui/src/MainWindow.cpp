@@ -199,6 +199,10 @@ MainWindow::MainWindow(gittide::ProjectStore* store,
             this, &MainWindow::updateCentralPage);
     connect(controller_, &ProjectController::repoAdded,
             this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::repoRemoved,
+            this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::projectRemoved,
+            this, &MainWindow::updateCentralPage);
     connect(controller_, &ProjectController::repoAddFailed, this,
             [this](const QString& message) {
                 QMessageBox::warning(this, QStringLiteral("Repository Error"), message);

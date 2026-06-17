@@ -32,6 +32,7 @@ private slots:
 private:
     ProjectController* controller_;
     QComboBox* switcher_;
+    QToolButton* removeProjectBtn_;
     QTreeView* repoList_;
     QToolButton* addExistingBtn_;
     QToolButton* initRepoBtn_;

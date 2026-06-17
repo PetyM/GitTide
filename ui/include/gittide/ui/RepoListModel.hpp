@@ -24,7 +24,13 @@ public:
     void setRepos(const std::vector<gittide::RepoRef>& repos);
 
 private:
-    struct Row { QString alias; QString path; bool missing; };
+    struct SubRow { QString path; QString displayName; bool missing; };
+    struct Row {
+        QString alias;
+        QString path;
+        bool missing;
+        std::vector<SubRow> children;
+    };
     std::vector<Row> rows_;
 };
 

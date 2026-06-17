@@ -57,6 +57,12 @@ public:
     // Call save() after mutating to persist the change.
     Expected<void> addRepo(const std::string& projectId, RepoRef repo);
 
+    // Remove a repo by path from the named project. Returns error if not found.
+    Expected<void> removeRepo(const std::string& projectId, const std::string& path);
+
+    // Remove a project by id. If it was the active project, activeProject is cleared.
+    void removeProject(const std::string& id);
+
 private:
     std::deque<Project> projects_;
     std::string activeProject_;

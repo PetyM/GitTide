@@ -2,6 +2,7 @@
 #include "gittide/ui/DiffView.hpp"
 #include "gittide/ui/Metatypes.hpp"
 
+#include <QLabel>
 #include <QListWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -43,8 +44,17 @@ ChangesView::ChangesView(QWidget* parent)
     commitButton_->setObjectName(QStringLiteral("commitButton"));
     commitButton_->setEnabled(false);
 
+    message_->setPlaceholderText(QStringLiteral("Commit message…"));
+
+    auto* stagedLabel = new QLabel(QStringLiteral("Staged Changes"), this);
+    stagedLabel->setProperty("role", "sectionHeader");
+    auto* unstagedLabel = new QLabel(QStringLiteral("Unstaged Changes"), this);
+    unstagedLabel->setProperty("role", "sectionHeader");
+
     auto* leftLayout = new QVBoxLayout;
+    leftLayout->addWidget(stagedLabel);
     leftLayout->addWidget(staged_, 1);
+    leftLayout->addWidget(unstagedLabel);
     leftLayout->addWidget(unstaged_, 1);
     leftLayout->addWidget(message_);
     leftLayout->addWidget(commitButton_);

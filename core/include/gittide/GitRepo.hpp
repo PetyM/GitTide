@@ -61,6 +61,9 @@ public:
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
 
+    // Returns absolute paths of direct submodules (from .gitmodules).
+    Expected<std::vector<std::filesystem::path>> submodules() const;
+
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}
     git_repository* repo_ = nullptr;

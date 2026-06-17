@@ -154,4 +154,30 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
     emit repoAdded(dest);
 }
 
+void ProjectController::removeRepo(const QString& path) {
+    if (activeId_.isEmpty()) return;
+    auto result = store_->removeRepo(activeId_.toStdString(), path.toStdString());
+    if (!result) return;  // silently ignore (shouldn't happen via UI)
+    saveStore();
+    refreshRepoModel();
+    emit repoRemoved(path);
+}
+
+void ProjectController::removeProject() {
+    if (activeId_.isEmpty()) return;
+    const QString removedId = activeId_;
+    store_->removeProject(activeId_.toStdString());
+    activeId_.clear();
+    projectModel_->refresh();
+    // Activate another project if one exists
+    if (!store_->projects().empty()) {
+        const QString nextId = QString::fromStdString(store_->projects().front().id);
+        activate(nextId);
+    } else {
+        repoModel_->setRepos({});
+    }
+    saveStore();
+    emit projectRemoved(removedId);
+}
+
 }  // namespace gittide::ui

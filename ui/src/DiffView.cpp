@@ -70,6 +70,15 @@ void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem:
             item->setData(HunkRole, h);
             item->setData(LineRole, i);
             item->setData(OriginRole, static_cast<int>(ln.origin));
+            if (ln.origin == gittide::DiffLineOrigin::Added) {
+                item->setForeground(QColor(0x4a, 0xde, 0x80));
+                item->setBackground(QColor(0x0d, 0x28, 0x18));
+            } else if (ln.origin == gittide::DiffLineOrigin::Removed) {
+                item->setForeground(QColor(0xf8, 0x71, 0x71));
+                item->setBackground(QColor(0x2d, 0x0f, 0x0f));
+            } else {
+                item->setForeground(QColor(0x94, 0xa3, 0xb8));
+            }
         }
     }
 }

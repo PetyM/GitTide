@@ -37,6 +37,8 @@ public slots:
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
     void cancelClone();
+    void removeRepo(const QString& path);
+    void removeProject();
 
 signals:
     void projectActivated(const QString& projectId);
@@ -44,6 +46,8 @@ signals:
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
     void cloneProgress(int received, int total);
+    void repoRemoved(const QString& path);
+    void projectRemoved(const QString& id);
 
 private:
     gittide::ProjectStore* store_;

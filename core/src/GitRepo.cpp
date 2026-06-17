@@ -361,4 +361,23 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const {
     return result;
 }
 
+Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const {
+    std::vector<std::filesystem::path> result;
+    const std::filesystem::path wd = workdir();
+
+    struct Payload { std::vector<std::filesystem::path>* out; const std::filesystem::path* wd; };
+    Payload payload{&result, &wd};
+
+    auto cb = [](git_submodule* sm, const char* /*name*/, void* pl) -> int {
+        auto* p = static_cast<Payload*>(pl);
+        const char* rel = git_submodule_path(sm);
+        if (rel) p->out->push_back(*p->wd / from_git_path(rel));
+        return 0;
+    };
+
+    const int rc = git_submodule_foreach(repo_, cb, &payload);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return result;
+}
+
 }  // namespace gittide

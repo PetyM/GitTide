@@ -7,6 +7,9 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QItemSelectionModel>
+#include <QMenu>
+#include <QMessageBox>
+#include <QPoint>
 #include <QToolButton>
 #include <QTreeView>
 #include <QVBoxLayout>
@@ -19,17 +22,23 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     : QWidget(parent),
       controller_(controller),
       switcher_(new QComboBox(this)),
+      removeProjectBtn_(new QToolButton(this)),
       repoList_(new QTreeView(this)),
       addExistingBtn_(new QToolButton(this)),
       initRepoBtn_(new QToolButton(this)),
       cloneBtn_(new QToolButton(this)) {
 
     switcher_->setObjectName(QStringLiteral("projectSwitcher"));
+    switcher_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    removeProjectBtn_->setObjectName(QStringLiteral("removeProjectButton"));
+    removeProjectBtn_->setText(QStringLiteral("✕"));
+    removeProjectBtn_->setToolTip(QStringLiteral("Remove current project"));
 
     repoList_->setObjectName(QStringLiteral("repoList"));
     repoList_->setModel(controller_->repos());
     repoList_->header()->hide();
-    repoList_->setRootIsDecorated(false);
+    repoList_->setRootIsDecorated(true);
     repoList_->setContextMenuPolicy(Qt::CustomContextMenu);
 
     addExistingBtn_->setObjectName(QStringLiteral("addExistingButton"));
@@ -44,6 +53,12 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     cloneBtn_->setText(QStringLiteral("Clone"));
     cloneBtn_->setToolTip(QStringLiteral("Clone repository from URL"));
 
+    auto* switcherRow = new QWidget(this);
+    auto* switcherLayout = new QHBoxLayout(switcherRow);
+    switcherLayout->setContentsMargins(0, 0, 0, 0);
+    switcherLayout->addWidget(switcher_);
+    switcherLayout->addWidget(removeProjectBtn_);
+
     auto* toolbar = new QWidget(this);
     auto* toolbarLayout = new QHBoxLayout(toolbar);
     toolbarLayout->setContentsMargins(0, 0, 0, 0);
@@ -53,7 +68,7 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     toolbarLayout->addStretch();
 
     auto* layout = new QVBoxLayout(this);
-    layout->addWidget(switcher_);
+    layout->addWidget(switcherRow);
     layout->addWidget(repoList_, /*stretch=*/1);
     layout->addWidget(toolbar);
 
@@ -62,6 +77,8 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     connect(controller_, &ProjectController::projectCreated, this,
             [this](const QString&) { syncCombo(); });
     connect(controller_, &ProjectController::projectActivated, this,
+            [this](const QString&) { syncCombo(); });
+    connect(controller_, &ProjectController::projectRemoved, this,
             [this](const QString&) { syncCombo(); });
 
     // Selecting a repo row emits repoSelected.
@@ -83,6 +100,30 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
         }
         controller_->activate(id);
     });
+
+    // Remove project button
+    connect(removeProjectBtn_, &QToolButton::clicked, this, [this]() {
+        if (controller_->activeProjectId().isEmpty()) return;
+        const auto answer = QMessageBox::question(
+            this, QStringLiteral("Remove Project"),
+            QStringLiteral("Remove the current project? Repositories on disk are not affected."),
+            QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel);
+        if (answer == QMessageBox::Yes) controller_->removeProject();
+    });
+
+    // Repo list context menu
+    connect(repoList_, &QTreeView::customContextMenuRequested, this,
+            [this](const QPoint& pos) {
+                const QModelIndex idx = repoList_->indexAt(pos);
+                if (!idx.isValid()) return;
+                const QString path = idx.data(RepoListModel::PathRole).toString();
+                if (path.isEmpty()) return;
+                QMenu menu(this);
+                auto* removeAction = menu.addAction(QStringLiteral("Remove from project"));
+                if (menu.exec(repoList_->viewport()->mapToGlobal(pos)) == removeAction) {
+                    controller_->removeRepo(path);
+                }
+            });
 
     // Toolbar buttons
     connect(addExistingBtn_, &QToolButton::clicked, this,

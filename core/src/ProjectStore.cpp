@@ -166,4 +166,26 @@ Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo)
     return {};
 }
 
+Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std::string& path) {
+    auto it = std::find_if(projects_.begin(), projects_.end(),
+                           [&](const Project& p) { return p.id == projectId; });
+    if (it == projects_.end())
+        return std::unexpected(GitError{-1, "project not found: " + projectId});
+    auto& repos = it->repos;
+    auto r = std::find_if(repos.begin(), repos.end(),
+                          [&](const RepoRef& ref) { return ref.path == path; });
+    if (r == repos.end())
+        return std::unexpected(GitError{-1, "repo not found: " + path});
+    repos.erase(r);
+    return {};
+}
+
+void ProjectStore::removeProject(const std::string& id) {
+    projects_.erase(
+        std::remove_if(projects_.begin(), projects_.end(),
+                       [&](const Project& p) { return p.id == id; }),
+        projects_.end());
+    if (activeProject_ == id) activeProject_.clear();
+}
+
 }  // namespace gittide
