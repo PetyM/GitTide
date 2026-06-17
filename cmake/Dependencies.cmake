@@ -31,3 +31,11 @@ if(GITGUI_BUILD_TESTS)
   )
   FetchContent_MakeAvailable(Catch2)
 endif()
+
+# --- UI dependencies ---
+# Qt 6 comes from the system or aqtinstall, NEVER FetchContent (building Qt from
+# source is impractical). Widgets for the UI, Test for headless UI unit tests.
+# Only required when building the UI/app/UI-tests; a core-only build needs no Qt.
+if(GITGUI_BUILD_UI)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Test)
+endif()
