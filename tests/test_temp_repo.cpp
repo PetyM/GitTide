@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <filesystem>
 
 TEST_CASE("TempRepo creates a real git repo on disk", "[support]") {

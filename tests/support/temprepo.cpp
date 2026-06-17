@@ -1,4 +1,4 @@
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include "gittide/pathutil.hpp"
 #include <git2.h>
 #include <fstream>

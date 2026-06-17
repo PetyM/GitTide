@@ -2,7 +2,7 @@
 #include "gittide/gitrepo.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/libgit2context.hpp"
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <filesystem>
 #include <random>
 

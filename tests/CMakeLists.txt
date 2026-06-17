@@ -15,9 +15,9 @@ add_executable(gittide_core_tests
   test_git_repo_init_clone.cpp
   test_git_repo_log.cpp
   test_graph_builder.cpp
-  support/TempRepo.cpp
+  support/temprepo.cpp
 )
-# Tests use <git2.h> directly (test_libgit2.cpp, support/TempRepo.cpp), so the
+# Tests use <git2.h> directly (test_libgit2.cpp, support/temprepo.cpp), so the
 # test target links libgit2 explicitly rather than relying on transitive exposure
 # from gittide_core (where libgit2 is a PRIVATE implementation detail).
 target_link_libraries(gittide_core_tests PRIVATE gittide_core Catch2::Catch2WithMain libgit2package)

@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gittide/gitrepo.hpp"
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <fstream>
 #include <sstream>
 

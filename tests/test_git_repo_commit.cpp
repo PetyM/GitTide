@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gittide/gitrepo.hpp"
 #include "gittide/pathutil.hpp"
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <git2.h>
 
 TEST_CASE("GitRepo::commit creates a commit from the staged index", "[commit]") {

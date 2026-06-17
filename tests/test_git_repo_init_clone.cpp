@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gittide/gitrepo.hpp"
 #include "gittide/libgit2context.hpp"
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <filesystem>
 #include <random>
 

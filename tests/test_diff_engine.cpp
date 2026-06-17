@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gittide/diffengine.hpp"
 #include "gittide/pathutil.hpp"
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 #include <git2.h>
 #include <memory>
 
