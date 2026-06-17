@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>GitTide — finální logo</title>
+<style>
+  body{background:#0d1117;margin:0;padding:48px;font-family:system-ui,sans-serif;color:#8b949e;}
+  h1{color:#c9d1d9;font-size:22px;font-weight:700;margin:0 0 4px;}
+  .sub{color:#6e7681;font-size:13px;margin:0 0 32px;}
+  h2{color:#8b949e;font-size:12px;font-weight:600;margin:34px 0 14px;letter-spacing:.08em;text-transform:uppercase;}
+  .row{display:flex;flex-wrap:wrap;gap:34px;align-items:center;}
+  .tile{display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .cap{font-size:11px;color:#6e7681;}
+  .lockup{display:flex;align-items:center;gap:18px;background:#0B1623;border-radius:18px;padding:22px 30px;}
+  .lockup .name{font-size:38px;font-weight:700;letter-spacing:-.01em;}
+  .lockup .name b{color:#fff;font-weight:700;}
+  .lockup .name span{color:#22D3EE;font-weight:700;}
+  .lockup.light{background:#EEF3F8;}
+  .lockup.light .name b{color:#0B1623;}
+  .lockup.light .name span{color:#0891B2;}
+</style>
+</head>
+<body>
+<h1>GitTide</h1>
+<p class="sub">Finální logo — vnořené vlny (echo) z kořenového commitu. Cyan, commit-prstence, plný HEAD.</p>
+
+<h2>App icon</h2>
+<div class="row">
+  <div class="tile"><img src="gittide-icon.svg" width="120" height="120"><div class="cap">dark</div></div>
+  <div class="tile"><img src="gittide-icon-light.svg" width="120" height="120"><div class="cap">light</div></div>
+  <div class="tile"><img src="gittide-mark.svg" width="180" style="background:#0B1623;border-radius:14px;padding:14px"><div class="cap">mark (transparent)</div></div>
+</div>
+
+<h2>Škálování — dark</h2>
+<div class="row" id="darkRow"></div>
+
+<h2>Škálování — light</h2>
+<div class="row" id="lightRow"></div>
+
+<h2>Wordmark lockup</h2>
+<div class="row">
+  <div class="lockup"><img src="gittide-icon.svg" width="60" height="60"><div class="name"><b>Git</b><span>Tide</span></div></div>
+</div>
+<div class="row" style="margin-top:18px">
+  <div class="lockup light"><img src="gittide-icon-light.svg" width="60" height="60"><div class="name"><b>Git</b><span>Tide</span></div></div>
+</div>
+
+<script>
+const SIZES=[512,128,64,32,16];
+function iconSVG(dark){
+  const C = dark ? '#22D3EE' : '#0891B2';
+  const BG = dark ? '#0B1623' : '#EEF3F8';
+  const HEAD = dark ? '#FFFFFF' : '#0891B2';
+  return `<svg viewBox="0 0 120 120">
+    <defs><path id="w" d="M12,84 Q16,68 30,58 Q46,47 64,50 Q80,53 82,68 Q83,80 71,80 Q63,80 64,72"/></defs>
+    <rect width="120" height="120" rx="27" fill="${BG}"/>
+    <g transform="translate(8.3,-15.15) scale(1.1)" stroke-linecap="round">
+      <use href="#w" fill="none" stroke="${C}" stroke-width="5"   opacity="0.30" transform="translate(7.44,52.08) scale(0.38)"/>
+      <use href="#w" fill="none" stroke="${C}" stroke-width="4.3" opacity="0.55" transform="translate(4.8,33.6) scale(0.6)"/>
+      <use href="#w" fill="none" stroke="${C}" stroke-width="3.5"/>
+      <circle cx="31.76" cy="71.08" r="3.4" fill="${BG}" stroke="${C}" stroke-width="2.4"/>
+      <circle cx="54" cy="74.4" r="4" fill="${BG}" stroke="${C}" stroke-width="2.6"/>
+      <circle cx="40" cy="51" r="5" fill="${BG}" stroke="${C}" stroke-width="3"/>
+      <circle cx="64" cy="50" r="5" fill="${BG}" stroke="${C}" stroke-width="3"/>
+      <circle cx="82" cy="68" r="5" fill="${BG}" stroke="${C}" stroke-width="3"/>
+      <circle cx="12" cy="84" r="5.5" fill="${HEAD}"/>
+    </g></svg>`;
+}
+function fill(rowId,dark){
+  const row=document.getElementById(rowId);
+  SIZES.forEach(s=>{
+    const t=document.createElement('div');t.className='tile';
+    const box=document.createElement('div');box.style.width=s+'px';box.style.height=s+'px';
+    box.innerHTML=iconSVG(dark);
+    const svg=box.querySelector('svg');svg.setAttribute('width',s);svg.setAttribute('height',s);
+    t.appendChild(box);
+    const c=document.createElement('div');c.className='cap';c.textContent=s+'px';t.appendChild(c);
+    row.appendChild(t);
+  });
+}
+fill('darkRow',true);
+fill('lightRow',false);
+</script>
+</body>
+</html>
