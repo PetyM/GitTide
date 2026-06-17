@@ -18,6 +18,8 @@ add_library(gitgui_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/WindowManager.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/AsyncRepo.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/AsyncRepo.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/DiffView.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/DiffView.hpp
 )
 set_target_properties(gitgui_ui PROPERTIES AUTOMOC ON)
 target_include_directories(gitgui_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
