@@ -1,8 +1,9 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <vector>
 
-namespace gitgui { class ProjectStore; }
+#include "gitgui/ProjectStore.hpp"
 
 namespace gitgui::ui {
 
@@ -20,6 +21,7 @@ public:
     ProjectListModel* projects() const { return projectModel_; }
     RepoListModel* repos() const { return repoModel_; }
     QString activeProjectId() const { return activeId_; }
+    const std::vector<gitgui::RepoRef>& activeRepos() const;
 
 public slots:
     // Activate the project with this id. Unknown id is a no-op (no signal).

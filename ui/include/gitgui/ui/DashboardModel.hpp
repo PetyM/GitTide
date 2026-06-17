@@ -1,6 +1,7 @@
 #pragma once
 #include <QAbstractListModel>
 #include <vector>
+#include <qcorotask.h>
 #include "gitgui/ProjectStore.hpp"
 
 namespace gitgui::ui {
@@ -22,6 +23,13 @@ public:
 
     // Recompute rows from the given repos (synchronous).
     void refresh(const std::vector<gitgui::RepoRef>& repos);
+
+    // Recompute rows in parallel: one pool task per repo, each opening its OWN
+    // GitRepo (no shared state). Emits refreshed() when all results are gathered.
+    QCoro::Task<void> refreshAsync(std::vector<gitgui::RepoRef> repos);
+
+signals:
+    void refreshed();
 
 private:
     struct Row { QString alias; QString path; int changeCount; bool missing; };

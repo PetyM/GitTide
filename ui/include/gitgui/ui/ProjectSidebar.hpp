@@ -21,6 +21,7 @@ public slots:
 
 signals:
     void openInNewWindowRequested(const QString& projectId);
+    void repoSelected(const QString& repoPath);
 
 private:
     ProjectController* controller_;

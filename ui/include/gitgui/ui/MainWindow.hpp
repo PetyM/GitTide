@@ -8,10 +8,10 @@ namespace gitgui::ui {
 
 class ProjectController;
 class ProjectSidebar;
+class RepoController;
+class ChangesView;
+class DashboardModel;
 
-// One window of the hybrid multi-window model. References the shared
-// ProjectStore; owns a per-window ProjectController (active project is
-// per-window state).
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -24,10 +24,14 @@ public:
 
 signals:
     void openInNewWindowRequested(const QString& projectId);
+    void repoOpened(const QString& path);
 
 private:
     ProjectController* controller_;
     ProjectSidebar* sidebar_;
+    RepoController* repoController_;
+    ChangesView* changesView_;
+    DashboardModel* dashboardModel_;
 };
 
 }  // namespace gitgui::ui

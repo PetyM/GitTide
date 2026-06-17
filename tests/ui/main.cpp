@@ -29,6 +29,11 @@
 #include "test_project_sidebar.cpp"
 #include "test_main_window.cpp"
 #include "test_window_manager.cpp"
+#include "test_qcoro_smoke.cpp"
+#include "test_async_repo.cpp"
+#include "test_dashboard_async.cpp"
+#include "test_diff_view.cpp"
+#include "test_changes_view.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -71,6 +76,26 @@ int main(int argc, char** argv) {
     }
     {
         TestWindowManager t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestQCoroSmoke t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestAsyncRepo t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestDashboardAsync t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestDiffView t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestChangesView t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;

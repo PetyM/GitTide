@@ -33,9 +33,25 @@ if(GITGUI_BUILD_TESTS)
 endif()
 
 # --- UI dependencies ---
-# Qt 6 comes from the system or aqtinstall, NEVER FetchContent (building Qt from
-# source is impractical). Widgets for the UI, Test for headless UI unit tests.
-# Only required when building the UI/app/UI-tests; a core-only build needs no Qt.
+# Qt 6 comes from the system or aqtinstall, NEVER FetchContent. Widgets for the UI,
+# Test for headless UI unit tests, Concurrent for off-main-thread git ops.
+# QCoro adds co_await support over QFuture; it is built from source via FetchContent.
 if(GITGUI_BUILD_UI)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets Test)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Test Concurrent)
+
+  # Trim QCoro to the modules we use; the rest pull in Qt components we don't link.
+  set(QCORO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(QCORO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(QCORO_WITH_QML OFF CACHE BOOL "" FORCE)
+  set(QCORO_WITH_QTQUICK OFF CACHE BOOL "" FORCE)
+  set(QCORO_WITH_QTDBUS OFF CACHE BOOL "" FORCE)
+  set(QCORO_WITH_QTNETWORK OFF CACHE BOOL "" FORCE)
+  set(QCORO_WITH_QTWEBSOCKETS OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    qcoro
+    GIT_REPOSITORY https://github.com/qcoro/qcoro.git
+    GIT_TAG        v0.11.0
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(qcoro)
 endif()
