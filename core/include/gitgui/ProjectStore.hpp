@@ -52,6 +52,11 @@ public:
     // Call save() after mutating to persist the change.
     Project& createProject(const std::string& name);
 
+    // Add repo to the named project. Returns error if projectId is not found,
+    // or if a repo with the same path already exists in that project.
+    // Call save() after mutating to persist the change.
+    Expected<void> addRepo(const std::string& projectId, RepoRef repo);
+
 private:
     std::deque<Project> projects_;
     std::string activeProject_;

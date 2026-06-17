@@ -1,5 +1,6 @@
 #include "gitgui/ProjectStore.hpp"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <fstream>
 #include <iterator>
 #include <system_error>
@@ -148,6 +149,21 @@ Project& ProjectStore::createProject(const std::string& name) {
     p.name = name;
     projects_.push_back(std::move(p));
     return projects_.back();
+}
+
+Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo) {
+    auto it = std::find_if(projects_.begin(), projects_.end(),
+                           [&](const Project& p) { return p.id == projectId; });
+    if (it == projects_.end())
+        return std::unexpected(GitError{-1, "project not found: " + projectId});
+
+    for (const auto& existing : it->repos) {
+        if (existing.path == repo.path)
+            return std::unexpected(
+                GitError{-1, "repository already in project: " + repo.path});
+    }
+    it->repos.push_back(std::move(repo));
+    return {};
 }
 
 }  // namespace gitgui

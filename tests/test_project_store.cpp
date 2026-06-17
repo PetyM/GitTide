@@ -136,3 +136,45 @@ TEST_CASE("createProject persists via save/load round-trip", "[store][mutations]
 
     std::filesystem::remove(path);
 }
+
+TEST_CASE("addRepo inserts a repo into the project", "[store][mutations]") {
+    gitgui::ProjectStore store;
+    auto& p = store.createProject("Work");
+    auto result = store.addRepo(p.id, gitgui::RepoRef{"/home/u/api", "api"});
+    REQUIRE(result.has_value());
+    REQUIRE(store.projects()[0].repos.size() == 1);
+    REQUIRE(store.projects()[0].repos[0].path == "/home/u/api");
+    REQUIRE(store.projects()[0].repos[0].alias == "api");
+}
+
+TEST_CASE("addRepo rejects a duplicate path within the same project", "[store][mutations]") {
+    gitgui::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addRepo(p.id, gitgui::RepoRef{"/home/u/api", "api"}).has_value());
+
+    auto dup = store.addRepo(p.id, gitgui::RepoRef{"/home/u/api", "api-copy"});
+    REQUIRE_FALSE(dup.has_value());
+    REQUIRE(!dup.error().message.empty());
+    REQUIRE(store.projects()[0].repos.size() == 1);
+}
+
+TEST_CASE("addRepo returns error for unknown project id", "[store][mutations]") {
+    gitgui::ProjectStore store;
+    auto result = store.addRepo("no-such-id", gitgui::RepoRef{"/some/path", "r"});
+    REQUIRE_FALSE(result.has_value());
+}
+
+TEST_CASE("addRepo round-trips through save/load", "[store][mutations]") {
+    auto path = temp_json_path();
+    gitgui::ProjectStore store;
+    auto& p = store.createProject("Proj");
+    store.addRepo(p.id, gitgui::RepoRef{"/srv/myrepo", "myrepo"});
+    REQUIRE(store.save(path).has_value());
+
+    auto loaded = gitgui::ProjectStore::load(path);
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects()[0].repos.size() == 1);
+    REQUIRE(loaded->projects()[0].repos[0].alias == "myrepo");
+
+    std::filesystem::remove(path);
+}
