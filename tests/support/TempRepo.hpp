@@ -24,6 +24,9 @@ public:
     // Stage all changes and create a commit with a fixed test author.
     void commit_all(std::string_view message);
 
+    // Write user.name / user.email into the repo's git config.
+    void set_identity(std::string_view name, std::string_view email);
+
 private:
     LibGit2Context ctx_;
     std::filesystem::path dir_;

@@ -176,4 +176,49 @@ Expected<void> GitRepo::apply_partial(const StageSelection&, bool) {
     return std::unexpected(GitError{-1, "partial staging not yet implemented"});
 }
 
+Expected<std::string> GitRepo::commit(const CommitRequest& req) {
+    git_signature* sig = nullptr;
+    int rc = git_signature_default(&sig, repo_);  // reads user.name/user.email
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_signature, decltype(&git_signature_free)>
+        sig_guard(sig, git_signature_free);
+
+    git_index* index = nullptr;
+    rc = git_repository_index(&index, repo_);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)>
+        idx_guard(index, git_index_free);
+
+    git_oid tree_oid;
+    rc = git_index_write_tree(&tree_oid, index);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    git_tree* tree = nullptr;
+    rc = git_tree_lookup(&tree, repo_, &tree_oid);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_tree, decltype(&git_tree_free)>
+        tree_guard(tree, git_tree_free);
+
+    // Parent = current HEAD commit, if the branch is born.
+    git_commit* parent = nullptr;
+    git_oid parent_oid;
+    git_commit* parents[1] = {nullptr};
+    size_t parent_count = 0;
+    if (git_reference_name_to_id(&parent_oid, repo_, "HEAD") == 0 &&
+        git_commit_lookup(&parent, repo_, &parent_oid) == 0) {
+        parents[0] = parent;
+        parent_count = 1;
+    }
+
+    git_oid commit_oid;
+    rc = git_commit_create(&commit_oid, repo_, "HEAD", sig, sig,
+                           nullptr, req.message.c_str(), tree,
+                           parent_count, parents);
+    if (parent) git_commit_free(parent);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+
+    char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(buf, sizeof(buf), &commit_oid);
+    return std::string(buf);
+}
+
 }  // namespace gitgui

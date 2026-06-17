@@ -33,6 +33,10 @@ public:
     Expected<void> stage(const StageSelection& sel);
     Expected<void> unstage(const StageSelection& sel);
 
+    // Commit the current index. Author/committer come from git config
+    // (user.name/user.email). Returns the new commit's hex oid.
+    Expected<std::string> commit(const CommitRequest& req);
+
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}
     git_repository* repo_ = nullptr;

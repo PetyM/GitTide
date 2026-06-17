@@ -77,4 +77,14 @@ void TempRepo::commit_all(std::string_view message) {
     git_index_free(index);
 }
 
+void TempRepo::set_identity(std::string_view name, std::string_view email) {
+    git_config* cfg = nullptr;
+    check(git_repository_config(&cfg, repo_), "git_repository_config failed");
+    check(git_config_set_string(cfg, "user.name", std::string(name).c_str()),
+          "set user.name failed");
+    check(git_config_set_string(cfg, "user.email", std::string(email).c_str()),
+          "set user.email failed");
+    git_config_free(cfg);
+}
+
 }  // namespace gitgui::test

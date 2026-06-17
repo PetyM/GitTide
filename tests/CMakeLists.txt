@@ -8,6 +8,7 @@ add_executable(gitgui_core_tests
   test_diff_engine.cpp
   test_git_repo_diff.cpp
   test_git_repo_stage.cpp
+  test_git_repo_commit.cpp
   test_project_store.cpp
   support/TempRepo.cpp
 )
