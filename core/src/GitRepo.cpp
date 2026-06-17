@@ -46,6 +46,16 @@ Expected<GitRepo> GitRepo::open(const std::filesystem::path& path) {
     return GitRepo(repo);
 }
 
+Expected<GitRepo> GitRepo::init(const std::filesystem::path& path) {
+    if (std::filesystem::exists(path / ".git"))
+        return std::unexpected(GitError{-1, "repository already exists at " +
+                                             path.generic_string()});
+    git_repository* repo = nullptr;
+    int rc = git_repository_init(&repo, to_git_path(path).c_str(), /*is_bare=*/0);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return GitRepo(repo);
+}
+
 Expected<std::vector<FileStatus>> GitRepo::status() const {
     git_status_options opts = GIT_STATUS_OPTIONS_INIT;
     opts.show = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;

@@ -22,6 +22,10 @@ public:
     // Open an existing repository at (or above) the given path.
     static Expected<GitRepo> open(const std::filesystem::path& path);
 
+    // Initialise a new non-bare repository at path. Creates path if absent.
+    // Errors if a .git directory already exists at path.
+    static Expected<GitRepo> init(const std::filesystem::path& path);
+
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;
 
