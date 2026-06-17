@@ -48,6 +48,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changes_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_style.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

@@ -26,6 +26,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/ChangesView.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Theme.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/Theme.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/ThemeStyle.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/ThemeStyle.hpp
 )
 set_target_properties(gittide_ui PROPERTIES AUTOMOC ON)
 target_include_directories(gittide_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
