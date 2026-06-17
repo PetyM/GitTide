@@ -139,7 +139,7 @@ private slots:
     void cloneRepo_file_url_succeeds_and_emits_repoAdded() {
         // Create a source repo with one commit so transfer_progress fires
         auto srcDir = std::filesystem::temp_directory_path() /
-                      ("gitgui-pc-src-" + std::to_string(rand()));
+                      ("gitgui-pc-src-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::create_directories(srcDir);
         git_repository* srcRaw = nullptr;
         git_repository_init(&srcRaw, srcDir.generic_string().c_str(), 0);
@@ -162,7 +162,7 @@ private slots:
         git_repository_free(srcRaw);
 
         auto destDir = std::filesystem::temp_directory_path() /
-                       ("gitgui-pc-dst-" + std::to_string(rand()));
+                       ("gitgui-pc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::remove_all(destDir);  // clone creates it
 
         ProjectStore store;
