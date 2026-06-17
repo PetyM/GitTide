@@ -32,6 +32,45 @@ QCoro::Task<gitgui::Expected<std::vector<gitgui::FileStatus>>> AsyncRepo::status
     });
 }
 
-// diff/stage/unstage/discard/commit are added in Task 4.
+QCoro::Task<gitgui::Expected<gitgui::DiffResult>> AsyncRepo::diff(
+    gitgui::DiffTarget target, std::filesystem::path file) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, target, file = std::move(file)]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.diff(target, file);
+    });
+}
+
+QCoro::Task<gitgui::Expected<void>> AsyncRepo::stage(gitgui::StageSelection sel) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, sel = std::move(sel)]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.stage(sel);
+    });
+}
+
+QCoro::Task<gitgui::Expected<void>> AsyncRepo::unstage(gitgui::StageSelection sel) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, sel = std::move(sel)]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.unstage(sel);
+    });
+}
+
+QCoro::Task<gitgui::Expected<void>> AsyncRepo::discard(gitgui::StageSelection sel) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, sel = std::move(sel)]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.discard(sel);
+    });
+}
+
+QCoro::Task<gitgui::Expected<std::string>> AsyncRepo::commit(gitgui::CommitRequest req) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, req = std::move(req)]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.commit(req);
+    });
+}
 
 }  // namespace gitgui::ui

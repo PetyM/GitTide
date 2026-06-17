@@ -68,6 +68,39 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void stage_whole_file_then_status_shows_staged() {
+        const auto dir = make_dirty_repo();
+        auto repo = AsyncRepo::open(dir);
+        QVERIFY(repo.has_value());
+
+        auto staged = QCoro::waitFor(repo->stage(gitgui::StageSelection{.path = "a.txt"}));
+        QVERIFY(staged.has_value());
+
+        auto result = QCoro::waitFor(repo->status());
+        QVERIFY(result.has_value());
+        QCOMPARE(static_cast<int>(result->size()), 1);
+        QVERIFY(gitgui::has_flag((*result)[0].flags, gitgui::StatusFlag::IndexModified));
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void commit_after_staging_clears_status() {
+        const auto dir = make_dirty_repo();
+        auto repo = AsyncRepo::open(dir);
+        QVERIFY(repo.has_value());
+
+        QCoro::waitFor(repo->stage(gitgui::StageSelection{.path = "a.txt"}));
+        auto oid = QCoro::waitFor(repo->commit(gitgui::CommitRequest{.message = "second"}));
+        QVERIFY(oid.has_value());
+        QVERIFY(!oid->empty());
+
+        auto result = QCoro::waitFor(repo->status());
+        QVERIFY(result.has_value());
+        QCOMPARE(static_cast<int>(result->size()), 0);
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_async_repo.moc"
