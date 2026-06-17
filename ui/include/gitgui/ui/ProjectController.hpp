@@ -1,8 +1,11 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <atomic>
 #include <filesystem>
 #include <vector>
+
+#include <qcorotask.h>
 
 #include "gitgui/ProjectStore.hpp"
 
@@ -32,12 +35,15 @@ public slots:
     void createProject(const QString& name);
     void addExistingRepo(const QString& path);
     void initRepo(const QString& parentDir, const QString& name);
+    QCoro::Task<void> cloneRepo(QString url, QString dest);
+    void cancelClone();
 
 signals:
     void projectActivated(const QString& projectId);
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
+    void cloneProgress(int received, int total);
 
 private:
     gitgui::ProjectStore* store_;
@@ -45,6 +51,7 @@ private:
     ProjectListModel* projectModel_;
     RepoListModel* repoModel_;
     QString activeId_;
+    std::atomic<bool> cloneCancel_{false};
 
     void saveStore() const;
     void refreshRepoModel();

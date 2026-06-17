@@ -12,16 +12,17 @@
 #include <qcorotask.h>
 
 #include <QDockWidget>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QListView>
 #include <QMessageBox>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>
-#include <QFileDialog>
 
 namespace gitgui::ui {
 
@@ -221,7 +222,30 @@ void MainWindow::onInitRepoRequested() {
 }
 
 void MainWindow::onCloneRepoRequested() {
-    // Stub — implemented in Task 5.
+    CloneRepoDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QString url  = dlg.url().trimmed();
+    const QString dest = dlg.dest().trimmed();
+    if (url.isEmpty() || dest.isEmpty()) return;
+
+    auto* progress = new QProgressDialog(
+        QStringLiteral("Cloning…"), QStringLiteral("Cancel"), 0, 100, this);
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->show();
+
+    connect(controller_, &ProjectController::cloneProgress, progress,
+            [progress](int r, int t) {
+                if (t > 0) progress->setValue(r * 100 / t);
+            });
+    connect(progress, &QProgressDialog::canceled, controller_,
+            &ProjectController::cancelClone);
+
+    QCoro::connect(controller_->cloneRepo(url, dest), this,
+                   [progress] {
+                       progress->close();
+                       progress->deleteLater();
+                   });
 }
 
 QString MainWindow::currentProjectId() const {

@@ -19,4 +19,17 @@ private:
     QLineEdit* nameEdit_;
 };
 
+// Dialog for "Clone repository" — remote URL + local destination.
+class CloneRepoDialog : public QDialog {
+    Q_OBJECT
+public:
+    explicit CloneRepoDialog(QWidget* parent = nullptr);
+    QString url() const;
+    QString dest() const;
+
+private:
+    QLineEdit* urlEdit_;
+    QLineEdit* destEdit_;
+};
+
 }  // namespace gitgui::ui

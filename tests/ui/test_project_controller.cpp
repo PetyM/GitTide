@@ -4,7 +4,10 @@
 #include <QUuid>
 
 #include <filesystem>
+#include <fstream>
 #include <git2.h>
+
+#include <qcorotask.h>
 
 #include "gitgui/ProjectStore.hpp"
 #include "gitgui/ui/ProjectController.hpp"
@@ -131,6 +134,70 @@ private slots:
         QVERIFY(std::filesystem::exists(dest / ".git"));
         QCOMPARE(store.projects()[0].repos.size(), std::size_t(1));
         std::filesystem::remove_all(dest);
+    }
+
+    void cloneRepo_file_url_succeeds_and_emits_repoAdded() {
+        // Create a source repo with one commit so transfer_progress fires
+        auto srcDir = std::filesystem::temp_directory_path() /
+                      ("gitgui-pc-src-" + std::to_string(rand()));
+        std::filesystem::create_directories(srcDir);
+        git_repository* srcRaw = nullptr;
+        git_repository_init(&srcRaw, srcDir.generic_string().c_str(), 0);
+        // Config + commit
+        git_config* cfg = nullptr;
+        git_repository_config(&cfg, srcRaw);
+        git_config_set_string(cfg, "user.name", "T");
+        git_config_set_string(cfg, "user.email", "t@e.x");
+        git_config_free(cfg);
+        { std::ofstream(srcDir / "README") << "hello\n"; }
+        git_index* idx = nullptr; git_repository_index(&idx, srcRaw);
+        git_index_add_bypath(idx, "README");
+        git_index_write(idx);
+        git_oid treeOid; git_index_write_tree(&treeOid, idx);
+        git_tree* tree = nullptr; git_tree_lookup(&tree, srcRaw, &treeOid);
+        git_signature* sig = nullptr; git_signature_now(&sig, "T", "t@e.x");
+        git_oid cOid;
+        git_commit_create_v(&cOid, srcRaw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+        git_signature_free(sig); git_tree_free(tree); git_index_free(idx);
+        git_repository_free(srcRaw);
+
+        auto destDir = std::filesystem::temp_directory_path() /
+                       ("gitgui-pc-dst-" + std::to_string(rand()));
+        std::filesystem::remove_all(destDir);  // clone creates it
+
+        ProjectStore store;
+        auto& p = store.createProject("proj");
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(p.id));
+
+        QSignalSpy spy(&controller, &ProjectController::repoAdded);
+        QCoro::waitFor(controller.cloneRepo(
+            QString::fromStdString("file://" + srcDir.generic_string()),
+            QString::fromStdString(destDir.generic_string())));
+
+        QCOMPARE(spy.count(), 1);
+        QVERIFY(std::filesystem::exists(destDir / ".git"));
+        QCOMPARE(store.projects()[0].repos.size(), std::size_t(1));
+
+        std::filesystem::remove_all(srcDir);
+        std::filesystem::remove_all(destDir);
+    }
+
+    void cloneRepo_invalid_url_emits_repoAddFailed() {
+        ProjectStore store;
+        auto& p = store.createProject("proj");
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(p.id));
+
+        QSignalSpy spyAdded(&controller, &ProjectController::repoAdded);
+        QSignalSpy spyFailed(&controller, &ProjectController::repoAddFailed);
+        QCoro::waitFor(controller.cloneRepo(
+            QStringLiteral("file:///no/such/gitgui-repo-notexist"),
+            QStringLiteral("/tmp/gitgui-clone-dst-noexist")));
+
+        QCOMPARE(spyAdded.count(), 0);
+        QCOMPARE(spyFailed.count(), 1);
+        QVERIFY(!spyFailed.at(0).at(0).toString().isEmpty());
     }
 };
 

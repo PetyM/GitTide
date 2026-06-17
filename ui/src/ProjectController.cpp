@@ -6,6 +6,9 @@
 
 #include <filesystem>
 
+#include <QtConcurrent>
+#include <core/qcorofuture.h>
+
 namespace gitgui::ui {
 
 ProjectController::ProjectController(gitgui::ProjectStore* store,
@@ -106,6 +109,49 @@ void ProjectController::initRepo(const QString& parentDir, const QString& name) 
     saveStore();
     refreshRepoModel();
     emit repoAdded(QString::fromStdString(dest.generic_string()));
+}
+
+void ProjectController::cancelClone() {
+    cloneCancel_.store(true);
+}
+
+QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
+    cloneCancel_.store(false);
+
+    gitgui::ProgressCallback cb = [this](unsigned r, unsigned t) -> bool {
+        if (cloneCancel_.load()) return false;
+        QMetaObject::invokeMethod(this, [this, r, t] {
+            emit cloneProgress(static_cast<int>(r), static_cast<int>(t));
+        }, Qt::QueuedConnection);
+        return true;
+    };
+
+    const std::string urlStr  = url.toStdString();
+    const std::filesystem::path destPath(dest.toStdString());
+
+    auto result = co_await QtConcurrent::run(
+        [urlStr, destPath, cb = std::move(cb)]() mutable -> gitgui::Expected<void> {
+            auto r = gitgui::GitRepo::clone(urlStr, destPath, std::move(cb));
+            if (!r) return std::unexpected(r.error());
+            return {};
+        });
+
+    if (!result) {
+        if (!cloneCancel_.load()) {
+            emit repoAddFailed(QString::fromStdString(result.error().message));
+        }
+        co_return;
+    }
+
+    auto addResult = store_->addRepo(activeId_.toStdString(),
+                                     gitgui::RepoRef{.path = dest.toStdString()});
+    if (!addResult) {
+        emit repoAddFailed(QString::fromStdString(addResult.error().message));
+        co_return;
+    }
+    saveStore();
+    refreshRepoModel();
+    emit repoAdded(dest);
 }
 
 }  // namespace gitgui::ui
