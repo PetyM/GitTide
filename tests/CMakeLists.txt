@@ -5,6 +5,7 @@ add_executable(gitgui_core_tests
   test_git_error.cpp
   test_temp_repo.cpp
   test_git_repo.cpp
+  test_diff_engine.cpp
   test_project_store.cpp
   support/TempRepo.cpp
 )

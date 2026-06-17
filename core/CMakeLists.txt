@@ -4,6 +4,7 @@ target_sources(gitgui_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/PathUtil.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GitError.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GitRepo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/DiffEngine.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectStore.cpp
 )
 target_include_directories(gitgui_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
