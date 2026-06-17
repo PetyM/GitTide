@@ -137,11 +137,6 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
 }
 
 Project& ProjectStore::createProject(const std::string& name) {
-    // Ensure sufficient reserved capacity to avoid reference invalidation
-    // when push_back causes reallocation. Reserve once per vector (not per call).
-    if (projects_.capacity() == 0)
-        projects_.reserve(256);
-
     std::mt19937_64 gen{std::random_device{}()};
     std::uniform_int_distribution<std::uint64_t> dist;
     std::ostringstream oss;
