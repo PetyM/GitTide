@@ -1,6 +1,8 @@
 #pragma once
 #include <filesystem>
 #include <vector>
+#include <functional>
+#include <string>
 #include "gitgui/GitError.hpp"
 #include "gitgui/FileStatus.hpp"
 #include "gitgui/Diff.hpp"
@@ -8,6 +10,10 @@
 struct git_repository;
 
 namespace gitgui {
+
+// Callback invoked during a clone transfer: (received_objects, total_objects).
+// Return true to continue, false to cancel (clone returns an error).
+using ProgressCallback = std::function<bool(unsigned received, unsigned total)>;
 
 // RAII wrapper around a single libgit2 git_repository.
 // Move-only. Not safe to share across threads; one owner per repo.
@@ -25,6 +31,12 @@ public:
     // Initialise a new non-bare repository at path. Creates path if absent.
     // Errors if a .git directory already exists at path.
     static Expected<GitRepo> init(const std::filesystem::path& path);
+
+    // Clone the repository at url into dest. Calls cb during the transfer.
+    // dest must not exist (libgit2 creates it). Returns error on failure or cancel.
+    static Expected<GitRepo> clone(const std::string& url,
+                                   const std::filesystem::path& dest,
+                                   ProgressCallback cb);
 
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;

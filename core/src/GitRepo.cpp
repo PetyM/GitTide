@@ -21,6 +21,11 @@ gitgui::StatusFlag map_status(unsigned int s) {
     if (s & GIT_STATUS_WT_DELETED)     f |= StatusFlag::WtDeleted;
     return f;
 }
+
+int transfer_progress_trampoline(const git_indexer_progress* stats, void* payload) {
+    auto* cb = static_cast<gitgui::ProgressCallback*>(payload);
+    return (*cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
+}
 }  // anonymous namespace
 
 namespace gitgui {
@@ -52,6 +57,19 @@ Expected<GitRepo> GitRepo::init(const std::filesystem::path& path) {
                                              path.generic_string()});
     git_repository* repo = nullptr;
     int rc = git_repository_init(&repo, to_git_path(path).c_str(), /*is_bare=*/0);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return GitRepo(repo);
+}
+
+Expected<GitRepo> GitRepo::clone(const std::string& url,
+                                  const std::filesystem::path& dest,
+                                  ProgressCallback cb) {
+    git_clone_options opts = GIT_CLONE_OPTIONS_INIT;
+    opts.fetch_opts.callbacks.transfer_progress = transfer_progress_trampoline;
+    opts.fetch_opts.callbacks.payload = &cb;  // cb lives on the stack for the duration
+
+    git_repository* repo = nullptr;
+    int rc = git_clone(&repo, url.c_str(), to_git_path(dest).c_str(), &opts);
     if (rc < 0) return std::unexpected(last_git_error(rc));
     return GitRepo(repo);
 }
