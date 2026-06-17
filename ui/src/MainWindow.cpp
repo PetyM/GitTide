@@ -162,6 +162,10 @@ MainWindow::MainWindow(gitgui::ProjectStore* store,
             this, &MainWindow::updateCentralPage);
     connect(controller_, &ProjectController::repoAdded,
             this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::repoAddFailed, this,
+            [this](const QString& message) {
+                QMessageBox::warning(this, QStringLiteral("Repository Error"), message);
+            });
 
     // Sidebar mutation signals → handlers
     connect(sidebar_, &ProjectSidebar::createProjectRequested,
