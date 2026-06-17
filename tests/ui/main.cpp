@@ -33,6 +33,7 @@
 #include "test_async_repo.cpp"
 #include "test_dashboard_async.cpp"
 #include "test_diff_view.cpp"
+#include "test_changes_view.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -91,6 +92,10 @@ int main(int argc, char** argv) {
     }
     {
         TestDiffView t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestChangesView t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;

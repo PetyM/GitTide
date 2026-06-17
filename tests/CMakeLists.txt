@@ -43,6 +43,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_dashboard_async.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changes_view.cpp
   )
   set_source_files_properties(${gitgui_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 
