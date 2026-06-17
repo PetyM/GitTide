@@ -6,6 +6,8 @@
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 
+#include "gitgui/GitRepo.hpp"
+
 namespace gitgui::ui {
 
 struct AsyncRepo::Impl {
