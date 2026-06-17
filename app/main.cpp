@@ -28,7 +28,9 @@ int main(int argc, char** argv) {
         *manager.store() = std::move(*loaded);
     }
 
-    // Restore prior windows; if none, open the last-focused project (if any).
+    // Restore prior windows; if none, open the last-focused project, else the
+    // first project, else an empty shell window. Always end with >=1 window so
+    // a fresh launch (no projects.json yet) shows the UI instead of nothing.
     manager.restoreSession();
     if (manager.windowCount() == 0) {
         const QString active = QString::fromStdString(manager.store()->activeProject());
@@ -36,6 +38,10 @@ int main(int argc, char** argv) {
             manager.openProject(active);
         } else if (!manager.store()->projects().empty()) {
             manager.openProject(QString::fromStdString(manager.store()->projects().front().id));
+        } else {
+            // No project yet: open an empty shell so the window is visible.
+            // (activate("") is a no-op; the sidebar/combo simply start empty.)
+            manager.openProject(QString());
         }
     }
 
