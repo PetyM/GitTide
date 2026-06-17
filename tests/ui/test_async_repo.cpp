@@ -6,7 +6,7 @@
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gittide/ui/AsyncRepo.hpp"
+#include "gittide/ui/asyncrepo.hpp"
 #include "gittide/filestatus.hpp"
 
 using gittide::ui::AsyncRepo;

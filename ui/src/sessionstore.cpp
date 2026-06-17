@@ -1,4 +1,4 @@
-#include "gittide/ui/SessionStore.hpp"
+#include "gittide/ui/sessionstore.hpp"
 
 #include <QFile>
 #include <QJsonArray>

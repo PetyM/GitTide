@@ -1,4 +1,4 @@
-#include "gittide/ui/Theme.hpp"
+#include "gittide/ui/theme.hpp"
 
 namespace gittide::ui {
 

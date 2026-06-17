@@ -4,7 +4,7 @@
 #include <QString>
 
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/SessionStore.hpp"
+#include "gittide/ui/sessionstore.hpp"
 
 namespace gittide::ui {
 

@@ -10,8 +10,8 @@
 #include <qcorotask.h>
 
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/ProjectController.hpp"
-#include "gittide/ui/RepoListModel.hpp"
+#include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 
 using gittide::Project;
 using gittide::ProjectStore;

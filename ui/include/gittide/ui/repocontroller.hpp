@@ -6,7 +6,7 @@
 
 #include <qcorotask.h>
 
-#include "gittide/ui/AsyncRepo.hpp"
+#include "gittide/ui/asyncrepo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"

@@ -2,7 +2,7 @@
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
 
-#include "gittide/ui/SessionStore.hpp"
+#include "gittide/ui/sessionstore.hpp"
 
 using gittide::ui::SessionStore;
 using gittide::ui::WindowSession;

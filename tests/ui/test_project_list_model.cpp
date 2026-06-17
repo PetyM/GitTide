@@ -3,7 +3,7 @@
 #include <QAbstractItemModelTester>
 
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/ProjectListModel.hpp"
+#include "gittide/ui/projectlistmodel.hpp"
 
 using gittide::Project;
 using gittide::ProjectStore;

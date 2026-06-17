@@ -1,4 +1,4 @@
-#include "gittide/ui/RepoListModel.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 #include "gittide/gitrepo.hpp"
 #include <filesystem>
 

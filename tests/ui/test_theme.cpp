@@ -1,5 +1,5 @@
 #include <QtTest>
-#include "gittide/ui/Theme.hpp"
+#include "gittide/ui/theme.hpp"
 
 using namespace gittide::ui;
 

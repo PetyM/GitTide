@@ -1,5 +1,5 @@
-#include "gittide/ui/ThemeManager.hpp"
-#include "gittide/ui/ThemeStyle.hpp"
+#include "gittide/ui/thememanager.hpp"
+#include "gittide/ui/themestyle.hpp"
 
 #include <QApplication>
 #include <QIcon>

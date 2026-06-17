@@ -7,7 +7,7 @@
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gittide/ui/DashboardModel.hpp"
+#include "gittide/ui/dashboardmodel.hpp"
 #include "gittide/projectstore.hpp"
 
 using gittide::ui::DashboardModel;

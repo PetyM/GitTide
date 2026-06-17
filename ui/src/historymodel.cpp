@@ -1,5 +1,5 @@
-#include "gittide/ui/HistoryModel.hpp"
-#include "gittide/ui/Metatypes.hpp"
+#include "gittide/ui/historymodel.hpp"
+#include "gittide/ui/metatypes.hpp"
 
 #include <QDateTime>
 

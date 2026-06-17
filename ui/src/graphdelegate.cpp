@@ -1,11 +1,11 @@
-#include "gittide/ui/GraphDelegate.hpp"
+#include "gittide/ui/graphdelegate.hpp"
 
 #include <QPainter>
 #include <QStyleOptionViewItem>
 
 #include "gittide/graph.hpp"
-#include "gittide/ui/HistoryModel.hpp"
-#include "gittide/ui/Metatypes.hpp"
+#include "gittide/ui/historymodel.hpp"
+#include "gittide/ui/metatypes.hpp"
 
 namespace gittide::ui {
 

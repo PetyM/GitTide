@@ -5,8 +5,8 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 
-#include "gittide/ui/ChangesView.hpp"
-#include "gittide/ui/Metatypes.hpp"
+#include "gittide/ui/changesview.hpp"
+#include "gittide/ui/metatypes.hpp"
 
 using gittide::ui::ChangesView;
 

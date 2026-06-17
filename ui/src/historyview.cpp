@@ -1,4 +1,4 @@
-#include "gittide/ui/HistoryView.hpp"
+#include "gittide/ui/historyview.hpp"
 
 #include <algorithm>
 
@@ -6,8 +6,8 @@
 #include <QTableView>
 #include <QVBoxLayout>
 
-#include "gittide/ui/GraphDelegate.hpp"
-#include "gittide/ui/HistoryModel.hpp"
+#include "gittide/ui/graphdelegate.hpp"
+#include "gittide/ui/historymodel.hpp"
 
 namespace gittide::ui {
 

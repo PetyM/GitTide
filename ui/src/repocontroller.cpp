@@ -1,5 +1,5 @@
-#include "gittide/ui/RepoController.hpp"
-#include "gittide/ui/Metatypes.hpp"
+#include "gittide/ui/repocontroller.hpp"
+#include "gittide/ui/metatypes.hpp"
 
 #include <filesystem>
 #include <utility>

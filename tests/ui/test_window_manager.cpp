@@ -3,8 +3,8 @@
 #include <QTemporaryDir>
 
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/MainWindow.hpp"
-#include "gittide/ui/WindowManager.hpp"
+#include "gittide/ui/mainwindow.hpp"
+#include "gittide/ui/windowmanager.hpp"
 
 using gittide::Project;
 using gittide::ui::MainWindow;

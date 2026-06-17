@@ -1,6 +1,6 @@
 #include <QtTest>
 #include <QApplication>
-#include "gittide/ui/ThemeManager.hpp"
+#include "gittide/ui/thememanager.hpp"
 
 using namespace gittide::ui;
 

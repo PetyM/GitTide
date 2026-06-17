@@ -1,4 +1,4 @@
-#include "gittide/ui/DashboardModel.hpp"
+#include "gittide/ui/dashboardmodel.hpp"
 #include "gittide/gitrepo.hpp"
 #include <filesystem>
 #include <QtConcurrent>

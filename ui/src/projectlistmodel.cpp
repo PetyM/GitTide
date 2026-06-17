@@ -1,4 +1,4 @@
-#include <gittide/ui/ProjectListModel.hpp>
+#include <gittide/ui/projectlistmodel.hpp>
 #include <gittide/projectstore.hpp>
 
 namespace gittide::ui {

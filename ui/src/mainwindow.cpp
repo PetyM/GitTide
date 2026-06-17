@@ -1,11 +1,11 @@
-#include "gittide/ui/MainWindow.hpp"
-#include "gittide/ui/ProjectController.hpp"
-#include "gittide/ui/ProjectSidebar.hpp"
-#include "gittide/ui/RepoController.hpp"
-#include "gittide/ui/ChangesView.hpp"
-#include "gittide/ui/HistoryView.hpp"
-#include "gittide/ui/DashboardModel.hpp"
-#include "gittide/ui/AddRepoDialogs.hpp"
+#include "gittide/ui/mainwindow.hpp"
+#include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/projectsidebar.hpp"
+#include "gittide/ui/repocontroller.hpp"
+#include "gittide/ui/changesview.hpp"
+#include "gittide/ui/historyview.hpp"
+#include "gittide/ui/dashboardmodel.hpp"
+#include "gittide/ui/addrepodialogs.hpp"
 
 #include <filesystem>
 #include <vector>

@@ -4,8 +4,8 @@
 
 #include "gittide/libgit2context.hpp"
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/ThemeManager.hpp"
-#include "gittide/ui/WindowManager.hpp"
+#include "gittide/ui/thememanager.hpp"
+#include "gittide/ui/windowmanager.hpp"
 
 using gittide::ui::WindowManager;
 

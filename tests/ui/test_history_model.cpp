@@ -2,7 +2,7 @@
 #include <QtTest/QtTest>
 
 #include "gittide/graph.hpp"
-#include "gittide/ui/HistoryModel.hpp"
+#include "gittide/ui/historymodel.hpp"
 
 namespace {
 gittide::GraphLayout make_linear_layout() {

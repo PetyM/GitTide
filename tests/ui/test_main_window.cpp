@@ -12,10 +12,10 @@
 #include <git2.h>
 
 #include "gittide/projectstore.hpp"
-#include "gittide/ui/MainWindow.hpp"
-#include "gittide/ui/ProjectController.hpp"
-#include "gittide/ui/ProjectSidebar.hpp"
-#include "gittide/ui/ChangesView.hpp"
+#include "gittide/ui/mainwindow.hpp"
+#include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/projectsidebar.hpp"
+#include "gittide/ui/changesview.hpp"
 
 using gittide::Project;
 using gittide::ProjectStore;

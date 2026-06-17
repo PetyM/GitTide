@@ -1,4 +1,4 @@
-// ui/include/gittide/ui/AddRepoDialogs.hpp
+// ui/include/gittide/ui/addrepodialogs.hpp
 #pragma once
 #include <QDialog>
 

@@ -1,5 +1,5 @@
-#include "gittide/ui/DiffView.hpp"
-#include "gittide/ui/Metatypes.hpp"
+#include "gittide/ui/diffview.hpp"
+#include "gittide/ui/metatypes.hpp"
 
 #include <algorithm>
 

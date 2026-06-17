@@ -1,5 +1,5 @@
 // ui/src/AddRepoDialogs.cpp
-#include "gittide/ui/AddRepoDialogs.hpp"
+#include "gittide/ui/addrepodialogs.hpp"
 
 #include <QDialogButtonBox>
 #include <QFileDialog>

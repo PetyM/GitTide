@@ -1,4 +1,4 @@
-#include "gittide/ui/AsyncRepo.hpp"
+#include "gittide/ui/asyncrepo.hpp"
 
 #include <mutex>
 #include <utility>

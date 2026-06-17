@@ -1,6 +1,6 @@
 #include <QtTest>
-#include "gittide/ui/Theme.hpp"
-#include "gittide/ui/ThemeStyle.hpp"
+#include "gittide/ui/theme.hpp"
+#include "gittide/ui/themestyle.hpp"
 
 using namespace gittide::ui;
 
