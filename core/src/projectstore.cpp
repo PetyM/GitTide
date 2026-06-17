@@ -134,11 +134,13 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file)
     if (!present)
         return ProjectStore{}; // missing file -> empty store
 
-    std::ifstream in(file, std::ios::binary);
-    if (!in)
-        return std::unexpected(GitError{-1, "cannot open project store for read"});
-
-    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    std::string text;
+    {
+        std::ifstream in(file, std::ios::binary);
+        if (!in)
+            return std::unexpected(GitError{-1, "cannot open project store for read"});
+        text.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    } // close the handle before any rename: Windows refuses to rename an open file.
 
     auto parsed = from_json(text);
     if (!parsed.has_value())
