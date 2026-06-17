@@ -38,10 +38,18 @@
 
 #include <QApplication>
 #include <QtTest/QtTest>
+#include <cstdio>
+#include <cstdlib>
 #include <git2.h>
 
 int main(int argc, char** argv)
 {
+    // Unbuffer stdout/stderr so QTest output reaches ctest's capture pipe
+    // immediately. With default full buffering on a pipe, an abnormal exit would
+    // discard the entire buffer, leaving an empty "***Failed" with no diagnostics.
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    std::setvbuf(stderr, nullptr, _IONBF, 0);
+
     QApplication app(argc, argv);
 
     // Hold a process-wide libgit2 reference for the whole run. The per-test repo
@@ -132,11 +140,13 @@ int main(int argc, char** argv)
         TestThemeManager t;
         status |= QTest::qExec(&t, argc, argv);
     }
-    // Deliberately do NOT git_libgit2_shutdown(): AsyncRepo runs git operations
-    // on the global QThreadPool, whose worker threads stay alive (idle) past the
-    // end of main and are only joined during static teardown. Shutting libgit2
-    // down here would free its global/TLS state while those threads still exist;
-    // their later exit would touch freed state and crash (fatal on Windows). The
-    // process is about to exit, so leaving libgit2 initialized is harmless.
-    return status;
+    // Hard-exit instead of returning, to skip global/static destructors. AsyncRepo
+    // runs git operations on the global QThreadPool, whose worker threads are
+    // joined only during static teardown; on Windows that teardown touches
+    // libgit2 thread-local state in an order that crashes, turning an all-green
+    // run into an abnormal exit (and a ctest failure). Tests clean up their own
+    // temp dirs as they go, so skipping destructors is safe here. Flush first so
+    // no buffered output is lost (belt-and-braces with the unbuffered streams).
+    std::fflush(nullptr);
+    std::_Exit(status);
 }
