@@ -1,5 +1,12 @@
 include(FetchContent)
 
+# Build FetchContent dependencies statically. libgit2 defaults BUILD_SHARED_LIBS
+# to ON, which produces libgit2.dll on Windows; catch_discover_tests runs the test
+# executable at build time to enumerate tests and cannot find the DLL (it is not on
+# PATH then), failing the Windows build. Static libs sidestep DLL discovery entirely.
+# Qt is an external find_package import and is unaffected by this flag.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
 # --- Core dependencies (always built) ---
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)   # libgit2's own tests
 set(BUILD_CLI OFF CACHE BOOL "" FORCE)
