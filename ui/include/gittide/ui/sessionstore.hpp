@@ -5,15 +5,17 @@
 
 namespace gittide::ui {
 
-struct WindowSession {
+struct WindowSession
+{
     QString projectId;
-    QByteArray geometry;     // QMainWindow::saveGeometry() bytes
+    QByteArray geometry; // QMainWindow::saveGeometry() bytes
     QString lastActiveRepo;
 };
 
 // Multi-window session state, persisted separately from the project registry
 // (spec §5). Corrupt/missing input never throws — yields an empty store.
-class SessionStore {
+class SessionStore
+{
 public:
     static constexpr int kVersion = 1;
 
@@ -28,4 +30,4 @@ public:
     static SessionStore load(const QString& file);
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

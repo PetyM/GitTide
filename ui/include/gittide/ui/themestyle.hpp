@@ -1,5 +1,6 @@
 #pragma once
 #include <QString>
+
 #include "gittide/ui/theme.hpp"
 
 namespace gittide::ui {
@@ -8,4 +9,4 @@ namespace gittide::ui {
 // the ONLY place color literals are emitted — every value is read from `theme`.
 QString buildStyleSheet(const Theme& theme);
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

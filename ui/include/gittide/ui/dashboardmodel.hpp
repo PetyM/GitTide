@@ -1,7 +1,8 @@
 #pragma once
 #include <QAbstractListModel>
-#include <vector>
 #include <qcorotask.h>
+#include <vector>
+
 #include "gittide/projectstore.hpp"
 
 namespace gittide::ui {
@@ -10,10 +11,16 @@ namespace gittide::ui {
 // Plan 2: refresh() opens each repo and reads status synchronously.
 // Plan 3: the per-repo work moves to parallel QCoro tasks; the model's
 // row layout and roles stay the same.
-class DashboardModel : public QAbstractListModel {
+class DashboardModel : public QAbstractListModel
+{
     Q_OBJECT
 public:
-    enum Roles { PathRole = Qt::UserRole + 1, ChangeCountRole, MissingRole };
+    enum Roles
+    {
+        PathRole = Qt::UserRole + 1,
+        ChangeCountRole,
+        MissingRole
+    };
 
     explicit DashboardModel(QObject* parent = nullptr);
 
@@ -32,8 +39,14 @@ signals:
     void refreshed();
 
 private:
-    struct Row { QString alias; QString path; int changeCount; bool missing; };
+    struct Row
+    {
+        QString alias;
+        QString path;
+        int changeCount;
+        bool missing;
+    };
     std::vector<Row> rows_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -12,7 +12,8 @@ class GraphDelegate;
 
 // History tab widget: a QTableView wired to a HistoryModel with a GraphDelegate
 // painting the lane graph in column 0. setHistory() loads a new GraphLayout.
-class HistoryView : public QWidget {
+class HistoryView : public QWidget
+{
     Q_OBJECT
 public:
     explicit HistoryView(QWidget* parent = nullptr);
@@ -27,4 +28,4 @@ private:
     QTableView* view_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

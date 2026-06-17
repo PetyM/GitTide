@@ -1,17 +1,23 @@
 #pragma once
 #include <QAbstractListModel>
 
-namespace gittide { class ProjectStore; }
+namespace gittide {
+class ProjectStore;
+}
 
 namespace gittide::ui {
 
 // Read model over ProjectStore::projects(). The store is owned elsewhere
 // (WindowManager); this model only references it. Call refresh() after the
 // underlying project list changes.
-class ProjectListModel : public QAbstractListModel {
+class ProjectListModel : public QAbstractListModel
+{
     Q_OBJECT
 public:
-    enum Roles { IdRole = Qt::UserRole + 1 };
+    enum Roles
+    {
+        IdRole = Qt::UserRole + 1
+    };
 
     explicit ProjectListModel(gittide::ProjectStore* store, QObject* parent = nullptr);
 
@@ -25,4 +31,4 @@ private:
     gittide::ProjectStore* store_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -1,16 +1,4 @@
 #include "gittide/ui/mainwindow.hpp"
-#include "gittide/ui/projectcontroller.hpp"
-#include "gittide/ui/projectsidebar.hpp"
-#include "gittide/ui/repocontroller.hpp"
-#include "gittide/ui/changesview.hpp"
-#include "gittide/ui/historyview.hpp"
-#include "gittide/ui/dashboardmodel.hpp"
-#include "gittide/ui/addrepodialogs.hpp"
-
-#include <filesystem>
-#include <vector>
-
-#include <qcorotask.h>
 
 #include <QDockWidget>
 #include <QFileDialog>
@@ -26,6 +14,17 @@
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <filesystem>
+#include <qcorotask.h>
+#include <vector>
+
+#include "gittide/ui/addrepodialogs.hpp"
+#include "gittide/ui/changesview.hpp"
+#include "gittide/ui/dashboardmodel.hpp"
+#include "gittide/ui/historyview.hpp"
+#include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/projectsidebar.hpp"
+#include "gittide/ui/repocontroller.hpp"
 
 namespace gittide::ui {
 
@@ -33,9 +32,9 @@ namespace gittide::ui {
 namespace {
 
 // Builds a centered branded card: icon + headline + subtext + the given buttons.
-QWidget* makeEmptyStatePage(QWidget* parent, const QString& pageName,
-                            const QString& headline, const QString& subtext,
-                            const QList<QPushButton*>& buttons) {
+QWidget* makeEmptyStatePage(QWidget* parent, const QString& pageName, const QString& headline, const QString& subtext,
+                            const QList<QPushButton*>& buttons)
+{
     auto* w = new QWidget(parent);
     w->setObjectName(pageName);
 
@@ -66,56 +65,63 @@ QWidget* makeEmptyStatePage(QWidget* parent, const QString& pageName,
     cardLayout->addWidget(icon);
     cardLayout->addWidget(title);
     cardLayout->addWidget(sub);
-    for (auto* b : buttons) { b->setParent(card); cardLayout->addWidget(b); }
+    for (auto* b : buttons)
+    {
+        b->setParent(card);
+        cardLayout->addWidget(b);
+    }
 
     auto* outer = new QVBoxLayout(w);
     outer->addStretch();
     auto* row = new QHBoxLayout;
-    row->addStretch(); row->addWidget(card); row->addStretch();
+    row->addStretch();
+    row->addWidget(card);
+    row->addStretch();
     outer->addLayout(row);
     outer->addStretch();
     return w;
 }
 
-QWidget* makeNoProjectsPage(QWidget* parent) {
+QWidget* makeNoProjectsPage(QWidget* parent)
+{
     auto* btn = new QPushButton(QStringLiteral("Create Project"));
     btn->setObjectName(QStringLiteral("createProjectCta"));
-    return makeEmptyStatePage(
-        parent, QStringLiteral("noProjectsPage"),
-        QStringLiteral("Welcome to GitTide"),
-        QStringLiteral("Create a project to group the repositories you work on."),
-        {btn});
+    return makeEmptyStatePage(parent,
+                              QStringLiteral("noProjectsPage"),
+                              QStringLiteral("Welcome to GitTide"),
+                              QStringLiteral("Create a project to group the repositories you work on."),
+                              {btn});
 }
 
-QWidget* makeNoReposPage(QWidget* parent) {
+QWidget* makeNoReposPage(QWidget* parent)
+{
     auto* addBtn = new QPushButton(QStringLiteral("Add Existing Repository"));
     addBtn->setObjectName(QStringLiteral("addExistingCta"));
     auto* initBtn = new QPushButton(QStringLiteral("Initialize New Repository"));
     initBtn->setObjectName(QStringLiteral("initRepoCta"));
     auto* cloneBtn = new QPushButton(QStringLiteral("Clone Repository"));
     cloneBtn->setObjectName(QStringLiteral("cloneCta"));
-    return makeEmptyStatePage(
-        parent, QStringLiteral("noReposPage"),
-        QStringLiteral("No repositories yet"),
-        QStringLiteral("Add, initialize, or clone a repository to get started."),
-        {addBtn, initBtn, cloneBtn});
+    return makeEmptyStatePage(parent,
+                              QStringLiteral("noReposPage"),
+                              QStringLiteral("No repositories yet"),
+                              QStringLiteral("Add, initialize, or clone a repository to get started."),
+                              {addBtn, initBtn, cloneBtn});
 }
 
-}  // namespace
+} // namespace
 
 // ---- MainWindow ----
-MainWindow::MainWindow(gittide::ProjectStore* store,
-                       std::filesystem::path storePath,
-                       QWidget* parent)
-    : QMainWindow(parent),
-      store_(store),
-      controller_(new ProjectController(store, std::move(storePath), this)),
-      sidebar_(new ProjectSidebar(controller_, this)),
-      repoController_(new RepoController(this)),
-      changesView_(new ChangesView(this)),
-      historyView_(new HistoryView(this)),
-      dashboardModel_(new DashboardModel(this)),
-      centralStack_(new QStackedWidget(this)) {
+MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path storePath, QWidget* parent)
+    : QMainWindow(parent)
+    , store_(store)
+    , controller_(new ProjectController(store, std::move(storePath), this))
+    , sidebar_(new ProjectSidebar(controller_, this))
+    , repoController_(new RepoController(this))
+    , changesView_(new ChangesView(this))
+    , historyView_(new HistoryView(this))
+    , dashboardModel_(new DashboardModel(this))
+    , centralStack_(new QStackedWidget(this))
+{
     setWindowTitle(QStringLiteral("GitTide"));
 
     // Left dock
@@ -145,167 +151,217 @@ MainWindow::MainWindow(gittide::ProjectStore* store,
     setCentralWidget(centralStack_);
 
     // Wire existing repo/sidebar connections (unchanged from before)
-    connect(sidebar_, &ProjectSidebar::openInNewWindowRequested,
-            this, &MainWindow::openInNewWindowRequested);
-    connect(sidebar_, &ProjectSidebar::repoSelected, this, [this](const QString& path) {
-        repoController_->open(path);
-    });
+    connect(sidebar_, &ProjectSidebar::openInNewWindowRequested, this, &MainWindow::openInNewWindowRequested);
+    connect(sidebar_,
+            &ProjectSidebar::repoSelected,
+            this,
+            [this](const QString& path)
+            {
+                repoController_->open(path);
+            });
     // A coroutine slot returns a QCoro::Task that QCoro destroys as soon as the
     // handle dies — a discarded fire-and-forget task awaiting a QFuture is a
     // use-after-free when that future completes. QCoro::connect anchors the task
     // (tied to `this`) until it finishes, which is how these are launched.
-    connect(repoController_, &RepoController::repoOpened, this, [this](const QString& path) {
-        emit repoOpened(path);
-        QCoro::connect(repoController_->refreshStatus(), this, [] {});
-        QCoro::connect(repoController_->refreshHistory(), this, [] {});
-    });
-    connect(repoController_, &RepoController::historyReady, this,
-            [this](const gittide::GraphLayout& layout) {
+    connect(repoController_,
+            &RepoController::repoOpened,
+            this,
+            [this](const QString& path)
+            {
+                emit repoOpened(path);
+                QCoro::connect(repoController_->refreshStatus(), this, [] {});
+                QCoro::connect(repoController_->refreshHistory(), this, [] {});
+            });
+    connect(repoController_,
+            &RepoController::historyReady,
+            this,
+            [this](const gittide::GraphLayout& layout)
+            {
                 historyView_->setHistory(layout);
             });
 
     // Async wiring between controller and ChangesView.
-    connect(repoController_, &RepoController::statusChanged,
-            changesView_, &ChangesView::setStatus);
-    connect(repoController_, &RepoController::diffReady, this,
-            [this](const QString& path, const gittide::DiffResult& result) {
+    connect(repoController_, &RepoController::statusChanged, changesView_, &ChangesView::setStatus);
+    connect(repoController_,
+            &RepoController::diffReady,
+            this,
+            [this](const QString& path, const gittide::DiffResult& result)
+            {
                 changesView_->setDiff(result, std::filesystem::path(path.toStdString()));
             });
-    connect(changesView_, &ChangesView::fileSelected, this,
-            [this](const QString& path, gittide::DiffTarget target) {
+    connect(changesView_,
+            &ChangesView::fileSelected,
+            this,
+            [this](const QString& path, gittide::DiffTarget target)
+            {
                 QCoro::connect(repoController_->refreshDiff(path, target), this, [] {});
             });
-    connect(changesView_, &ChangesView::stageRequested, this,
-            [this](const gittide::StageSelection& sel) {
+    connect(changesView_,
+            &ChangesView::stageRequested,
+            this,
+            [this](const gittide::StageSelection& sel)
+            {
                 QCoro::connect(repoController_->stage(sel), this, [] {});
             });
-    connect(changesView_, &ChangesView::unstageRequested, this,
-            [this](const gittide::StageSelection& sel) {
+    connect(changesView_,
+            &ChangesView::unstageRequested,
+            this,
+            [this](const gittide::StageSelection& sel)
+            {
                 QCoro::connect(repoController_->unstage(sel), this, [] {});
             });
-    connect(changesView_, &ChangesView::discardRequested, this,
-            [this](const gittide::StageSelection& sel) {
+    connect(changesView_,
+            &ChangesView::discardRequested,
+            this,
+            [this](const gittide::StageSelection& sel)
+            {
                 QCoro::connect(repoController_->discard(sel), this, [] {});
             });
-    connect(changesView_, &ChangesView::commitRequested, this,
-            [this](const gittide::CommitRequest& req) {
+    connect(changesView_,
+            &ChangesView::commitRequested,
+            this,
+            [this](const gittide::CommitRequest& req)
+            {
                 QCoro::connect(repoController_->commit(req), this, [] {});
             });
 
     // Activating a project refreshes the dashboard from its repos.
-    connect(controller_, &ProjectController::projectActivated, this,
-            [this](const QString&) {
-                QCoro::connect(dashboardModel_->refreshAsync(controller_->activeRepos()),
-                               this, [] {});
+    connect(controller_,
+            &ProjectController::projectActivated,
+            this,
+            [this](const QString&)
+            {
+                QCoro::connect(dashboardModel_->refreshAsync(controller_->activeRepos()), this, [] {});
             });
 
     // Empty-state page switching
-    connect(controller_, &ProjectController::projectActivated,
-            this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::projectCreated,
-            this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::repoAdded,
-            this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::repoRemoved,
-            this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::projectRemoved,
-            this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::repoAddFailed, this,
-            [this](const QString& message) {
+    connect(controller_, &ProjectController::projectActivated, this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::projectCreated, this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::repoAdded, this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::repoRemoved, this, &MainWindow::updateCentralPage);
+    connect(controller_, &ProjectController::projectRemoved, this, &MainWindow::updateCentralPage);
+    connect(controller_,
+            &ProjectController::repoAddFailed,
+            this,
+            [this](const QString& message)
+            {
                 QMessageBox::warning(this, QStringLiteral("Repository Error"), message);
             });
 
     // Sidebar mutation signals → handlers
-    connect(sidebar_, &ProjectSidebar::createProjectRequested,
-            this, &MainWindow::onCreateProjectRequested);
-    connect(sidebar_, &ProjectSidebar::addExistingRequested,
-            this, &MainWindow::onAddExistingRequested);
-    connect(sidebar_, &ProjectSidebar::initRepoRequested,
-            this, &MainWindow::onInitRepoRequested);
-    connect(sidebar_, &ProjectSidebar::cloneRepoRequested,
-            this, &MainWindow::onCloneRepoRequested);
+    connect(sidebar_, &ProjectSidebar::createProjectRequested, this, &MainWindow::onCreateProjectRequested);
+    connect(sidebar_, &ProjectSidebar::addExistingRequested, this, &MainWindow::onAddExistingRequested);
+    connect(sidebar_, &ProjectSidebar::initRepoRequested, this, &MainWindow::onInitRepoRequested);
+    connect(sidebar_, &ProjectSidebar::cloneRepoRequested, this, &MainWindow::onCloneRepoRequested);
 
     // CTA buttons on the no-projects and no-repos pages
     connect(noProjectsPage->findChild<QPushButton*>(QStringLiteral("createProjectCta")),
-            &QPushButton::clicked, this, &MainWindow::onCreateProjectRequested);
+            &QPushButton::clicked,
+            this,
+            &MainWindow::onCreateProjectRequested);
     connect(noReposPage->findChild<QPushButton*>(QStringLiteral("addExistingCta")),
-            &QPushButton::clicked, this, &MainWindow::onAddExistingRequested);
+            &QPushButton::clicked,
+            this,
+            &MainWindow::onAddExistingRequested);
     connect(noReposPage->findChild<QPushButton*>(QStringLiteral("initRepoCta")),
-            &QPushButton::clicked, this, &MainWindow::onInitRepoRequested);
+            &QPushButton::clicked,
+            this,
+            &MainWindow::onInitRepoRequested);
     connect(noReposPage->findChild<QPushButton*>(QStringLiteral("cloneCta")),
-            &QPushButton::clicked, this, &MainWindow::onCloneRepoRequested);
+            &QPushButton::clicked,
+            this,
+            &MainWindow::onCloneRepoRequested);
 
     updateCentralPage();
 }
 
-void MainWindow::updateCentralPage() {
-    if (store_->projects().empty()) {
+void MainWindow::updateCentralPage()
+{
+    if (store_->projects().empty())
+    {
         centralStack_->setCurrentIndex(0);
-    } else if (controller_->activeRepos().empty()) {
+    }
+    else if (controller_->activeRepos().empty())
+    {
         centralStack_->setCurrentIndex(1);
-    } else {
+    }
+    else
+    {
         centralStack_->setCurrentIndex(2);
     }
 }
 
-void MainWindow::onCreateProjectRequested() {
-    bool ok = false;
+void MainWindow::onCreateProjectRequested()
+{
+    bool ok            = false;
     const QString name = QInputDialog::getText(
-        this, QStringLiteral("New Project"),
-        QStringLiteral("Project name:"),
-        QLineEdit::Normal, QString(), &ok);
-    if (ok && !name.trimmed().isEmpty()) {
+        this, QStringLiteral("New Project"), QStringLiteral("Project name:"), QLineEdit::Normal, QString(), &ok);
+    if (ok && !name.trimmed().isEmpty())
+    {
         controller_->createProject(name.trimmed());
     }
 }
 
-void MainWindow::onAddExistingRequested() {
-    const QString dir = QFileDialog::getExistingDirectory(
-        this, QStringLiteral("Select Git Repository"));
-    if (dir.isEmpty()) return;
+void MainWindow::onAddExistingRequested()
+{
+    const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Select Git Repository"));
+    if (dir.isEmpty())
+        return;
     controller_->addExistingRepo(dir);
 }
 
-void MainWindow::onInitRepoRequested() {
+void MainWindow::onInitRepoRequested()
+{
     InitRepoDialog dlg(this);
-    if (dlg.exec() != QDialog::Accepted) return;
-    if (dlg.parentDir().isEmpty() || dlg.repoName().isEmpty()) return;
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    if (dlg.parentDir().isEmpty() || dlg.repoName().isEmpty())
+        return;
     controller_->initRepo(dlg.parentDir(), dlg.repoName());
 }
 
-void MainWindow::onCloneRepoRequested() {
+void MainWindow::onCloneRepoRequested()
+{
     CloneRepoDialog dlg(this);
-    if (dlg.exec() != QDialog::Accepted) return;
+    if (dlg.exec() != QDialog::Accepted)
+        return;
     const QString url  = dlg.url().trimmed();
     const QString dest = dlg.dest().trimmed();
-    if (url.isEmpty() || dest.isEmpty()) return;
+    if (url.isEmpty() || dest.isEmpty())
+        return;
 
-    auto* progress = new QProgressDialog(
-        QStringLiteral("Cloning…"), QStringLiteral("Cancel"), 0, 100, this);
+    auto* progress = new QProgressDialog(QStringLiteral("Cloning…"), QStringLiteral("Cancel"), 0, 100, this);
     progress->setWindowModality(Qt::WindowModal);
     progress->setMinimumDuration(0);
     progress->show();
 
-    connect(controller_, &ProjectController::cloneProgress, progress,
-            [progress](int r, int t) {
-                if (t > 0) progress->setValue(r * 100 / t);
+    connect(controller_,
+            &ProjectController::cloneProgress,
+            progress,
+            [progress](int r, int t)
+            {
+                if (t > 0)
+                    progress->setValue(r * 100 / t);
             });
-    connect(progress, &QProgressDialog::canceled, controller_,
-            &ProjectController::cancelClone);
+    connect(progress, &QProgressDialog::canceled, controller_, &ProjectController::cancelClone);
 
-    QCoro::connect(controller_->cloneRepo(url, dest), this,
-                   [progress] {
+    QCoro::connect(controller_->cloneRepo(url, dest),
+                   this,
+                   [progress]
+                   {
                        progress->close();
                        progress->deleteLater();
                    });
 }
 
-QString MainWindow::currentProjectId() const {
+QString MainWindow::currentProjectId() const
+{
     return controller_->activeProjectId();
 }
 
-void MainWindow::showProject(const QString& projectId) {
+void MainWindow::showProject(const QString& projectId)
+{
     controller_->activate(projectId);
 }
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -1,29 +1,33 @@
 #include "gittide/projectstore.hpp"
-#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <fstream>
-#include <iterator>
-#include <system_error>
 #include <iomanip>
+#include <iterator>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <sstream>
+#include <system_error>
 
 using json = nlohmann::json;
 
 namespace gittide {
 
-std::string ProjectStore::to_json() const {
+std::string ProjectStore::to_json() const
+{
     json root;
-    root["version"] = kVersion;
+    root["version"]       = kVersion;
     root["activeProject"] = activeProject_;
-    json arr = json::array();
-    for (const auto& p : projects_) {
+    json arr              = json::array();
+    for (const auto& p : projects_)
+    {
         json jp;
-        jp["id"] = p.id;
-        jp["name"] = p.name;
+        jp["id"]             = p.id;
+        jp["name"]           = p.name;
         jp["lastActiveRepo"] = p.lastActiveRepo;
-        json repos = json::array();
-        for (const auto& r : p.repos) {
+        json repos           = json::array();
+        for (const auto& r : p.repos)
+        {
             repos.push_back({{"path", r.path}, {"alias", r.alias}});
         }
         jp["repos"] = std::move(repos);
@@ -33,7 +37,8 @@ std::string ProjectStore::to_json() const {
     return root.dump(2);
 }
 
-Expected<ProjectStore> ProjectStore::from_json(const std::string& text) {
+Expected<ProjectStore> ProjectStore::from_json(const std::string& text)
+{
     json root = json::parse(text, nullptr, /*allow_exceptions=*/false);
     if (root.is_discarded())
         return std::unexpected(GitError{-1, "invalid JSON in project store"});
@@ -43,48 +48,59 @@ Expected<ProjectStore> ProjectStore::from_json(const std::string& text) {
     // A hand-edited or externally produced file may have keys of the wrong type
     // (e.g. "projects": null). value()/at() throw json::type_error on a mismatch;
     // catch it so a malformed document degrades to an error rather than crashing.
-    try {
+    try
+    {
         ProjectStore store;
         store.loadedVersion_ = root.value("version", kVersion);
         store.activeProject_ = root.value("activeProject", std::string{});
 
-        if (root.contains("projects")) {
+        if (root.contains("projects"))
+        {
             const json& projects = root.at("projects");
             if (!projects.is_array())
                 return std::unexpected(GitError{-1, "\"projects\" is not an array"});
-            for (const auto& jp : projects) {
-                if (!jp.is_object()) continue;  // skip malformed project entries
+            for (const auto& jp : projects)
+            {
+                if (!jp.is_object())
+                    continue; // skip malformed project entries
                 Project p;
-                p.id = jp.value("id", std::string{});
-                p.name = jp.value("name", std::string{});
+                p.id             = jp.value("id", std::string{});
+                p.name           = jp.value("name", std::string{});
                 p.lastActiveRepo = jp.value("lastActiveRepo", std::string{});
-                if (jp.contains("repos") && jp.at("repos").is_array()) {
-                    for (const auto& jr : jp.at("repos")) {
-                        if (!jr.is_object()) continue;
-                        p.repos.push_back(RepoRef{jr.value("path", std::string{}),
-                                                  jr.value("alias", std::string{})});
+                if (jp.contains("repos") && jp.at("repos").is_array())
+                {
+                    for (const auto& jr : jp.at("repos"))
+                    {
+                        if (!jr.is_object())
+                            continue;
+                        p.repos.push_back(RepoRef{jr.value("path", std::string{}), jr.value("alias", std::string{})});
                     }
                 }
                 store.projects_.push_back(std::move(p));
             }
         }
         return store;
-    } catch (const json::exception& e) {
+    }
+    catch (const json::exception& e)
+    {
         return std::unexpected(GitError{-1, std::string("malformed project store: ") + e.what()});
     }
 }
 
-Expected<void> ProjectStore::save(const std::filesystem::path& file) const {
+Expected<void> ProjectStore::save(const std::filesystem::path& file) const
+{
     // Write to a temp file in the same directory so rename is atomic (same fs).
     std::filesystem::path tmp = file;
     tmp += ".tmp";
 
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if (!out) return std::unexpected(GitError{-1, "cannot open temp file for write"});
+        if (!out)
+            return std::unexpected(GitError{-1, "cannot open temp file for write"});
         out << to_json();
-        if (!out) return std::unexpected(GitError{-1, "write to temp file failed"});
-    }  // flush + close before rename
+        if (!out)
+            return std::unexpected(GitError{-1, "write to temp file failed"});
+    } // flush + close before rename
 
     std::error_code ec;
     if (file.has_parent_path())
@@ -99,14 +115,16 @@ Expected<void> ProjectStore::save(const std::filesystem::path& file) const {
     // durability gap on a hard crash is acceptable (worst case is losing the most
     // recent save, never corrupting the prior on-disk copy).
     std::filesystem::rename(tmp, file, ec);
-    if (ec) {
-        std::filesystem::remove(tmp);  // best-effort cleanup of stale .tmp
+    if (ec)
+    {
+        std::filesystem::remove(tmp); // best-effort cleanup of stale .tmp
         return std::unexpected(GitError{-1, "atomic rename failed: " + ec.message()});
     }
     return {};
 }
 
-Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
+Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file)
+{
     std::error_code ec;
     bool present = std::filesystem::exists(file, ec);
     // A stat failure (e.g. permission denied on the path) is hard I/O, not
@@ -114,78 +132,96 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
     if (ec)
         return std::unexpected(GitError{-1, "cannot stat project store: " + ec.message()});
     if (!present)
-        return ProjectStore{};  // missing file -> empty store
+        return ProjectStore{}; // missing file -> empty store
 
     std::ifstream in(file, std::ios::binary);
     if (!in)
         return std::unexpected(GitError{-1, "cannot open project store for read"});
 
-    std::string text((std::istreambuf_iterator<char>(in)),
-                     std::istreambuf_iterator<char>());
+    std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
 
     auto parsed = from_json(text);
-    if (!parsed.has_value()) {
+    if (!parsed.has_value())
+    {
         // Corrupt data: back the file up, return an empty store — never propagate
         // a parse error to callers (bad data must not prevent the app from starting).
         // An existing "<file>.corrupt" is intentionally overwritten (POSIX rename
         // replaces the destination): we keep only the most recent bad copy.
         std::filesystem::path backup = file;
         backup += ".corrupt";
-        std::filesystem::rename(file, backup, ec);  // best-effort; ignore ec
+        std::filesystem::rename(file, backup, ec); // best-effort; ignore ec
         return ProjectStore{};
     }
     return parsed;
 }
 
-Project& ProjectStore::createProject(const std::string& name) {
+Project& ProjectStore::createProject(const std::string& name)
+{
     static std::mt19937_64 gen{std::random_device{}()};
     std::uniform_int_distribution<std::uint64_t> dist;
     std::ostringstream oss;
-    oss << std::hex << std::setfill('0')
-        << std::setw(16) << dist(gen)
-        << std::setw(16) << dist(gen);
+    oss << std::hex << std::setfill('0') << std::setw(16) << dist(gen) << std::setw(16) << dist(gen);
     Project p;
-    p.id = oss.str();
+    p.id   = oss.str();
     p.name = name;
     projects_.push_back(std::move(p));
     return projects_.back();
 }
 
-Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo) {
-    auto it = std::find_if(projects_.begin(), projects_.end(),
-                           [&](const Project& p) { return p.id == projectId; });
+Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo)
+{
+    auto it = std::find_if(projects_.begin(),
+                           projects_.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
     if (it == projects_.end())
         return std::unexpected(GitError{-1, "project not found: " + projectId});
 
-    for (const auto& existing : it->repos) {
+    for (const auto& existing : it->repos)
+    {
         if (existing.path == repo.path)
-            return std::unexpected(
-                GitError{-1, "repository already in project: " + repo.path});
+            return std::unexpected(GitError{-1, "repository already in project: " + repo.path});
     }
     it->repos.push_back(std::move(repo));
     return {};
 }
 
-Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std::string& path) {
-    auto it = std::find_if(projects_.begin(), projects_.end(),
-                           [&](const Project& p) { return p.id == projectId; });
+Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std::string& path)
+{
+    auto it = std::find_if(projects_.begin(),
+                           projects_.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
     if (it == projects_.end())
         return std::unexpected(GitError{-1, "project not found: " + projectId});
     auto& repos = it->repos;
-    auto r = std::find_if(repos.begin(), repos.end(),
-                          [&](const RepoRef& ref) { return ref.path == path; });
+    auto r      = std::find_if(repos.begin(),
+                          repos.end(),
+                          [&](const RepoRef& ref)
+                          {
+                              return ref.path == path;
+                          });
     if (r == repos.end())
         return std::unexpected(GitError{-1, "repo not found: " + path});
     repos.erase(r);
     return {};
 }
 
-void ProjectStore::removeProject(const std::string& id) {
-    projects_.erase(
-        std::remove_if(projects_.begin(), projects_.end(),
-                       [&](const Project& p) { return p.id == id; }),
-        projects_.end());
-    if (activeProject_ == id) activeProject_.clear();
+void ProjectStore::removeProject(const std::string& id)
+{
+    projects_.erase(std::remove_if(projects_.begin(),
+                                   projects_.end(),
+                                   [&](const Project& p)
+                                   {
+                                       return p.id == id;
+                                   }),
+                    projects_.end());
+    if (activeProject_ == id)
+        activeProject_.clear();
 }
 
-}  // namespace gittide
+} // namespace gittide

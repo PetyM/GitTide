@@ -13,7 +13,8 @@ namespace gittide::ui {
 // triggers stage/unstage/discard; the view builds a StageSelection covering the
 // selected lines (constrained to a single hunk — the hunk of the first selected
 // line) and emits it. Context lines are shown but ignored when building selection.
-class DiffView : public QWidget {
+class DiffView : public QWidget
+{
     Q_OBJECT
 public:
     explicit DiffView(QWidget* parent = nullptr);
@@ -40,4 +41,4 @@ private:
     std::filesystem::path file_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

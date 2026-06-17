@@ -4,9 +4,10 @@
 
 namespace gittide {
 
-struct GitError {
-    int code = 0;          // libgit2 error code (git_error_code) or custom
-    std::string message;   // human-readable detail
+struct GitError
+{
+    int code = 0;        // libgit2 error code (git_error_code) or custom
+    std::string message; // human-readable detail
 };
 
 template <typename T>
@@ -19,4 +20,4 @@ using Expected = std::expected<T, GitError>;
 // error. `code` is the return code of the failed call and is forwarded verbatim.
 GitError last_git_error(int code);
 
-}  // namespace gittide
+} // namespace gittide

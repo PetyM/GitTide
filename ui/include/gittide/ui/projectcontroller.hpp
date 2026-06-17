@@ -3,9 +3,8 @@
 #include <QString>
 #include <atomic>
 #include <filesystem>
-#include <vector>
-
 #include <qcorotask.h>
+#include <vector>
 
 #include "gittide/projectstore.hpp"
 
@@ -17,16 +16,24 @@ class RepoListModel;
 // Per-window ViewModel. References the shared ProjectStore; owns the project
 // and repo list models. "Active project" is per-window UI state — activating
 // here also updates the store's last-focused hint.
-class ProjectController : public QObject {
+class ProjectController : public QObject
+{
     Q_OBJECT
 public:
-    explicit ProjectController(gittide::ProjectStore* store,
-                               std::filesystem::path storePath = {},
-                               QObject* parent = nullptr);
+    explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr);
 
-    ProjectListModel* projects() const { return projectModel_; }
-    RepoListModel* repos() const { return repoModel_; }
-    QString activeProjectId() const { return activeId_; }
+    ProjectListModel* projects() const
+    {
+        return projectModel_;
+    }
+    RepoListModel* repos() const
+    {
+        return repoModel_;
+    }
+    QString activeProjectId() const
+    {
+        return activeId_;
+    }
     const std::vector<gittide::RepoRef>& activeRepos() const;
 
 public slots:
@@ -61,4 +68,4 @@ private:
     void refreshRepoModel();
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -2,7 +2,8 @@
 
 namespace gittide::ui {
 
-QString buildStyleSheet(const Theme& t) {
+QString buildStyleSheet(const Theme& t)
+{
     return QStringLiteral(R"(
 QWidget {
     background: %1;
@@ -67,4 +68,4 @@ QToolTip { background: %2; border: 1px solid %4; color: %7; border-radius: 6px; 
              t.accentHover);   // %9
 }
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

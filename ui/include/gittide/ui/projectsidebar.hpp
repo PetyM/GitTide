@@ -1,6 +1,6 @@
 #pragma once
-#include <QWidget>
 #include <QString>
+#include <QWidget>
 
 class QComboBox;
 class QTreeView;
@@ -10,7 +10,8 @@ namespace gittide::ui {
 
 class ProjectController;
 
-class ProjectSidebar : public QWidget {
+class ProjectSidebar : public QWidget
+{
     Q_OBJECT
 public:
     explicit ProjectSidebar(ProjectController* controller, QWidget* parent = nullptr);
@@ -39,4 +40,4 @@ private:
     QToolButton* cloneBtn_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

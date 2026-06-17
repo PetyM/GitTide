@@ -1,11 +1,12 @@
 #pragma once
 #include <filesystem>
-#include <vector>
 #include <functional>
 #include <string>
-#include "gittide/giterror.hpp"
-#include "gittide/filestatus.hpp"
+#include <vector>
+
 #include "gittide/diff.hpp"
+#include "gittide/filestatus.hpp"
+#include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 
 struct git_repository;
@@ -18,11 +19,12 @@ using ProgressCallback = std::function<bool(unsigned received, unsigned total)>;
 
 // RAII wrapper around a single libgit2 git_repository.
 // Move-only. Not safe to share across threads; one owner per repo.
-class GitRepo {
+class GitRepo
+{
 public:
     GitRepo(GitRepo&&) noexcept;
     GitRepo& operator=(GitRepo&&) noexcept;
-    GitRepo(const GitRepo&) = delete;
+    GitRepo(const GitRepo&)            = delete;
     GitRepo& operator=(const GitRepo&) = delete;
     ~GitRepo();
 
@@ -35,16 +37,13 @@ public:
 
     // Clone the repository at url into dest. Calls cb during the transfer.
     // dest must not exist (libgit2 creates it). Returns error on failure or cancel.
-    static Expected<GitRepo> clone(const std::string& url,
-                                   const std::filesystem::path& dest,
-                                   ProgressCallback cb);
+    static Expected<GitRepo> clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb);
 
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;
 
     // Diff a single file against the chosen target.
-    Expected<DiffResult> diff(DiffTarget target,
-                              const std::filesystem::path& file) const;
+    Expected<DiffResult> diff(DiffTarget target, const std::filesystem::path& file) const;
 
     // Stage / unstage the selection (whole file, hunk, or specific lines).
     Expected<void> stage(const StageSelection& sel);
@@ -65,11 +64,14 @@ public:
     Expected<std::vector<std::filesystem::path>> submodules() const;
 
 private:
-    explicit GitRepo(git_repository* repo) : repo_(repo) {}
+    explicit GitRepo(git_repository* repo)
+        : repo_(repo)
+    {
+    }
     git_repository* repo_ = nullptr;
 
-    std::filesystem::path workdir() const;            // repo working directory
-    Expected<void> apply_partial(const StageSelection& sel, bool stage);  // filled by a later task
+    std::filesystem::path workdir() const;                               // repo working directory
+    Expected<void> apply_partial(const StageSelection& sel, bool stage); // filled by a later task
 };
 
-}  // namespace gittide
+} // namespace gittide

@@ -3,7 +3,9 @@
 #include <QString>
 #include <filesystem>
 
-namespace gittide { class ProjectStore; }
+namespace gittide {
+class ProjectStore;
+}
 
 class QStackedWidget;
 
@@ -16,14 +18,16 @@ class ChangesView;
 class HistoryView;
 class DashboardModel;
 
-class MainWindow : public QMainWindow {
+class MainWindow : public QMainWindow
+{
     Q_OBJECT
 public:
-    explicit MainWindow(gittide::ProjectStore* store,
-                        std::filesystem::path storePath = {},
-                        QWidget* parent = nullptr);
+    explicit MainWindow(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QWidget* parent = nullptr);
 
-    ProjectController* controller() const { return controller_; }
+    ProjectController* controller() const
+    {
+        return controller_;
+    }
     QString currentProjectId() const;
     void showProject(const QString& projectId);
 
@@ -36,7 +40,7 @@ private slots:
     void onCreateProjectRequested();
     void onAddExistingRequested();
     void onInitRepoRequested();
-    void onCloneRepoRequested();  // stub in Task 4; implemented in Task 5
+    void onCloneRepoRequested(); // stub in Task 4; implemented in Task 5
 
 private:
     gittide::ProjectStore* store_;
@@ -49,4 +53,4 @@ private:
     QStackedWidget* centralStack_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -1,6 +1,7 @@
 #pragma once
 #include <QMetaType>
 #include <vector>
+
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"

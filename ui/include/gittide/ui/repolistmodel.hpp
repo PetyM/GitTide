@@ -1,20 +1,25 @@
 #pragma once
 #include <QAbstractItemModel>
 #include <vector>
+
 #include "gittide/projectstore.hpp"
 
 namespace gittide::ui {
 
-class RepoListModel : public QAbstractItemModel {
+class RepoListModel : public QAbstractItemModel
+{
     Q_OBJECT
 public:
-    enum Roles { PathRole = Qt::UserRole + 1, MissingRole };
+    enum Roles
+    {
+        PathRole = Qt::UserRole + 1,
+        MissingRole
+    };
 
     explicit RepoListModel(QObject* parent = nullptr);
 
     // QAbstractItemModel overrides
-    QModelIndex index(int row, int column,
-                      const QModelIndex& parent = {}) const override;
+    QModelIndex index(int row, int column, const QModelIndex& parent = {}) const override;
     QModelIndex parent(const QModelIndex& child) const override;
     int rowCount(const QModelIndex& parent = {}) const override;
     int columnCount(const QModelIndex& parent = {}) const override;
@@ -24,8 +29,14 @@ public:
     void setRepos(const std::vector<gittide::RepoRef>& repos);
 
 private:
-    struct SubRow { QString path; QString displayName; bool missing; };
-    struct Row {
+    struct SubRow
+    {
+        QString path;
+        QString displayName;
+        bool missing;
+    };
+    struct Row
+    {
         QString alias;
         QString path;
         bool missing;
@@ -34,4 +45,4 @@ private:
     std::vector<Row> rows_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

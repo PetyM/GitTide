@@ -7,14 +7,15 @@ namespace gittide {
 // Single-instance guard: neither copyable nor movable. (Copy deletion alone
 // already suppresses implicit moves; moves are deleted explicitly for clarity,
 // so the no-move intent is stated rather than inferred.)
-class LibGit2Context {
+class LibGit2Context
+{
 public:
     LibGit2Context();
     ~LibGit2Context();
-    LibGit2Context(const LibGit2Context&) = delete;
+    LibGit2Context(const LibGit2Context&)            = delete;
     LibGit2Context& operator=(const LibGit2Context&) = delete;
-    LibGit2Context(LibGit2Context&&) = delete;
-    LibGit2Context& operator=(LibGit2Context&&) = delete;
+    LibGit2Context(LibGit2Context&&)                 = delete;
+    LibGit2Context& operator=(LibGit2Context&&)      = delete;
 };
 
-}  // namespace gittide
+} // namespace gittide

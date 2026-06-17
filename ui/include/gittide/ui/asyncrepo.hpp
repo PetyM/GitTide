@@ -1,10 +1,9 @@
 #pragma once
 #include <filesystem>
 #include <memory>
+#include <qcorotask.h>
 #include <string>
 #include <vector>
-
-#include <qcorotask.h>
 
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
@@ -20,30 +19,32 @@ namespace gittide::ui {
 //
 // Move-only. The GitRepo + mutex live behind a shared_ptr so in-flight work stays
 // valid even if the AsyncRepo is destroyed before the task completes.
-class AsyncRepo {
+class AsyncRepo
+{
 public:
     static gittide::Expected<AsyncRepo> open(const std::filesystem::path& path);
 
-    AsyncRepo(AsyncRepo&&) noexcept = default;
+    AsyncRepo(AsyncRepo&&) noexcept            = default;
     AsyncRepo& operator=(AsyncRepo&&) noexcept = default;
-    AsyncRepo(const AsyncRepo&) = delete;
-    AsyncRepo& operator=(const AsyncRepo&) = delete;
+    AsyncRepo(const AsyncRepo&)                = delete;
+    AsyncRepo& operator=(const AsyncRepo&)     = delete;
     ~AsyncRepo();
 
     QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> status();
-    QCoro::Task<gittide::Expected<gittide::DiffResult>> diff(
-        gittide::DiffTarget target, std::filesystem::path file);
+    QCoro::Task<gittide::Expected<gittide::DiffResult>> diff(gittide::DiffTarget target, std::filesystem::path file);
     QCoro::Task<gittide::Expected<void>> stage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
-    QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>>
-        log(unsigned limit = 1000);
+    QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
 
 private:
     struct Impl;
-    explicit AsyncRepo(std::shared_ptr<Impl> impl) : impl_(std::move(impl)) {}
+    explicit AsyncRepo(std::shared_ptr<Impl> impl)
+        : impl_(std::move(impl))
+    {
+    }
     std::shared_ptr<Impl> impl_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

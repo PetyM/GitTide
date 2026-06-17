@@ -7,7 +7,8 @@ class QLineEdit;
 namespace gittide::ui {
 
 // Dialog for "Initialize new repository" — parent directory + repo name.
-class InitRepoDialog : public QDialog {
+class InitRepoDialog : public QDialog
+{
     Q_OBJECT
 public:
     explicit InitRepoDialog(QWidget* parent = nullptr);
@@ -20,7 +21,8 @@ private:
 };
 
 // Dialog for "Clone repository" — remote URL + local destination.
-class CloneRepoDialog : public QDialog {
+class CloneRepoDialog : public QDialog
+{
     Q_OBJECT
 public:
     explicit CloneRepoDialog(QWidget* parent = nullptr);
@@ -32,4 +34,4 @@ private:
     QLineEdit* destEdit_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

@@ -1,24 +1,26 @@
 #include "gittide/ui/diffview.hpp"
-#include "gittide/ui/metatypes.hpp"
-
-#include <algorithm>
 
 #include <QFont>
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <algorithm>
+
+#include "gittide/ui/metatypes.hpp"
 
 namespace gittide::ui {
 
 namespace {
-constexpr int HunkRole = Qt::UserRole + 1;
-constexpr int LineRole = Qt::UserRole + 2;
+constexpr int HunkRole   = Qt::UserRole + 1;
+constexpr int LineRole   = Qt::UserRole + 2;
 constexpr int OriginRole = Qt::UserRole + 3;
-}  // namespace
+} // namespace
 
 DiffView::DiffView(QWidget* parent)
-    : QWidget(parent), lines_(new QListWidget(this)) {
+    : QWidget(parent)
+    , lines_(new QListWidget(this))
+{
     qRegisterMetaType<gittide::StageSelection>();
     lines_->setObjectName(QStringLiteral("diffLines"));
     lines_->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -28,7 +30,7 @@ DiffView::DiffView(QWidget* parent)
 
     // Action buttons that operate on the current line/hunk selection. Without
     // these the requestStage/Unstage/Discard slots have no GUI trigger.
-    auto* stageBtn = new QPushButton(QStringLiteral("Stage"), this);
+    auto* stageBtn   = new QPushButton(QStringLiteral("Stage"), this);
     auto* unstageBtn = new QPushButton(QStringLiteral("Unstage"), this);
     auto* discardBtn = new QPushButton(QStringLiteral("Discard"), this);
     stageBtn->setObjectName(QStringLiteral("diffStageButton"));
@@ -51,63 +53,84 @@ DiffView::DiffView(QWidget* parent)
     layout->addLayout(buttons);
 }
 
-void DiffView::clear() {
+void DiffView::clear()
+{
     lines_->clear();
     file_.clear();
 }
 
-void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file) {
+void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file)
+{
     lines_->clear();
     file_ = file;
-    for (int h = 0; h < static_cast<int>(result.hunks.size()); ++h) {
+    for (int h = 0; h < static_cast<int>(result.hunks.size()); ++h)
+    {
         const auto& hunk = result.hunks[h];
-        for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i) {
-            const auto& ln = hunk.lines[i];
-            const QChar prefix = ln.origin == gittide::DiffLineOrigin::Added   ? QChar('+')
-                               : ln.origin == gittide::DiffLineOrigin::Removed ? QChar('-')
-                                                                              : QChar(' ');
-            auto* item = new QListWidgetItem(prefix + QString::fromStdString(ln.text), lines_);
+        for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i)
+        {
+            const auto& ln     = hunk.lines[i];
+            const QChar prefix = ln.origin == gittide::DiffLineOrigin::Added     ? QChar('+')
+                                 : ln.origin == gittide::DiffLineOrigin::Removed ? QChar('-')
+                                                                                 : QChar(' ');
+            auto* item         = new QListWidgetItem(prefix + QString::fromStdString(ln.text), lines_);
             item->setData(HunkRole, h);
             item->setData(LineRole, i);
             item->setData(OriginRole, static_cast<int>(ln.origin));
-            if (ln.origin == gittide::DiffLineOrigin::Added) {
+            if (ln.origin == gittide::DiffLineOrigin::Added)
+            {
                 item->setForeground(QColor(0x4a, 0xde, 0x80));
                 item->setBackground(QColor(0x0d, 0x28, 0x18));
-            } else if (ln.origin == gittide::DiffLineOrigin::Removed) {
+            }
+            else if (ln.origin == gittide::DiffLineOrigin::Removed)
+            {
                 item->setForeground(QColor(0xf8, 0x71, 0x71));
                 item->setBackground(QColor(0x2d, 0x0f, 0x0f));
-            } else {
+            }
+            else
+            {
                 item->setForeground(QColor(0x94, 0xa3, 0xb8));
             }
         }
     }
 }
 
-std::optional<gittide::StageSelection> DiffView::currentSelection() const {
+std::optional<gittide::StageSelection> DiffView::currentSelection() const
+{
     const auto selected = lines_->selectedItems();
-    int hunk = -1;
+    int hunk            = -1;
     std::vector<int> lineIdx;
-    for (auto* item : selected) {
+    for (auto* item : selected)
+    {
         const auto origin = static_cast<gittide::DiffLineOrigin>(item->data(OriginRole).toInt());
-        if (origin == gittide::DiffLineOrigin::Context) continue;  // context not stageable
+        if (origin == gittide::DiffLineOrigin::Context)
+            continue; // context not stageable
         const int h = item->data(HunkRole).toInt();
-        if (hunk == -1) hunk = h;
-        if (h != hunk) continue;  // restrict to the first selected hunk
+        if (hunk == -1)
+            hunk = h;
+        if (h != hunk)
+            continue; // restrict to the first selected hunk
         lineIdx.push_back(item->data(LineRole).toInt());
     }
-    if (hunk == -1 || lineIdx.empty()) return std::nullopt;
+    if (hunk == -1 || lineIdx.empty())
+        return std::nullopt;
     std::sort(lineIdx.begin(), lineIdx.end());
     return gittide::StageSelection{.path = file_, .hunkIndex = hunk, .lineIndices = std::move(lineIdx)};
 }
 
-void DiffView::requestStage() {
-    if (auto sel = currentSelection()) emit stageRequested(*sel);
+void DiffView::requestStage()
+{
+    if (auto sel = currentSelection())
+        emit stageRequested(*sel);
 }
-void DiffView::requestUnstage() {
-    if (auto sel = currentSelection()) emit unstageRequested(*sel);
+void DiffView::requestUnstage()
+{
+    if (auto sel = currentSelection())
+        emit unstageRequested(*sel);
 }
-void DiffView::requestDiscard() {
-    if (auto sel = currentSelection()) emit discardRequested(*sel);
+void DiffView::requestDiscard()
+{
+    if (auto sel = currentSelection())
+        emit discardRequested(*sel);
 }
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

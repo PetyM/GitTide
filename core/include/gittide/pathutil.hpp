@@ -12,4 +12,4 @@ std::string to_git_path(const std::filesystem::path& p);
 // native std::filesystem::path.
 std::filesystem::path from_git_path(std::string_view git_path);
 
-}  // namespace gittide
+} // namespace gittide

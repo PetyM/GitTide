@@ -2,7 +2,8 @@
 
 namespace gittide::ui {
 
-Theme darkTheme() {
+Theme darkTheme()
+{
     return Theme{
         .dark           = true,
         .surfaceBase    = QStringLiteral("#0B1623"),
@@ -23,7 +24,8 @@ Theme darkTheme() {
     };
 }
 
-Theme lightTheme() {
+Theme lightTheme()
+{
     return Theme{
         .dark           = false,
         .surfaceBase    = QStringLiteral("#EEF3F8"),
@@ -44,4 +46,4 @@ Theme lightTheme() {
     };
 }
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

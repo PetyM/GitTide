@@ -10,16 +10,30 @@ namespace gittide::ui {
 // columns 1-3 expose summary/author/date as plain DisplayRole text. Qt's
 // model/view layer virtualizes rendering, so only visible rows are queried —
 // a 100k-commit log never stalls the UI.
-class HistoryModel : public QAbstractTableModel {
+class HistoryModel : public QAbstractTableModel
+{
     Q_OBJECT
 public:
-    enum Column { ColGraph = 0, ColSummary, ColAuthor, ColDate, ColCount };
-    enum Role { GraphRowRole = Qt::UserRole + 1 };
+    enum Column
+    {
+        ColGraph = 0,
+        ColSummary,
+        ColAuthor,
+        ColDate,
+        ColCount
+    };
+    enum Role
+    {
+        GraphRowRole = Qt::UserRole + 1
+    };
 
     explicit HistoryModel(QObject* parent = nullptr);
 
     void setLayout(const gittide::GraphLayout& layout);
-    int laneCount() const { return layout_.laneCount; }
+    int laneCount() const
+    {
+        return layout_.laneCount;
+    }
 
     int rowCount(const QModelIndex& parent = {}) const override;
     int columnCount(const QModelIndex& parent = {}) const override;
@@ -30,4 +44,4 @@ private:
     gittide::GraphLayout layout_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

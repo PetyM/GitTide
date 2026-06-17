@@ -3,16 +3,19 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+
 #include "gittide/giterror.hpp"
 
 namespace gittide {
 
-struct RepoRef {
-    std::string path;    // absolute, stored as UTF-8 generic path
+struct RepoRef
+{
+    std::string path; // absolute, stored as UTF-8 generic path
     std::string alias;
 };
 
-struct Project {
+struct Project
+{
     std::string id;
     std::string name;
     std::vector<RepoRef> repos;
@@ -22,20 +25,36 @@ struct Project {
 // In-memory model of projects.json. Persistence (load/save to disk) in Task 9.
 // Note: `activeProject` is the "last-focused" project hint (under the planned
 // multi-window UI there can be several open at once); it is not an exclusive lock.
-class ProjectStore {
+class ProjectStore
+{
 public:
     static constexpr int kVersion = 1;
 
-    std::deque<Project>& projects() { return projects_; }
-    const std::deque<Project>& projects() const { return projects_; }
+    std::deque<Project>& projects()
+    {
+        return projects_;
+    }
+    const std::deque<Project>& projects() const
+    {
+        return projects_;
+    }
 
-    const std::string& activeProject() const { return activeProject_; }
-    void setActiveProject(std::string id) { activeProject_ = std::move(id); }
+    const std::string& activeProject() const
+    {
+        return activeProject_;
+    }
+    void setActiveProject(std::string id)
+    {
+        activeProject_ = std::move(id);
+    }
 
     // Schema version read from the parsed document (kVersion for an in-memory
     // store or a document with no "version" key). Lets a future migration step
     // detect older on-disk schemas.
-    int loadedVersion() const { return loadedVersion_; }
+    int loadedVersion() const
+    {
+        return loadedVersion_;
+    }
 
     std::string to_json() const;
     static Expected<ProjectStore> from_json(const std::string& json);
@@ -69,4 +88,4 @@ private:
     int loadedVersion_ = kVersion;
 };
 
-}  // namespace gittide
+} // namespace gittide

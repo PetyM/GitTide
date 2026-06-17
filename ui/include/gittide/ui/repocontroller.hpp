@@ -2,27 +2,33 @@
 #include <QObject>
 #include <QString>
 #include <optional>
+#include <qcorotask.h>
 #include <vector>
 
-#include <qcorotask.h>
-
-#include "gittide/ui/asyncrepo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/ui/asyncrepo.hpp"
 
 namespace gittide::ui {
 
 // Holds the active repository for a window and drives it asynchronously. open()
 // is synchronous (cheap); all git work runs through AsyncRepo on the thread pool.
 // Coroutine slots take args BY VALUE so they survive a co_await suspension.
-class RepoController : public QObject {
+class RepoController : public QObject
+{
     Q_OBJECT
 public:
     explicit RepoController(QObject* parent = nullptr);
 
-    bool isOpen() const { return repo_.has_value(); }
-    QString path() const { return path_; }
+    bool isOpen() const
+    {
+        return repo_.has_value();
+    }
+    QString path() const
+    {
+        return path_;
+    }
 
 public slots:
     void open(const QString& path);
@@ -48,4 +54,4 @@ private:
     QString path_;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui

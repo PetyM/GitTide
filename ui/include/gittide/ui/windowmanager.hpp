@@ -1,6 +1,6 @@
 #pragma once
-#include <QObject>
 #include <QList>
+#include <QObject>
 #include <QString>
 
 #include "gittide/projectstore.hpp"
@@ -13,19 +13,32 @@ class MainWindow;
 // Process-wide owner of shared services and all MainWindows. Core services
 // (ProjectStore) live here once; windows are views over shared state.
 // "Active project" is per-window state held by each MainWindow's controller.
-class WindowManager : public QObject {
+class WindowManager : public QObject
+{
     Q_OBJECT
 public:
     // configDir: where session.json lives. Defaults to the OS app-config dir.
     explicit WindowManager(QString configDir = {}, QObject* parent = nullptr);
     ~WindowManager() override;
 
-    gittide::ProjectStore* store() { return &store_; }
+    gittide::ProjectStore* store()
+    {
+        return &store_;
+    }
 
-    void setDeduplicate(bool on) { dedup_ = on; }
-    bool deduplicate() const { return dedup_; }
+    void setDeduplicate(bool on)
+    {
+        dedup_ = on;
+    }
+    bool deduplicate() const
+    {
+        return dedup_;
+    }
 
-    int windowCount() const { return static_cast<int>(windows_.size()); }
+    int windowCount() const
+    {
+        return static_cast<int>(windows_.size());
+    }
 
     // Open a window for the project. When dedup is on and forceNew is false,
     // raises an existing window for that project instead of opening a second.
@@ -50,4 +63,4 @@ private:
     bool dedup_ = false;
 };
 
-}  // namespace gittide::ui
+} // namespace gittide::ui
