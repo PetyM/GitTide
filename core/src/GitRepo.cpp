@@ -1,4 +1,5 @@
 #include "gitgui/GitRepo.hpp"
+#include "gitgui/DiffEngine.hpp"
 #include "gitgui/PathUtil.hpp"
 #include <git2.h>
 #include <memory>
@@ -6,6 +7,9 @@
 #include <vector>
 
 namespace {
+// True when the selection targets the whole file (no hunk chosen).
+bool is_whole_file(const gitgui::StageSelection& sel) { return !sel.hunkIndex.has_value(); }
+
 gitgui::StatusFlag map_status(unsigned int s) {
     using gitgui::StatusFlag;
     StatusFlag f = StatusFlag::None;
@@ -73,6 +77,203 @@ Expected<std::vector<FileStatus>> GitRepo::status() const {
         result.push_back(FileStatus{from_git_path(raw), flags});
     }
     return result;
+}
+
+Expected<DiffResult> GitRepo::diff(DiffTarget target,
+                                   const std::filesystem::path& file) const {
+    std::string git_file = to_git_path(file);
+    char* paths[] = {git_file.data()};
+
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count = 1;
+    opts.flags = GIT_DIFF_INCLUDE_UNTRACKED | GIT_DIFF_SHOW_UNTRACKED_CONTENT;
+
+    git_diff* raw = nullptr;
+    int rc;
+    if (target == DiffTarget::WorktreeVsIndex) {
+        rc = git_diff_index_to_workdir(&raw, repo_, nullptr, &opts);
+    } else {
+        // IndexVsHead: compare HEAD's tree to the index. Unborn HEAD -> null tree.
+        git_object* head_obj = nullptr;
+        git_tree* head_tree = nullptr;
+        if (git_revparse_single(&head_obj, repo_, "HEAD^{tree}") == 0) {
+            head_tree = reinterpret_cast<git_tree*>(head_obj);
+        }
+        rc = git_diff_tree_to_index(&raw, repo_, head_tree, nullptr, &opts);
+        if (head_tree) git_tree_free(head_tree);
+    }
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff(raw, git_diff_free);
+    return DiffEngine::parse(diff.get());
+}
+
+std::filesystem::path GitRepo::workdir() const {
+    const char* wd = git_repository_workdir(repo_);
+    return wd ? from_git_path(wd) : std::filesystem::path{};
+}
+
+Expected<void> GitRepo::stage(const StageSelection& sel) {
+    git_index* index = nullptr;
+    int rc = git_repository_index(&index, repo_);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)>
+        idx_guard(index, git_index_free);
+
+    if (is_whole_file(sel)) {
+        std::string p = to_git_path(sel.path);
+        // If the file is gone from the worktree, stage its deletion.
+        std::filesystem::path abs =
+            sel.path.is_absolute() ? sel.path : workdir() / sel.path;
+        if (!std::filesystem::exists(abs)) {
+            rc = git_index_remove_bypath(index, p.c_str());
+        } else {
+            rc = git_index_add_bypath(index, p.c_str());
+        }
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        rc = git_index_write(index);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+    return apply_partial(sel, /*stage=*/true);
+}
+
+Expected<void> GitRepo::unstage(const StageSelection& sel) {
+    if (is_whole_file(sel)) {
+        // Reset the index entry for this path back to HEAD.
+        git_object* head = nullptr;
+        int rc = git_revparse_single(&head, repo_, "HEAD");
+        if (rc < 0) {
+            // Unborn branch: no HEAD, so unstaging == removing from index.
+            git_index* index = nullptr;
+            rc = git_repository_index(&index, repo_);
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)>
+                idx_guard(index, git_index_free);
+            std::string p = to_git_path(sel.path);
+            rc = git_index_remove_bypath(index, p.c_str());
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            rc = git_index_write(index);
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            return {};
+        }
+        std::unique_ptr<git_object, decltype(&git_object_free)>
+            head_guard(head, git_object_free);
+
+        std::string p = to_git_path(sel.path);
+        char* paths[] = {p.data()};
+        git_strarray pathspec = {paths, 1};
+        rc = git_reset_default(repo_, head, &pathspec);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+    return apply_partial(sel, /*stage=*/false);
+}
+
+Expected<void> GitRepo::apply_partial(const StageSelection& sel, bool stage) {
+    // 1. Get the diff that contains the selected hunk.
+    DiffTarget target = stage ? DiffTarget::WorktreeVsIndex : DiffTarget::IndexVsHead;
+    auto fileDiff = diff(target, sel.path);
+    if (!fileDiff) return std::unexpected(fileDiff.error());
+
+    int hi = sel.hunkIndex.value_or(-1);
+    if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
+        return std::unexpected(GitError{-1, "hunk index out of range"});
+
+    // 2. Build the patch buffer. Unstage reverses the index->HEAD diff.
+    std::string patch =
+        build_patch(to_git_path(sel.path), fileDiff->hunks[hi], sel, /*reverse=*/!stage);
+
+    // 3. Parse the buffer into a git_diff and apply it to the index.
+    git_diff* raw = nullptr;
+    int rc = git_diff_from_buffer(&raw, patch.data(), patch.size());
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    rc = git_apply(repo_, raw, GIT_APPLY_LOCATION_INDEX, nullptr);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return {};
+}
+
+Expected<void> GitRepo::discard(const StageSelection& sel) {
+    std::string p = to_git_path(sel.path);
+
+    if (is_whole_file(sel)) {
+        // Force-checkout the file from the index/HEAD, overwriting the worktree.
+        git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+        opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+        char* paths[] = {p.data()};
+        opts.paths.strings = paths;
+        opts.paths.count = 1;
+        int rc = git_checkout_head(repo_, &opts);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+
+    // Hunk/line: reverse-apply the worktree-vs-index patch to the WORKDIR.
+    auto fileDiff = diff(DiffTarget::WorktreeVsIndex, sel.path);
+    if (!fileDiff) return std::unexpected(fileDiff.error());
+    int hi = sel.hunkIndex.value_or(-1);
+    if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
+        return std::unexpected(GitError{-1, "hunk index out of range"});
+
+    std::string patch =
+        build_patch(p, fileDiff->hunks[hi], sel, /*reverse=*/true);
+
+    git_diff* raw = nullptr;
+    int rc = git_diff_from_buffer(&raw, patch.data(), patch.size());
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    rc = git_apply(repo_, raw, GIT_APPLY_LOCATION_WORKDIR, nullptr);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return {};
+}
+
+Expected<std::string> GitRepo::commit(const CommitRequest& req) {
+    git_signature* sig = nullptr;
+    int rc = git_signature_default(&sig, repo_);  // reads user.name/user.email
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_signature, decltype(&git_signature_free)>
+        sig_guard(sig, git_signature_free);
+
+    git_index* index = nullptr;
+    rc = git_repository_index(&index, repo_);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)>
+        idx_guard(index, git_index_free);
+
+    git_oid tree_oid;
+    rc = git_index_write_tree(&tree_oid, index);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    git_tree* tree = nullptr;
+    rc = git_tree_lookup(&tree, repo_, &tree_oid);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_tree, decltype(&git_tree_free)>
+        tree_guard(tree, git_tree_free);
+
+    // Parent = current HEAD commit, if the branch is born.
+    git_commit* parent = nullptr;
+    git_oid parent_oid;
+    git_commit* parents[1] = {nullptr};
+    size_t parent_count = 0;
+    if (git_reference_name_to_id(&parent_oid, repo_, "HEAD") == 0 &&
+        git_commit_lookup(&parent, repo_, &parent_oid) == 0) {
+        parents[0] = parent;
+        parent_count = 1;
+    }
+
+    git_oid commit_oid;
+    rc = git_commit_create(&commit_oid, repo_, "HEAD", sig, sig,
+                           nullptr, req.message.c_str(), tree,
+                           parent_count, parents);
+    if (parent) git_commit_free(parent);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+
+    char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(buf, sizeof(buf), &commit_oid);
+    return std::string(buf);
 }
 
 }  // namespace gitgui

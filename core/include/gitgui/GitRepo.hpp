@@ -3,6 +3,7 @@
 #include <vector>
 #include "gitgui/GitError.hpp"
 #include "gitgui/FileStatus.hpp"
+#include "gitgui/Diff.hpp"
 
 struct git_repository;
 
@@ -24,9 +25,27 @@ public:
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;
 
+    // Diff a single file against the chosen target.
+    Expected<DiffResult> diff(DiffTarget target,
+                              const std::filesystem::path& file) const;
+
+    // Stage / unstage the selection (whole file, hunk, or specific lines).
+    Expected<void> stage(const StageSelection& sel);
+    Expected<void> unstage(const StageSelection& sel);
+
+    // Commit the current index. Author/committer come from git config
+    // (user.name/user.email). Returns the new commit's hex oid.
+    Expected<std::string> commit(const CommitRequest& req);
+
+    // Revert worktree changes for the selection (whole file or hunk/lines).
+    Expected<void> discard(const StageSelection& sel);
+
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}
     git_repository* repo_ = nullptr;
+
+    std::filesystem::path workdir() const;            // repo working directory
+    Expected<void> apply_partial(const StageSelection& sel, bool stage);  // filled by a later task
 };
 
 }  // namespace gitgui
