@@ -74,15 +74,15 @@ TEST_CASE("GraphBuilder: diamond topology (fork then merge)", "[graph]") {
     REQUIRE(layout.rows.size() == 4);
 
     // A: merge commit at lane 0, no predecessor, two outEdges
-    // After allocating lanes for both parents, lane 1 (C) is already live so it
-    // appears as a passthrough even for the merge commit row itself.
+    // passThroughs are captured BEFORE parents are assigned, so no lanes existed
+    // above row A — passthrough list is empty.
     const auto& rowA = layout.rows[0];
     REQUIRE(rowA.commit.lane == 0);
     REQUIRE(!rowA.lineFromAbove);
     REQUIRE(rowA.outEdges.size() == 2);
     REQUIRE(rowA.outEdges[0] == (gitgui::GraphEdge{0, 0}));  // A→B stays lane 0
     REQUIRE(rowA.outEdges[1] == (gitgui::GraphEdge{0, 1}));  // A→C goes to lane 1
-    REQUIRE(rowA.passThroughs == std::vector<int>{1});  // lane 1 (C) is live after A
+    REQUIRE(rowA.passThroughs.empty());  // no lanes existed above A
 
     // B: lane 0, line from above, passthrough lane 1 (C waiting)
     const auto& rowB = layout.rows[1];
@@ -101,12 +101,12 @@ TEST_CASE("GraphBuilder: diamond topology (fork then merge)", "[graph]") {
     REQUIRE(rowC.outEdges[0] == (gitgui::GraphEdge{1, 0}));  // C→D at lane 0
 
     // D: lane 0, line from above (two branches converge here), no outEdges.
-    // Lane 1 retains a stale "d" entry after C sets its parent (the algorithm
-    // does not de-duplicate across lanes), so lane 1 shows as a passthrough.
+    // C's slot (lane 1) is freed when C's parent D is detected as already tracked
+    // at lane 0 — no ghost duplicate, so passThroughs is empty.
     const auto& rowD = layout.rows[3];
     REQUIRE(rowD.commit.lane == 0);
     REQUIRE(rowD.lineFromAbove);
-    REQUIRE(rowD.passThroughs == std::vector<int>{1});  // stale lane 1 from C→D
+    REQUIRE(rowD.passThroughs.empty());  // lane 1 freed at C, no ghost
     REQUIRE(rowD.outEdges.empty());
 
     REQUIRE(layout.laneCount == 2);

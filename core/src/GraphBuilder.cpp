@@ -41,12 +41,30 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits) {
         commit.lane = cl;
         max_lane = std::max(max_lane, cl);
 
-        // 2. Update active: first parent inherits this lane, extra parents get new lanes.
+        // 2a. Snapshot pass-through lanes BEFORE updating active for parents.
+        //     This captures only lanes that existed before this commit's parents
+        //     are assigned, avoiding spurious through-lines for newly-opened lanes.
+        std::vector<int> pass;
+        for (int i = 0; i < static_cast<int>(active.size()); ++i)
+            if (!active[i].empty() && i != cl)
+                pass.push_back(i);
+
+        // 2b. Update active: first parent inherits this lane, but avoid ghost
+        //     duplicates when the parent is already tracked at another lane.
         if (commit.parents.empty()) {
             active[cl] = "";
         } else {
-            active[cl] = commit.parents[0];
+            int already = lane_of(active, commit.parents[0]);
+            if (already >= 0 && already != cl) {
+                // Parent already tracked elsewhere — free this slot instead of
+                // writing a duplicate OID that would produce a ghost passthrough.
+                active[cl] = "";
+            } else {
+                active[cl] = commit.parents[0];
+            }
         }
+
+        // 2c. Extra parents get new lanes (unchanged).
         for (std::size_t pi = 1; pi < commit.parents.size(); ++pi) {
             if (lane_of(active, commit.parents[pi]) < 0) {
                 int slot = alloc_lane(active);
@@ -63,11 +81,7 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits) {
                 out.push_back({cl, pl});
         }
 
-        // 4. passThroughs: every non-empty active lane that is not this commit's lane.
-        std::vector<int> pass;
-        for (int i = 0; i < static_cast<int>(active.size()); ++i)
-            if (!active[i].empty() && i != cl)
-                pass.push_back(i);
+        // 4. passThroughs: snapshot from step 2a (pre-update).
 
         layout.rows.push_back(GraphRow{
             std::move(commit),
