@@ -3,6 +3,9 @@
 #include <fstream>
 #include <iterator>
 #include <system_error>
+#include <iomanip>
+#include <random>
+#include <sstream>
 
 using json = nlohmann::json;
 
@@ -131,6 +134,20 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
         return ProjectStore{};
     }
     return parsed;
+}
+
+Project& ProjectStore::createProject(const std::string& name) {
+    std::mt19937_64 gen{std::random_device{}()};
+    std::uniform_int_distribution<std::uint64_t> dist;
+    std::ostringstream oss;
+    oss << std::hex << std::setfill('0')
+        << std::setw(16) << dist(gen)
+        << std::setw(16) << dist(gen);
+    Project p;
+    p.id = oss.str();
+    p.name = name;
+    projects_.push_back(std::move(p));
+    return projects_.back();
 }
 
 }  // namespace gitgui

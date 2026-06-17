@@ -1,4 +1,5 @@
 #pragma once
+#include <deque>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -25,8 +26,8 @@ class ProjectStore {
 public:
     static constexpr int kVersion = 1;
 
-    std::vector<Project>& projects() { return projects_; }
-    const std::vector<Project>& projects() const { return projects_; }
+    std::deque<Project>& projects() { return projects_; }
+    const std::deque<Project>& projects() const { return projects_; }
 
     const std::string& activeProject() const { return activeProject_; }
     void setActiveProject(std::string id) { activeProject_ = std::move(id); }
@@ -46,8 +47,13 @@ public:
     // to "<file>.corrupt" and return an empty store (never fails on bad data).
     static Expected<ProjectStore> load(const std::filesystem::path& file);
 
+    // Append a new Project with a random unique id and the given name.
+    // Returns a reference to the newly created project.
+    // Call save() after mutating to persist the change.
+    Project& createProject(const std::string& name);
+
 private:
-    std::vector<Project> projects_;
+    std::deque<Project> projects_;
     std::string activeProject_;
     int loadedVersion_ = kVersion;
 };

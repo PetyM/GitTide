@@ -108,3 +108,31 @@ TEST_CASE("load of corrupt JSON backs up the file and returns empty store", "[st
     std::filesystem::remove(path);
     std::filesystem::remove(path.string() + ".corrupt");
 }
+
+TEST_CASE("createProject appends a project with unique id and given name", "[store][mutations]") {
+    gitgui::ProjectStore store;
+    auto& p1 = store.createProject("Alpha");
+    auto& p2 = store.createProject("Beta");
+
+    REQUIRE(store.projects().size() == 2);
+    REQUIRE(p1.name == "Alpha");
+    REQUIRE(p2.name == "Beta");
+    REQUIRE(!p1.id.empty());
+    REQUIRE(!p2.id.empty());
+    REQUIRE(p1.id != p2.id);
+}
+
+TEST_CASE("createProject persists via save/load round-trip", "[store][mutations]") {
+    auto path = temp_json_path();
+    gitgui::ProjectStore store;
+    store.createProject("MyProject");
+    REQUIRE(store.save(path).has_value());
+
+    auto loaded = gitgui::ProjectStore::load(path);
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects().size() == 1);
+    REQUIRE(loaded->projects()[0].name == "MyProject");
+    REQUIRE(!loaded->projects()[0].id.empty());
+
+    std::filesystem::remove(path);
+}
