@@ -34,6 +34,7 @@
 #include "test_dashboard_async.cpp"
 #include "test_diff_view.cpp"
 #include "test_changes_view.cpp"
+#include "test_theme.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -96,6 +97,10 @@ int main(int argc, char** argv) {
     }
     {
         TestChangesView t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestTheme t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
