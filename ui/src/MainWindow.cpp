@@ -13,7 +13,9 @@
 
 #include <QDockWidget>
 #include <QFileDialog>
+#include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QInputDialog>
 #include <QLabel>
 #include <QListView>
@@ -28,41 +30,72 @@ namespace gittide::ui {
 
 // ---- helpers ----
 namespace {
-QWidget* makeNoProjectsPage(QWidget* parent) {
+
+// Builds a centered branded card: icon + headline + subtext + the given buttons.
+QWidget* makeEmptyStatePage(QWidget* parent, const QString& pageName,
+                            const QString& headline, const QString& subtext,
+                            const QList<QPushButton*>& buttons) {
     auto* w = new QWidget(parent);
-    w->setObjectName(QStringLiteral("noProjectsPage"));
-    auto* btn = new QPushButton(QStringLiteral("Create Project"), w);
-    btn->setObjectName(QStringLiteral("createProjectCta"));
-    auto* layout = new QVBoxLayout(w);
-    layout->addStretch();
+    w->setObjectName(pageName);
+
+    auto* card = new QFrame(w);
+    card->setObjectName(QStringLiteral("emptyStateCard"));
+    card->setMaximumWidth(420);
+
+    auto* icon = new QLabel(card);
+    icon->setPixmap(QIcon(QStringLiteral(":/icons/gittide-icon.svg")).pixmap(72, 72));
+    icon->setAlignment(Qt::AlignCenter);
+
+    auto* title = new QLabel(headline, card);
+    title->setProperty("role", "headline");
+    title->setAlignment(Qt::AlignCenter);
+
+    auto* sub = new QLabel(subtext, card);
+    sub->setProperty("role", "subtext");
+    sub->setAlignment(Qt::AlignCenter);
+    sub->setWordWrap(true);
+
+    auto* cardLayout = new QVBoxLayout(card);
+    cardLayout->setContentsMargins(24, 24, 24, 24);
+    cardLayout->setSpacing(12);
+    cardLayout->addWidget(icon);
+    cardLayout->addWidget(title);
+    cardLayout->addWidget(sub);
+    for (auto* b : buttons) { b->setParent(card); cardLayout->addWidget(b); }
+
+    auto* outer = new QVBoxLayout(w);
+    outer->addStretch();
     auto* row = new QHBoxLayout;
-    row->addStretch();
-    row->addWidget(btn);
-    row->addStretch();
-    layout->addLayout(row);
-    layout->addStretch();
+    row->addStretch(); row->addWidget(card); row->addStretch();
+    outer->addLayout(row);
+    outer->addStretch();
     return w;
 }
 
-QWidget* makeNoReposPage(QWidget* parent) {
-    auto* w = new QWidget(parent);
-    w->setObjectName(QStringLiteral("noReposPage"));
-    auto* addBtn  = new QPushButton(QStringLiteral("Add Existing Repository"), w);
-    addBtn->setObjectName(QStringLiteral("addExistingCta"));
-    auto* initBtn = new QPushButton(QStringLiteral("Initialize New Repository"), w);
-    initBtn->setObjectName(QStringLiteral("initRepoCta"));
-    auto* cloneBtn = new QPushButton(QStringLiteral("Clone Repository"), w);
-    cloneBtn->setObjectName(QStringLiteral("cloneCta"));
-    auto* layout = new QVBoxLayout(w);
-    layout->addStretch();
-    for (auto* b : {addBtn, initBtn, cloneBtn}) {
-        auto* row = new QHBoxLayout;
-        row->addStretch(); row->addWidget(b); row->addStretch();
-        layout->addLayout(row);
-    }
-    layout->addStretch();
-    return w;
+QWidget* makeNoProjectsPage(QWidget* parent) {
+    auto* btn = new QPushButton(QStringLiteral("Create Project"));
+    btn->setObjectName(QStringLiteral("createProjectCta"));
+    return makeEmptyStatePage(
+        parent, QStringLiteral("noProjectsPage"),
+        QStringLiteral("Welcome to GitTide"),
+        QStringLiteral("Create a project to group the repositories you work on."),
+        {btn});
 }
+
+QWidget* makeNoReposPage(QWidget* parent) {
+    auto* addBtn = new QPushButton(QStringLiteral("Add Existing Repository"));
+    addBtn->setObjectName(QStringLiteral("addExistingCta"));
+    auto* initBtn = new QPushButton(QStringLiteral("Initialize New Repository"));
+    initBtn->setObjectName(QStringLiteral("initRepoCta"));
+    auto* cloneBtn = new QPushButton(QStringLiteral("Clone Repository"));
+    cloneBtn->setObjectName(QStringLiteral("cloneCta"));
+    return makeEmptyStatePage(
+        parent, QStringLiteral("noReposPage"),
+        QStringLiteral("No repositories yet"),
+        QStringLiteral("Add, initialize, or clone a repository to get started."),
+        {addBtn, initBtn, cloneBtn});
+}
+
 }  // namespace
 
 // ---- MainWindow ----

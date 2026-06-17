@@ -1,6 +1,8 @@
 #include <QObject>
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QFrame>
+#include <QLabel>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTabWidget>
@@ -127,6 +129,17 @@ private slots:
         QVERIFY(win.findChild<QPushButton*>(QStringLiteral("addExistingCta")) != nullptr);
         QVERIFY(win.findChild<QPushButton*>(QStringLiteral("initRepoCta")) != nullptr);
         QVERIFY(win.findChild<QPushButton*>(QStringLiteral("cloneCta")) != nullptr);
+        main_window_test::drainAsync();
+    }
+
+    void no_projects_page_has_branded_card() {
+        ProjectStore store;
+        MainWindow win(&store);
+        auto* card = win.findChild<QFrame*>(QStringLiteral("emptyStateCard"));
+        QVERIFY(card != nullptr);
+        // headline + the existing CTA still live inside the card
+        QVERIFY(card->findChild<QLabel*>() != nullptr);
+        QVERIFY(win.findChild<QPushButton*>(QStringLiteral("createProjectCta")) != nullptr);
         main_window_test::drainAsync();
     }
 
