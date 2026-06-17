@@ -51,6 +51,20 @@ trip. **Amend** in particular is high value and almost free (a single
 - **UI surface.** Amend lives in Changes (next to Commit). Reword/squash live on
   the History graph (context menu on a commit / a selected range), consistent with
   where [branch management](branch-management.md) hangs commit-context actions.
+- **Submodules — handle with care (a known GitHub-Desktop pain point).** Rewriting
+  history in a repo that has submodules is where clients get it wrong: GitHub
+  Desktop is notorious for **clobbering submodule pointers** during amend/squash —
+  silently moving a submodule to the wrong commit, staging spurious submodule
+  pointer-move changes into the amended commit, or checking out submodule content
+  the user never touched. A submodule shows in the parent as a single
+  pointer-move entry (per GitTide's existing submodule model), and an amend that
+  folds "all staged changes" must **not** drag in a submodule pointer the user
+  didn't intend. The rule: a history edit must **preserve submodule pointers
+  exactly** unless the user explicitly changed them, never auto-update or
+  auto-checkout submodule content as a side effect, and never lose an intended
+  pointer move. Worth an explicit test (a repo with a submodule, amend an unrelated
+  file, assert the submodule entry is untouched) and likely a decisions.md note on
+  the policy.
 - **Scope creep to resist.** No full interactive-rebase todo editor in this wish's
   first cut — just amend + reword-tip. Squash/fixup of arbitrary ranges arrives
   with interactive rebase.
