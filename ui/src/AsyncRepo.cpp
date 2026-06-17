@@ -73,4 +73,13 @@ QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commit(gittide::CommitReq
     });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::log(
+    unsigned limit) {
+    auto impl = impl_;
+    co_return co_await QtConcurrent::run([impl, limit]() {
+        std::scoped_lock lock(impl->mutex);
+        return impl->repo.log(limit);
+    });
+}
+
 }  // namespace gittide::ui

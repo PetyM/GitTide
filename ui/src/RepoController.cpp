@@ -2,6 +2,9 @@
 #include "gittide/ui/Metatypes.hpp"
 
 #include <filesystem>
+#include <utility>
+
+#include "gittide/GraphBuilder.hpp"
 
 namespace gittide::ui {
 
@@ -10,6 +13,7 @@ RepoController::RepoController(QObject* parent) : QObject(parent) {
     qRegisterMetaType<gittide::DiffResult>();
     qRegisterMetaType<gittide::StageSelection>();
     qRegisterMetaType<gittide::CommitRequest>();
+    qRegisterMetaType<gittide::GraphLayout>();
 }
 
 void RepoController::open(const QString& path) {
@@ -84,6 +88,16 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req) {
     }
     emit committed(QString::fromStdString(*result));
     co_await refreshStatus();
+}
+
+QCoro::Task<void> RepoController::refreshHistory(unsigned limit) {
+    if (!repo_) co_return;
+    auto result = co_await repo_->log(limit);
+    if (!result) {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    emit historyReady(gittide::GraphBuilder::build(std::move(*result)));
 }
 
 }  // namespace gittide::ui

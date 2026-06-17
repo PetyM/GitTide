@@ -9,6 +9,7 @@
 #include "gittide/ui/AsyncRepo.hpp"
 #include "gittide/Diff.hpp"
 #include "gittide/FileStatus.hpp"
+#include "gittide/Graph.hpp"
 
 namespace gittide::ui {
 
@@ -31,6 +32,7 @@ public slots:
     QCoro::Task<void> unstage(gittide::StageSelection sel);
     QCoro::Task<void> discard(gittide::StageSelection sel);
     QCoro::Task<void> commit(gittide::CommitRequest req);
+    QCoro::Task<void> refreshHistory(unsigned limit = 1000);
 
 signals:
     void repoOpened(const QString& path);
@@ -38,6 +40,7 @@ signals:
     void statusChanged(const std::vector<gittide::FileStatus>& files);
     void diffReady(const QString& path, const gittide::DiffResult& result);
     void committed(const QString& oid);
+    void historyReady(gittide::GraphLayout layout);
     void operationFailed(const QString& message);
 
 private:

@@ -13,6 +13,7 @@ class ProjectController;
 class ProjectSidebar;
 class RepoController;
 class ChangesView;
+class HistoryView;
 class DashboardModel;
 
 class MainWindow : public QMainWindow {
@@ -43,6 +44,7 @@ private:
     ProjectSidebar* sidebar_;
     RepoController* repoController_;
     ChangesView* changesView_;
+    HistoryView* historyView_;
     DashboardModel* dashboardModel_;
     QStackedWidget* centralStack_;
 };

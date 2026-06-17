@@ -34,6 +34,7 @@
 #include "test_dashboard_async.cpp"
 #include "test_diff_view.cpp"
 #include "test_changes_view.cpp"
+#include "test_history_model.cpp"
 #include "test_theme.cpp"
 #include "test_theme_style.cpp"
 #include "test_theme_manager.cpp"
@@ -99,6 +100,10 @@ int main(int argc, char** argv) {
     }
     {
         TestChangesView t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestHistoryModel t;
         status |= QTest::qExec(&t, argc, argv);
     }
     {

@@ -47,6 +47,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_dashboard_async.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changes_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_style.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp

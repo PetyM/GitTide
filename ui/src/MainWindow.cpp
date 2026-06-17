@@ -3,6 +3,7 @@
 #include "gittide/ui/ProjectSidebar.hpp"
 #include "gittide/ui/RepoController.hpp"
 #include "gittide/ui/ChangesView.hpp"
+#include "gittide/ui/HistoryView.hpp"
 #include "gittide/ui/DashboardModel.hpp"
 #include "gittide/ui/AddRepoDialogs.hpp"
 
@@ -112,6 +113,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store,
       sidebar_(new ProjectSidebar(controller_, this)),
       repoController_(new RepoController(this)),
       changesView_(new ChangesView(this)),
+      historyView_(new HistoryView(this)),
       dashboardModel_(new DashboardModel(this)),
       centralStack_(new QStackedWidget(this)) {
     setWindowTitle(QStringLiteral("GitTide"));
@@ -131,7 +133,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store,
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName(QStringLiteral("mainTabs"));
     tabs->addTab(changesView_, QStringLiteral("Changes"));
-    tabs->addTab(new QLabel(QStringLiteral("History — Plan 4")), QStringLiteral("History"));
+    tabs->addTab(historyView_, QStringLiteral("History"));
     auto* dashboardView = new QListView(this);
     dashboardView->setObjectName(QStringLiteral("dashboardList"));
     dashboardView->setModel(dashboardModel_);
@@ -155,7 +157,12 @@ MainWindow::MainWindow(gittide::ProjectStore* store,
     connect(repoController_, &RepoController::repoOpened, this, [this](const QString& path) {
         emit repoOpened(path);
         QCoro::connect(repoController_->refreshStatus(), this, [] {});
+        QCoro::connect(repoController_->refreshHistory(), this, [] {});
     });
+    connect(repoController_, &RepoController::historyReady, this,
+            [this](const gittide::GraphLayout& layout) {
+                historyView_->setHistory(layout);
+            });
 
     // Async wiring between controller and ChangesView.
     connect(repoController_, &RepoController::statusChanged,

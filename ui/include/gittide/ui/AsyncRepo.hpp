@@ -9,6 +9,7 @@
 #include "gittide/Diff.hpp"
 #include "gittide/FileStatus.hpp"
 #include "gittide/GitError.hpp"
+#include "gittide/Graph.hpp"
 
 namespace gittide::ui {
 
@@ -36,6 +37,8 @@ public:
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
+    QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>>
+        log(unsigned limit = 1000);
 
 private:
     struct Impl;
