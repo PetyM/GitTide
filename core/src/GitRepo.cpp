@@ -7,6 +7,9 @@
 #include <vector>
 
 namespace {
+// True when the selection targets the whole file (no hunk chosen).
+bool is_whole_file(const gitgui::StageSelection& sel) { return !sel.hunkIndex.has_value(); }
+
 gitgui::StatusFlag map_status(unsigned int s) {
     using gitgui::StatusFlag;
     StatusFlag f = StatusFlag::None;
@@ -104,6 +107,73 @@ Expected<DiffResult> GitRepo::diff(DiffTarget target,
 
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff(raw, git_diff_free);
     return DiffEngine::parse(diff.get());
+}
+
+std::filesystem::path GitRepo::workdir() const {
+    const char* wd = git_repository_workdir(repo_);
+    return wd ? from_git_path(wd) : std::filesystem::path{};
+}
+
+Expected<void> GitRepo::stage(const StageSelection& sel) {
+    git_index* index = nullptr;
+    int rc = git_repository_index(&index, repo_);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)>
+        idx_guard(index, git_index_free);
+
+    if (is_whole_file(sel)) {
+        std::string p = to_git_path(sel.path);
+        // If the file is gone from the worktree, stage its deletion.
+        std::filesystem::path abs =
+            sel.path.is_absolute() ? sel.path : workdir() / sel.path;
+        if (!std::filesystem::exists(abs)) {
+            rc = git_index_remove_bypath(index, p.c_str());
+        } else {
+            rc = git_index_add_bypath(index, p.c_str());
+        }
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        rc = git_index_write(index);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+    return apply_partial(sel, /*stage=*/true);
+}
+
+Expected<void> GitRepo::unstage(const StageSelection& sel) {
+    if (is_whole_file(sel)) {
+        // Reset the index entry for this path back to HEAD.
+        git_object* head = nullptr;
+        int rc = git_revparse_single(&head, repo_, "HEAD");
+        if (rc < 0) {
+            // Unborn branch: no HEAD, so unstaging == removing from index.
+            git_index* index = nullptr;
+            rc = git_repository_index(&index, repo_);
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)>
+                idx_guard(index, git_index_free);
+            std::string p = to_git_path(sel.path);
+            rc = git_index_remove_bypath(index, p.c_str());
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            rc = git_index_write(index);
+            if (rc < 0) return std::unexpected(last_git_error(rc));
+            return {};
+        }
+        std::unique_ptr<git_object, decltype(&git_object_free)>
+            head_guard(head, git_object_free);
+
+        std::string p = to_git_path(sel.path);
+        char* paths[] = {p.data()};
+        git_strarray pathspec = {paths, 1};
+        rc = git_reset_default(repo_, head, &pathspec);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+    return apply_partial(sel, /*stage=*/false);
+}
+
+// TEMPORARY stub — a later task replaces this with the real partial-apply logic.
+Expected<void> GitRepo::apply_partial(const StageSelection&, bool) {
+    return std::unexpected(GitError{-1, "partial staging not yet implemented"});
 }
 
 }  // namespace gitgui

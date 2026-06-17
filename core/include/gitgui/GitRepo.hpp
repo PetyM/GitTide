@@ -29,9 +29,16 @@ public:
     Expected<DiffResult> diff(DiffTarget target,
                               const std::filesystem::path& file) const;
 
+    // Stage / unstage the selection (whole file, hunk, or specific lines).
+    Expected<void> stage(const StageSelection& sel);
+    Expected<void> unstage(const StageSelection& sel);
+
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}
     git_repository* repo_ = nullptr;
+
+    std::filesystem::path workdir() const;            // repo working directory
+    Expected<void> apply_partial(const StageSelection& sel, bool stage);  // filled by a later task
 };
 
 }  // namespace gitgui
