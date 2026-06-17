@@ -188,8 +188,15 @@ private slots:
         ProjectController controller(&store);
         controller.activate(QString::fromStdString(p.id));
 
+        // Build an RFC 8089 file:// URL: POSIX paths start with '/' (file:///tmp/x),
+        // Windows paths start with a drive letter and need the extra slash
+        // (file:///C:/x), else libgit2 reads "C:" as the URL host and the clone fails.
+        const auto srcGeneric = srcDir.generic_string();
+        const std::string srcUrl =
+            (srcGeneric.starts_with('/') ? "file://" : "file:///") + srcGeneric;
+
         QSignalSpy spy(&controller, &ProjectController::repoAdded);
-        QCoro::waitFor(controller.cloneRepo(QString::fromStdString("file://" + srcDir.generic_string()),
+        QCoro::waitFor(controller.cloneRepo(QString::fromStdString(srcUrl),
                                             QString::fromStdString(destDir.generic_string())));
 
         QCOMPARE(spy.count(), 1);

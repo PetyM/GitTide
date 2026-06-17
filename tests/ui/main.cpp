@@ -38,54 +38,28 @@
 
 #include <QApplication>
 #include <QtTest/QtTest>
-#include <cstdio>
-#include <cstdlib>
 #include <git2.h>
 
-// Direct, unbuffered stderr marker that survives an abnormal exit, so CI logs
-// show exactly which stage/test was running when the process died.
-#define MARK(msg)                                                                                                              \
-    do                                                                                                                         \
-    {                                                                                                                          \
-        std::fprintf(stderr, "[mark] %s\n", msg);                                                                             \
-        std::fflush(stderr);                                                                                                   \
-    } while (0)
 #define RUN(T)                                                                                                                 \
     do                                                                                                                         \
     {                                                                                                                          \
-        MARK("run " #T);                                                                                                       \
         T t;                                                                                                                   \
-        int rc = QTest::qExec(&t, argc, argv);                                                                                 \
-        std::fflush(stdout);                                                                                                   \
-        if (rc != 0)                                                                                                           \
-            std::fprintf(stderr, "[mark] FAIL %s rc=%d\n", #T, rc);                                                            \
-        std::fflush(stderr);                                                                                                   \
-        status |= rc;                                                                                                          \
+        status |= QTest::qExec(&t, argc, argv);                                                                                 \
     } while (0)
 
 int main(int argc, char** argv)
 {
-    // Unbuffer stdout/stderr so QTest output reaches ctest's capture pipe
-    // immediately. With default full buffering on a pipe, an abnormal exit would
-    // discard the entire buffer, leaving an empty "***Failed" with no diagnostics.
-    std::setvbuf(stdout, nullptr, _IONBF, 0);
-    std::setvbuf(stderr, nullptr, _IONBF, 0);
-    MARK("main entered");
-
     QApplication app(argc, argv);
-    MARK("QApplication constructed");
 
-    // Hold a process-wide libgit2 reference for the whole run. The per-test repo
-    // helpers each call git_libgit2_init()/git_libgit2_shutdown(); without this
-    // anchor the refcount can hit zero and tear down global state (incl. the
-    // filter registry) while an AsyncRepo worker thread is mid-operation.
+    // Hold one process-wide libgit2 reference for the whole run. The per-test repo
+    // helpers each call git_libgit2_init()/git_libgit2_shutdown(); this anchor keeps
+    // the refcount from hitting zero (and tearing down global state) between tests.
     git_libgit2_init();
-    // Ignore the host's system/global/XDG git config so CI's Windows runner
-    // (which sets core.autocrlf=true globally) cannot inject the CRLF filter into
-    // these test repos — that filter ran on a worker thread and crashed.
+    // Ignore the host's system/global/XDG git config so CI's Windows runner (which
+    // sets core.autocrlf=true globally) cannot inject the CRLF filter into these
+    // test repos — that filter ran on an AsyncRepo worker thread and crashed.
     for (int level : {GIT_CONFIG_LEVEL_PROGRAMDATA, GIT_CONFIG_LEVEL_SYSTEM, GIT_CONFIG_LEVEL_XDG, GIT_CONFIG_LEVEL_GLOBAL})
         git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, level, "");
-    MARK("libgit2 initialised");
 
     int status = 0;
     RUN(TestUiSmoke);
@@ -107,14 +81,10 @@ int main(int argc, char** argv)
     RUN(TestTheme);
     RUN(TestThemeStyle);
     RUN(TestThemeManager);
-    MARK("all tests done");
-    // Hard-exit instead of returning, to skip global/static destructors. AsyncRepo
-    // runs git operations on the global QThreadPool, whose worker threads are
-    // joined only during static teardown; on Windows that teardown touches
-    // libgit2 thread-local state in an order that crashes, turning an all-green
-    // run into an abnormal exit (and a ctest failure). Tests clean up their own
-    // temp dirs as they go, so skipping destructors is safe here. Flush first so
-    // no buffered output is lost (belt-and-braces with the unbuffered streams).
-    std::fflush(nullptr);
-    std::_Exit(status);
+
+    // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
+    // are joined only during static teardown, after main returns, so shutting down
+    // here could free libgit2 state still referenced by an exiting worker. The
+    // process is about to exit anyway, so leaving it initialised is harmless.
+    return status;
 }
