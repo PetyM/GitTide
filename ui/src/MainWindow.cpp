@@ -38,6 +38,10 @@ QWidget* makeEmptyStatePage(QWidget* parent, const QString& pageName,
     auto* w = new QWidget(parent);
     w->setObjectName(pageName);
 
+    // Both empty-state pages share this name intentionally: QSS targets it as a
+    // visual "class" (QFrame#emptyStateCard). Only one page is visible at a time
+    // via QStackedWidget. Callers that need to distinguish them should search
+    // within the specific page widget (findChild on the page, not the window).
     auto* card = new QFrame(w);
     card->setObjectName(QStringLiteral("emptyStateCard"));
     card->setMaximumWidth(420);
