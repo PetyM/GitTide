@@ -50,7 +50,7 @@ controllers + the `AsyncRepo` bridge; `app/` is process-wide composition
 
 - **No Qt in `core/`.** It compiles and tests without Qt on the include path.
 - **libgit2 and nlohmann/json are PRIVATE to `core/`** — no public header
-  includes them (`GitRepo.hpp` only forward-declares `git_repository`).
+  includes them (`gitrepo.hpp` only forward-declares `git_repository`).
 - **Core speaks `std`** (`std::string` UTF-8, `std::filesystem::path`,
   `std::expected`); Qt types only at the ViewModel boundary.
 - **Errors are values:** core returns `Expected<T>` = `std::expected<T, GitError>`;
@@ -64,6 +64,5 @@ controllers + the `AsyncRepo` bridge; `app/` is process-wide composition
   new tests → the matching list in `tests/CMakeLists.txt`.
 - **Code style:** follow [`docs/spec/engineering/code-style.md`](docs/spec/engineering/code-style.md)
   (KISS/DRY/SOLID/YAGNI; `m_` members; lowercase file names; Allman braces via
-  `.clang-format`). It is authoritative for new code; **conform any existing file
-  you touch** (clang-format + naming), and split a rename from content changes
-  into two commits to preserve git history.
+  `.clang-format`). The codebase conforms to it — keep new code conformant; and
+  split a rename from content changes into two commits to preserve git history.

@@ -2,7 +2,7 @@
 
 The visual design system: the single source of truth for colour, type, spacing,
 shape, theming, and component styling. Every widget reads a **token**; no widget
-hard-codes a colour. Implementation lives in `ui/src/Theme*.cpp` — see the wiring
+hard-codes a colour. Implementation lives in `ui/src/theme*.cpp` — see the wiring
 notes at the end.
 
 The brand is a set of nested "echo" waves rising from a root commit — cyan on
@@ -134,7 +134,7 @@ that only works in one theme.
 
 ## Wiring
 
-Token table and theme factories: `ui/src/Theme.cpp` (`Theme`, `darkTheme()`,
-`lightTheme()`). QSS generation: `ui/src/ThemeStyle.cpp` (pure `Theme → QString`).
-Application + OS-scheme resolution + live re-apply + icon: `ui/src/ThemeManager.cpp`.
+Token table and theme factories: `ui/src/theme.cpp` (`Theme`, `darkTheme()`,
+`lightTheme()`). QSS generation: `ui/src/themestyle.cpp` (pure `Theme → QString`).
+Application + OS-scheme resolution + live re-apply + icon: `ui/src/thememanager.cpp`.
 Per-symbol contracts live in the headers under `ui/include/gittide/ui/`.

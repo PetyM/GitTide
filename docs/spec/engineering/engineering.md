@@ -7,7 +7,7 @@ whole codebase, the async model, and the build/test setup.
 many files and are not derivable from any single one. It is deliberately **not**
 an API reference: the contract of a class or function lives in **Doxygen
 comments next to that symbol**. When you want "what does `GitRepo::stage` do",
-read [`core/include/gittide/GitRepo.hpp`](../../../core/include/gittide/GitRepo.hpp);
+read [`core/include/gittide/gitrepo.hpp`](../../../core/include/gittide/gitrepo.hpp);
 when you want "why is `core/` allowed to know nothing about Qt", read on.
 
 ## Architecture
@@ -46,14 +46,14 @@ and testable on its own.
 
 | Concern | Code |
 |---------|------|
-| Git operations (status/diff/stage/commit/log/submodules) | `core/src/GitRepo.cpp`, `core/include/gittide/GitRepo.hpp` |
-| Diff parsing + partial-staging patch synthesis | `core/src/DiffEngine.cpp` |
-| Commit graph lane layout | `core/src/GraphBuilder.cpp` |
-| Project registry persistence (JSON) | `core/src/ProjectStore.cpp` |
-| Async / off-thread git | `ui/src/AsyncRepo.cpp` |
-| Controllers (ViewModels) | `ui/src/ProjectController.cpp`, `ui/src/RepoController.cpp` |
-| Multi-window + session restore | `ui/src/WindowManager.cpp` |
-| Theming (tokens → QSS) | `ui/src/Theme*.cpp` — see [`../design/design.md`](../design/design.md) |
+| Git operations (status/diff/stage/commit/log/submodules) | `core/src/gitrepo.cpp`, `core/include/gittide/gitrepo.hpp` |
+| Diff parsing + partial-staging patch synthesis | `core/src/diffengine.cpp` |
+| Commit graph lane layout | `core/src/graphbuilder.cpp` |
+| Project registry persistence (JSON) | `core/src/projectstore.cpp` |
+| Async / off-thread git | `ui/src/asyncrepo.cpp` |
+| Controllers (ViewModels) | `ui/src/projectcontroller.cpp`, `ui/src/repocontroller.cpp` |
+| Multi-window + session restore | `ui/src/windowmanager.cpp` |
+| Theming (tokens → QSS) | `ui/src/theme*.cpp` — see [`../design/design.md`](../design/design.md) |
 
 ## Cross-cutting invariants
 
@@ -64,7 +64,7 @@ The rationale and rejected alternatives behind them are logged in
 1. **No Qt in `core/`.** Core compiles and tests without Qt on the include path.
    This is what keeps the git engine unit-testable and the layering honest.
 2. **libgit2 and nlohmann/json are PRIVATE to `core/`.** No public core header
-   includes them — `GitRepo.hpp` only forward-declares `struct git_repository`.
+   includes them — `gitrepo.hpp` only forward-declares `struct git_repository`.
    They never leak onto downstream consumers (see the `PRIVATE` linkage in
    [`core/CMakeLists.txt`](../../../core/CMakeLists.txt)). Tests that need
    `<git2.h>` link libgit2 explicitly.
@@ -89,7 +89,7 @@ The rationale and rejected alternatives behind them are logged in
 
 The UI thread never blocks; git work runs off it.
 
-- **`AsyncRepo`** ([`ui/include/gittide/ui/AsyncRepo.hpp`](../../../ui/include/gittide/ui/AsyncRepo.hpp))
+- **`AsyncRepo`** ([`ui/include/gittide/ui/asyncrepo.hpp`](../../../ui/include/gittide/ui/asyncrepo.hpp))
   wraps each blocking `GitRepo` call in `QtConcurrent::run` (Qt's global thread
   pool) and exposes it as a `co_await`-able `QCoro::Task`. A **per-repo mutex**,
   held inside the worker lambda, serializes pool access so two awaited ops never
@@ -110,9 +110,9 @@ The UI thread never blocks; git work runs off it.
 
 Naming, formatting, and the mandatory C++/Qt rules live in
 [`code-style.md`](code-style.md) — the standard, enforced by
-[`.clang-format`](../../../.clang-format). It is authoritative for new code;
-existing files are conformed **when touched** (not in a repo-wide reformat).
-Principles first: KISS, DRY, SOLID, YAGNI.
+[`.clang-format`](../../../.clang-format). The codebase conforms to it; keep new
+code conformant (see the [Conformance](code-style.md#conformance) note for the
+test-layer exception). Principles first: KISS, DRY, SOLID, YAGNI.
 
 ## Build & test
 

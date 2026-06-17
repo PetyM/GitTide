@@ -158,25 +158,26 @@ enum EType {
 static_assert(ETYPE__END - ETYPE__BEGIN == 2, "add new type handler here");
 ```
 
-## Reconciliation with existing code
+## Conformance
 
-GitTide's current code predates this standard and **does not yet conform**:
+The codebase **conforms to this standard**: source files are lowercase, class
+members use the `m_camelCase` prefix, free functions and methods are camelCase,
+and formatting is Allman (enforced by `.clang-format`). The standard is
+authoritative for **all** code — keep new code conformant; do not reintroduce the
+old conventions (trailing-underscore members, snake_case functions, mixed-case
+file names, K&R braces).
 
-| Aspect | This standard | Current code |
-|--------|---------------|--------------|
-| Class member prefix | `m_camelCase` | trailing `_` (`repo_`, `m_`-free) |
-| Source file names | lowercase | PascalCase (`GitRepo.cpp`) |
-| Braces | Allman | K&R (same-line) |
-| Header guard | `#pragma once` is used | `(953)` expects a named guard |
+**Test layer exception.** Test *case* names (Qt Test slots and Catch2 `TEST_CASE`
+identifiers) and test-local helper functions keep a descriptive **snake_case**
+form — the convention shown throughout
+[`testing.md`](testing.md). The `m_…` member and camelCase function rules still
+apply to production code (`core/`, `ui/`, `app/`) and to shared test
+infrastructure such as `TempRepo`.
 
-**Policy:** the standard is authoritative for **new code**. Existing files are
-brought into conformance **opportunistically — when you touch a file**, conform it
-(run clang-format on it, rename its members to `m_…`, and rename the file to
-lowercase). There is **no repo-wide reformat**; that would bury real diffs.
-
-When you rename a file or a member as part of this, follow `(739)`: **split the
-rename and the content change into two commits** (rename first, via `git mv`, then
-edit). Git only records a rename when the content is otherwise stable, so doing
-both at once loses the file's history — and a case-only filename change
-(`GitRepo.cpp` → `gitrepo.cpp`) on a case-insensitive filesystem *must* go through
-`git mv`.
+**Renaming a file or a member later** — follow `(739)`: **split the rename and the
+content change into separate commits** (rename first, via `git mv`). Git only
+records a rename when the content is otherwise stable, so doing both at once loses
+the file's history. A **case-only** filename change (`Foo.cpp` → `foo.cpp`) on a
+case-insensitive filesystem (macOS, Windows) is not reliably picked up by a single
+`git mv` — go through a temporary name (`git mv Foo.cpp foo.cpp.tmp && git mv
+foo.cpp.tmp foo.cpp`), or a later `git add -A` will silently revert it.

@@ -26,24 +26,24 @@ the tests are structured* and how to add one.
 
 ## Core tests: Catch2 + `TempRepo`
 
-Use [`TempRepo`](../../../tests/support/TempRepo.hpp) (`gittide::test`) for a
+Use [`TempRepo`](../../../tests/support/temprepo.hpp) (`gittide::test`) for a
 throwaway repository — it creates a unique repo under the temp dir, cleans it up
 on destruction, and owns a `LibGit2Context`:
 
 ```cpp
 #include <catch2/catch_test_macros.hpp>
-#include "support/TempRepo.hpp"
+#include "support/temprepo.hpp"
 
 TEST_CASE("status reports a new file as untracked", "[gitrepo]") {
     gittide::test::TempRepo repo;
-    repo.write_file("a.txt", "hello");
+    repo.writeFile("a.txt", "hello");
     auto r = gittide::GitRepo::open(repo.path());
     REQUIRE(r);
     // … assert on r->status()
 }
 ```
 
-`TempRepo` also offers `commit_all(msg)` and `set_identity(name, email)`. There is
+`TempRepo` also offers `commitAll(msg)` and `setIdentity(name, email)`. There is
 **no network in tests** — clone tests clone from a local `file://` temp repo.
 Tests that include `<git2.h>` directly rely on the target's explicit libgit2 link
 (already wired).
@@ -57,7 +57,7 @@ runs each class via `QTest::qExec`. Skeleton:
 
 ```cpp
 #include <QtTest>
-#include "gittide/ui/Theme.hpp"
+#include "gittide/ui/theme.hpp"
 
 class TestTheme : public QObject {
     Q_OBJECT
