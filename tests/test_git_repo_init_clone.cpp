@@ -13,22 +13,29 @@ std::filesystem::path unique_empty_dir() {
     std::filesystem::create_directories(dir);
     return dir;
 }
+
+struct TempDir {
+    std::filesystem::path path;
+    explicit TempDir(std::filesystem::path p) : path(std::move(p)) {}
+    ~TempDir() { std::error_code ec; std::filesystem::remove_all(path, ec); }
+    TempDir(const TempDir&) = delete;
+    TempDir& operator=(const TempDir&) = delete;
+};
 }  // namespace
 
 TEST_CASE("GitRepo::init creates a valid repository in an empty directory", "[git_repo][init]") {
     gitgui::LibGit2Context ctx;
-    auto dir = unique_empty_dir();
+    TempDir dir_guard{unique_empty_dir()};
+    auto& dir = dir_guard.path;
 
     auto result = gitgui::GitRepo::init(dir);
     REQUIRE(result.has_value());
 
     auto opened = gitgui::GitRepo::open(dir);
     REQUIRE(opened.has_value());
-
-    std::filesystem::remove_all(dir);
 }
 
-TEST_CASE("GitRepo::init rejects a path that already has a .git directory", "[git_repo][init]") {
+TEST_CASE("GitRepo::init rejects a path that is already a git repository", "[git_repo][init]") {
     gitgui::test::TempRepo existing;  // TempRepo owns LibGit2Context
 
     auto result = gitgui::GitRepo::init(existing.path());
@@ -43,7 +50,8 @@ TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callb
     source.write_file("README.md", "hello\n");
     source.commit_all("initial");
 
-    auto dest = unique_empty_dir();
+    TempDir dest_guard{unique_empty_dir()};
+    auto& dest = dest_guard.path;
     std::filesystem::remove_all(dest);  // clone creates dest itself
 
     int progress_calls = 0;
@@ -57,8 +65,6 @@ TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callb
     REQUIRE(result.has_value());
     REQUIRE(std::filesystem::exists(dest / "README.md"));
     REQUIRE(progress_calls > 0);
-
-    std::filesystem::remove_all(dest);
 }
 
 TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone]") {
@@ -67,7 +73,8 @@ TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone
     source.write_file("a.txt", "data\n");
     source.commit_all("initial");
 
-    auto dest = unique_empty_dir();
+    TempDir dest_guard{unique_empty_dir()};
+    auto& dest = dest_guard.path;
     std::filesystem::remove_all(dest);
 
     gitgui::ProgressCallback cb = [](unsigned, unsigned) { return false; };  // cancel
@@ -75,18 +82,16 @@ TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone
         "file://" + source.path().generic_string(), dest, std::move(cb));
 
     REQUIRE_FALSE(result.has_value());
-
-    std::filesystem::remove_all(dest);
 }
 
 TEST_CASE("GitRepo::clone into a missing URL returns an error", "[git_repo][clone]") {
     gitgui::LibGit2Context ctx;
-    auto dest = unique_empty_dir();
+    TempDir dest_guard{unique_empty_dir()};
+    auto& dest = dest_guard.path;
     std::filesystem::remove_all(dest);
 
     gitgui::ProgressCallback cb = [](unsigned, unsigned) { return true; };
     auto result = gitgui::GitRepo::clone("/no/such/gitgui-clone-src", dest, std::move(cb));
 
     REQUIRE_FALSE(result.has_value());
-    std::filesystem::remove_all(dest);
 }

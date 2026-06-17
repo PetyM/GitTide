@@ -52,11 +52,10 @@ Expected<GitRepo> GitRepo::open(const std::filesystem::path& path) {
 }
 
 Expected<GitRepo> GitRepo::init(const std::filesystem::path& path) {
-    if (std::filesystem::exists(path / ".git"))
-        return std::unexpected(GitError{-1, "repository already exists at " +
-                                             path.generic_string()});
+    git_repository_init_options opts = GIT_REPOSITORY_INIT_OPTIONS_INIT;
+    opts.flags = GIT_REPOSITORY_INIT_NO_REINIT | GIT_REPOSITORY_INIT_MKPATH;
     git_repository* repo = nullptr;
-    int rc = git_repository_init(&repo, to_git_path(path).c_str(), /*is_bare=*/0);
+    int rc = git_repository_init_ext(&repo, to_git_path(path).c_str(), &opts);
     if (rc < 0) return std::unexpected(last_git_error(rc));
     return GitRepo(repo);
 }

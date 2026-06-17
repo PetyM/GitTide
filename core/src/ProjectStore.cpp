@@ -138,7 +138,7 @@ Expected<ProjectStore> ProjectStore::load(const std::filesystem::path& file) {
 }
 
 Project& ProjectStore::createProject(const std::string& name) {
-    std::mt19937_64 gen{std::random_device{}()};
+    static std::mt19937_64 gen{std::random_device{}()};
     std::uniform_int_distribution<std::uint64_t> dist;
     std::ostringstream oss;
     oss << std::hex << std::setfill('0')
