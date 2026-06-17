@@ -1,6 +1,7 @@
 #pragma once
 #include <QMainWindow>
 #include <QString>
+#include <filesystem>
 
 namespace gitgui { class ProjectStore; }
 
@@ -15,7 +16,9 @@ class DashboardModel;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(gitgui::ProjectStore* store, QWidget* parent = nullptr);
+    explicit MainWindow(gitgui::ProjectStore* store,
+                        std::filesystem::path storePath = {},
+                        QWidget* parent = nullptr);
 
     ProjectController* controller() const { return controller_; }
     QString currentProjectId() const;

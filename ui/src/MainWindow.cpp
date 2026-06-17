@@ -17,9 +17,11 @@
 
 namespace gitgui::ui {
 
-MainWindow::MainWindow(gitgui::ProjectStore* store, QWidget* parent)
+MainWindow::MainWindow(gitgui::ProjectStore* store,
+                       std::filesystem::path storePath,
+                       QWidget* parent)
     : QMainWindow(parent),
-      controller_(new ProjectController(store, this)),
+      controller_(new ProjectController(store, std::move(storePath), this)),
       sidebar_(new ProjectSidebar(controller_, this)),
       repoController_(new RepoController(this)),
       changesView_(new ChangesView(this)),

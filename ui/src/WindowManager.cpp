@@ -2,6 +2,8 @@
 #include "gitgui/ui/MainWindow.hpp"
 #include "gitgui/ui/ProjectController.hpp"
 
+#include <filesystem>
+
 #include <QDir>
 #include <QStandardPaths>
 
@@ -40,7 +42,9 @@ MainWindow* WindowManager::findWindowForProject(const QString& id) const {
 }
 
 MainWindow* WindowManager::createWindow(const QString& projectId) {
-    MainWindow* w = new MainWindow(&store_);
+    const std::filesystem::path projectsFile =
+        std::filesystem::path(configDir_.toStdString()) / "projects.json";
+    MainWindow* w = new MainWindow(&store_, projectsFile);
     w->showProject(projectId);
     windows_.push_back(w);
 
