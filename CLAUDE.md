@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Language
+
+The user may write to you in Czech, but **all of your output must be in English**.
+
 ## Read the spec first
 
 GitTide's design lives in a **living specification** under [`docs/spec/`](docs/spec/spec.md).
