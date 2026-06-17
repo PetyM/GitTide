@@ -32,7 +32,7 @@ TEST_CASE("GraphBuilder: single commit (initial) at lane 0", "[graph]")
     REQUIRE(layout.laneCount == 1);
 }
 
-TEST_CASE("GraphBuilder: linear chain — all commits at lane 0", "[graph]")
+TEST_CASE("GraphBuilder: linear chain - all commits at lane 0", "[graph]")
 {
     std::vector<gittide::CommitNode> commits = {
         make_commit("c", {"b"}),
@@ -47,7 +47,7 @@ TEST_CASE("GraphBuilder: linear chain — all commits at lane 0", "[graph]")
     REQUIRE(layout.laneCount == 1);
 }
 
-TEST_CASE("GraphBuilder: linear chain — outEdges and lineFromAbove", "[graph]")
+TEST_CASE("GraphBuilder: linear chain - outEdges and lineFromAbove", "[graph]")
 {
     std::vector<gittide::CommitNode> commits = {
         make_commit("b", {"a"}),

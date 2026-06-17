@@ -132,6 +132,11 @@ int main(int argc, char** argv)
         TestThemeManager t;
         status |= QTest::qExec(&t, argc, argv);
     }
-    git_libgit2_shutdown();
+    // Deliberately do NOT git_libgit2_shutdown(): AsyncRepo runs git operations
+    // on the global QThreadPool, whose worker threads stay alive (idle) past the
+    // end of main and are only joined during static teardown. Shutting libgit2
+    // down here would free its global/TLS state while those threads still exist;
+    // their later exit would touch freed state and crash (fatal on Windows). The
+    // process is about to exit, so leaving libgit2 initialized is harmless.
     return status;
 }
