@@ -3,6 +3,7 @@
 #include <vector>
 #include "gitgui/GitError.hpp"
 #include "gitgui/FileStatus.hpp"
+#include "gitgui/Diff.hpp"
 
 struct git_repository;
 
@@ -23,6 +24,10 @@ public:
 
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;
+
+    // Diff a single file against the chosen target.
+    Expected<DiffResult> diff(DiffTarget target,
+                              const std::filesystem::path& file) const;
 
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}

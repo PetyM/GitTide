@@ -1,4 +1,5 @@
 #include "gitgui/GitRepo.hpp"
+#include "gitgui/DiffEngine.hpp"
 #include "gitgui/PathUtil.hpp"
 #include <git2.h>
 #include <memory>
@@ -73,6 +74,36 @@ Expected<std::vector<FileStatus>> GitRepo::status() const {
         result.push_back(FileStatus{from_git_path(raw), flags});
     }
     return result;
+}
+
+Expected<DiffResult> GitRepo::diff(DiffTarget target,
+                                   const std::filesystem::path& file) const {
+    std::string git_file = to_git_path(file);
+    char* paths[] = {git_file.data()};
+
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count = 1;
+    opts.flags = GIT_DIFF_INCLUDE_UNTRACKED | GIT_DIFF_SHOW_UNTRACKED_CONTENT;
+
+    git_diff* raw = nullptr;
+    int rc;
+    if (target == DiffTarget::WorktreeVsIndex) {
+        rc = git_diff_index_to_workdir(&raw, repo_, nullptr, &opts);
+    } else {
+        // IndexVsHead: compare HEAD's tree to the index. Unborn HEAD -> null tree.
+        git_object* head_obj = nullptr;
+        git_tree* head_tree = nullptr;
+        if (git_revparse_single(&head_obj, repo_, "HEAD^{tree}") == 0) {
+            head_tree = reinterpret_cast<git_tree*>(head_obj);
+        }
+        rc = git_diff_tree_to_index(&raw, repo_, head_tree, nullptr, &opts);
+        if (head_tree) git_tree_free(head_tree);
+    }
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff(raw, git_diff_free);
+    return DiffEngine::parse(diff.get());
 }
 
 }  // namespace gitgui
