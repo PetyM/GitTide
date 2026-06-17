@@ -3,7 +3,6 @@
 #include <QSignalSpy>
 #include <QAbstractButton>
 #include <QComboBox>
-#include <QListView>
 
 #include "gitgui/ProjectStore.hpp"
 #include "gitgui/ui/ProjectController.hpp"
