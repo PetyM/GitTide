@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <vector>
 
+#include <qcorotask.h>
+
 #include <QDockWidget>
 #include <QLabel>
 #include <QListView>
@@ -47,9 +49,13 @@ MainWindow::MainWindow(gitgui::ProjectStore* store, QWidget* parent)
     connect(sidebar_, &ProjectSidebar::repoSelected, this, [this](const QString& path) {
         repoController_->open(path);
     });
+    // A coroutine slot returns a QCoro::Task that QCoro destroys as soon as the
+    // handle dies — a discarded fire-and-forget task awaiting a QFuture is a
+    // use-after-free when that future completes. QCoro::connect anchors the task
+    // (tied to `this`) until it finishes, which is how these are launched.
     connect(repoController_, &RepoController::repoOpened, this, [this](const QString& path) {
         emit repoOpened(path);
-        repoController_->refreshStatus();
+        QCoro::connect(repoController_->refreshStatus(), this, [] {});
     });
 
     // Async wiring between controller and ChangesView.
@@ -61,21 +67,30 @@ MainWindow::MainWindow(gitgui::ProjectStore* store, QWidget* parent)
             });
     connect(changesView_, &ChangesView::fileSelected, this,
             [this](const QString& path, gitgui::DiffTarget target) {
-                repoController_->refreshDiff(path, target);
+                QCoro::connect(repoController_->refreshDiff(path, target), this, [] {});
             });
-    connect(changesView_, &ChangesView::stageRequested,
-            repoController_, &RepoController::stage);
-    connect(changesView_, &ChangesView::unstageRequested,
-            repoController_, &RepoController::unstage);
-    connect(changesView_, &ChangesView::discardRequested,
-            repoController_, &RepoController::discard);
-    connect(changesView_, &ChangesView::commitRequested,
-            repoController_, &RepoController::commit);
+    connect(changesView_, &ChangesView::stageRequested, this,
+            [this](const gitgui::StageSelection& sel) {
+                QCoro::connect(repoController_->stage(sel), this, [] {});
+            });
+    connect(changesView_, &ChangesView::unstageRequested, this,
+            [this](const gitgui::StageSelection& sel) {
+                QCoro::connect(repoController_->unstage(sel), this, [] {});
+            });
+    connect(changesView_, &ChangesView::discardRequested, this,
+            [this](const gitgui::StageSelection& sel) {
+                QCoro::connect(repoController_->discard(sel), this, [] {});
+            });
+    connect(changesView_, &ChangesView::commitRequested, this,
+            [this](const gitgui::CommitRequest& req) {
+                QCoro::connect(repoController_->commit(req), this, [] {});
+            });
 
     // Activating a project refreshes the dashboard from its repos.
     connect(controller_, &ProjectController::projectActivated, this,
             [this](const QString&) {
-                dashboardModel_->refreshAsync(controller_->activeRepos());
+                QCoro::connect(dashboardModel_->refreshAsync(controller_->activeRepos()),
+                               this, [] {});
             });
 }
 

@@ -2,6 +2,7 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
 #include <QTabWidget>
+#include <QThreadPool>
 #include <filesystem>
 
 #include <git2.h>
@@ -29,6 +30,18 @@ std::filesystem::path make_repo() {
     git_libgit2_shutdown();
     return dir;
 }
+
+// MainWindow wires project/repo activation to fire-and-forget QCoro tasks
+// (dashboard refresh, status refresh). Those run on the global thread pool and
+// resume via the event loop. A test must let that work finish BEFORE its local
+// MainWindow is destroyed, or an in-flight coroutine resumes into freed objects.
+// Call this at the end of each slot, while the window is still alive.
+void drainAsync() {
+    for (int i = 0; i < 3; ++i) {
+        QThreadPool::globalInstance()->waitForDone();
+        QTest::qWait(30);
+    }
+}
 }  // namespace main_window_test
 
 class TestMainWindow : public QObject {
@@ -46,6 +59,7 @@ private slots:
         auto* tabs = win.findChild<QTabWidget*>(QStringLiteral("mainTabs"));
         QVERIFY(tabs != nullptr);
         QCOMPARE(tabs->count(), 3);
+        main_window_test::drainAsync();
     }
 
     void open_in_new_window_propagates_upward() {
@@ -59,6 +73,7 @@ private slots:
         sidebar->requestOpenInNewWindow();
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("id-a"));
+        main_window_test::drainAsync();
     }
 
     void changes_tab_is_a_changes_view() {
@@ -66,6 +81,7 @@ private slots:
         store.projects().push_back(Project{.id = "id-a", .name = "Work"});
         MainWindow win(&store);
         QVERIFY(win.findChild<gitgui::ui::ChangesView*>() != nullptr);
+        main_window_test::drainAsync();
     }
 
     void selecting_repo_opens_it_in_controller() {
@@ -82,6 +98,7 @@ private slots:
         emit sidebar->repoSelected(QString::fromStdString(dir.generic_string()));
 
         QCOMPARE(spy.count(), 1);
+        main_window_test::drainAsync();
         std::filesystem::remove_all(dir);
     }
 };
