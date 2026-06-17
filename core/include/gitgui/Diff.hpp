@@ -19,6 +19,7 @@ struct DiffLine {
     int oldLineno = -1;   // -1 when the line does not exist on that side
     int newLineno = -1;
     std::string text;     // line content WITHOUT trailing newline
+    bool noNewline = false;  // this line has no trailing newline at end of file
 };
 
 struct DiffHunk {

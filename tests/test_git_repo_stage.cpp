@@ -109,3 +109,91 @@ TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]") {
     REQUIRE(after.has_value());
     REQUIRE(after->hunks.empty());
 }
+
+TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]") {
+    gitgui::test::TempRepo tmp;
+    tmp.write_file("a.txt", "first\nsecond");   // NO trailing newline
+    tmp.commit_all("init");
+    tmp.write_file("a.txt", "first\nCHANGED");  // still no trailing newline
+
+    auto repo = gitgui::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->stage(gitgui::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    // Staged content matches the worktree exactly (incl. absence of trailing nl).
+    auto unstaged = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(unstaged.has_value());
+    REQUIRE(unstaged->hunks.empty());   // nothing left unstaged
+}
+
+TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]") {
+    gitgui::test::TempRepo tmp;
+    tmp.write_file("a.txt", "alpha\nbeta");      // no trailing newline
+    tmp.commit_all("init");
+    tmp.write_file("a.txt", "alpha\nBETA");      // change last line, still no nl
+
+    auto repo = gitgui::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto d = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 1);
+
+    // Stage that hunk; the patch must apply cleanly despite the missing newline.
+    REQUIRE(repo->stage(gitgui::StageSelection{"a.txt", 0, {}}).has_value());
+
+    auto staged = repo->diff(gitgui::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 1);
+    auto unstaged = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(unstaged.has_value());
+    REQUIRE(unstaged->hunks.empty());
+}
+
+TEST_CASE("stage a single line of a multi-line addition", "[stage]") {
+    gitgui::test::TempRepo tmp;
+    tmp.write_file("a.txt", "a\nb\nc\n");
+    tmp.commit_all("init");
+    // Insert two lines (X, Y) after 'a'. Hunk: ctx a, +X, +Y, ctx b, ctx c.
+    tmp.write_file("a.txt", "a\nX\nY\nb\nc\n");
+
+    auto repo = gitgui::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto d = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 1);
+    const auto& hunk = d->hunks[0];
+
+    // Find the line index of the added "X".
+    int xIdx = -1;
+    for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i) {
+        if (hunk.lines[i].origin == gitgui::DiffLineOrigin::Added &&
+            hunk.lines[i].text == "X") { xIdx = i; break; }
+    }
+    REQUIRE(xIdx >= 0);
+
+    // Stage ONLY the "X" line.
+    REQUIRE(repo->stage(gitgui::StageSelection{"a.txt", 0, {xIdx}}).has_value());
+
+    // Index vs HEAD: exactly one added line, and it is "X" (not Y).
+    auto staged = repo->diff(gitgui::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 1);
+    int addedCount = 0; bool sawX = false, sawY = false;
+    for (const auto& ln : staged->hunks[0].lines) {
+        if (ln.origin == gitgui::DiffLineOrigin::Added) {
+            ++addedCount;
+            if (ln.text == "X") sawX = true;
+            if (ln.text == "Y") sawY = true;
+        }
+    }
+    REQUIRE(addedCount == 1);
+    REQUIRE(sawX);
+    REQUIRE_FALSE(sawY);
+
+    // Y is still pending in the worktree.
+    auto unstaged = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(unstaged.has_value());
+    REQUIRE(unstaged->hunks.size() == 1);
+}

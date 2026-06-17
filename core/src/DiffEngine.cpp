@@ -33,6 +33,14 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff) {
             rc = git_patch_get_line_in_hunk(&gl, patch.get(), hi, li);
             if (rc < 0) return std::unexpected(last_git_error(rc));
 
+            // A "\ No newline at end of file" marker annotates the PREVIOUS line.
+            if (gl->origin == GIT_DIFF_LINE_CONTEXT_EOFNL ||
+                gl->origin == GIT_DIFF_LINE_ADD_EOFNL ||
+                gl->origin == GIT_DIFF_LINE_DEL_EOFNL) {
+                if (!hunk.lines.empty()) hunk.lines.back().noNewline = true;
+                continue;  // do not emit a DiffLine for the marker itself
+            }
+
             DiffLine line;
             switch (gl->origin) {
                 case GIT_DIFF_LINE_ADDITION: line.origin = DiffLineOrigin::Added; break;
@@ -72,15 +80,19 @@ std::string build_patch(const std::string& gitPath,
             else if (origin == DiffLineOrigin::Removed) origin = DiffLineOrigin::Added;
         }
 
+        auto emit = [&](char prefix) {
+            body << prefix << ln.text << '\n';
+            if (ln.noNewline) body << "\\ No newline at end of file\n";
+        };
+
         if (origin == DiffLineOrigin::Context) {
-            body << ' ' << ln.text << '\n';
-            ++oldCount; ++newCount;
+            emit(' '); ++oldCount; ++newCount;
         } else if (origin == DiffLineOrigin::Added) {
-            if (is_selected(i)) { body << '+' << ln.text << '\n'; ++newCount; }
+            if (is_selected(i)) { emit('+'); ++newCount; }
             // unselected added line: drop entirely.
         } else {  // Removed
-            if (is_selected(i)) { body << '-' << ln.text << '\n'; ++oldCount; }
-            else { body << ' ' << ln.text << '\n'; ++oldCount; ++newCount; }  // keep as context
+            if (is_selected(i)) { emit('-'); ++oldCount; }
+            else { emit(' '); ++oldCount; ++newCount; }  // keep as context
         }
     }
 
