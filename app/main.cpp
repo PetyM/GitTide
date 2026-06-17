@@ -4,6 +4,7 @@
 
 #include "gittide/LibGit2Context.hpp"
 #include "gittide/ProjectStore.hpp"
+#include "gittide/ui/ThemeManager.hpp"
 #include "gittide/ui/WindowManager.hpp"
 
 using gittide::ui::WindowManager;
@@ -17,6 +18,10 @@ int main(int argc, char** argv) {
     // code paths (DashboardModel, RepoController) are wired up in Plan 3, but
     // a correct bootstrap owns the global init here.
     const gittide::LibGit2Context git_ctx;
+
+    gittide::ui::ThemeManager theme;
+    theme.setMode(gittide::ui::ThemeManager::Mode::System);
+    theme.applyTo(&app);
 
     WindowManager manager;
 

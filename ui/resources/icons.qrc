@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file alias="gittide-icon.svg">gittide-icon.svg</file>
+    <file alias="gittide-icon-light.svg">gittide-icon-light.svg</file>
+  </qresource>
+</RCC>

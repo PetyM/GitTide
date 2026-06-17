@@ -37,7 +37,7 @@ endif()
 # Test for headless UI unit tests, Concurrent for off-main-thread git ops.
 # QCoro adds co_await support over QFuture; it is built from source via FetchContent.
 if(GITGUI_BUILD_UI)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets Test Concurrent)
+  find_package(Qt6 REQUIRED COMPONENTS Widgets Test Concurrent Svg)
 
   # Trim QCoro to the modules we use; the rest pull in Qt components we don't link.
   set(QCORO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
