@@ -12,6 +12,8 @@ add_library(gitgui_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/DashboardModel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectSidebar.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/ProjectSidebar.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/AddRepoDialogs.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/AddRepoDialogs.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/MainWindow.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gitgui/ui/MainWindow.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/WindowManager.cpp

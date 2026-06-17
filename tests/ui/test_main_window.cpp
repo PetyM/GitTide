@@ -1,6 +1,8 @@
 #include <QObject>
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QPushButton>
+#include <QStackedWidget>
 #include <QTabWidget>
 #include <QThreadPool>
 #include <filesystem>
@@ -100,6 +102,48 @@ private slots:
         QCOMPARE(spy.count(), 1);
         main_window_test::drainAsync();
         std::filesystem::remove_all(dir);
+    }
+
+    void no_projects_shows_create_project_cta() {
+        ProjectStore store;
+        MainWindow win(&store);
+
+        auto* stack = win.findChild<QStackedWidget*>(QStringLiteral("centralStack"));
+        QVERIFY(stack != nullptr);
+        QCOMPARE(stack->currentIndex(), 0);
+        QVERIFY(win.findChild<QPushButton*>(QStringLiteral("createProjectCta")) != nullptr);
+        main_window_test::drainAsync();
+    }
+
+    void empty_project_shows_add_repo_cta() {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Empty"});
+        MainWindow win(&store);
+        win.showProject(QStringLiteral("id-a"));
+
+        auto* stack = win.findChild<QStackedWidget*>(QStringLiteral("centralStack"));
+        QVERIFY(stack != nullptr);
+        QCOMPARE(stack->currentIndex(), 1);
+        QVERIFY(win.findChild<QPushButton*>(QStringLiteral("addExistingCta")) != nullptr);
+        QVERIFY(win.findChild<QPushButton*>(QStringLiteral("initRepoCta")) != nullptr);
+        QVERIFY(win.findChild<QPushButton*>(QStringLiteral("cloneCta")) != nullptr);
+        main_window_test::drainAsync();
+    }
+
+    void project_with_repos_shows_tabs() {
+        ProjectStore store;
+        store.projects().push_back(Project{
+            .id = "id-a", .name = "Work",
+            .repos = { RepoRef{.path = "/home/u/api", .alias = "api"} }});
+        MainWindow win(&store);
+        win.showProject(QStringLiteral("id-a"));
+
+        auto* stack = win.findChild<QStackedWidget*>(QStringLiteral("centralStack"));
+        QVERIFY(stack != nullptr);
+        QCOMPARE(stack->currentIndex(), 2);
+        auto* tabs = win.findChild<QTabWidget*>(QStringLiteral("mainTabs"));
+        QVERIFY(tabs != nullptr);
+        main_window_test::drainAsync();
     }
 };
 
