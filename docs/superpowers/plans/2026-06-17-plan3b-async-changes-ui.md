@@ -49,10 +49,11 @@ struct FileStatus { std::filesystem::path path; StatusFlag flags; };
 1. **Coroutine parameters MUST be taken by value, never by reference.** A `co_await` suspends the coroutine; by-reference parameters are not copied into the coroutine frame, so the referent dangles after the first suspension. Every coroutine slot below takes its args by value even though the connected signal passes by `const&` (Qt copies at the call boundary — this is allowed).
 2. **Captured state that must survive a suspension lives behind a `std::shared_ptr` copied into the worker lambda.** `AsyncRepo` keeps its `GitRepo` + mutex in a `shared_ptr<Impl>`; each task method copies that `shared_ptr` into the `QtConcurrent::run` lambda, so the work completes safely even if the `AsyncRepo` is destroyed mid-flight.
 
-**QCoro facts used below:**
-- `#include <qcoro/qcorotask.h>` → `QCoro::Task<T>` (the coroutine return type) and `QCoro::waitFor(task)` (spins a local event loop until the task finishes; returns its value — used in tests).
-- `#include <qcoro/qcorofuture.h>` → `qCoro(QFuture<T>)` turns a `QtConcurrent::run` future into an awaitable. `co_await qCoro(future)` yields the future's result on the GUI thread.
+**QCoro facts used below (VERIFIED against QCoro 0.11 in Task 1 — use these exact forms):**
+- `#include <qcorotask.h>` → `QCoro::Task<T>` (the coroutine return type) and `QCoro::waitFor(task)` (spins a local event loop until the task finishes; returns its value — used in tests).
+- `#include <core/qcorofuture.h>` → registers the awaiter for `QFuture<T>`. With it included you `co_await` a `QtConcurrent::run(...)` future **directly** — there is no `qCoro()` wrapper call: `co_return co_await QtConcurrent::run([]{ ... });`.
 - `#include <QtConcurrent>` → `QtConcurrent::run(lambda)` returns `QFuture<T>` and runs `lambda` on Qt's global thread pool.
+- **Link targets:** `QCoro6::Core` + `Qt6::Concurrent`. There is **no** `QCoro6::Concurrent` target in 0.11 — QFuture support lives in `QCoro6::Core`.
 
 **Build / test commands** (run from repo root; a `build/` dir is assumed — create with `cmake -S . -B build` once):
 
