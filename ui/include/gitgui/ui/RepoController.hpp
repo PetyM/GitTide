@@ -2,12 +2,19 @@
 #include <QObject>
 #include <QString>
 #include <optional>
-#include "gitgui/GitRepo.hpp"
+#include <vector>
+
+#include <qcorotask.h>
+
+#include "gitgui/ui/AsyncRepo.hpp"
+#include "gitgui/Diff.hpp"
+#include "gitgui/FileStatus.hpp"
 
 namespace gitgui::ui {
 
-// Holds the active repository for a window. Plan 2 scope: open only.
-// Stage/diff/commit and async refresh arrive in Plan 3.
+// Holds the active repository for a window and drives it asynchronously. open()
+// is synchronous (cheap); all git work runs through AsyncRepo on the thread pool.
+// Coroutine slots take args BY VALUE so they survive a co_await suspension.
 class RepoController : public QObject {
     Q_OBJECT
 public:
@@ -18,13 +25,23 @@ public:
 
 public slots:
     void open(const QString& path);
+    QCoro::Task<void> refreshStatus();
+    QCoro::Task<void> refreshDiff(QString path, gitgui::DiffTarget target);
+    QCoro::Task<void> stage(gitgui::StageSelection sel);
+    QCoro::Task<void> unstage(gitgui::StageSelection sel);
+    QCoro::Task<void> discard(gitgui::StageSelection sel);
+    QCoro::Task<void> commit(gitgui::CommitRequest req);
 
 signals:
     void repoOpened(const QString& path);
     void repoFailed(const QString& path, const QString& message);
+    void statusChanged(const std::vector<gitgui::FileStatus>& files);
+    void diffReady(const QString& path, const gitgui::DiffResult& result);
+    void committed(const QString& oid);
+    void operationFailed(const QString& message);
 
 private:
-    std::optional<gitgui::GitRepo> repo_;
+    std::optional<AsyncRepo> repo_;
     QString path_;
 };
 
