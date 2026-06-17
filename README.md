@@ -37,8 +37,8 @@ wishlist/ (wanted)   →   spec/ (designed)   →   plans/ (built)
 # Configure
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 
-# Build everything
-cmake --build build
+# Build everything (in parallel)
+cmake --build build --parallel
 
 # Run the full test suite
 ctest --test-dir build --output-on-failure

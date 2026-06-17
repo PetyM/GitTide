@@ -33,7 +33,7 @@ Division of documentation, and where to put what you learn:
 
 Configure / build / test commands — including how to run a single test — live in
 [`README.md`](README.md#build--test). The essentials: `cmake -S . -B build`,
-`cmake --build build`, `ctest --test-dir build --output-on-failure`. How tests are
+`cmake --build build --parallel`, `ctest --test-dir build --output-on-failure`. How tests are
 structured (the `TempRepo` helper, the headless UI runner) and how to add one:
 [`docs/spec/engineering/testing.md`](docs/spec/engineering/testing.md).
 
