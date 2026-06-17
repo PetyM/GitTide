@@ -1,16 +1,20 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/gitrepo.hpp"
-#include "support/temprepo.hpp"
 #include <fstream>
 #include <sstream>
 
-static std::string read_file(const std::filesystem::path& p) {
+#include "gittide/gitrepo.hpp"
+#include "support/temprepo.hpp"
+
+static std::string read_file(const std::filesystem::path& p)
+{
     std::ifstream in(p, std::ios::binary);
-    std::ostringstream ss; ss << in.rdbuf();
+    std::ostringstream ss;
+    ss << in.rdbuf();
     return ss.str();
 }
 
-TEST_CASE("discard whole file restores committed content", "[discard]") {
+TEST_CASE("discard whole file restores committed content", "[discard]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "orig\n");
     tmp.commit_all("init");
@@ -23,7 +27,8 @@ TEST_CASE("discard whole file restores committed content", "[discard]") {
     REQUIRE(read_file(tmp.path() / "a.txt") == "orig\n");
 }
 
-TEST_CASE("discard a hunk reverts only that region", "[discard]") {
+TEST_CASE("discard a hunk reverts only that region", "[discard]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
     tmp.commit_all("init");

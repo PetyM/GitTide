@@ -1,8 +1,8 @@
-#include <QObject>
-#include <QtTest/QtTest>
-#include <QSignalSpy>
 #include <QListWidget>
+#include <QObject>
 #include <QPushButton>
+#include <QSignalSpy>
+#include <QtTest/QtTest>
 
 #include "gittide/ui/diffview.hpp"
 #include "gittide/ui/metatypes.hpp"
@@ -10,22 +10,28 @@
 using gittide::ui::DiffView;
 
 namespace diff_view_test {
-gittide::DiffResult two_added_one_context() {
+gittide::DiffResult two_added_one_context()
+{
     gittide::DiffHunk h;
-    h.oldStart = 1; h.oldLines = 1; h.newStart = 1; h.newLines = 3;
-    h.lines = {
-        {gittide::DiffLineOrigin::Added,   -1, 1, "alpha", false},
-        {gittide::DiffLineOrigin::Added,   -1, 2, "beta",  false},
-        {gittide::DiffLineOrigin::Context,  1, 3, "gamma", false},
+    h.oldStart = 1;
+    h.oldLines = 1;
+    h.newStart = 1;
+    h.newLines = 3;
+    h.lines    = {
+        {gittide::DiffLineOrigin::Added, -1, 1, "alpha", false},
+        {gittide::DiffLineOrigin::Added, -1, 2, "beta", false},
+        {gittide::DiffLineOrigin::Context, 1, 3, "gamma", false},
     };
     return gittide::DiffResult{.hunks = {h}};
 }
-}  // namespace diff_view_test
+} // namespace diff_view_test
 
-class TestDiffView : public QObject {
+class TestDiffView : public QObject
+{
     Q_OBJECT
 private slots:
-    void renders_one_row_per_line() {
+    void renders_one_row_per_line()
+    {
         DiffView view;
         view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
         auto* list = view.findChild<QListWidget*>(QStringLiteral("diffLines"));
@@ -33,7 +39,8 @@ private slots:
         QCOMPARE(list->count(), 3);
     }
 
-    void selecting_lines_builds_selection_and_emits() {
+    void selecting_lines_builds_selection_and_emits()
+    {
         DiffView view;
         view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
         auto* list = view.findChild<QListWidget*>(QStringLiteral("diffLines"));
@@ -53,13 +60,15 @@ private slots:
         QCOMPARE(sel.lineIndices[1], 1);
     }
 
-    void no_selection_yields_nullopt() {
+    void no_selection_yields_nullopt()
+    {
         DiffView view;
         view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
         QVERIFY(!view.currentSelection().has_value());
     }
 
-    void stage_button_click_emits_request() {
+    void stage_button_click_emits_request()
+    {
         DiffView view;
         view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
         auto* list = view.findChild<QListWidget*>(QStringLiteral("diffLines"));

@@ -1,9 +1,9 @@
-#include <QObject>
-#include <QtTest/QtTest>
-#include <QSignalSpy>
 #include <QListWidget>
+#include <QObject>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSignalSpy>
+#include <QtTest/QtTest>
 
 #include "gittide/ui/changesview.hpp"
 #include "gittide/ui/metatypes.hpp"
@@ -11,44 +11,48 @@
 using gittide::ui::ChangesView;
 
 namespace changes_view_test {
-std::vector<gittide::FileStatus> mixed_status() {
+std::vector<gittide::FileStatus> mixed_status()
+{
     return {
-        {std::filesystem::path("staged.txt"),   gittide::StatusFlag::IndexModified},
+        {std::filesystem::path("staged.txt"), gittide::StatusFlag::IndexModified},
         {std::filesystem::path("unstaged.txt"), gittide::StatusFlag::WtModified},
-        {std::filesystem::path("both.txt"),
-            gittide::StatusFlag::IndexModified | gittide::StatusFlag::WtModified},
+        {std::filesystem::path("both.txt"), gittide::StatusFlag::IndexModified | gittide::StatusFlag::WtModified},
     };
 }
-}  // namespace changes_view_test
+} // namespace changes_view_test
 
-class TestChangesView : public QObject {
+class TestChangesView : public QObject
+{
     Q_OBJECT
 private slots:
-    void splits_status_into_staged_and_unstaged() {
+    void splits_status_into_staged_and_unstaged()
+    {
         ChangesView view;
         view.setStatus(changes_view_test::mixed_status());
-        auto* staged = view.findChild<QListWidget*>(QStringLiteral("stagedList"));
+        auto* staged   = view.findChild<QListWidget*>(QStringLiteral("stagedList"));
         auto* unstaged = view.findChild<QListWidget*>(QStringLiteral("unstagedList"));
         QVERIFY(staged && unstaged);
-        QCOMPARE(staged->count(), 2);    // staged.txt + both.txt
-        QCOMPARE(unstaged->count(), 2);  // unstaged.txt + both.txt
+        QCOMPARE(staged->count(), 2);   // staged.txt + both.txt
+        QCOMPARE(unstaged->count(), 2); // unstaged.txt + both.txt
     }
 
-    void commit_button_gated_on_message_and_staged() {
+    void commit_button_gated_on_message_and_staged()
+    {
         ChangesView view;
-        auto* button = view.findChild<QPushButton*>(QStringLiteral("commitButton"));
+        auto* button  = view.findChild<QPushButton*>(QStringLiteral("commitButton"));
         auto* message = view.findChild<QPlainTextEdit*>(QStringLiteral("commitMessage"));
         QVERIFY(button && message);
 
         view.setStatus(changes_view_test::mixed_status());
-        QVERIFY(!button->isEnabled());          // staged but no message
+        QVERIFY(!button->isEnabled()); // staged but no message
         message->setPlainText(QStringLiteral("hello"));
-        QVERIFY(button->isEnabled());           // message + staged
-        view.setStatus({});                     // nothing staged
+        QVERIFY(button->isEnabled()); // message + staged
+        view.setStatus({});           // nothing staged
         QVERIFY(!button->isEnabled());
     }
 
-    void selecting_unstaged_file_emits_worktree_target() {
+    void selecting_unstaged_file_emits_worktree_target()
+    {
         ChangesView view;
         view.setStatus(changes_view_test::mixed_status());
         auto* unstaged = view.findChild<QListWidget*>(QStringLiteral("unstagedList"));
@@ -57,14 +61,14 @@ private slots:
         unstaged->setCurrentRow(0);
 
         QCOMPARE(spy.count(), 1);
-        QCOMPARE(spy.at(0).at(1).value<gittide::DiffTarget>(),
-                 gittide::DiffTarget::WorktreeVsIndex);
+        QCOMPARE(spy.at(0).at(1).value<gittide::DiffTarget>(), gittide::DiffTarget::WorktreeVsIndex);
     }
 
-    void commit_button_emits_request_with_message() {
+    void commit_button_emits_request_with_message()
+    {
         ChangesView view;
         view.setStatus(changes_view_test::mixed_status());
-        auto* button = view.findChild<QPushButton*>(QStringLiteral("commitButton"));
+        auto* button  = view.findChild<QPushButton*>(QStringLiteral("commitButton"));
         auto* message = view.findChild<QPlainTextEdit*>(QStringLiteral("commitMessage"));
         message->setPlainText(QStringLiteral("my commit"));
 

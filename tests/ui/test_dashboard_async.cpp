@@ -1,37 +1,41 @@
 #include <QObject>
-#include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QtTest/QtTest>
 #include <filesystem>
 #include <fstream>
-
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gittide/ui/dashboardmodel.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/dashboardmodel.hpp"
 
 using gittide::ui::DashboardModel;
 
 namespace async_test_helpers {
-std::filesystem::path make_repo_with_untracked() {
+std::filesystem::path make_repo_with_untracked()
+{
     git_libgit2_init();
-    auto dir = std::filesystem::temp_directory_path() /
-               ("gittide-da-" + std::to_string(::QRandomGenerator::global()->generate()));
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-da-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
     git_repository_free(raw);
-    { std::ofstream(dir / "new.txt") << "x\n"; }  // 1 untracked change
+    {
+        std::ofstream(dir / "new.txt") << "x\n";
+    } // 1 untracked change
     git_libgit2_shutdown();
     return dir;
 }
-}  // namespace async_test_helpers
+} // namespace async_test_helpers
 
-class TestDashboardAsync : public QObject {
+class TestDashboardAsync : public QObject
+{
     Q_OBJECT
 private slots:
-    void refresh_async_fans_out_and_reports() {
-        const auto good = async_test_helpers::make_repo_with_untracked();
+    void refresh_async_fans_out_and_reports()
+    {
+        const auto good                     = async_test_helpers::make_repo_with_untracked();
         std::vector<gittide::RepoRef> repos = {
             gittide::RepoRef{.path = good.generic_string(), .alias = "good"},
             gittide::RepoRef{.path = "/no/such/gittide-dash", .alias = "gone"},

@@ -16,30 +16,31 @@
 // Both steps are mandatory. Omitting step 2 means the class compiles but is never
 // executed — there will be no failure, no warning, just zero test runs for that class.
 
+#include "test_async_repo.cpp"
+#include "test_changes_view.cpp"
+#include "test_dashboard_async.cpp"
+#include "test_dashboard_model.cpp"
+#include "test_diff_view.cpp"
+#include "test_history_model.cpp"
+#include "test_main_window.cpp"
+#include "test_project_controller.cpp"
+#include "test_project_list_model.cpp"
+#include "test_project_sidebar.cpp"
+#include "test_qcoro_smoke.cpp"
+#include "test_repo_controller.cpp"
+#include "test_repo_list_model.cpp"
+#include "test_session_store.cpp"
+#include "test_smoke.cpp"
+#include "test_theme.cpp"
+#include "test_theme_manager.cpp"
+#include "test_theme_style.cpp"
+#include "test_window_manager.cpp"
+
 #include <QApplication>
 #include <QtTest/QtTest>
 
-#include "test_smoke.cpp"
-#include "test_project_list_model.cpp"
-#include "test_repo_list_model.cpp"
-#include "test_project_controller.cpp"
-#include "test_repo_controller.cpp"
-#include "test_session_store.cpp"
-#include "test_dashboard_model.cpp"
-#include "test_project_sidebar.cpp"
-#include "test_main_window.cpp"
-#include "test_window_manager.cpp"
-#include "test_qcoro_smoke.cpp"
-#include "test_async_repo.cpp"
-#include "test_dashboard_async.cpp"
-#include "test_diff_view.cpp"
-#include "test_changes_view.cpp"
-#include "test_history_model.cpp"
-#include "test_theme.cpp"
-#include "test_theme_style.cpp"
-#include "test_theme_manager.cpp"
-
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     QApplication app(argc, argv);
     int status = 0;
     {

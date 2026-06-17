@@ -1,6 +1,6 @@
+#include <QAbstractItemModelTester>
 #include <QObject>
 #include <QtTest/QtTest>
-#include <QAbstractItemModelTester>
 
 #include "gittide/projectstore.hpp"
 #include "gittide/ui/projectlistmodel.hpp"
@@ -9,10 +9,12 @@ using gittide::Project;
 using gittide::ProjectStore;
 using gittide::ui::ProjectListModel;
 
-class TestProjectListModel : public QObject {
+class TestProjectListModel : public QObject
+{
     Q_OBJECT
 private slots:
-    void exposes_names_and_ids() {
+    void exposes_names_and_ids()
+    {
         ProjectStore store;
         store.projects().push_back(Project{.id = "id-a", .name = "Work"});
         store.projects().push_back(Project{.id = "id-b", .name = "Home"});
@@ -25,7 +27,8 @@ private slots:
         QCOMPARE(model.data(model.index(1), ProjectListModel::IdRole).toString(), QStringLiteral("id-b"));
     }
 
-    void refresh_picks_up_new_projects() {
+    void refresh_picks_up_new_projects()
+    {
         ProjectStore store;
         ProjectListModel model(&store);
         QCOMPARE(model.rowCount(), 0);

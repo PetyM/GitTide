@@ -1,21 +1,21 @@
-#include <QObject>
-#include <QtTest/QtTest>
-#include <QSignalSpy>
 #include <QFrame>
 #include <QLabel>
+#include <QObject>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QThreadPool>
+#include <QtTest/QtTest>
 #include <filesystem>
-
 #include <git2.h>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/changesview.hpp"
 #include "gittide/ui/mainwindow.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/projectsidebar.hpp"
-#include "gittide/ui/changesview.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 
 using gittide::Project;
 using gittide::ProjectStore;
@@ -23,10 +23,11 @@ using gittide::RepoRef;
 using gittide::ui::MainWindow;
 
 namespace main_window_test {
-std::filesystem::path make_repo() {
+std::filesystem::path make_repo()
+{
     git_libgit2_init();
-    auto dir = std::filesystem::temp_directory_path() /
-               ("gittide-mw-" + std::to_string(::QRandomGenerator::global()->generate()));
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-mw-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -40,22 +41,25 @@ std::filesystem::path make_repo() {
 // resume via the event loop. A test must let that work finish BEFORE its local
 // MainWindow is destroyed, or an in-flight coroutine resumes into freed objects.
 // Call this at the end of each slot, while the window is still alive.
-void drainAsync() {
-    for (int i = 0; i < 3; ++i) {
+void drainAsync()
+{
+    for (int i = 0; i < 3; ++i)
+    {
         QThreadPool::globalInstance()->waitForDone();
         QTest::qWait(30);
     }
 }
-}  // namespace main_window_test
+} // namespace main_window_test
 
-class TestMainWindow : public QObject {
+class TestMainWindow : public QObject
+{
     Q_OBJECT
 private slots:
-    void show_project_activates_and_lists_repos() {
+    void show_project_activates_and_lists_repos()
+    {
         ProjectStore store;
-        store.projects().push_back(Project{
-            .id = "id-a", .name = "Work",
-            .repos = { RepoRef{.path = "/home/u/api", .alias = "api"} }});
+        store.projects().push_back(
+            Project{.id = "id-a", .name = "Work", .repos = {RepoRef{.path = "/home/u/api", .alias = "api"}}});
         MainWindow win(&store);
         win.showProject(QStringLiteral("id-a"));
         QCOMPARE(win.currentProjectId(), QStringLiteral("id-a"));
@@ -66,7 +70,8 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void open_in_new_window_propagates_upward() {
+    void open_in_new_window_propagates_upward()
+    {
         ProjectStore store;
         store.projects().push_back(Project{.id = "id-a", .name = "Work"});
         MainWindow win(&store);
@@ -80,7 +85,8 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void changes_tab_is_a_changes_view() {
+    void changes_tab_is_a_changes_view()
+    {
         ProjectStore store;
         store.projects().push_back(Project{.id = "id-a", .name = "Work"});
         MainWindow win(&store);
@@ -88,12 +94,12 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void selecting_repo_opens_it_in_controller() {
+    void selecting_repo_opens_it_in_controller()
+    {
         const auto dir = main_window_test::make_repo();
         ProjectStore store;
-        store.projects().push_back(Project{
-            .id = "id-a", .name = "Work",
-            .repos = { RepoRef{.path = dir.generic_string(), .alias = "r"} }});
+        store.projects().push_back(
+            Project{.id = "id-a", .name = "Work", .repos = {RepoRef{.path = dir.generic_string(), .alias = "r"}}});
         MainWindow win(&store);
         win.showProject(QStringLiteral("id-a"));
 
@@ -106,7 +112,8 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
-    void no_projects_shows_create_project_cta() {
+    void no_projects_shows_create_project_cta()
+    {
         ProjectStore store;
         MainWindow win(&store);
 
@@ -117,7 +124,8 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void empty_project_shows_add_repo_cta() {
+    void empty_project_shows_add_repo_cta()
+    {
         ProjectStore store;
         store.projects().push_back(Project{.id = "id-a", .name = "Empty"});
         MainWindow win(&store);
@@ -132,7 +140,8 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void no_projects_page_has_branded_card() {
+    void no_projects_page_has_branded_card()
+    {
         ProjectStore store;
         MainWindow win(&store);
         auto* card = win.findChild<QFrame*>(QStringLiteral("emptyStateCard"));
@@ -143,11 +152,11 @@ private slots:
         main_window_test::drainAsync();
     }
 
-    void project_with_repos_shows_tabs() {
+    void project_with_repos_shows_tabs()
+    {
         ProjectStore store;
-        store.projects().push_back(Project{
-            .id = "id-a", .name = "Work",
-            .repos = { RepoRef{.path = "/home/u/api", .alias = "api"} }});
+        store.projects().push_back(
+            Project{.id = "id-a", .name = "Work", .repos = {RepoRef{.path = "/home/u/api", .alias = "api"}}});
         MainWindow win(&store);
         win.showProject(QStringLiteral("id-a"));
 

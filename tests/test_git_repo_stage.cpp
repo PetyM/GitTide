@@ -1,21 +1,27 @@
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
-#include <algorithm>
 
-using gittide::StatusFlag;
 using gittide::has_flag;
+using gittide::StatusFlag;
 
-static StatusFlag flags_for(const gittide::GitRepo& repo, const char* file) {
+static StatusFlag flags_for(const gittide::GitRepo& repo, const char* file)
+{
     auto st = repo.status();
     REQUIRE(st.has_value());
-    auto it = std::find_if(st->begin(), st->end(), [&](const gittide::FileStatus& f) {
-        return f.path == std::filesystem::path(file);
-    });
+    auto it = std::find_if(st->begin(),
+                           st->end(),
+                           [&](const gittide::FileStatus& f)
+                           {
+                               return f.path == std::filesystem::path(file);
+                           });
     return it == st->end() ? StatusFlag::None : it->flags;
 }
 
-TEST_CASE("stage whole file moves WtModified to IndexModified", "[stage]") {
+TEST_CASE("stage whole file moves WtModified to IndexModified", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "1\n2\n3\n");
     tmp.commit_all("init");
@@ -29,7 +35,8 @@ TEST_CASE("stage whole file moves WtModified to IndexModified", "[stage]") {
     REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::IndexModified));
 }
 
-TEST_CASE("unstage whole file moves IndexModified back to WtModified", "[stage]") {
+TEST_CASE("unstage whole file moves IndexModified back to WtModified", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "1\n2\n3\n");
     tmp.commit_all("init");
@@ -44,7 +51,8 @@ TEST_CASE("unstage whole file moves IndexModified back to WtModified", "[stage]"
     REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::WtModified));
 }
 
-TEST_CASE("stage whole file handles deletion", "[stage]") {
+TEST_CASE("stage whole file handles deletion", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("gone.txt", "bye\n");
     tmp.commit_all("init");
@@ -58,7 +66,8 @@ TEST_CASE("stage whole file handles deletion", "[stage]") {
     REQUIRE(has_flag(flags_for(*repo, "gone.txt"), StatusFlag::IndexDeleted));
 }
 
-TEST_CASE("stage a single hunk stages only that change", "[stage]") {
+TEST_CASE("stage a single hunk stages only that change", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.set_identity("Test", "test@example.com");
     // Two separate change regions far apart so they form two hunks.
@@ -87,7 +96,8 @@ TEST_CASE("stage a single hunk stages only that change", "[stage]") {
     REQUIRE(unstaged->hunks.size() == 1);
 }
 
-TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]") {
+TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.set_identity("Test", "test@example.com");
     tmp.write_file("a.txt", "1\n2\n3\n");
@@ -110,11 +120,12 @@ TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]") {
     REQUIRE(after->hunks.empty());
 }
 
-TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]") {
+TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]")
+{
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "first\nsecond");   // NO trailing newline
+    tmp.write_file("a.txt", "first\nsecond"); // NO trailing newline
     tmp.commit_all("init");
-    tmp.write_file("a.txt", "first\nCHANGED");  // still no trailing newline
+    tmp.write_file("a.txt", "first\nCHANGED"); // still no trailing newline
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -123,14 +134,15 @@ TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]
     // Staged content matches the worktree exactly (incl. absence of trailing nl).
     auto unstaged = repo->diff(gittide::DiffTarget::WorktreeVsIndex, "a.txt");
     REQUIRE(unstaged.has_value());
-    REQUIRE(unstaged->hunks.empty());   // nothing left unstaged
+    REQUIRE(unstaged->hunks.empty()); // nothing left unstaged
 }
 
-TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]") {
+TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]")
+{
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "alpha\nbeta");      // no trailing newline
+    tmp.write_file("a.txt", "alpha\nbeta"); // no trailing newline
     tmp.commit_all("init");
-    tmp.write_file("a.txt", "alpha\nBETA");      // change last line, still no nl
+    tmp.write_file("a.txt", "alpha\nBETA"); // change last line, still no nl
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -150,7 +162,8 @@ TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]") {
     REQUIRE(unstaged->hunks.empty());
 }
 
-TEST_CASE("stage a single line of a multi-line addition", "[stage]") {
+TEST_CASE("stage a single line of a multi-line addition", "[stage]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "a\nb\nc\n");
     tmp.commit_all("init");
@@ -167,9 +180,13 @@ TEST_CASE("stage a single line of a multi-line addition", "[stage]") {
 
     // Find the line index of the added "X".
     int xIdx = -1;
-    for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i) {
-        if (hunk.lines[i].origin == gittide::DiffLineOrigin::Added &&
-            hunk.lines[i].text == "X") { xIdx = i; break; }
+    for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i)
+    {
+        if (hunk.lines[i].origin == gittide::DiffLineOrigin::Added && hunk.lines[i].text == "X")
+        {
+            xIdx = i;
+            break;
+        }
     }
     REQUIRE(xIdx >= 0);
 
@@ -180,12 +197,17 @@ TEST_CASE("stage a single line of a multi-line addition", "[stage]") {
     auto staged = repo->diff(gittide::DiffTarget::IndexVsHead, "a.txt");
     REQUIRE(staged.has_value());
     REQUIRE(staged->hunks.size() == 1);
-    int addedCount = 0; bool sawX = false, sawY = false;
-    for (const auto& ln : staged->hunks[0].lines) {
-        if (ln.origin == gittide::DiffLineOrigin::Added) {
+    int addedCount = 0;
+    bool sawX = false, sawY = false;
+    for (const auto& ln : staged->hunks[0].lines)
+    {
+        if (ln.origin == gittide::DiffLineOrigin::Added)
+        {
             ++addedCount;
-            if (ln.text == "X") sawX = true;
-            if (ln.text == "Y") sawY = true;
+            if (ln.text == "X")
+                sawX = true;
+            if (ln.text == "Y")
+                sawY = true;
         }
     }
     REQUIRE(addedCount == 1);

@@ -1,22 +1,22 @@
 #include <QObject>
-#include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QtTest/QtTest>
 #include <filesystem>
 #include <fstream>
-
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gittide/ui/repocontroller.hpp"
 #include "gittide/ui/metatypes.hpp"
+#include "gittide/ui/repocontroller.hpp"
 
 using gittide::ui::RepoController;
 
 namespace repo_controller_test {
-std::filesystem::path make_empty_repo() {
+std::filesystem::path make_empty_repo()
+{
     git_libgit2_init();
-    auto dir = std::filesystem::temp_directory_path() /
-               ("gittide-rc-" + std::to_string(::QRandomGenerator::global()->generate()));
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-rc-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -26,10 +26,11 @@ std::filesystem::path make_empty_repo() {
 }
 
 // Repo with a committed a.txt then a local modification (1 unstaged change).
-std::filesystem::path make_dirty_repo() {
+std::filesystem::path make_dirty_repo()
+{
     git_libgit2_init();
-    auto dir = std::filesystem::temp_directory_path() /
-               ("gittide-rcd-" + std::to_string(::QRandomGenerator::global()->generate()));
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-rcd-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -38,26 +39,39 @@ std::filesystem::path make_dirty_repo() {
     git_config_set_string(cfg, "user.name", "T");
     git_config_set_string(cfg, "user.email", "t@e.x");
     git_config_free(cfg);
-    { std::ofstream(dir / "a.txt") << "one\n"; }
-    git_index* idx = nullptr; git_repository_index(&idx, raw);
-    git_index_add_bypath(idx, "a.txt"); git_index_write(idx);
-    git_oid tree_oid; git_index_write_tree(&tree_oid, idx);
-    git_tree* tree = nullptr; git_tree_lookup(&tree, raw, &tree_oid);
-    git_signature* sig = nullptr; git_signature_now(&sig, "T", "t@e.x");
+    {
+        std::ofstream(dir / "a.txt") << "one\n";
+    }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "a.txt");
+    git_index_write(idx);
+    git_oid tree_oid;
+    git_index_write_tree(&tree_oid, idx);
+    git_tree* tree = nullptr;
+    git_tree_lookup(&tree, raw, &tree_oid);
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
     git_oid commit_oid;
     git_commit_create_v(&commit_oid, raw, "HEAD", sig, sig, nullptr, "init", tree, 0);
-    git_signature_free(sig); git_tree_free(tree); git_index_free(idx);
+    git_signature_free(sig);
+    git_tree_free(tree);
+    git_index_free(idx);
     git_repository_free(raw);
-    { std::ofstream(dir / "a.txt") << "one\ntwo\n"; }
+    {
+        std::ofstream(dir / "a.txt") << "one\ntwo\n";
+    }
     git_libgit2_shutdown();
     return dir;
 }
-}  // namespace repo_controller_test
+} // namespace repo_controller_test
 
-class TestRepoController : public QObject {
+class TestRepoController : public QObject
+{
     Q_OBJECT
 private slots:
-    void open_existing_repo_succeeds() {
+    void open_existing_repo_succeeds()
+    {
         const auto dir = repo_controller_test::make_empty_repo();
         RepoController controller;
         QSignalSpy ok(&controller, &RepoController::repoOpened);
@@ -69,7 +83,8 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
-    void open_missing_repo_fails() {
+    void open_missing_repo_fails()
+    {
         RepoController controller;
         QSignalSpy ok(&controller, &RepoController::repoOpened);
         QSignalSpy bad(&controller, &RepoController::repoFailed);
@@ -79,7 +94,8 @@ private slots:
         QVERIFY(!controller.isOpen());
     }
 
-    void refresh_status_emits_changes() {
+    void refresh_status_emits_changes()
+    {
         const auto dir = repo_controller_test::make_dirty_repo();
         RepoController controller;
         controller.open(QString::fromStdString(dir.generic_string()));
@@ -91,26 +107,27 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
-    void stage_then_status_shows_staged() {
+    void stage_then_status_shows_staged()
+    {
         const auto dir = repo_controller_test::make_dirty_repo();
         RepoController controller;
         controller.open(QString::fromStdString(dir.generic_string()));
         QSignalSpy spy(&controller, &RepoController::statusChanged);
         QCoro::waitFor(controller.stage(gittide::StageSelection{.path = "a.txt"}));
-        QVERIFY(spy.count() >= 1);  // stage chains a refreshStatus
+        QVERIFY(spy.count() >= 1); // stage chains a refreshStatus
         const auto files = spy.at(spy.count() - 1).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
         QVERIFY(gittide::has_flag(files[0].flags, gittide::StatusFlag::IndexModified));
         std::filesystem::remove_all(dir);
     }
 
-    void refresh_diff_emits_diff_ready() {
+    void refresh_diff_emits_diff_ready()
+    {
         const auto dir = repo_controller_test::make_dirty_repo();
         RepoController controller;
         controller.open(QString::fromStdString(dir.generic_string()));
         QSignalSpy spy(&controller, &RepoController::diffReady);
-        QCoro::waitFor(controller.refreshDiff(QStringLiteral("a.txt"),
-                                              gittide::DiffTarget::WorktreeVsIndex));
+        QCoro::waitFor(controller.refreshDiff(QStringLiteral("a.txt"), gittide::DiffTarget::WorktreeVsIndex));
         QCOMPARE(spy.count(), 1);
         const auto result = spy.at(0).at(1).value<gittide::DiffResult>();
         QVERIFY(!result.hunks.empty());

@@ -1,12 +1,10 @@
 #include <QObject>
-#include <QtTest/QtTest>
 #include <QSignalSpy>
 #include <QUuid>
-
+#include <QtTest/QtTest>
 #include <filesystem>
 #include <fstream>
 #include <git2.h>
-
 #include <qcorotask.h>
 
 #include "gittide/projectstore.hpp"
@@ -18,18 +16,26 @@ using gittide::ProjectStore;
 using gittide::RepoRef;
 using gittide::ui::ProjectController;
 
-class TestProjectController : public QObject {
+class TestProjectController : public QObject
+{
     Q_OBJECT
 private slots:
-    void initTestCase()    { git_libgit2_init(); }
-    void cleanupTestCase() { git_libgit2_shutdown(); }
+    void initTestCase()
+    {
+        git_libgit2_init();
+    }
+    void cleanupTestCase()
+    {
+        git_libgit2_shutdown();
+    }
 
-    void activate_loads_repos_and_emits() {
+    void activate_loads_repos_and_emits()
+    {
         ProjectStore store;
-        store.projects().push_back(Project{
-            .id = "id-a", .name = "Work",
-            .repos = { RepoRef{.path = "/home/u/api", .alias = "api"},
-                       RepoRef{.path = "/home/u/web", .alias = "web"} }});
+        store.projects().push_back(
+            Project{.id    = "id-a",
+                    .name  = "Work",
+                    .repos = {RepoRef{.path = "/home/u/api", .alias = "api"}, RepoRef{.path = "/home/u/web", .alias = "web"}}});
 
         ProjectController controller(&store);
         QSignalSpy spy(&controller, &ProjectController::projectActivated);
@@ -43,7 +49,8 @@ private slots:
         QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("id-a"));
     }
 
-    void activate_unknown_id_is_ignored() {
+    void activate_unknown_id_is_ignored()
+    {
         ProjectStore store;
         ProjectController controller(&store);
         QSignalSpy spy(&controller, &ProjectController::projectActivated);
@@ -54,7 +61,8 @@ private slots:
         QCOMPARE(spy.count(), 0);
     }
 
-    void createProject_appends_project_and_emits() {
+    void createProject_appends_project_and_emits()
+    {
         ProjectStore store;
         ProjectController controller(&store);
         QSignalSpy spyCreated(&controller, &ProjectController::projectCreated);
@@ -69,7 +77,8 @@ private slots:
         QCOMPARE(controller.activeProjectId(), spyCreated.at(0).at(0).toString());
     }
 
-    void createProject_empty_name_is_ignored() {
+    void createProject_empty_name_is_ignored()
+    {
         ProjectStore store;
         ProjectController controller(&store);
         QSignalSpy spy(&controller, &ProjectController::projectCreated);
@@ -80,7 +89,8 @@ private slots:
         QCOMPARE(spy.count(), 0);
     }
 
-    void addExistingRepo_valid_repo_emits_repoAdded() {
+    void addExistingRepo_valid_repo_emits_repoAdded()
+    {
         auto dir = std::filesystem::temp_directory_path() /
                    ("gittide-pc-add-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::create_directories(dir);
@@ -101,7 +111,8 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
-    void addExistingRepo_nonrepo_emits_repoAddFailed() {
+    void addExistingRepo_nonrepo_emits_repoAddFailed()
+    {
         ProjectStore store;
         auto& p = store.createProject("proj");
         ProjectController controller(&store);
@@ -114,11 +125,11 @@ private slots:
         QVERIFY(!spy.at(0).at(0).toString().isEmpty());
     }
 
-    void initRepo_creates_repo_and_emits_repoAdded() {
-        const auto parentDir = std::filesystem::temp_directory_path();
-        const std::string repoName =
-            "gittide-pc-init-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
-        const auto dest = parentDir / repoName;
+    void initRepo_creates_repo_and_emits_repoAdded()
+    {
+        const auto parentDir       = std::filesystem::temp_directory_path();
+        const std::string repoName = "gittide-pc-init-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+        const auto dest            = parentDir / repoName;
 
         ProjectStore store;
         auto& p = store.createProject("proj");
@@ -126,9 +137,7 @@ private slots:
         controller.activate(QString::fromStdString(p.id));
 
         QSignalSpy spy(&controller, &ProjectController::repoAdded);
-        controller.initRepo(
-            QString::fromStdString(parentDir.generic_string()),
-            QString::fromStdString(repoName));
+        controller.initRepo(QString::fromStdString(parentDir.generic_string()), QString::fromStdString(repoName));
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(std::filesystem::exists(dest / ".git"));
@@ -136,7 +145,8 @@ private slots:
         std::filesystem::remove_all(dest);
     }
 
-    void cloneRepo_file_url_succeeds_and_emits_repoAdded() {
+    void cloneRepo_file_url_succeeds_and_emits_repoAdded()
+    {
         // Create a source repo with one commit so transfer_progress fires
         auto srcDir = std::filesystem::temp_directory_path() /
                       ("gittide-pc-src-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
@@ -149,21 +159,29 @@ private slots:
         git_config_set_string(cfg, "user.name", "T");
         git_config_set_string(cfg, "user.email", "t@e.x");
         git_config_free(cfg);
-        { std::ofstream(srcDir / "README") << "hello\n"; }
-        git_index* idx = nullptr; git_repository_index(&idx, srcRaw);
+        {
+            std::ofstream(srcDir / "README") << "hello\n";
+        }
+        git_index* idx = nullptr;
+        git_repository_index(&idx, srcRaw);
         git_index_add_bypath(idx, "README");
         git_index_write(idx);
-        git_oid treeOid; git_index_write_tree(&treeOid, idx);
-        git_tree* tree = nullptr; git_tree_lookup(&tree, srcRaw, &treeOid);
-        git_signature* sig = nullptr; git_signature_now(&sig, "T", "t@e.x");
+        git_oid treeOid;
+        git_index_write_tree(&treeOid, idx);
+        git_tree* tree = nullptr;
+        git_tree_lookup(&tree, srcRaw, &treeOid);
+        git_signature* sig = nullptr;
+        git_signature_now(&sig, "T", "t@e.x");
         git_oid cOid;
         git_commit_create_v(&cOid, srcRaw, "HEAD", sig, sig, nullptr, "init", tree, 0);
-        git_signature_free(sig); git_tree_free(tree); git_index_free(idx);
+        git_signature_free(sig);
+        git_tree_free(tree);
+        git_index_free(idx);
         git_repository_free(srcRaw);
 
         auto destDir = std::filesystem::temp_directory_path() /
                        ("gittide-pc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
-        std::filesystem::remove_all(destDir);  // clone creates it
+        std::filesystem::remove_all(destDir); // clone creates it
 
         ProjectStore store;
         auto& p = store.createProject("proj");
@@ -171,9 +189,8 @@ private slots:
         controller.activate(QString::fromStdString(p.id));
 
         QSignalSpy spy(&controller, &ProjectController::repoAdded);
-        QCoro::waitFor(controller.cloneRepo(
-            QString::fromStdString("file://" + srcDir.generic_string()),
-            QString::fromStdString(destDir.generic_string())));
+        QCoro::waitFor(controller.cloneRepo(QString::fromStdString("file://" + srcDir.generic_string()),
+                                            QString::fromStdString(destDir.generic_string())));
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(std::filesystem::exists(destDir / ".git"));
@@ -183,7 +200,8 @@ private slots:
         std::filesystem::remove_all(destDir);
     }
 
-    void cloneRepo_invalid_url_emits_repoAddFailed() {
+    void cloneRepo_invalid_url_emits_repoAddFailed()
+    {
         ProjectStore store;
         auto& p = store.createProject("proj");
         ProjectController controller(&store);
@@ -191,9 +209,8 @@ private slots:
 
         QSignalSpy spyAdded(&controller, &ProjectController::repoAdded);
         QSignalSpy spyFailed(&controller, &ProjectController::repoAddFailed);
-        QCoro::waitFor(controller.cloneRepo(
-            QStringLiteral("file:///no/such/gittide-repo-notexist"),
-            QStringLiteral("/tmp/gittide-clone-dst-noexist")));
+        QCoro::waitFor(controller.cloneRepo(QStringLiteral("file:///no/such/gittide-repo-notexist"),
+                                            QStringLiteral("/tmp/gittide-clone-dst-noexist")));
 
         QCOMPARE(spyAdded.count(), 0);
         QCOMPARE(spyFailed.count(), 1);

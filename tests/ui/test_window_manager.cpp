@@ -1,6 +1,6 @@
 #include <QObject>
-#include <QtTest/QtTest>
 #include <QTemporaryDir>
+#include <QtTest/QtTest>
 
 #include "gittide/projectstore.hpp"
 #include "gittide/ui/mainwindow.hpp"
@@ -10,10 +10,12 @@ using gittide::Project;
 using gittide::ui::MainWindow;
 using gittide::ui::WindowManager;
 
-class TestWindowManager : public QObject {
+class TestWindowManager : public QObject
+{
     Q_OBJECT
 private slots:
-    void open_creates_a_window_bound_to_project() {
+    void open_creates_a_window_bound_to_project()
+    {
         WindowManager wm;
         wm.store()->projects().push_back(Project{.id = "id-a", .name = "Work"});
 
@@ -23,18 +25,20 @@ private slots:
         QCOMPARE(wm.windowCount(), 1);
     }
 
-    void dedup_raises_existing_instead_of_opening_second() {
+    void dedup_raises_existing_instead_of_opening_second()
+    {
         WindowManager wm;
         wm.setDeduplicate(true);
         wm.store()->projects().push_back(Project{.id = "id-a", .name = "Work"});
 
-        MainWindow* first = wm.openProject(QStringLiteral("id-a"));
-        MainWindow* second = wm.openProject(QStringLiteral("id-a"));  // dedup -> same
+        MainWindow* first  = wm.openProject(QStringLiteral("id-a"));
+        MainWindow* second = wm.openProject(QStringLiteral("id-a")); // dedup -> same
         QCOMPARE(first, second);
         QCOMPARE(wm.windowCount(), 1);
     }
 
-    void force_new_opens_second_window_even_with_dedup() {
+    void force_new_opens_second_window_even_with_dedup()
+    {
         WindowManager wm;
         wm.setDeduplicate(true);
         wm.store()->projects().push_back(Project{.id = "id-a", .name = "Work"});
@@ -44,7 +48,8 @@ private slots:
         QCOMPARE(wm.windowCount(), 2);
     }
 
-    void session_round_trips_open_windows() {
+    void session_round_trips_open_windows()
+    {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
 

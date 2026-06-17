@@ -1,11 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
+
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 
-using gittide::DiffTarget;
 using gittide::DiffLineOrigin;
+using gittide::DiffTarget;
 
-TEST_CASE("GitRepo::diff WorktreeVsIndex shows unstaged edit", "[diff]") {
+TEST_CASE("GitRepo::diff WorktreeVsIndex shows unstaged edit", "[diff]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "x\ny\nz\n");
     tmp.commit_all("init");
@@ -19,15 +21,17 @@ TEST_CASE("GitRepo::diff WorktreeVsIndex shows unstaged edit", "[diff]") {
     REQUIRE(d->hunks.size() == 1);
 
     bool has_added = false, has_removed = false;
-    for (const auto& ln : d->hunks[0].lines) {
-        has_added   |= ln.origin == DiffLineOrigin::Added;
+    for (const auto& ln : d->hunks[0].lines)
+    {
+        has_added |= ln.origin == DiffLineOrigin::Added;
         has_removed |= ln.origin == DiffLineOrigin::Removed;
     }
     REQUIRE(has_added);
     REQUIRE(has_removed);
 }
 
-TEST_CASE("GitRepo::diff IndexVsHead is empty with nothing staged", "[diff]") {
+TEST_CASE("GitRepo::diff IndexVsHead is empty with nothing staged", "[diff]")
+{
     gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "x\n");
     tmp.commit_all("init");
