@@ -6,7 +6,6 @@
 
 #include <qcorotask.h>
 
-#include "gitgui/GitRepo.hpp"
 #include "gitgui/Diff.hpp"
 #include "gitgui/FileStatus.hpp"
 #include "gitgui/GitError.hpp"
