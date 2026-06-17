@@ -55,7 +55,12 @@
     {                                                                                                                          \
         MARK("run " #T);                                                                                                       \
         T t;                                                                                                                   \
-        status |= QTest::qExec(&t, argc, argv);                                                                                \
+        int rc = QTest::qExec(&t, argc, argv);                                                                                 \
+        std::fflush(stdout);                                                                                                   \
+        if (rc != 0)                                                                                                           \
+            std::fprintf(stderr, "[mark] FAIL %s rc=%d\n", #T, rc);                                                            \
+        std::fflush(stderr);                                                                                                   \
+        status |= rc;                                                                                                          \
     } while (0)
 
 int main(int argc, char** argv)
