@@ -1,5 +1,4 @@
 #pragma once
-#include <deque>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -26,8 +25,8 @@ class ProjectStore {
 public:
     static constexpr int kVersion = 1;
 
-    std::deque<Project>& projects() { return projects_; }
-    const std::deque<Project>& projects() const { return projects_; }
+    std::vector<Project>& projects() { return projects_; }
+    const std::vector<Project>& projects() const { return projects_; }
 
     const std::string& activeProject() const { return activeProject_; }
     void setActiveProject(std::string id) { activeProject_ = std::move(id); }
@@ -53,7 +52,7 @@ public:
     Project& createProject(const std::string& name);
 
 private:
-    std::deque<Project> projects_;
+    std::vector<Project> projects_;
     std::string activeProject_;
     int loadedVersion_ = kVersion;
 };
