@@ -40,6 +40,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_sidebar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_main_window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_window_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
   )
   set_source_files_properties(${gitgui_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 
