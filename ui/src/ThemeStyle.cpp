@@ -53,6 +53,8 @@ QTabBar::tab:selected { color: %5; border-bottom: 2px solid %8; }
 
 QProgressBar { border: 1px solid %4; border-radius: 6px; text-align: center; }
 QProgressBar::chunk { background: %8; border-radius: 6px; }
+
+QToolTip { background: %2; border: 1px solid %4; color: %7; border-radius: 6px; padding: 4px 8px; }
 )")
         .arg(t.surfaceBase,    // %1
              t.surfaceRaised,  // %2

@@ -10,6 +10,7 @@
 using gittide::ui::WindowManager;
 
 int main(int argc, char** argv) {
+    Q_INIT_RESOURCE(icons);
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("gittide"));
     QApplication::setOrganizationName(QStringLiteral("gittide"));
