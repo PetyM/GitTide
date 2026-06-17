@@ -117,7 +117,7 @@ private slots:
         QVERIFY(spy.count() >= 1); // stage chains a refreshStatus
         const auto files = spy.at(spy.count() - 1).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
-        QVERIFY(gittide::has_flag(files[0].flags, gittide::StatusFlag::IndexModified));
+        QVERIFY(gittide::hasFlag(files[0].flags, gittide::StatusFlag::IndexModified));
         std::filesystem::remove_all(dir);
     }
 

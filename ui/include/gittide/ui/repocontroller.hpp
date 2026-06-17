@@ -23,11 +23,11 @@ public:
 
     bool isOpen() const
     {
-        return repo_.has_value();
+        return m_repo.has_value();
     }
     QString path() const
     {
-        return path_;
+        return m_path;
     }
 
 public slots:
@@ -50,8 +50,8 @@ signals:
     void operationFailed(const QString& message);
 
 private:
-    std::optional<AsyncRepo> repo_;
-    QString path_;
+    std::optional<AsyncRepo> m_repo;
+    QString m_path;
 };
 
 } // namespace gittide::ui

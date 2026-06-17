@@ -11,7 +11,8 @@ namespace gittide::ui {
 
 WindowManager::WindowManager(QString configDir, QObject* parent)
     : QObject(parent)
-    , configDir_(configDir.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) : std::move(configDir))
+    , m_configDir(configDir.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation)
+                                      : std::move(configDir))
 {
 }
 
@@ -25,7 +26,7 @@ WindowManager::~WindowManager()
     // Windows are not QObject-parented to us (they need QWidget* parent),
     // so we own them and must delete them explicitly.
     // Take a copy since deleting triggers the destroyed handler which calls removeAll.
-    const QList<MainWindow*> toDelete = windows_;
+    const QList<MainWindow*> toDelete = m_windows;
     for (auto* w : toDelete)
     {
         delete w;
@@ -34,12 +35,12 @@ WindowManager::~WindowManager()
 
 QString WindowManager::sessionFile() const
 {
-    return QDir(configDir_).filePath(QStringLiteral("session.json"));
+    return QDir(m_configDir).filePath(QStringLiteral("session.json"));
 }
 
 MainWindow* WindowManager::findWindowForProject(const QString& id) const
 {
-    for (auto* w : windows_)
+    for (auto* w : m_windows)
     {
         if (w->currentProjectId() == id)
             return w;
@@ -49,10 +50,10 @@ MainWindow* WindowManager::findWindowForProject(const QString& id) const
 
 MainWindow* WindowManager::createWindow(const QString& projectId)
 {
-    const std::filesystem::path projectsFile = std::filesystem::path(configDir_.toStdString()) / "projects.json";
-    MainWindow* w                            = new MainWindow(&store_, projectsFile);
+    const std::filesystem::path projectsFile = std::filesystem::path(m_configDir.toStdString()) / "projects.json";
+    MainWindow* w                            = new MainWindow(&m_store, projectsFile);
     w->showProject(projectId);
-    windows_.push_back(w);
+    m_windows.push_back(w);
 
     // "Open in new window" from inside a window always forces a new window.
     connect(w,
@@ -69,7 +70,7 @@ MainWindow* WindowManager::createWindow(const QString& projectId)
             this,
             [this, w]()
             {
-                windows_.removeAll(w);
+                m_windows.removeAll(w);
                 emit windowCountChanged(windowCount());
             });
 
@@ -79,7 +80,7 @@ MainWindow* WindowManager::createWindow(const QString& projectId)
 
 MainWindow* WindowManager::openProject(const QString& projectId, bool forceNew)
 {
-    if (dedup_ && !forceNew)
+    if (m_dedup && !forceNew)
     {
         if (MainWindow* existing = findWindowForProject(projectId))
         {
@@ -96,7 +97,7 @@ MainWindow* WindowManager::openProject(const QString& projectId, bool forceNew)
 void WindowManager::saveSession()
 {
     SessionStore session;
-    for (auto* w : windows_)
+    for (auto* w : m_windows)
     {
         session.windows.push_back(WindowSession{
             .projectId      = w->currentProjectId(),
@@ -104,7 +105,7 @@ void WindowManager::saveSession()
             .lastActiveRepo = QString(), // populated in Plan 3 when repos are selectable
         });
     }
-    QDir().mkpath(configDir_);
+    QDir().mkpath(m_configDir);
     session.save(sessionFile());
 }
 

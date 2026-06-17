@@ -37,8 +37,8 @@ signals:
     void discardRequested(const gittide::StageSelection& sel);
 
 private:
-    QListWidget* lines_;
-    std::filesystem::path file_;
+    QListWidget* m_lines;
+    std::filesystem::path m_file;
 };
 
 } // namespace gittide::ui

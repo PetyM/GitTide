@@ -26,7 +26,7 @@ public:
 
     ProjectController* controller() const
     {
-        return controller_;
+        return m_controller;
     }
     QString currentProjectId() const;
     void showProject(const QString& projectId);
@@ -43,14 +43,14 @@ private slots:
     void onCloneRepoRequested(); // stub in Task 4; implemented in Task 5
 
 private:
-    gittide::ProjectStore* store_;
-    ProjectController* controller_;
-    ProjectSidebar* sidebar_;
-    RepoController* repoController_;
-    ChangesView* changesView_;
-    HistoryView* historyView_;
-    DashboardModel* dashboardModel_;
-    QStackedWidget* centralStack_;
+    gittide::ProjectStore* m_store;
+    ProjectController* m_controller;
+    ProjectSidebar* m_sidebar;
+    RepoController* m_repoController;
+    ChangesView* m_changesView;
+    HistoryView* m_historyView;
+    DashboardModel* m_dashboardModel;
+    QStackedWidget* m_centralStack;
 };
 
 } // namespace gittide::ui

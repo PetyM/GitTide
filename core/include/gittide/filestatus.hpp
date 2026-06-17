@@ -28,7 +28,7 @@ constexpr StatusFlag operator&(StatusFlag a, StatusFlag b)
 {
     return static_cast<StatusFlag>(static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
 }
-constexpr bool has_flag(StatusFlag value, StatusFlag flag)
+constexpr bool hasFlag(StatusFlag value, StatusFlag flag)
 {
     return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
 }

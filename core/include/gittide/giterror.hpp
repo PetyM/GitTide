@@ -18,6 +18,6 @@ using Expected = std::expected<T, GitError>;
 // thread, before issuing any other libgit2 call. The error slot is overwritten
 // by the next libgit2 operation, so a delayed call captures a stale/unrelated
 // error. `code` is the return code of the failed call and is forwarded verbatim.
-GitError last_git_error(int code);
+GitError lastGitError(int code);
 
 } // namespace gittide

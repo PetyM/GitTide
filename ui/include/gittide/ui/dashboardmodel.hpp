@@ -46,7 +46,7 @@ private:
         int changeCount;
         bool missing;
     };
-    std::vector<Row> rows_;
+    std::vector<Row> m_rows;
 };
 
 } // namespace gittide::ui

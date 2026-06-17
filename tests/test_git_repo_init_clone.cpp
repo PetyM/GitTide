@@ -57,9 +57,9 @@ TEST_CASE("GitRepo::init rejects a path that is already a git repository", "[git
 TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callback", "[git_repo][clone]")
 {
     gittide::test::TempRepo source;
-    source.set_identity("Test", "t@t.test");
-    source.write_file("README.md", "hello\n");
-    source.commit_all("initial");
+    source.setIdentity("Test", "t@t.test");
+    source.writeFile("README.md", "hello\n");
+    source.commitAll("initial");
 
     TempDir dest_guard{unique_empty_dir()};
     auto& dest = dest_guard.path;
@@ -81,9 +81,9 @@ TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callb
 TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone]")
 {
     gittide::test::TempRepo source;
-    source.set_identity("Test", "t@t.test");
-    source.write_file("a.txt", "data\n");
-    source.commit_all("initial");
+    source.setIdentity("Test", "t@t.test");
+    source.writeFile("a.txt", "data\n");
+    source.commitAll("initial");
 
     TempDir dest_guard{unique_empty_dir()};
     auto& dest = dest_guard.path;

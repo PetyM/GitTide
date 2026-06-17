@@ -29,7 +29,7 @@ public:
     QString commitMessage() const;
     DiffView* diffView() const
     {
-        return diff_;
+        return m_diff;
     }
 
 signals:
@@ -42,11 +42,11 @@ signals:
 private:
     void updateCommitEnabled();
 
-    QListWidget* staged_;
-    QListWidget* unstaged_;
-    DiffView* diff_;
-    QPlainTextEdit* message_;
-    QPushButton* commitButton_;
+    QListWidget* m_staged;
+    QListWidget* m_unstaged;
+    DiffView* m_diff;
+    QPlainTextEdit* m_message;
+    QPushButton* m_commitButton;
 };
 
 } // namespace gittide::ui

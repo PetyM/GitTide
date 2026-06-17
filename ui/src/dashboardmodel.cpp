@@ -17,8 +17,8 @@ DashboardModel::DashboardModel(QObject* parent)
 void DashboardModel::refresh(const std::vector<gittide::RepoRef>& repos)
 {
     beginResetModel();
-    rows_.clear();
-    rows_.reserve(repos.size());
+    m_rows.clear();
+    m_rows.reserve(repos.size());
     for (const auto& r : repos)
     {
         Row row{
@@ -40,7 +40,7 @@ void DashboardModel::refresh(const std::vector<gittide::RepoRef>& repos)
         {
             row.missing = true; // opened but status failed -> treat as unavailable
         }
-        rows_.push_back(std::move(row));
+        m_rows.push_back(std::move(row));
     }
     endResetModel();
 }
@@ -85,7 +85,7 @@ QCoro::Task<void> DashboardModel::refreshAsync(std::vector<gittide::RepoRef> rep
     }
 
     beginResetModel();
-    rows_ = std::move(rows);
+    m_rows = std::move(rows);
     endResetModel();
     emit refreshed();
 }
@@ -94,7 +94,7 @@ int DashboardModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
-    return static_cast<int>(rows_.size());
+    return static_cast<int>(m_rows.size());
 }
 
 QVariant DashboardModel::data(const QModelIndex& index, int role) const
@@ -102,9 +102,9 @@ QVariant DashboardModel::data(const QModelIndex& index, int role) const
     if (!index.isValid())
         return {};
     const auto row = static_cast<std::size_t>(index.row());
-    if (row >= rows_.size())
+    if (row >= m_rows.size())
         return {};
-    const auto& r = rows_[row];
+    const auto& r = m_rows[row];
     switch (role)
     {
     case Qt::DisplayRole:

@@ -16,8 +16,8 @@ public:
     QString repoName() const;
 
 private:
-    QLineEdit* parentDirEdit_;
-    QLineEdit* nameEdit_;
+    QLineEdit* m_parentDirEdit;
+    QLineEdit* m_nameEdit;
 };
 
 // Dialog for "Clone repository" — remote URL + local destination.
@@ -30,8 +30,8 @@ public:
     QString dest() const;
 
 private:
-    QLineEdit* urlEdit_;
-    QLineEdit* destEdit_;
+    QLineEdit* m_urlEdit;
+    QLineEdit* m_destEdit;
 };
 
 } // namespace gittide::ui

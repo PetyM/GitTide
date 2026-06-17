@@ -31,13 +31,13 @@ private slots:
     void syncCombo();
 
 private:
-    ProjectController* controller_;
-    QComboBox* switcher_;
-    QToolButton* removeProjectBtn_;
-    QTreeView* repoList_;
-    QToolButton* addExistingBtn_;
-    QToolButton* initRepoBtn_;
-    QToolButton* cloneBtn_;
+    ProjectController* m_controller;
+    QComboBox* m_switcher;
+    QToolButton* m_removeProjectBtn;
+    QTreeView* m_repoList;
+    QToolButton* m_addExistingBtn;
+    QToolButton* m_initRepoBtn;
+    QToolButton* m_cloneBtn;
 };
 
 } // namespace gittide::ui

@@ -42,7 +42,7 @@ private:
         bool missing;
         std::vector<SubRow> children;
     };
-    std::vector<Row> rows_;
+    std::vector<Row> m_rows;
 };
 
 } // namespace gittide::ui

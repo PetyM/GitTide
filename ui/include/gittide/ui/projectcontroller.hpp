@@ -24,15 +24,15 @@ public:
 
     ProjectListModel* projects() const
     {
-        return projectModel_;
+        return m_projectModel;
     }
     RepoListModel* repos() const
     {
-        return repoModel_;
+        return m_repoModel;
     }
     QString activeProjectId() const
     {
-        return activeId_;
+        return m_activeId;
     }
     const std::vector<gittide::RepoRef>& activeRepos() const;
 
@@ -57,12 +57,12 @@ signals:
     void projectRemoved(const QString& id);
 
 private:
-    gittide::ProjectStore* store_;
-    std::filesystem::path storePath_;
-    ProjectListModel* projectModel_;
-    RepoListModel* repoModel_;
-    QString activeId_;
-    std::atomic<bool> cloneCancel_{false};
+    gittide::ProjectStore* m_store;
+    std::filesystem::path m_storePath;
+    ProjectListModel* m_projectModel;
+    RepoListModel* m_repoModel;
+    QString m_activeId;
+    std::atomic<bool> m_cloneCancel{false};
 
     void saveStore() const;
     void refreshRepoModel();

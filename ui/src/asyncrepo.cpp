@@ -31,7 +31,7 @@ gittide::Expected<AsyncRepo> AsyncRepo::open(const std::filesystem::path& path)
 
 QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::status()
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl]()
         {
@@ -42,7 +42,7 @@ QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::stat
 
 QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::diff(gittide::DiffTarget target, std::filesystem::path file)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, target, file = std::move(file)]()
         {
@@ -53,7 +53,7 @@ QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::diff(gittide::Dif
 
 QCoro::Task<gittide::Expected<void>> AsyncRepo::stage(gittide::StageSelection sel)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, sel = std::move(sel)]()
         {
@@ -64,7 +64,7 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::stage(gittide::StageSelection se
 
 QCoro::Task<gittide::Expected<void>> AsyncRepo::unstage(gittide::StageSelection sel)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, sel = std::move(sel)]()
         {
@@ -75,7 +75,7 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::unstage(gittide::StageSelection 
 
 QCoro::Task<gittide::Expected<void>> AsyncRepo::discard(gittide::StageSelection sel)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, sel = std::move(sel)]()
         {
@@ -86,7 +86,7 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::discard(gittide::StageSelection 
 
 QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commit(gittide::CommitRequest req)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, req = std::move(req)]()
         {
@@ -97,7 +97,7 @@ QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commit(gittide::CommitReq
 
 QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::log(unsigned limit)
 {
-    auto impl = impl_;
+    auto impl = m_impl;
     co_return co_await QtConcurrent::run(
         [impl, limit]()
         {

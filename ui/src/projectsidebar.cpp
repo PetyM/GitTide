@@ -21,76 +21,76 @@ static constexpr auto kSentinel = "__new__";
 
 ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     : QWidget(parent)
-    , controller_(controller)
-    , switcher_(new QComboBox(this))
-    , removeProjectBtn_(new QToolButton(this))
-    , repoList_(new QTreeView(this))
-    , addExistingBtn_(new QToolButton(this))
-    , initRepoBtn_(new QToolButton(this))
-    , cloneBtn_(new QToolButton(this))
+    , m_controller(controller)
+    , m_switcher(new QComboBox(this))
+    , m_removeProjectBtn(new QToolButton(this))
+    , m_repoList(new QTreeView(this))
+    , m_addExistingBtn(new QToolButton(this))
+    , m_initRepoBtn(new QToolButton(this))
+    , m_cloneBtn(new QToolButton(this))
 {
 
-    switcher_->setObjectName(QStringLiteral("projectSwitcher"));
-    switcher_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_switcher->setObjectName(QStringLiteral("projectSwitcher"));
+    m_switcher->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    removeProjectBtn_->setObjectName(QStringLiteral("removeProjectButton"));
-    removeProjectBtn_->setText(QStringLiteral("✕"));
-    removeProjectBtn_->setToolTip(QStringLiteral("Remove current project"));
+    m_removeProjectBtn->setObjectName(QStringLiteral("removeProjectButton"));
+    m_removeProjectBtn->setText(QStringLiteral("✕"));
+    m_removeProjectBtn->setToolTip(QStringLiteral("Remove current project"));
 
-    repoList_->setObjectName(QStringLiteral("repoList"));
-    repoList_->setModel(controller_->repos());
-    repoList_->header()->hide();
-    repoList_->setRootIsDecorated(true);
-    repoList_->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_repoList->setObjectName(QStringLiteral("repoList"));
+    m_repoList->setModel(m_controller->repos());
+    m_repoList->header()->hide();
+    m_repoList->setRootIsDecorated(true);
+    m_repoList->setContextMenuPolicy(Qt::CustomContextMenu);
 
-    addExistingBtn_->setObjectName(QStringLiteral("addExistingButton"));
-    addExistingBtn_->setText(QStringLiteral("Add"));
-    addExistingBtn_->setToolTip(QStringLiteral("Add existing repository"));
+    m_addExistingBtn->setObjectName(QStringLiteral("addExistingButton"));
+    m_addExistingBtn->setText(QStringLiteral("Add"));
+    m_addExistingBtn->setToolTip(QStringLiteral("Add existing repository"));
 
-    initRepoBtn_->setObjectName(QStringLiteral("initRepoButton"));
-    initRepoBtn_->setText(QStringLiteral("Init"));
-    initRepoBtn_->setToolTip(QStringLiteral("Initialize new repository"));
+    m_initRepoBtn->setObjectName(QStringLiteral("initRepoButton"));
+    m_initRepoBtn->setText(QStringLiteral("Init"));
+    m_initRepoBtn->setToolTip(QStringLiteral("Initialize new repository"));
 
-    cloneBtn_->setObjectName(QStringLiteral("cloneButton"));
-    cloneBtn_->setText(QStringLiteral("Clone"));
-    cloneBtn_->setToolTip(QStringLiteral("Clone repository from URL"));
+    m_cloneBtn->setObjectName(QStringLiteral("cloneButton"));
+    m_cloneBtn->setText(QStringLiteral("Clone"));
+    m_cloneBtn->setToolTip(QStringLiteral("Clone repository from URL"));
 
     auto* switcherRow    = new QWidget(this);
     auto* switcherLayout = new QHBoxLayout(switcherRow);
     switcherLayout->setContentsMargins(0, 0, 0, 0);
-    switcherLayout->addWidget(switcher_);
-    switcherLayout->addWidget(removeProjectBtn_);
+    switcherLayout->addWidget(m_switcher);
+    switcherLayout->addWidget(m_removeProjectBtn);
 
     auto* toolbar       = new QWidget(this);
     auto* toolbarLayout = new QHBoxLayout(toolbar);
     toolbarLayout->setContentsMargins(0, 0, 0, 0);
-    toolbarLayout->addWidget(addExistingBtn_);
-    toolbarLayout->addWidget(initRepoBtn_);
-    toolbarLayout->addWidget(cloneBtn_);
+    toolbarLayout->addWidget(m_addExistingBtn);
+    toolbarLayout->addWidget(m_initRepoBtn);
+    toolbarLayout->addWidget(m_cloneBtn);
     toolbarLayout->addStretch();
 
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(switcherRow);
-    layout->addWidget(repoList_, /*stretch=*/1);
+    layout->addWidget(m_repoList, /*stretch=*/1);
     layout->addWidget(toolbar);
 
     // Populate combo and keep it in sync
     syncCombo();
-    connect(controller_,
+    connect(m_controller,
             &ProjectController::projectCreated,
             this,
             [this](const QString&)
             {
                 syncCombo();
             });
-    connect(controller_,
+    connect(m_controller,
             &ProjectController::projectActivated,
             this,
             [this](const QString&)
             {
                 syncCombo();
             });
-    connect(controller_,
+    connect(m_controller,
             &ProjectController::projectRemoved,
             this,
             [this](const QString&)
@@ -99,7 +99,7 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
             });
 
     // Selecting a repo row emits repoSelected.
-    connect(repoList_->selectionModel(),
+    connect(m_repoList->selectionModel(),
             &QItemSelectionModel::currentChanged,
             this,
             [this](const QModelIndex& current)
@@ -110,30 +110,30 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
             });
 
     // Combo selection — detect sentinel.
-    connect(switcher_,
+    connect(m_switcher,
             &QComboBox::currentIndexChanged,
             this,
             [this](int row)
             {
                 if (row < 0)
                     return;
-                const QString id = switcher_->itemData(row).toString();
+                const QString id = m_switcher->itemData(row).toString();
                 if (id == QString::fromLatin1(kSentinel))
                 {
                     emit createProjectRequested();
                     syncCombo(); // restores selection to current active project
                     return;
                 }
-                controller_->activate(id);
+                m_controller->activate(id);
             });
 
     // Remove project button
-    connect(removeProjectBtn_,
+    connect(m_removeProjectBtn,
             &QToolButton::clicked,
             this,
             [this]()
             {
-                if (controller_->activeProjectId().isEmpty())
+                if (m_controller->activeProjectId().isEmpty())
                     return;
                 const auto answer =
                     QMessageBox::question(this,
@@ -142,16 +142,16 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
                                           QMessageBox::Yes | QMessageBox::Cancel,
                                           QMessageBox::Cancel);
                 if (answer == QMessageBox::Yes)
-                    controller_->removeProject();
+                    m_controller->removeProject();
             });
 
     // Repo list context menu
-    connect(repoList_,
+    connect(m_repoList,
             &QTreeView::customContextMenuRequested,
             this,
             [this](const QPoint& pos)
             {
-                const QModelIndex idx = repoList_->indexAt(pos);
+                const QModelIndex idx = m_repoList->indexAt(pos);
                 if (!idx.isValid())
                     return;
                 const QString path = idx.data(RepoListModel::PathRole).toString();
@@ -159,49 +159,49 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
                     return;
                 QMenu menu(this);
                 auto* removeAction = menu.addAction(QStringLiteral("Remove from project"));
-                if (menu.exec(repoList_->viewport()->mapToGlobal(pos)) == removeAction)
+                if (menu.exec(m_repoList->viewport()->mapToGlobal(pos)) == removeAction)
                 {
-                    controller_->removeRepo(path);
+                    m_controller->removeRepo(path);
                 }
             });
 
     // Toolbar buttons
-    connect(addExistingBtn_, &QToolButton::clicked, this, &ProjectSidebar::addExistingRequested);
-    connect(initRepoBtn_, &QToolButton::clicked, this, &ProjectSidebar::initRepoRequested);
-    connect(cloneBtn_, &QToolButton::clicked, this, &ProjectSidebar::cloneRepoRequested);
+    connect(m_addExistingBtn, &QToolButton::clicked, this, &ProjectSidebar::addExistingRequested);
+    connect(m_initRepoBtn, &QToolButton::clicked, this, &ProjectSidebar::initRepoRequested);
+    connect(m_cloneBtn, &QToolButton::clicked, this, &ProjectSidebar::cloneRepoRequested);
 }
 
 void ProjectSidebar::syncCombo()
 {
-    const QSignalBlocker blocker(switcher_);
-    switcher_->clear();
-    auto* model = controller_->projects();
+    const QSignalBlocker blocker(m_switcher);
+    m_switcher->clear();
+    auto* model = m_controller->projects();
     for (int i = 0; i < model->rowCount(); ++i)
     {
-        switcher_->addItem(model->data(model->index(i), Qt::DisplayRole).toString(),
-                           model->data(model->index(i), ProjectListModel::IdRole));
+        m_switcher->addItem(model->data(model->index(i), Qt::DisplayRole).toString(),
+                            model->data(model->index(i), ProjectListModel::IdRole));
     }
-    switcher_->addItem(QStringLiteral("New project…"), QString::fromLatin1(kSentinel));
+    m_switcher->addItem(QStringLiteral("New project…"), QString::fromLatin1(kSentinel));
 
     // Restore active project selection
-    const QString activeId = controller_->activeProjectId();
+    const QString activeId = m_controller->activeProjectId();
     if (!activeId.isEmpty())
     {
         for (int i = 0; i < model->rowCount(); ++i)
         {
-            if (switcher_->itemData(i).toString() == activeId)
+            if (m_switcher->itemData(i).toString() == activeId)
             {
-                switcher_->setCurrentIndex(i);
+                m_switcher->setCurrentIndex(i);
                 return;
             }
         }
     }
-    switcher_->setCurrentIndex(-1);
+    m_switcher->setCurrentIndex(-1);
 }
 
 void ProjectSidebar::requestOpenInNewWindow()
 {
-    const QString id = controller_->activeProjectId();
+    const QString id = m_controller->activeProjectId();
     if (!id.isEmpty())
         emit openInNewWindowRequested(id);
 }

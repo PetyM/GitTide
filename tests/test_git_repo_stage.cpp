@@ -4,7 +4,7 @@
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 
-using gittide::has_flag;
+using gittide::hasFlag;
 using gittide::StatusFlag;
 
 static StatusFlag flags_for(const gittide::GitRepo& repo, const char* file)
@@ -23,57 +23,57 @@ static StatusFlag flags_for(const gittide::GitRepo& repo, const char* file)
 TEST_CASE("stage whole file moves WtModified to IndexModified", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "1\n2\n3\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "1\nTWO\n3\n");
+    tmp.writeFile("a.txt", "1\n2\n3\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "1\nTWO\n3\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
-    REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::WtModified));
+    REQUIRE(hasFlag(flags_for(*repo, "a.txt"), StatusFlag::WtModified));
 
     REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
-    REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::IndexModified));
+    REQUIRE(hasFlag(flags_for(*repo, "a.txt"), StatusFlag::IndexModified));
 }
 
 TEST_CASE("unstage whole file moves IndexModified back to WtModified", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "1\n2\n3\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "1\nTWO\n3\n");
+    tmp.writeFile("a.txt", "1\n2\n3\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "1\nTWO\n3\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
     REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
-    REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::IndexModified));
+    REQUIRE(hasFlag(flags_for(*repo, "a.txt"), StatusFlag::IndexModified));
 
     REQUIRE(repo->unstage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
-    REQUIRE(has_flag(flags_for(*repo, "a.txt"), StatusFlag::WtModified));
+    REQUIRE(hasFlag(flags_for(*repo, "a.txt"), StatusFlag::WtModified));
 }
 
 TEST_CASE("stage whole file handles deletion", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("gone.txt", "bye\n");
-    tmp.commit_all("init");
+    tmp.writeFile("gone.txt", "bye\n");
+    tmp.commitAll("init");
     std::filesystem::remove(tmp.path() / "gone.txt");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
-    REQUIRE(has_flag(flags_for(*repo, "gone.txt"), StatusFlag::WtDeleted));
+    REQUIRE(hasFlag(flags_for(*repo, "gone.txt"), StatusFlag::WtDeleted));
 
     REQUIRE(repo->stage(gittide::StageSelection{"gone.txt", std::nullopt, {}}).has_value());
-    REQUIRE(has_flag(flags_for(*repo, "gone.txt"), StatusFlag::IndexDeleted));
+    REQUIRE(hasFlag(flags_for(*repo, "gone.txt"), StatusFlag::IndexDeleted));
 }
 
 TEST_CASE("stage a single hunk stages only that change", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.set_identity("Test", "test@example.com");
+    tmp.setIdentity("Test", "test@example.com");
     // Two separate change regions far apart so they form two hunks.
-    tmp.write_file("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "ONE\n2\n3\n4\n5\n6\n7\n8\nNINE\n");
+    tmp.writeFile("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "ONE\n2\n3\n4\n5\n6\n7\n8\nNINE\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -99,10 +99,10 @@ TEST_CASE("stage a single hunk stages only that change", "[stage]")
 TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.set_identity("Test", "test@example.com");
-    tmp.write_file("a.txt", "1\n2\n3\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "1\nTWO\n3\n");
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "1\n2\n3\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "1\nTWO\n3\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -123,9 +123,9 @@ TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]")
 TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "first\nsecond"); // NO trailing newline
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "first\nCHANGED"); // still no trailing newline
+    tmp.writeFile("a.txt", "first\nsecond"); // NO trailing newline
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "first\nCHANGED"); // still no trailing newline
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -140,9 +140,9 @@ TEST_CASE("stage whole file with no trailing newline does not corrupt", "[stage]
 TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "alpha\nbeta"); // no trailing newline
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "alpha\nBETA"); // change last line, still no nl
+    tmp.writeFile("a.txt", "alpha\nbeta"); // no trailing newline
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "alpha\nBETA"); // change last line, still no nl
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -165,10 +165,10 @@ TEST_CASE("stage a no-trailing-newline change via hunk patch", "[stage]")
 TEST_CASE("stage a single line of a multi-line addition", "[stage]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "a\nb\nc\n");
-    tmp.commit_all("init");
+    tmp.writeFile("a.txt", "a\nb\nc\n");
+    tmp.commitAll("init");
     // Insert two lines (X, Y) after 'a'. Hunk: ctx a, +X, +Y, ctx b, ctx c.
-    tmp.write_file("a.txt", "a\nX\nY\nb\nc\n");
+    tmp.writeFile("a.txt", "a\nX\nY\nb\nc\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());

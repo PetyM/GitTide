@@ -28,7 +28,7 @@ public:
     void refresh();
 
 private:
-    gittide::ProjectStore* store_;
+    gittide::ProjectStore* m_store;
 };
 
 } // namespace gittide::ui

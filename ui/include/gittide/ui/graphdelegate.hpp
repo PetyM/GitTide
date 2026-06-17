@@ -23,11 +23,11 @@ public:
 
     void setLaneCount(int count)
     {
-        laneCount_ = std::max(1, count);
+        m_laneCount = std::max(1, count);
     }
 
 private:
-    int laneCount_ = 1;
+    int m_laneCount = 1;
 
     static int laneX(int lane)
     {

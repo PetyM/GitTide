@@ -20,22 +20,22 @@ public:
 
     const std::filesystem::path& path() const
     {
-        return dir_;
+        return m_dir;
     }
 
     // Write (or overwrite) a file at a repo-relative path.
-    void write_file(std::string_view rel_path, std::string_view contents);
+    void writeFile(std::string_view rel_path, std::string_view contents);
 
     // Stage all changes and create a commit with a fixed test author.
-    void commit_all(std::string_view message);
+    void commitAll(std::string_view message);
 
     // Write user.name / user.email into the repo's git config.
-    void set_identity(std::string_view name, std::string_view email);
+    void setIdentity(std::string_view name, std::string_view email);
 
 private:
-    LibGit2Context ctx_;
-    std::filesystem::path dir_;
-    git_repository* repo_ = nullptr;
+    LibGit2Context m_ctx;
+    std::filesystem::path m_dir;
+    git_repository* m_repo = nullptr;
 };
 
 } // namespace gittide::test

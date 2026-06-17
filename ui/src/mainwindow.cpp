@@ -113,134 +113,134 @@ QWidget* makeNoReposPage(QWidget* parent)
 // ---- MainWindow ----
 MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path storePath, QWidget* parent)
     : QMainWindow(parent)
-    , store_(store)
-    , controller_(new ProjectController(store, std::move(storePath), this))
-    , sidebar_(new ProjectSidebar(controller_, this))
-    , repoController_(new RepoController(this))
-    , changesView_(new ChangesView(this))
-    , historyView_(new HistoryView(this))
-    , dashboardModel_(new DashboardModel(this))
-    , centralStack_(new QStackedWidget(this))
+    , m_store(store)
+    , m_controller(new ProjectController(store, std::move(storePath), this))
+    , m_sidebar(new ProjectSidebar(m_controller, this))
+    , m_repoController(new RepoController(this))
+    , m_changesView(new ChangesView(this))
+    , m_historyView(new HistoryView(this))
+    , m_dashboardModel(new DashboardModel(this))
+    , m_centralStack(new QStackedWidget(this))
 {
     setWindowTitle(QStringLiteral("GitTide"));
 
     // Left dock
     auto* dock = new QDockWidget(QStringLiteral("Projects"), this);
     dock->setObjectName(QStringLiteral("projectsDock"));
-    dock->setWidget(sidebar_);
+    dock->setWidget(m_sidebar);
     dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
     addDockWidget(Qt::LeftDockWidgetArea, dock);
 
     // Central stack
-    centralStack_->setObjectName(QStringLiteral("centralStack"));
+    m_centralStack->setObjectName(QStringLiteral("centralStack"));
     auto* noProjectsPage = makeNoProjectsPage(this);
     auto* noReposPage    = makeNoReposPage(this);
 
     auto* tabs = new QTabWidget(this);
     tabs->setObjectName(QStringLiteral("mainTabs"));
-    tabs->addTab(changesView_, QStringLiteral("Changes"));
-    tabs->addTab(historyView_, QStringLiteral("History"));
+    tabs->addTab(m_changesView, QStringLiteral("Changes"));
+    tabs->addTab(m_historyView, QStringLiteral("History"));
     auto* dashboardView = new QListView(this);
     dashboardView->setObjectName(QStringLiteral("dashboardList"));
-    dashboardView->setModel(dashboardModel_);
+    dashboardView->setModel(m_dashboardModel);
     tabs->addTab(dashboardView, QStringLiteral("Dashboard"));
 
-    centralStack_->addWidget(noProjectsPage); // index 0
-    centralStack_->addWidget(noReposPage);    // index 1
-    centralStack_->addWidget(tabs);           // index 2
-    setCentralWidget(centralStack_);
+    m_centralStack->addWidget(noProjectsPage); // index 0
+    m_centralStack->addWidget(noReposPage);    // index 1
+    m_centralStack->addWidget(tabs);           // index 2
+    setCentralWidget(m_centralStack);
 
     // Wire existing repo/sidebar connections (unchanged from before)
-    connect(sidebar_, &ProjectSidebar::openInNewWindowRequested, this, &MainWindow::openInNewWindowRequested);
-    connect(sidebar_,
+    connect(m_sidebar, &ProjectSidebar::openInNewWindowRequested, this, &MainWindow::openInNewWindowRequested);
+    connect(m_sidebar,
             &ProjectSidebar::repoSelected,
             this,
             [this](const QString& path)
             {
-                repoController_->open(path);
+                m_repoController->open(path);
             });
     // A coroutine slot returns a QCoro::Task that QCoro destroys as soon as the
     // handle dies — a discarded fire-and-forget task awaiting a QFuture is a
     // use-after-free when that future completes. QCoro::connect anchors the task
     // (tied to `this`) until it finishes, which is how these are launched.
-    connect(repoController_,
+    connect(m_repoController,
             &RepoController::repoOpened,
             this,
             [this](const QString& path)
             {
                 emit repoOpened(path);
-                QCoro::connect(repoController_->refreshStatus(), this, [] {});
-                QCoro::connect(repoController_->refreshHistory(), this, [] {});
+                QCoro::connect(m_repoController->refreshStatus(), this, [] {});
+                QCoro::connect(m_repoController->refreshHistory(), this, [] {});
             });
-    connect(repoController_,
+    connect(m_repoController,
             &RepoController::historyReady,
             this,
             [this](const gittide::GraphLayout& layout)
             {
-                historyView_->setHistory(layout);
+                m_historyView->setHistory(layout);
             });
 
     // Async wiring between controller and ChangesView.
-    connect(repoController_, &RepoController::statusChanged, changesView_, &ChangesView::setStatus);
-    connect(repoController_,
+    connect(m_repoController, &RepoController::statusChanged, m_changesView, &ChangesView::setStatus);
+    connect(m_repoController,
             &RepoController::diffReady,
             this,
             [this](const QString& path, const gittide::DiffResult& result)
             {
-                changesView_->setDiff(result, std::filesystem::path(path.toStdString()));
+                m_changesView->setDiff(result, std::filesystem::path(path.toStdString()));
             });
-    connect(changesView_,
+    connect(m_changesView,
             &ChangesView::fileSelected,
             this,
             [this](const QString& path, gittide::DiffTarget target)
             {
-                QCoro::connect(repoController_->refreshDiff(path, target), this, [] {});
+                QCoro::connect(m_repoController->refreshDiff(path, target), this, [] {});
             });
-    connect(changesView_,
+    connect(m_changesView,
             &ChangesView::stageRequested,
             this,
             [this](const gittide::StageSelection& sel)
             {
-                QCoro::connect(repoController_->stage(sel), this, [] {});
+                QCoro::connect(m_repoController->stage(sel), this, [] {});
             });
-    connect(changesView_,
+    connect(m_changesView,
             &ChangesView::unstageRequested,
             this,
             [this](const gittide::StageSelection& sel)
             {
-                QCoro::connect(repoController_->unstage(sel), this, [] {});
+                QCoro::connect(m_repoController->unstage(sel), this, [] {});
             });
-    connect(changesView_,
+    connect(m_changesView,
             &ChangesView::discardRequested,
             this,
             [this](const gittide::StageSelection& sel)
             {
-                QCoro::connect(repoController_->discard(sel), this, [] {});
+                QCoro::connect(m_repoController->discard(sel), this, [] {});
             });
-    connect(changesView_,
+    connect(m_changesView,
             &ChangesView::commitRequested,
             this,
             [this](const gittide::CommitRequest& req)
             {
-                QCoro::connect(repoController_->commit(req), this, [] {});
+                QCoro::connect(m_repoController->commit(req), this, [] {});
             });
 
     // Activating a project refreshes the dashboard from its repos.
-    connect(controller_,
+    connect(m_controller,
             &ProjectController::projectActivated,
             this,
             [this](const QString&)
             {
-                QCoro::connect(dashboardModel_->refreshAsync(controller_->activeRepos()), this, [] {});
+                QCoro::connect(m_dashboardModel->refreshAsync(m_controller->activeRepos()), this, [] {});
             });
 
     // Empty-state page switching
-    connect(controller_, &ProjectController::projectActivated, this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::projectCreated, this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::repoAdded, this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::repoRemoved, this, &MainWindow::updateCentralPage);
-    connect(controller_, &ProjectController::projectRemoved, this, &MainWindow::updateCentralPage);
-    connect(controller_,
+    connect(m_controller, &ProjectController::projectActivated, this, &MainWindow::updateCentralPage);
+    connect(m_controller, &ProjectController::projectCreated, this, &MainWindow::updateCentralPage);
+    connect(m_controller, &ProjectController::repoAdded, this, &MainWindow::updateCentralPage);
+    connect(m_controller, &ProjectController::repoRemoved, this, &MainWindow::updateCentralPage);
+    connect(m_controller, &ProjectController::projectRemoved, this, &MainWindow::updateCentralPage);
+    connect(m_controller,
             &ProjectController::repoAddFailed,
             this,
             [this](const QString& message)
@@ -249,10 +249,10 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
             });
 
     // Sidebar mutation signals → handlers
-    connect(sidebar_, &ProjectSidebar::createProjectRequested, this, &MainWindow::onCreateProjectRequested);
-    connect(sidebar_, &ProjectSidebar::addExistingRequested, this, &MainWindow::onAddExistingRequested);
-    connect(sidebar_, &ProjectSidebar::initRepoRequested, this, &MainWindow::onInitRepoRequested);
-    connect(sidebar_, &ProjectSidebar::cloneRepoRequested, this, &MainWindow::onCloneRepoRequested);
+    connect(m_sidebar, &ProjectSidebar::createProjectRequested, this, &MainWindow::onCreateProjectRequested);
+    connect(m_sidebar, &ProjectSidebar::addExistingRequested, this, &MainWindow::onAddExistingRequested);
+    connect(m_sidebar, &ProjectSidebar::initRepoRequested, this, &MainWindow::onInitRepoRequested);
+    connect(m_sidebar, &ProjectSidebar::cloneRepoRequested, this, &MainWindow::onCloneRepoRequested);
 
     // CTA buttons on the no-projects and no-repos pages
     connect(noProjectsPage->findChild<QPushButton*>(QStringLiteral("createProjectCta")),
@@ -277,17 +277,17 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
 
 void MainWindow::updateCentralPage()
 {
-    if (store_->projects().empty())
+    if (m_store->projects().empty())
     {
-        centralStack_->setCurrentIndex(0);
+        m_centralStack->setCurrentIndex(0);
     }
-    else if (controller_->activeRepos().empty())
+    else if (m_controller->activeRepos().empty())
     {
-        centralStack_->setCurrentIndex(1);
+        m_centralStack->setCurrentIndex(1);
     }
     else
     {
-        centralStack_->setCurrentIndex(2);
+        m_centralStack->setCurrentIndex(2);
     }
 }
 
@@ -298,7 +298,7 @@ void MainWindow::onCreateProjectRequested()
         this, QStringLiteral("New Project"), QStringLiteral("Project name:"), QLineEdit::Normal, QString(), &ok);
     if (ok && !name.trimmed().isEmpty())
     {
-        controller_->createProject(name.trimmed());
+        m_controller->createProject(name.trimmed());
     }
 }
 
@@ -307,7 +307,7 @@ void MainWindow::onAddExistingRequested()
     const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Select Git Repository"));
     if (dir.isEmpty())
         return;
-    controller_->addExistingRepo(dir);
+    m_controller->addExistingRepo(dir);
 }
 
 void MainWindow::onInitRepoRequested()
@@ -317,7 +317,7 @@ void MainWindow::onInitRepoRequested()
         return;
     if (dlg.parentDir().isEmpty() || dlg.repoName().isEmpty())
         return;
-    controller_->initRepo(dlg.parentDir(), dlg.repoName());
+    m_controller->initRepo(dlg.parentDir(), dlg.repoName());
 }
 
 void MainWindow::onCloneRepoRequested()
@@ -335,7 +335,7 @@ void MainWindow::onCloneRepoRequested()
     progress->setMinimumDuration(0);
     progress->show();
 
-    connect(controller_,
+    connect(m_controller,
             &ProjectController::cloneProgress,
             progress,
             [progress](int r, int t)
@@ -343,9 +343,9 @@ void MainWindow::onCloneRepoRequested()
                 if (t > 0)
                     progress->setValue(r * 100 / t);
             });
-    connect(progress, &QProgressDialog::canceled, controller_, &ProjectController::cancelClone);
+    connect(progress, &QProgressDialog::canceled, m_controller, &ProjectController::cancelClone);
 
-    QCoro::connect(controller_->cloneRepo(url, dest),
+    QCoro::connect(m_controller->cloneRepo(url, dest),
                    this,
                    [progress]
                    {
@@ -356,12 +356,12 @@ void MainWindow::onCloneRepoRequested()
 
 QString MainWindow::currentProjectId() const
 {
-    return controller_->activeProjectId();
+    return m_controller->activeProjectId();
 }
 
 void MainWindow::showProject(const QString& projectId)
 {
-    controller_->activate(projectId);
+    m_controller->activate(projectId);
 }
 
 } // namespace gittide::ui

@@ -16,7 +16,7 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff)
     git_patch* raw = nullptr;
     int rc         = git_patch_from_diff(&raw, diff, 0); // single-file diff: delta 0
     if (rc < 0)
-        return std::unexpected(last_git_error(rc));
+        return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_patch, decltype(&git_patch_free)> patch(raw, git_patch_free);
 
     size_t nhunks = git_patch_num_hunks(patch.get());
@@ -27,7 +27,7 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff)
         size_t nlines           = 0;
         rc                      = git_patch_get_hunk(&gh, &nlines, patch.get(), hi);
         if (rc < 0)
-            return std::unexpected(last_git_error(rc));
+            return std::unexpected(lastGitError(rc));
 
         DiffHunk hunk;
         hunk.oldStart = gh->old_start;
@@ -41,7 +41,7 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff)
             const git_diff_line* gl = nullptr;
             rc                      = git_patch_get_line_in_hunk(&gl, patch.get(), hi, li);
             if (rc < 0)
-                return std::unexpected(last_git_error(rc));
+                return std::unexpected(lastGitError(rc));
 
             // A "\ No newline at end of file" marker annotates the PREVIOUS line.
             if (gl->origin == GIT_DIFF_LINE_CONTEXT_EOFNL || gl->origin == GIT_DIFF_LINE_ADD_EOFNL ||
@@ -79,11 +79,11 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff)
     return out;
 }
 
-std::string build_patch(const std::string& gitPath, const DiffHunk& hunk, const StageSelection& sel, bool reverse)
+std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const StageSelection& sel, bool reverse)
 {
     const bool whole_hunk = sel.lineIndices.empty();
     std::set<int> selected(sel.lineIndices.begin(), sel.lineIndices.end());
-    auto is_selected = [&](int i)
+    auto isSelected = [&](int i)
     {
         return whole_hunk || selected.count(i) > 0;
     };
@@ -119,7 +119,7 @@ std::string build_patch(const std::string& gitPath, const DiffHunk& hunk, const 
         }
         else if (origin == DiffLineOrigin::Added)
         {
-            if (is_selected(i))
+            if (isSelected(i))
             {
                 emit('+');
                 ++newCount;
@@ -128,7 +128,7 @@ std::string build_patch(const std::string& gitPath, const DiffHunk& hunk, const 
         }
         else
         { // Removed
-            if (is_selected(i))
+            if (isSelected(i))
             {
                 emit('-');
                 ++oldCount;

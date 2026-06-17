@@ -17,9 +17,9 @@ std::string ProjectStore::to_json() const
 {
     json root;
     root["version"]       = kVersion;
-    root["activeProject"] = activeProject_;
+    root["activeProject"] = m_activeProject;
     json arr              = json::array();
-    for (const auto& p : projects_)
+    for (const auto& p : m_projects)
     {
         json jp;
         jp["id"]             = p.id;
@@ -51,8 +51,8 @@ Expected<ProjectStore> ProjectStore::from_json(const std::string& text)
     try
     {
         ProjectStore store;
-        store.loadedVersion_ = root.value("version", kVersion);
-        store.activeProject_ = root.value("activeProject", std::string{});
+        store.m_loadedVersion = root.value("version", kVersion);
+        store.m_activeProject = root.value("activeProject", std::string{});
 
         if (root.contains("projects"))
         {
@@ -76,7 +76,7 @@ Expected<ProjectStore> ProjectStore::from_json(const std::string& text)
                         p.repos.push_back(RepoRef{jr.value("path", std::string{}), jr.value("alias", std::string{})});
                     }
                 }
-                store.projects_.push_back(std::move(p));
+                store.m_projects.push_back(std::move(p));
             }
         }
         return store;
@@ -164,19 +164,19 @@ Project& ProjectStore::createProject(const std::string& name)
     Project p;
     p.id   = oss.str();
     p.name = name;
-    projects_.push_back(std::move(p));
-    return projects_.back();
+    m_projects.push_back(std::move(p));
+    return m_projects.back();
 }
 
 Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo)
 {
-    auto it = std::find_if(projects_.begin(),
-                           projects_.end(),
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
                            [&](const Project& p)
                            {
                                return p.id == projectId;
                            });
-    if (it == projects_.end())
+    if (it == m_projects.end())
         return std::unexpected(GitError{-1, "project not found: " + projectId});
 
     for (const auto& existing : it->repos)
@@ -190,13 +190,13 @@ Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo)
 
 Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std::string& path)
 {
-    auto it = std::find_if(projects_.begin(),
-                           projects_.end(),
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
                            [&](const Project& p)
                            {
                                return p.id == projectId;
                            });
-    if (it == projects_.end())
+    if (it == m_projects.end())
         return std::unexpected(GitError{-1, "project not found: " + projectId});
     auto& repos = it->repos;
     auto r      = std::find_if(repos.begin(),
@@ -213,15 +213,15 @@ Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std:
 
 void ProjectStore::removeProject(const std::string& id)
 {
-    projects_.erase(std::remove_if(projects_.begin(),
-                                   projects_.end(),
-                                   [&](const Project& p)
-                                   {
-                                       return p.id == id;
-                                   }),
-                    projects_.end());
-    if (activeProject_ == id)
-        activeProject_.clear();
+    m_projects.erase(std::remove_if(m_projects.begin(),
+                                    m_projects.end(),
+                                    [&](const Project& p)
+                                    {
+                                        return p.id == id;
+                                    }),
+                     m_projects.end());
+    if (m_activeProject == id)
+        m_activeProject.clear();
 }
 
 } // namespace gittide

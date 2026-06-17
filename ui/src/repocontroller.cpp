@@ -23,21 +23,21 @@ void RepoController::open(const QString& path)
     auto result = AsyncRepo::open(std::filesystem::path(path.toStdString()));
     if (!result)
     {
-        repo_.reset();
-        path_.clear();
+        m_repo.reset();
+        m_path.clear();
         emit repoFailed(path, QString::fromStdString(result.error().message));
         return;
     }
-    repo_.emplace(std::move(*result));
-    path_ = path;
+    m_repo.emplace(std::move(*result));
+    m_path = path;
     emit repoOpened(path);
 }
 
 QCoro::Task<void> RepoController::refreshStatus()
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->status();
+    auto result = co_await m_repo->status();
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -48,9 +48,9 @@ QCoro::Task<void> RepoController::refreshStatus()
 
 QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget target)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->diff(target, std::filesystem::path(path.toStdString()));
+    auto result = co_await m_repo->diff(target, std::filesystem::path(path.toStdString()));
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -61,9 +61,9 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget 
 
 QCoro::Task<void> RepoController::stage(gittide::StageSelection sel)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->stage(sel);
+    auto result = co_await m_repo->stage(sel);
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -74,9 +74,9 @@ QCoro::Task<void> RepoController::stage(gittide::StageSelection sel)
 
 QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->unstage(sel);
+    auto result = co_await m_repo->unstage(sel);
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -87,9 +87,9 @@ QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel)
 
 QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->discard(sel);
+    auto result = co_await m_repo->discard(sel);
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -100,9 +100,9 @@ QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
 
 QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->commit(req);
+    auto result = co_await m_repo->commit(req);
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -114,9 +114,9 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
 
 QCoro::Task<void> RepoController::refreshHistory(unsigned limit)
 {
-    if (!repo_)
+    if (!m_repo)
         co_return;
-    auto result = co_await repo_->log(limit);
+    auto result = co_await m_repo->log(limit);
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));

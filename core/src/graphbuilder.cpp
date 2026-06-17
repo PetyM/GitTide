@@ -9,7 +9,7 @@ namespace gittide {
 namespace {
 
 // Index of first slot containing oid, or -1 if not found.
-int lane_of(const std::vector<std::string>& active, const std::string& oid)
+int laneOf(const std::vector<std::string>& active, const std::string& oid)
 {
     for (int i = 0; i < static_cast<int>(active.size()); ++i)
         if (active[i] == oid)
@@ -18,7 +18,7 @@ int lane_of(const std::vector<std::string>& active, const std::string& oid)
 }
 
 // Index of first empty ("") slot, appending one if needed.
-int alloc_lane(std::vector<std::string>& active)
+int allocLane(std::vector<std::string>& active)
 {
     for (int i = 0; i < static_cast<int>(active.size()); ++i)
         if (active[i].empty())
@@ -41,11 +41,11 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits)
     for (auto& commit : commits)
     {
         // 1. Find or assign this commit's lane.
-        int cl                   = lane_of(active, commit.oid);
+        int cl                   = laneOf(active, commit.oid);
         const bool was_in_active = (cl >= 0);
         if (!was_in_active)
         {
-            cl = alloc_lane(active);
+            cl = allocLane(active);
         }
         commit.lane = cl;
         max_lane    = std::max(max_lane, cl);
@@ -66,7 +66,7 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits)
         }
         else
         {
-            int already = lane_of(active, commit.parents[0]);
+            int already = laneOf(active, commit.parents[0]);
             if (already >= 0 && already != cl)
             {
                 // Parent already tracked elsewhere — free this slot instead of
@@ -82,9 +82,9 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits)
         // 2c. Extra parents get new lanes (unchanged).
         for (std::size_t pi = 1; pi < commit.parents.size(); ++pi)
         {
-            if (lane_of(active, commit.parents[pi]) < 0)
+            if (laneOf(active, commit.parents[pi]) < 0)
             {
-                int slot     = alloc_lane(active);
+                int slot     = allocLane(active);
                 active[slot] = commit.parents[pi];
                 max_lane     = std::max(max_lane, slot);
             }
@@ -94,7 +94,7 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits)
         std::vector<GraphEdge> out;
         for (const auto& p : commit.parents)
         {
-            int pl = lane_of(active, p);
+            int pl = laneOf(active, p);
             if (pl >= 0)
                 out.push_back({cl, pl});
         }

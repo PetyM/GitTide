@@ -12,7 +12,7 @@ TEST_CASE("TempRepo creates a real git repo on disk", "[support]")
 TEST_CASE("TempRepo writes a file and commits it", "[support]")
 {
     gittide::test::TempRepo repo;
-    repo.write_file("hello.txt", "hi");
-    repo.commit_all("first commit");
+    repo.writeFile("hello.txt", "hi");
+    repo.commitAll("first commit");
     REQUIRE(std::filesystem::exists(repo.path() / "hello.txt"));
 }

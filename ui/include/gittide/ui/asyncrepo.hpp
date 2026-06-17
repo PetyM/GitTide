@@ -41,10 +41,10 @@ public:
 private:
     struct Impl;
     explicit AsyncRepo(std::shared_ptr<Impl> impl)
-        : impl_(std::move(impl))
+        : m_impl(std::move(impl))
     {
     }
-    std::shared_ptr<Impl> impl_;
+    std::shared_ptr<Impl> m_impl;
 };
 
 } // namespace gittide::ui

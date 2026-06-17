@@ -75,7 +75,7 @@ private slots:
         QVERIFY(result.has_value());
         QCOMPARE(static_cast<int>(result->size()), 1);
         QCOMPARE((*result)[0].path, std::filesystem::path("a.txt"));
-        QVERIFY(gittide::has_flag((*result)[0].flags, gittide::StatusFlag::WtModified));
+        QVERIFY(gittide::hasFlag((*result)[0].flags, gittide::StatusFlag::WtModified));
 
         std::filesystem::remove_all(dir);
     }
@@ -92,7 +92,7 @@ private slots:
         auto result = QCoro::waitFor(repo->status());
         QVERIFY(result.has_value());
         QCOMPARE(static_cast<int>(result->size()), 1);
-        QVERIFY(gittide::has_flag((*result)[0].flags, gittide::StatusFlag::IndexModified));
+        QVERIFY(gittide::hasFlag((*result)[0].flags, gittide::StatusFlag::IndexModified));
 
         std::filesystem::remove_all(dir);
     }

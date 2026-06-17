@@ -26,7 +26,7 @@ public:
     void setMode(Mode mode);
     Mode mode() const
     {
-        return mode_;
+        return m_mode;
     }
     Theme currentTheme() const;
     QString iconResource() const;
@@ -37,8 +37,8 @@ signals:
 
 private:
     bool resolveDark() const; // System → QStyleHints::colorScheme; else forced
-    Mode mode_         = Mode::System;
-    QApplication* app_ = nullptr;
+    Mode m_mode         = Mode::System;
+    QApplication* m_app = nullptr;
 };
 
 } // namespace gittide::ui

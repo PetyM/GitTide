@@ -23,9 +23,9 @@ public:
     void setHistory(const gittide::GraphLayout& layout);
 
 private:
-    HistoryModel* model_;
-    GraphDelegate* delegate_;
-    QTableView* view_;
+    HistoryModel* m_model;
+    GraphDelegate* m_delegate;
+    QTableView* m_view;
 };
 
 } // namespace gittide::ui

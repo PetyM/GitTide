@@ -13,8 +13,8 @@ namespace gittide::ui {
 
 InitRepoDialog::InitRepoDialog(QWidget* parent)
     : QDialog(parent)
-    , parentDirEdit_(new QLineEdit(this))
-    , nameEdit_(new QLineEdit(this))
+    , m_parentDirEdit(new QLineEdit(this))
+    , m_nameEdit(new QLineEdit(this))
 {
     setWindowTitle(QStringLiteral("Initialize Repository"));
 
@@ -26,18 +26,18 @@ InitRepoDialog::InitRepoDialog(QWidget* parent)
             {
                 const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Select parent directory"));
                 if (!dir.isEmpty())
-                    parentDirEdit_->setText(dir);
+                    m_parentDirEdit->setText(dir);
             });
 
     auto* form      = new QFormLayout;
     auto* dirRow    = new QWidget(this);
     auto* dirLayout = new QHBoxLayout(dirRow);
     dirLayout->setContentsMargins(0, 0, 0, 0);
-    dirLayout->addWidget(parentDirEdit_);
+    dirLayout->addWidget(m_parentDirEdit);
     dirLayout->addWidget(browse);
 
     form->addRow(QStringLiteral("Parent directory:"), dirRow);
-    form->addRow(QStringLiteral("Repository name:"), nameEdit_);
+    form->addRow(QStringLiteral("Repository name:"), m_nameEdit);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -50,17 +50,17 @@ InitRepoDialog::InitRepoDialog(QWidget* parent)
 
 QString InitRepoDialog::parentDir() const
 {
-    return parentDirEdit_->text();
+    return m_parentDirEdit->text();
 }
 QString InitRepoDialog::repoName() const
 {
-    return nameEdit_->text();
+    return m_nameEdit->text();
 }
 
 CloneRepoDialog::CloneRepoDialog(QWidget* parent)
     : QDialog(parent)
-    , urlEdit_(new QLineEdit(this))
-    , destEdit_(new QLineEdit(this))
+    , m_urlEdit(new QLineEdit(this))
+    , m_destEdit(new QLineEdit(this))
 {
     setWindowTitle(QStringLiteral("Clone Repository"));
 
@@ -72,16 +72,16 @@ CloneRepoDialog::CloneRepoDialog(QWidget* parent)
             {
                 const QString dir = QFileDialog::getExistingDirectory(this, QStringLiteral("Select destination"));
                 if (!dir.isEmpty())
-                    destEdit_->setText(dir);
+                    m_destEdit->setText(dir);
             });
 
     auto* form = new QFormLayout;
-    form->addRow(QStringLiteral("URL:"), urlEdit_);
+    form->addRow(QStringLiteral("URL:"), m_urlEdit);
 
     auto* destRow    = new QWidget(this);
     auto* destLayout = new QHBoxLayout(destRow);
     destLayout->setContentsMargins(0, 0, 0, 0);
-    destLayout->addWidget(destEdit_);
+    destLayout->addWidget(m_destEdit);
     destLayout->addWidget(browse);
     form->addRow(QStringLiteral("Destination:"), destRow);
 
@@ -96,11 +96,11 @@ CloneRepoDialog::CloneRepoDialog(QWidget* parent)
 
 QString CloneRepoDialog::url() const
 {
-    return urlEdit_->text();
+    return m_urlEdit->text();
 }
 QString CloneRepoDialog::dest() const
 {
-    return destEdit_->text();
+    return m_destEdit->text();
 }
 
 } // namespace gittide::ui

@@ -13,7 +13,7 @@ using gittide::DiffLineOrigin;
 static gittide::DiffResult diff_file(const std::filesystem::path& repo_path, const char* file)
 {
     git_repository* repo = nullptr;
-    REQUIRE(git_repository_open(&repo, gittide::to_git_path(repo_path).c_str()) == 0);
+    REQUIRE(git_repository_open(&repo, gittide::toGitPath(repo_path).c_str()) == 0);
 
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     char* paths[]         = {const_cast<char*>(file)};
@@ -32,9 +32,9 @@ static gittide::DiffResult diff_file(const std::filesystem::path& repo_path, con
 TEST_CASE("DiffEngine parses a single modified hunk", "[diff]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "line1\nline2\nline3\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "line1\nCHANGED\nline3\n");
+    tmp.writeFile("a.txt", "line1\nline2\nline3\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "line1\nCHANGED\nline3\n");
 
     auto d = diff_file(tmp.path(), "a.txt");
     REQUIRE(d.hunks.size() == 1);

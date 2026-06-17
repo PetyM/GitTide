@@ -65,13 +65,13 @@ public:
 
 private:
     explicit GitRepo(git_repository* repo)
-        : repo_(repo)
+        : m_repo(repo)
     {
     }
-    git_repository* repo_ = nullptr;
+    git_repository* m_repo = nullptr;
 
-    std::filesystem::path workdir() const;                               // repo working directory
-    Expected<void> apply_partial(const StageSelection& sel, bool stage); // filled by a later task
+    std::filesystem::path workdir() const;                              // repo working directory
+    Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
 };
 
 } // namespace gittide

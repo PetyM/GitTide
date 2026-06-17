@@ -34,11 +34,11 @@ TEST_CASE("GitRepo::log on empty repo returns empty vector", "[git_repo][log]")
 TEST_CASE("GitRepo::log returns commits newest-first", "[git_repo][log]")
 {
     gittide::test::TempRepo tmp;
-    tmp.set_identity("Test", "t@t.test");
-    tmp.write_file("a.txt", "a");
-    tmp.commit_all("first");
-    tmp.write_file("b.txt", "b");
-    tmp.commit_all("second");
+    tmp.setIdentity("Test", "t@t.test");
+    tmp.writeFile("a.txt", "a");
+    tmp.commitAll("first");
+    tmp.writeFile("b.txt", "b");
+    tmp.commitAll("second");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -60,11 +60,11 @@ TEST_CASE("GitRepo::log returns commits newest-first", "[git_repo][log]")
 TEST_CASE("GitRepo::log respects the limit parameter", "[git_repo][log]")
 {
     gittide::test::TempRepo tmp;
-    tmp.set_identity("Test", "t@t.test");
+    tmp.setIdentity("Test", "t@t.test");
     for (int i = 0; i < 5; ++i)
     {
-        tmp.write_file("f.txt", std::to_string(i));
-        tmp.commit_all("commit " + std::to_string(i));
+        tmp.writeFile("f.txt", std::to_string(i));
+        tmp.commitAll("commit " + std::to_string(i));
     }
 
     auto repo = gittide::GitRepo::open(tmp.path());

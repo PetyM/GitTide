@@ -16,39 +16,39 @@ namespace gittide::ui {
 namespace {
 constexpr int PathRole = Qt::UserRole + 1;
 
-bool any_index_flag(gittide::StatusFlag f)
+bool anyIndexFlag(gittide::StatusFlag f)
 {
-    using gittide::has_flag;
+    using gittide::hasFlag;
     using gittide::StatusFlag;
-    return has_flag(f, StatusFlag::IndexNew) || has_flag(f, StatusFlag::IndexModified) || has_flag(f, StatusFlag::IndexDeleted);
+    return hasFlag(f, StatusFlag::IndexNew) || hasFlag(f, StatusFlag::IndexModified) || hasFlag(f, StatusFlag::IndexDeleted);
 }
-bool any_wt_flag(gittide::StatusFlag f)
+bool anyWtFlag(gittide::StatusFlag f)
 {
-    using gittide::has_flag;
+    using gittide::hasFlag;
     using gittide::StatusFlag;
-    return has_flag(f, StatusFlag::WtNew) || has_flag(f, StatusFlag::WtModified) || has_flag(f, StatusFlag::WtDeleted);
+    return hasFlag(f, StatusFlag::WtNew) || hasFlag(f, StatusFlag::WtModified) || hasFlag(f, StatusFlag::WtDeleted);
 }
 } // namespace
 
 ChangesView::ChangesView(QWidget* parent)
     : QWidget(parent)
-    , staged_(new QListWidget(this))
-    , unstaged_(new QListWidget(this))
-    , diff_(new DiffView(this))
-    , message_(new QPlainTextEdit(this))
-    , commitButton_(new QPushButton(QStringLiteral("Commit"), this))
+    , m_staged(new QListWidget(this))
+    , m_unstaged(new QListWidget(this))
+    , m_diff(new DiffView(this))
+    , m_message(new QPlainTextEdit(this))
+    , m_commitButton(new QPushButton(QStringLiteral("Commit"), this))
 {
     qRegisterMetaType<gittide::CommitRequest>();
     qRegisterMetaType<gittide::StageSelection>();
     qRegisterMetaType<gittide::DiffTarget>();
 
-    staged_->setObjectName(QStringLiteral("stagedList"));
-    unstaged_->setObjectName(QStringLiteral("unstagedList"));
-    message_->setObjectName(QStringLiteral("commitMessage"));
-    commitButton_->setObjectName(QStringLiteral("commitButton"));
-    commitButton_->setEnabled(false);
+    m_staged->setObjectName(QStringLiteral("stagedList"));
+    m_unstaged->setObjectName(QStringLiteral("unstagedList"));
+    m_message->setObjectName(QStringLiteral("commitMessage"));
+    m_commitButton->setObjectName(QStringLiteral("commitButton"));
+    m_commitButton->setEnabled(false);
 
-    message_->setPlaceholderText(QStringLiteral("Commit message…"));
+    m_message->setPlaceholderText(QStringLiteral("Commit message…"));
 
     auto* stagedLabel = new QLabel(QStringLiteral("Staged Changes"), this);
     stagedLabel->setProperty("role", "sectionHeader");
@@ -57,42 +57,42 @@ ChangesView::ChangesView(QWidget* parent)
 
     auto* leftLayout = new QVBoxLayout;
     leftLayout->addWidget(stagedLabel);
-    leftLayout->addWidget(staged_, 1);
+    leftLayout->addWidget(m_staged, 1);
     leftLayout->addWidget(unstagedLabel);
-    leftLayout->addWidget(unstaged_, 1);
-    leftLayout->addWidget(message_);
-    leftLayout->addWidget(commitButton_);
+    leftLayout->addWidget(m_unstaged, 1);
+    leftLayout->addWidget(m_message);
+    leftLayout->addWidget(m_commitButton);
     auto* left = new QWidget(this);
     left->setLayout(leftLayout);
 
     auto* splitter = new QSplitter(this);
     splitter->addWidget(left);
-    splitter->addWidget(diff_);
+    splitter->addWidget(m_diff);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(splitter);
 
-    connect(staged_,
+    connect(m_staged,
             &QListWidget::currentRowChanged,
             this,
             [this](int row)
             {
                 if (row < 0)
                     return;
-                emit fileSelected(staged_->item(row)->data(PathRole).toString(), gittide::DiffTarget::IndexVsHead);
+                emit fileSelected(m_staged->item(row)->data(PathRole).toString(), gittide::DiffTarget::IndexVsHead);
             });
-    connect(unstaged_,
+    connect(m_unstaged,
             &QListWidget::currentRowChanged,
             this,
             [this](int row)
             {
                 if (row < 0)
                     return;
-                emit fileSelected(unstaged_->item(row)->data(PathRole).toString(), gittide::DiffTarget::WorktreeVsIndex);
+                emit fileSelected(m_unstaged->item(row)->data(PathRole).toString(), gittide::DiffTarget::WorktreeVsIndex);
             });
-    connect(message_, &QPlainTextEdit::textChanged, this, &ChangesView::updateCommitEnabled);
-    connect(commitButton_,
+    connect(m_message, &QPlainTextEdit::textChanged, this, &ChangesView::updateCommitEnabled);
+    connect(m_commitButton,
             &QPushButton::clicked,
             this,
             [this]()
@@ -100,26 +100,26 @@ ChangesView::ChangesView(QWidget* parent)
                 emit commitRequested(gittide::CommitRequest{.message = commitMessage().toStdString()});
             });
 
-    connect(diff_, &DiffView::stageRequested, this, &ChangesView::stageRequested);
-    connect(diff_, &DiffView::unstageRequested, this, &ChangesView::unstageRequested);
-    connect(diff_, &DiffView::discardRequested, this, &ChangesView::discardRequested);
+    connect(m_diff, &DiffView::stageRequested, this, &ChangesView::stageRequested);
+    connect(m_diff, &DiffView::unstageRequested, this, &ChangesView::unstageRequested);
+    connect(m_diff, &DiffView::discardRequested, this, &ChangesView::discardRequested);
 }
 
 void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files)
 {
-    staged_->clear();
-    unstaged_->clear();
+    m_staged->clear();
+    m_unstaged->clear();
     for (const auto& f : files)
     {
         const QString path = QString::fromStdString(f.path.generic_string());
-        if (any_index_flag(f.flags))
+        if (anyIndexFlag(f.flags))
         {
-            auto* item = new QListWidgetItem(path, staged_);
+            auto* item = new QListWidgetItem(path, m_staged);
             item->setData(PathRole, path);
         }
-        if (any_wt_flag(f.flags))
+        if (anyWtFlag(f.flags))
         {
-            auto* item = new QListWidgetItem(path, unstaged_);
+            auto* item = new QListWidgetItem(path, m_unstaged);
             item->setData(PathRole, path);
         }
     }
@@ -128,17 +128,17 @@ void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files)
 
 void ChangesView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file)
 {
-    diff_->setDiff(result, file);
+    m_diff->setDiff(result, file);
 }
 
 QString ChangesView::commitMessage() const
 {
-    return message_->toPlainText();
+    return m_message->toPlainText();
 }
 
 void ChangesView::updateCommitEnabled()
 {
-    commitButton_->setEnabled(!message_->toPlainText().trimmed().isEmpty() && staged_->count() > 0);
+    m_commitButton->setEnabled(!m_message->toPlainText().trimmed().isEmpty() && m_staged->count() > 0);
 }
 
 } // namespace gittide::ui

@@ -19,14 +19,14 @@ constexpr int OriginRole = Qt::UserRole + 3;
 
 DiffView::DiffView(QWidget* parent)
     : QWidget(parent)
-    , lines_(new QListWidget(this))
+    , m_lines(new QListWidget(this))
 {
     qRegisterMetaType<gittide::StageSelection>();
-    lines_->setObjectName(QStringLiteral("diffLines"));
-    lines_->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_lines->setObjectName(QStringLiteral("diffLines"));
+    m_lines->setSelectionMode(QAbstractItemView::ExtendedSelection);
     QFont mono(QStringLiteral("monospace"));
     mono.setStyleHint(QFont::Monospace);
-    lines_->setFont(mono);
+    m_lines->setFont(mono);
 
     // Action buttons that operate on the current line/hunk selection. Without
     // these the requestStage/Unstage/Discard slots have no GUI trigger.
@@ -49,20 +49,20 @@ DiffView::DiffView(QWidget* parent)
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(lines_);
+    layout->addWidget(m_lines);
     layout->addLayout(buttons);
 }
 
 void DiffView::clear()
 {
-    lines_->clear();
-    file_.clear();
+    m_lines->clear();
+    m_file.clear();
 }
 
 void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file)
 {
-    lines_->clear();
-    file_ = file;
+    m_lines->clear();
+    m_file = file;
     for (int h = 0; h < static_cast<int>(result.hunks.size()); ++h)
     {
         const auto& hunk = result.hunks[h];
@@ -72,7 +72,7 @@ void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem:
             const QChar prefix = ln.origin == gittide::DiffLineOrigin::Added     ? QChar('+')
                                  : ln.origin == gittide::DiffLineOrigin::Removed ? QChar('-')
                                                                                  : QChar(' ');
-            auto* item         = new QListWidgetItem(prefix + QString::fromStdString(ln.text), lines_);
+            auto* item         = new QListWidgetItem(prefix + QString::fromStdString(ln.text), m_lines);
             item->setData(HunkRole, h);
             item->setData(LineRole, i);
             item->setData(OriginRole, static_cast<int>(ln.origin));
@@ -96,7 +96,7 @@ void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem:
 
 std::optional<gittide::StageSelection> DiffView::currentSelection() const
 {
-    const auto selected = lines_->selectedItems();
+    const auto selected = m_lines->selectedItems();
     int hunk            = -1;
     std::vector<int> lineIdx;
     for (auto* item : selected)
@@ -114,7 +114,7 @@ std::optional<gittide::StageSelection> DiffView::currentSelection() const
     if (hunk == -1 || lineIdx.empty())
         return std::nullopt;
     std::sort(lineIdx.begin(), lineIdx.end());
-    return gittide::StageSelection{.path = file_, .hunkIndex = hunk, .lineIndices = std::move(lineIdx)};
+    return gittide::StageSelection{.path = m_file, .hunkIndex = hunk, .lineIndices = std::move(lineIdx)};
 }
 
 void DiffView::requestStage()

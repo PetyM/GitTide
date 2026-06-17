@@ -23,21 +23,21 @@ public:
 
     gittide::ProjectStore* store()
     {
-        return &store_;
+        return &m_store;
     }
 
     void setDeduplicate(bool on)
     {
-        dedup_ = on;
+        m_dedup = on;
     }
     bool deduplicate() const
     {
-        return dedup_;
+        return m_dedup;
     }
 
     int windowCount() const
     {
-        return static_cast<int>(windows_.size());
+        return static_cast<int>(m_windows.size());
     }
 
     // Open a window for the project. When dedup is on and forceNew is false,
@@ -57,10 +57,10 @@ private:
     MainWindow* findWindowForProject(const QString& id) const;
     MainWindow* createWindow(const QString& projectId);
 
-    gittide::ProjectStore store_;
-    QList<MainWindow*> windows_;
-    QString configDir_;
-    bool dedup_ = false;
+    gittide::ProjectStore m_store;
+    QList<MainWindow*> m_windows;
+    QString m_configDir;
+    bool m_dedup = false;
 };
 
 } // namespace gittide::ui

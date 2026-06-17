@@ -13,19 +13,19 @@ namespace gittide::ui {
 
 ProjectController::ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath, QObject* parent)
     : QObject(parent)
-    , store_(store)
-    , storePath_(std::move(storePath))
-    , projectModel_(new ProjectListModel(store, this))
-    , repoModel_(new RepoListModel(this))
+    , m_store(store)
+    , m_storePath(std::move(storePath))
+    , m_projectModel(new ProjectListModel(store, this))
+    , m_repoModel(new RepoListModel(this))
 {
 }
 
 const std::vector<gittide::RepoRef>& ProjectController::activeRepos() const
 {
     static const std::vector<gittide::RepoRef> kEmpty;
-    for (const auto& p : store_->projects())
+    for (const auto& p : m_store->projects())
     {
-        if (QString::fromStdString(p.id) == activeId_)
+        if (QString::fromStdString(p.id) == m_activeId)
             return p.repos;
     }
     return kEmpty;
@@ -33,33 +33,33 @@ const std::vector<gittide::RepoRef>& ProjectController::activeRepos() const
 
 void ProjectController::saveStore() const
 {
-    if (!storePath_.empty())
-        store_->save(storePath_);
+    if (!m_storePath.empty())
+        m_store->save(m_storePath);
 }
 
 void ProjectController::refreshRepoModel()
 {
-    for (const auto& p : store_->projects())
+    for (const auto& p : m_store->projects())
     {
-        if (QString::fromStdString(p.id) == activeId_)
+        if (QString::fromStdString(p.id) == m_activeId)
         {
-            repoModel_->setRepos(p.repos);
+            m_repoModel->setRepos(p.repos);
             return;
         }
     }
-    repoModel_->setRepos({});
+    m_repoModel->setRepos({});
 }
 
 void ProjectController::activate(const QString& projectId)
 {
     const std::string id = projectId.toStdString();
-    for (const auto& p : store_->projects())
+    for (const auto& p : m_store->projects())
     {
         if (p.id == id)
         {
-            store_->setActiveProject(id);
-            repoModel_->setRepos(p.repos);
-            activeId_ = projectId;
+            m_store->setActiveProject(id);
+            m_repoModel->setRepos(p.repos);
+            m_activeId = projectId;
             emit projectActivated(projectId);
             return;
         }
@@ -71,17 +71,17 @@ void ProjectController::createProject(const QString& name)
 {
     if (name.trimmed().isEmpty())
         return;
-    auto& p = store_->createProject(name.toStdString());
+    auto& p = m_store->createProject(name.toStdString());
     saveStore();
     const QString id = QString::fromStdString(p.id);
-    projectModel_->refresh();
+    m_projectModel->refresh();
     activate(id);
     emit projectCreated(id);
 }
 
 void ProjectController::addExistingRepo(const QString& path)
 {
-    if (activeId_.isEmpty())
+    if (m_activeId.isEmpty())
     {
         emit repoAddFailed(QStringLiteral("No active project"));
         return;
@@ -93,7 +93,7 @@ void ProjectController::addExistingRepo(const QString& path)
         emit repoAddFailed(QString::fromStdString(validation.error().message));
         return;
     }
-    auto result = store_->addRepo(activeId_.toStdString(), gittide::RepoRef{.path = path.toStdString()});
+    auto result = m_store->addRepo(m_activeId.toStdString(), gittide::RepoRef{.path = path.toStdString()});
     if (!result)
     {
         emit repoAddFailed(QString::fromStdString(result.error().message));
@@ -106,7 +106,7 @@ void ProjectController::addExistingRepo(const QString& path)
 
 void ProjectController::initRepo(const QString& parentDir, const QString& name)
 {
-    if (activeId_.isEmpty())
+    if (m_activeId.isEmpty())
     {
         emit repoAddFailed(QStringLiteral("No active project"));
         return;
@@ -118,7 +118,7 @@ void ProjectController::initRepo(const QString& parentDir, const QString& name)
         emit repoAddFailed(QString::fromStdString(repo.error().message));
         return;
     }
-    auto result = store_->addRepo(activeId_.toStdString(), gittide::RepoRef{.path = dest.generic_string()});
+    auto result = m_store->addRepo(m_activeId.toStdString(), gittide::RepoRef{.path = dest.generic_string()});
     if (!result)
     {
         emit repoAddFailed(QString::fromStdString(result.error().message));
@@ -131,16 +131,16 @@ void ProjectController::initRepo(const QString& parentDir, const QString& name)
 
 void ProjectController::cancelClone()
 {
-    cloneCancel_.store(true);
+    m_cloneCancel.store(true);
 }
 
 QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 {
-    cloneCancel_.store(false);
+    m_cloneCancel.store(false);
 
     gittide::ProgressCallback cb = [this](unsigned r, unsigned t) -> bool
     {
-        if (cloneCancel_.load())
+        if (m_cloneCancel.load())
             return false;
         QMetaObject::invokeMethod(
             this,
@@ -166,14 +166,14 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 
     if (!result)
     {
-        if (!cloneCancel_.load())
+        if (!m_cloneCancel.load())
         {
             emit repoAddFailed(QString::fromStdString(result.error().message));
         }
         co_return;
     }
 
-    auto addResult = store_->addRepo(activeId_.toStdString(), gittide::RepoRef{.path = dest.toStdString()});
+    auto addResult = m_store->addRepo(m_activeId.toStdString(), gittide::RepoRef{.path = dest.toStdString()});
     if (!addResult)
     {
         emit repoAddFailed(QString::fromStdString(addResult.error().message));
@@ -186,9 +186,9 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 
 void ProjectController::removeRepo(const QString& path)
 {
-    if (activeId_.isEmpty())
+    if (m_activeId.isEmpty())
         return;
-    auto result = store_->removeRepo(activeId_.toStdString(), path.toStdString());
+    auto result = m_store->removeRepo(m_activeId.toStdString(), path.toStdString());
     if (!result)
         return; // silently ignore (shouldn't happen via UI)
     saveStore();
@@ -198,21 +198,21 @@ void ProjectController::removeRepo(const QString& path)
 
 void ProjectController::removeProject()
 {
-    if (activeId_.isEmpty())
+    if (m_activeId.isEmpty())
         return;
-    const QString removedId = activeId_;
-    store_->removeProject(activeId_.toStdString());
-    activeId_.clear();
-    projectModel_->refresh();
+    const QString removedId = m_activeId;
+    m_store->removeProject(m_activeId.toStdString());
+    m_activeId.clear();
+    m_projectModel->refresh();
     // Activate another project if one exists
-    if (!store_->projects().empty())
+    if (!m_store->projects().empty())
     {
-        const QString nextId = QString::fromStdString(store_->projects().front().id);
+        const QString nextId = QString::fromStdString(m_store->projects().front().id);
         activate(nextId);
     }
     else
     {
-        repoModel_->setRepos({});
+        m_repoModel->setRepos({});
     }
     saveStore();
     emit projectRemoved(removedId);

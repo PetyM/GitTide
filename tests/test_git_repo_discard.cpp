@@ -16,9 +16,9 @@ static std::string read_file(const std::filesystem::path& p)
 TEST_CASE("discard whole file restores committed content", "[discard]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "orig\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "changed\n");
+    tmp.writeFile("a.txt", "orig\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "changed\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -30,9 +30,9 @@ TEST_CASE("discard whole file restores committed content", "[discard]")
 TEST_CASE("discard a hunk reverts only that region", "[discard]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "ONE\n2\n3\n4\n5\n6\n7\n8\nNINE\n");
+    tmp.writeFile("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "ONE\n2\n3\n4\n5\n6\n7\n8\nNINE\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());

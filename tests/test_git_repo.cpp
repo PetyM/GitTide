@@ -33,7 +33,7 @@ TEST_CASE("GitRepo::open fails on a non-repo directory", "[repo]")
 TEST_CASE("status reports an untracked file as WtNew", "[repo]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("new.txt", "data");
+    tmp.writeFile("new.txt", "data");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -48,15 +48,15 @@ TEST_CASE("status reports an untracked file as WtNew", "[repo]")
                                return f.path == std::filesystem::path("new.txt");
                            });
     REQUIRE(it != st->end());
-    REQUIRE(gittide::has_flag(it->flags, gittide::StatusFlag::WtNew));
+    REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::WtNew));
 }
 
 TEST_CASE("status reports a committed-then-modified file as WtModified", "[repo]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "one");
-    tmp.commit_all("add a.txt");
-    tmp.write_file("a.txt", "two"); // modify after commit
+    tmp.writeFile("a.txt", "one");
+    tmp.commitAll("add a.txt");
+    tmp.writeFile("a.txt", "two"); // modify after commit
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -70,5 +70,5 @@ TEST_CASE("status reports a committed-then-modified file as WtModified", "[repo]
                                return f.path == std::filesystem::path("a.txt");
                            });
     REQUIRE(it != st->end());
-    REQUIRE(gittide::has_flag(it->flags, gittide::StatusFlag::WtModified));
+    REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::WtModified));
 }

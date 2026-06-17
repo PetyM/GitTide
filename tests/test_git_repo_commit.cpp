@@ -8,10 +8,10 @@
 TEST_CASE("GitRepo::commit creates a commit from the staged index", "[commit]")
 {
     gittide::test::TempRepo tmp;
-    tmp.set_identity("Ada", "ada@example.com");
-    tmp.write_file("a.txt", "hello\n");
-    tmp.commit_all("init"); // first commit (HEAD now exists)
-    tmp.write_file("a.txt", "hello\nworld\n");
+    tmp.setIdentity("Ada", "ada@example.com");
+    tmp.writeFile("a.txt", "hello\n");
+    tmp.commitAll("init"); // first commit (HEAD now exists)
+    tmp.writeFile("a.txt", "hello\nworld\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -23,7 +23,7 @@ TEST_CASE("GitRepo::commit creates a commit from the staged index", "[commit]")
 
     // The new commit is HEAD, has the right message and author.
     git_repository* r = nullptr;
-    REQUIRE(git_repository_open(&r, gittide::to_git_path(tmp.path()).c_str()) == 0);
+    REQUIRE(git_repository_open(&r, gittide::toGitPath(tmp.path()).c_str()) == 0);
     git_oid head;
     REQUIRE(git_reference_name_to_id(&head, r, "HEAD") == 0);
     git_commit* c = nullptr;

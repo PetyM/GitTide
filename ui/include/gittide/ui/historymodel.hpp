@@ -32,7 +32,7 @@ public:
     void setLayout(const gittide::GraphLayout& layout);
     int laneCount() const
     {
-        return layout_.laneCount;
+        return m_layout.laneCount;
     }
 
     int rowCount(const QModelIndex& parent = {}) const override;
@@ -41,7 +41,7 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
 
 private:
-    gittide::GraphLayout layout_;
+    gittide::GraphLayout m_layout;
 };
 
 } // namespace gittide::ui

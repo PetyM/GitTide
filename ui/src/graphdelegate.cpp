@@ -16,7 +16,7 @@ GraphDelegate::GraphDelegate(QObject* parent)
 
 QSize GraphDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& /*index*/) const
 {
-    return QSize(laneCount_ * kLaneWidth + kLaneWidth, option.rect.height());
+    return QSize(m_laneCount * kLaneWidth + kLaneWidth, option.rect.height());
 }
 
 void GraphDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const

@@ -22,10 +22,10 @@ static DiffHunk sample_hunk()
     return h;
 }
 
-TEST_CASE("build_patch whole hunk (forward) round-trips structure", "[patch]")
+TEST_CASE("buildPatch whole hunk (forward) round-trips structure", "[patch]")
 {
     StageSelection sel{"f.txt", 0, {}}; // whole hunk
-    std::string p = build_patch("f.txt", sample_hunk(), sel, /*reverse=*/false);
+    std::string p = buildPatch("f.txt", sample_hunk(), sel, /*reverse=*/false);
 
     REQUIRE(p.find("diff --git a/f.txt b/f.txt") != std::string::npos);
     REQUIRE(p.find("--- a/f.txt") != std::string::npos);
@@ -36,29 +36,29 @@ TEST_CASE("build_patch whole hunk (forward) round-trips structure", "[patch]")
     REQUIRE(p.find("\n+B2\n") != std::string::npos);
 }
 
-TEST_CASE("build_patch unselected added line is dropped, removed becomes context", "[patch]")
+TEST_CASE("buildPatch unselected added line is dropped, removed becomes context", "[patch]")
 {
     // Select only the removed line (index 1). The added line (index 2) is NOT
     // selected -> dropped. Result: a / -b / c  => oldLines 3, newLines 2.
     StageSelection sel{"f.txt", 0, {1}};
-    std::string p = build_patch("f.txt", sample_hunk(), sel, /*reverse=*/false);
+    std::string p = buildPatch("f.txt", sample_hunk(), sel, /*reverse=*/false);
 
     REQUIRE(p.find("@@ -1,3 +1,2 @@") != std::string::npos);
     REQUIRE(p.find("\n-b\n") != std::string::npos);
     REQUIRE(p.find("+B2") == std::string::npos); // dropped
 }
 
-TEST_CASE("build_patch reverse swaps + and -", "[patch]")
+TEST_CASE("buildPatch reverse swaps + and -", "[patch]")
 {
     StageSelection sel{"f.txt", 0, {}};
-    std::string p = build_patch("f.txt", sample_hunk(), sel, /*reverse=*/true);
+    std::string p = buildPatch("f.txt", sample_hunk(), sel, /*reverse=*/true);
     // Reversed: the '+B2' becomes '-B2', the '-b' becomes '+b'.
     REQUIRE(p.find("\n-B2\n") != std::string::npos);
     REQUIRE(p.find("\n+b\n") != std::string::npos);
     REQUIRE(p.find("@@ -1,3 +1,3 @@") != std::string::npos);
 }
 
-TEST_CASE("build_patch emits no-newline marker for an EOF line", "[patch]")
+TEST_CASE("buildPatch emits no-newline marker for an EOF line", "[patch]")
 {
     DiffHunk h;
     h.oldStart = 1;
@@ -73,7 +73,7 @@ TEST_CASE("build_patch emits no-newline marker for an EOF line", "[patch]")
     h.lines         = {removed, added};
 
     StageSelection sel{"f.txt", 0, {}};
-    std::string p = build_patch("f.txt", h, sel, /*reverse=*/false);
+    std::string p = buildPatch("f.txt", h, sel, /*reverse=*/false);
 
     REQUIRE(p.find("\n-x\n\\ No newline at end of file\n") != std::string::npos);
     REQUIRE(p.find("\n+y\n\\ No newline at end of file\n") != std::string::npos);

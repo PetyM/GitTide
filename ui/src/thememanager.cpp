@@ -19,10 +19,10 @@ ThemeManager::ThemeManager(QObject* parent)
                 this,
                 [this](Qt::ColorScheme)
                 {
-                    if (mode_ == Mode::System)
+                    if (m_mode == Mode::System)
                     {
-                        if (app_)
-                            applyTo(app_);
+                        if (m_app)
+                            applyTo(m_app);
                         emit themeChanged();
                     }
                 });
@@ -31,7 +31,7 @@ ThemeManager::ThemeManager(QObject* parent)
 
 bool ThemeManager::resolveDark() const
 {
-    switch (mode_)
+    switch (m_mode)
     {
     case Mode::Dark:
         return true;
@@ -59,15 +59,15 @@ QString ThemeManager::iconResource() const
 
 void ThemeManager::setMode(Mode mode)
 {
-    mode_ = mode;
-    if (app_)
-        applyTo(app_);
+    m_mode = mode;
+    if (m_app)
+        applyTo(m_app);
     emit themeChanged();
 }
 
 void ThemeManager::applyTo(QApplication* app)
 {
-    app_ = app;
+    m_app = app;
     app->setStyleSheet(buildStyleSheet(currentTheme()));
     app->setWindowIcon(QIcon(iconResource()));
 }

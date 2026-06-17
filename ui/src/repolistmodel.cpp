@@ -14,8 +14,8 @@ RepoListModel::RepoListModel(QObject* parent)
 void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
 {
     beginResetModel();
-    rows_.clear();
-    rows_.reserve(repos.size());
+    m_rows.clear();
+    m_rows.reserve(repos.size());
     for (const auto& r : repos)
     {
         const std::filesystem::path p(r.path);
@@ -40,14 +40,14 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
                         bool subPresent = std::filesystem::exists(subPath, sec) && !sec;
                         row.children.push_back(SubRow{
                             .path        = QString::fromStdString(subPath.generic_string()),
-                            .displayName = QString::fromStdString(subPath.filename().string()),
+                            .displayName = QString::fromStdString(subPath.filename().generic_string()),
                             .missing     = !subPresent,
                         });
                     }
                 }
             }
         }
-        rows_.push_back(std::move(row));
+        m_rows.push_back(std::move(row));
     }
     endResetModel();
 }
@@ -58,7 +58,7 @@ QModelIndex RepoListModel::index(int row, int column, const QModelIndex& parent)
         return {};
     if (!parent.isValid())
     {
-        if (row < 0 || row >= static_cast<int>(rows_.size()))
+        if (row < 0 || row >= static_cast<int>(m_rows.size()))
             return {};
         return createIndex(row, 0, nullptr);
     }
@@ -66,9 +66,9 @@ QModelIndex RepoListModel::index(int row, int column, const QModelIndex& parent)
     if (parent.internalPointer() != nullptr)
         return {};
     const int pr = parent.row();
-    if (pr < 0 || pr >= static_cast<int>(rows_.size()))
+    if (pr < 0 || pr >= static_cast<int>(m_rows.size()))
         return {};
-    if (row < 0 || row >= static_cast<int>(rows_[pr].children.size()))
+    if (row < 0 || row >= static_cast<int>(m_rows[pr].children.size()))
         return {};
     return createIndex(row, 0, reinterpret_cast<void*>(quintptr(pr + 1)));
 }
@@ -86,13 +86,13 @@ QModelIndex RepoListModel::parent(const QModelIndex& child) const
 int RepoListModel::rowCount(const QModelIndex& parent) const
 {
     if (!parent.isValid())
-        return static_cast<int>(rows_.size());
+        return static_cast<int>(m_rows.size());
     if (parent.internalPointer() != nullptr)
         return 0;
     const int row = parent.row();
-    if (row < 0 || row >= static_cast<int>(rows_.size()))
+    if (row < 0 || row >= static_cast<int>(m_rows.size()))
         return 0;
-    return static_cast<int>(rows_[row].children.size());
+    return static_cast<int>(m_rows[row].children.size());
 }
 
 int RepoListModel::columnCount(const QModelIndex& parent) const
@@ -110,9 +110,9 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
     if (ptr == 0)
     {
         const auto row = static_cast<std::size_t>(index.row());
-        if (row >= rows_.size())
+        if (row >= m_rows.size())
             return {};
-        const auto& r = rows_[row];
+        const auto& r = m_rows[row];
         switch (role)
         {
         case Qt::DisplayRole:
@@ -129,11 +129,11 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
     {
         const int pr = static_cast<int>(ptr - 1);
         const int cr = index.row();
-        if (pr < 0 || pr >= static_cast<int>(rows_.size()))
+        if (pr < 0 || pr >= static_cast<int>(m_rows.size()))
             return {};
-        if (cr < 0 || cr >= static_cast<int>(rows_[pr].children.size()))
+        if (cr < 0 || cr >= static_cast<int>(m_rows[pr].children.size()))
             return {};
-        const auto& sub = rows_[pr].children[cr];
+        const auto& sub = m_rows[pr].children[cr];
         switch (role)
         {
         case Qt::DisplayRole:

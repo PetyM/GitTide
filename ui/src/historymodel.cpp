@@ -16,7 +16,7 @@ HistoryModel::HistoryModel(QObject* parent)
 void HistoryModel::setLayout(const gittide::GraphLayout& layout)
 {
     beginResetModel();
-    layout_ = layout;
+    m_layout = layout;
     endResetModel();
 }
 
@@ -24,7 +24,7 @@ int HistoryModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
         return 0;
-    return static_cast<int>(layout_.rows.size());
+    return static_cast<int>(m_layout.rows.size());
 }
 
 int HistoryModel::columnCount(const QModelIndex& parent) const
@@ -39,9 +39,9 @@ QVariant HistoryModel::data(const QModelIndex& index, int role) const
     if (!index.isValid())
         return {};
     const auto row = static_cast<std::size_t>(index.row());
-    if (row >= layout_.rows.size())
+    if (row >= m_layout.rows.size())
         return {};
-    const auto& gr = layout_.rows[row];
+    const auto& gr = m_layout.rows[row];
 
     if (role == GraphRowRole && index.column() == ColGraph)
         return QVariant::fromValue(gr);

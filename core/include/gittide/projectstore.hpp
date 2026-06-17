@@ -32,20 +32,20 @@ public:
 
     std::deque<Project>& projects()
     {
-        return projects_;
+        return m_projects;
     }
     const std::deque<Project>& projects() const
     {
-        return projects_;
+        return m_projects;
     }
 
     const std::string& activeProject() const
     {
-        return activeProject_;
+        return m_activeProject;
     }
     void setActiveProject(std::string id)
     {
-        activeProject_ = std::move(id);
+        m_activeProject = std::move(id);
     }
 
     // Schema version read from the parsed document (kVersion for an in-memory
@@ -53,7 +53,7 @@ public:
     // detect older on-disk schemas.
     int loadedVersion() const
     {
-        return loadedVersion_;
+        return m_loadedVersion;
     }
 
     std::string to_json() const;
@@ -83,9 +83,9 @@ public:
     void removeProject(const std::string& id);
 
 private:
-    std::deque<Project> projects_;
-    std::string activeProject_;
-    int loadedVersion_ = kVersion;
+    std::deque<Project> m_projects;
+    std::string m_activeProject;
+    int m_loadedVersion = kVersion;
 };
 
 } // namespace gittide

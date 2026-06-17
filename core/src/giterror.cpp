@@ -3,7 +3,7 @@
 #include <git2.h>
 
 namespace gittide {
-GitError last_git_error(int code)
+GitError lastGitError(int code)
 {
     const git_error* e = git_error_last();
     if (e && e->message)

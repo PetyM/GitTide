@@ -9,9 +9,9 @@ using gittide::DiffTarget;
 TEST_CASE("GitRepo::diff WorktreeVsIndex shows unstaged edit", "[diff]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "x\ny\nz\n");
-    tmp.commit_all("init");
-    tmp.write_file("a.txt", "x\nY2\nz\n");
+    tmp.writeFile("a.txt", "x\ny\nz\n");
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", "x\nY2\nz\n");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
@@ -33,8 +33,8 @@ TEST_CASE("GitRepo::diff WorktreeVsIndex shows unstaged edit", "[diff]")
 TEST_CASE("GitRepo::diff IndexVsHead is empty with nothing staged", "[diff]")
 {
     gittide::test::TempRepo tmp;
-    tmp.write_file("a.txt", "x\n");
-    tmp.commit_all("init");
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
 
     auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
