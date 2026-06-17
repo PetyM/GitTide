@@ -13,4 +13,12 @@ public:
     static Expected<DiffResult> parse(git_diff* diff);
 };
 
+// Serialize a selection within a single hunk to a minimal unified-diff buffer
+// suitable for git_apply. `gitPath` is the libgit2 (forward-slash) path.
+// If sel.lineIndices is empty, the whole hunk is taken.
+std::string build_patch(const std::string& gitPath,
+                        const DiffHunk& hunk,
+                        const StageSelection& sel,
+                        bool reverse);
+
 }  // namespace gitgui

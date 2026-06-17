@@ -1,6 +1,8 @@
 #include "gitgui/DiffEngine.hpp"
 #include <git2.h>
 #include <memory>
+#include <set>
+#include <sstream>
 
 namespace gitgui {
 
@@ -48,6 +50,48 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff) {
         out.hunks.push_back(std::move(hunk));
     }
     return out;
+}
+
+std::string build_patch(const std::string& gitPath,
+                        const DiffHunk& hunk,
+                        const StageSelection& sel,
+                        bool reverse) {
+    const bool whole_hunk = sel.lineIndices.empty();
+    std::set<int> selected(sel.lineIndices.begin(), sel.lineIndices.end());
+    auto is_selected = [&](int i) { return whole_hunk || selected.count(i) > 0; };
+
+    // Build the body and count old/new lines as we go.
+    std::ostringstream body;
+    int oldCount = 0, newCount = 0;
+    for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i) {
+        const DiffLine& ln = hunk.lines[i];
+        DiffLineOrigin origin = ln.origin;
+        // Reverse swaps added<->removed.
+        if (reverse) {
+            if (origin == DiffLineOrigin::Added)        origin = DiffLineOrigin::Removed;
+            else if (origin == DiffLineOrigin::Removed) origin = DiffLineOrigin::Added;
+        }
+
+        if (origin == DiffLineOrigin::Context) {
+            body << ' ' << ln.text << '\n';
+            ++oldCount; ++newCount;
+        } else if (origin == DiffLineOrigin::Added) {
+            if (is_selected(i)) { body << '+' << ln.text << '\n'; ++newCount; }
+            // unselected added line: drop entirely.
+        } else {  // Removed
+            if (is_selected(i)) { body << '-' << ln.text << '\n'; ++oldCount; }
+            else { body << ' ' << ln.text << '\n'; ++oldCount; ++newCount; }  // keep as context
+        }
+    }
+
+    std::ostringstream out;
+    out << "diff --git a/" << gitPath << " b/" << gitPath << '\n'
+        << "--- a/" << gitPath << '\n'
+        << "+++ b/" << gitPath << '\n'
+        << "@@ -" << hunk.oldStart << ',' << oldCount
+        << " +" << hunk.newStart << ',' << newCount << " @@\n"
+        << body.str();
+    return out.str();
 }
 
 }  // namespace gitgui
