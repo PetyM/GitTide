@@ -4,7 +4,9 @@
 #include <algorithm>
 
 #include <QFont>
+#include <QHBoxLayout>
 #include <QListWidget>
+#include <QPushButton>
 #include <QVBoxLayout>
 
 namespace gitgui::ui {
@@ -24,9 +26,29 @@ DiffView::DiffView(QWidget* parent)
     mono.setStyleHint(QFont::Monospace);
     lines_->setFont(mono);
 
+    // Action buttons that operate on the current line/hunk selection. Without
+    // these the requestStage/Unstage/Discard slots have no GUI trigger.
+    auto* stageBtn = new QPushButton(QStringLiteral("Stage"), this);
+    auto* unstageBtn = new QPushButton(QStringLiteral("Unstage"), this);
+    auto* discardBtn = new QPushButton(QStringLiteral("Discard"), this);
+    stageBtn->setObjectName(QStringLiteral("diffStageButton"));
+    unstageBtn->setObjectName(QStringLiteral("diffUnstageButton"));
+    discardBtn->setObjectName(QStringLiteral("diffDiscardButton"));
+    connect(stageBtn, &QPushButton::clicked, this, &DiffView::requestStage);
+    connect(unstageBtn, &QPushButton::clicked, this, &DiffView::requestUnstage);
+    connect(discardBtn, &QPushButton::clicked, this, &DiffView::requestDiscard);
+
+    auto* buttons = new QHBoxLayout;
+    buttons->setContentsMargins(0, 0, 0, 0);
+    buttons->addWidget(stageBtn);
+    buttons->addWidget(unstageBtn);
+    buttons->addWidget(discardBtn);
+    buttons->addStretch(1);
+
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(lines_);
+    layout->addLayout(buttons);
 }
 
 void DiffView::clear() {

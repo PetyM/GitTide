@@ -2,6 +2,7 @@
 #include <QtTest/QtTest>
 #include <QSignalSpy>
 #include <QListWidget>
+#include <QPushButton>
 
 #include "gitgui/ui/DiffView.hpp"
 #include "gitgui/ui/Metatypes.hpp"
@@ -56,6 +57,23 @@ private slots:
         DiffView view;
         view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
         QVERIFY(!view.currentSelection().has_value());
+    }
+
+    void stage_button_click_emits_request() {
+        DiffView view;
+        view.setDiff(diff_view_test::two_added_one_context(), "f.txt");
+        auto* list = view.findChild<QListWidget*>(QStringLiteral("diffLines"));
+        list->item(0)->setSelected(true);
+        auto* stageBtn = view.findChild<QPushButton*>(QStringLiteral("diffStageButton"));
+        QVERIFY(stageBtn != nullptr);
+
+        QSignalSpy spy(&view, &DiffView::stageRequested);
+        stageBtn->click();
+
+        QCOMPARE(spy.count(), 1);
+        const auto sel = spy.at(0).at(0).value<gitgui::StageSelection>();
+        QCOMPARE(static_cast<int>(sel.lineIndices.size()), 1);
+        QCOMPARE(sel.lineIndices[0], 0);
     }
 };
 
