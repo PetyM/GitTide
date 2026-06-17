@@ -20,6 +20,10 @@ A rough idea starts as a [wish](../wishlist/index.md). When taken on, it is
 spec leads implementation and outlives it: it states the intended design up
 front and remains the source of truth after the plan is done.
 
+The process that moves work through this lifecycle is in
+[`../workflow.md`](../workflow.md); the rationale and rejected alternatives behind
+major choices are logged in [`../decisions.md`](../decisions.md).
+
 ## How the spec is organised
 
 | Section | Question it answers | Start here |

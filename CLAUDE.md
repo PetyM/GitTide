@@ -19,13 +19,19 @@ Division of documentation, and where to put what you learn:
   same change.
 - **How a feature was built**, task-by-task → a plan in
   [`docs/plans/`](docs/plans/index.md) (template at `docs/plans/TEMPLATE.md`).
+- **How work flows** (wish → spec → plan → build) and what "done" means →
+  [`docs/workflow.md`](docs/workflow.md).
+- **Why** behind major choices and rejected alternatives →
+  [`docs/decisions.md`](docs/decisions.md).
 - If code and spec disagree, **code is ground truth** — fix the spec.
 
 ## Build & test
 
 Configure / build / test commands — including how to run a single test — live in
 [`README.md`](README.md#build--test). The essentials: `cmake -S . -B build`,
-`cmake --build build`, `ctest --test-dir build --output-on-failure`.
+`cmake --build build`, `ctest --test-dir build --output-on-failure`. How tests are
+structured (the `TempRepo` helper, the headless UI runner) and how to add one:
+[`docs/spec/engineering/testing.md`](docs/spec/engineering/testing.md).
 
 ## Architecture in one breath
 

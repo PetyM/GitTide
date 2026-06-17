@@ -58,6 +58,8 @@ and testable on its own.
 ## Cross-cutting invariants
 
 These hold everywhere. Breaking one is a design regression, not a local choice.
+The rationale and rejected alternatives behind them are logged in
+[`../../decisions.md`](../../decisions.md).
 
 1. **No Qt in `core/`.** Core compiles and tests without Qt on the include path.
    This is what keeps the git engine unit-testable and the layering honest.
@@ -128,7 +130,9 @@ Principles first: KISS, DRY, SOLID, YAGNI.
   via `catch_discover_tests`). Qt Test for `ui/` (`gittide_ui_tests`, a single
   aggregated binary run headless with `QT_QPA_PLATFORM=offscreen`). New UI
   sources go in `ui/CMakeLists.txt`'s `gittide_ui` list; new UI tests go in the
-  `gittide_ui_tests` source list in `tests/CMakeLists.txt`.
+  `gittide_ui_tests` source list in `tests/CMakeLists.txt`. How tests are
+  structured (the `TempRepo` helper, the `#include` UI runner) and how to add one:
+  [`testing.md`](testing.md).
 - **CI.** GitHub Actions matrix: Linux / macOS / Windows
   ([`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)).
 - **Development is test-first (TDD):** write the failing test, then the code.
