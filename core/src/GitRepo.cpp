@@ -196,6 +196,41 @@ Expected<void> GitRepo::apply_partial(const StageSelection& sel, bool stage) {
     return {};
 }
 
+Expected<void> GitRepo::discard(const StageSelection& sel) {
+    std::string p = to_git_path(sel.path);
+
+    if (is_whole_file(sel)) {
+        // Force-checkout the file from the index/HEAD, overwriting the worktree.
+        git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+        opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+        char* paths[] = {p.data()};
+        opts.paths.strings = paths;
+        opts.paths.count = 1;
+        int rc = git_checkout_head(repo_, &opts);
+        if (rc < 0) return std::unexpected(last_git_error(rc));
+        return {};
+    }
+
+    // Hunk/line: reverse-apply the worktree-vs-index patch to the WORKDIR.
+    auto fileDiff = diff(DiffTarget::WorktreeVsIndex, sel.path);
+    if (!fileDiff) return std::unexpected(fileDiff.error());
+    int hi = sel.hunkIndex.value_or(-1);
+    if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
+        return std::unexpected(GitError{-1, "hunk index out of range"});
+
+    std::string patch =
+        build_patch(p, fileDiff->hunks[hi], sel, /*reverse=*/true);
+
+    git_diff* raw = nullptr;
+    int rc = git_diff_from_buffer(&raw, patch.data(), patch.size());
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    rc = git_apply(repo_, raw, GIT_APPLY_LOCATION_WORKDIR, nullptr);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return {};
+}
+
 Expected<std::string> GitRepo::commit(const CommitRequest& req) {
     git_signature* sig = nullptr;
     int rc = git_signature_default(&sig, repo_);  // reads user.name/user.email

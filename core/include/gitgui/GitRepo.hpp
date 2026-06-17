@@ -37,6 +37,9 @@ public:
     // (user.name/user.email). Returns the new commit's hex oid.
     Expected<std::string> commit(const CommitRequest& req);
 
+    // Revert worktree changes for the selection (whole file or hunk/lines).
+    Expected<void> discard(const StageSelection& sel);
+
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}
     git_repository* repo_ = nullptr;
