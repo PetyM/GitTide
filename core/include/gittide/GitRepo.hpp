@@ -3,14 +3,14 @@
 #include <vector>
 #include <functional>
 #include <string>
-#include "gitgui/GitError.hpp"
-#include "gitgui/FileStatus.hpp"
-#include "gitgui/Diff.hpp"
-#include "gitgui/Graph.hpp"
+#include "gittide/GitError.hpp"
+#include "gittide/FileStatus.hpp"
+#include "gittide/Diff.hpp"
+#include "gittide/Graph.hpp"
 
 struct git_repository;
 
-namespace gitgui {
+namespace gittide {
 
 // Callback invoked during a clone transfer: (received_objects, total_objects).
 // Return true to continue, false to cancel (clone returns an error).
@@ -69,4 +69,4 @@ private:
     Expected<void> apply_partial(const StageSelection& sel, bool stage);  // filled by a later task
 };
 
-}  // namespace gitgui
+}  // namespace gittide

@@ -2,13 +2,13 @@
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/MainWindow.hpp"
-#include "gitgui/ui/WindowManager.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/MainWindow.hpp"
+#include "gittide/ui/WindowManager.hpp"
 
-using gitgui::Project;
-using gitgui::ui::MainWindow;
-using gitgui::ui::WindowManager;
+using gittide::Project;
+using gittide::ui::MainWindow;
+using gittide::ui::WindowManager;
 
 class TestWindowManager : public QObject {
     Q_OBJECT

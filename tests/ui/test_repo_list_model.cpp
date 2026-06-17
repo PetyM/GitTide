@@ -4,11 +4,11 @@
 #include <filesystem>
 #include <vector>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/RepoListModel.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/RepoListModel.hpp"
 
-using gitgui::RepoRef;
-using gitgui::ui::RepoListModel;
+using gittide::RepoRef;
+using gittide::ui::RepoListModel;
 
 class TestRepoListModel : public QObject {
     Q_OBJECT
@@ -17,7 +17,7 @@ private slots:
         const auto tmp = std::filesystem::temp_directory_path();   // exists
         std::vector<RepoRef> repos{
             RepoRef{.path = tmp.generic_string(), .alias = "present"},
-            RepoRef{.path = "/no/such/path/gitgui-test", .alias = "gone"},
+            RepoRef{.path = "/no/such/path/gittide-test", .alias = "gone"},
         };
 
         RepoListModel model;
@@ -29,7 +29,7 @@ private slots:
         QCOMPARE(model.data(model.index(0, 0), RepoListModel::MissingRole).toBool(), false);
         QCOMPARE(model.data(model.index(1, 0), RepoListModel::MissingRole).toBool(), true);
         QCOMPARE(model.data(model.index(1, 0), RepoListModel::PathRole).toString(),
-                 QStringLiteral("/no/such/path/gitgui-test"));
+                 QStringLiteral("/no/such/path/gittide-test"));
     }
 
     void empty_alias_falls_back_to_path() {

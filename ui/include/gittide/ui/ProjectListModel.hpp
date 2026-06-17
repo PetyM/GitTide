@@ -1,9 +1,9 @@
 #pragma once
 #include <QAbstractListModel>
 
-namespace gitgui { class ProjectStore; }
+namespace gittide { class ProjectStore; }
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // Read model over ProjectStore::projects(). The store is owned elsewhere
 // (WindowManager); this model only references it. Call refresh() after the
@@ -13,7 +13,7 @@ class ProjectListModel : public QAbstractListModel {
 public:
     enum Roles { IdRole = Qt::UserRole + 1 };
 
-    explicit ProjectListModel(gitgui::ProjectStore* store, QObject* parent = nullptr);
+    explicit ProjectListModel(gittide::ProjectStore* store, QObject* parent = nullptr);
 
     int rowCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -22,7 +22,7 @@ public:
     void refresh();
 
 private:
-    gitgui::ProjectStore* store_;
+    gittide::ProjectStore* store_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

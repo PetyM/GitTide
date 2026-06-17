@@ -1,9 +1,9 @@
-// core/include/gitgui/GraphBuilder.hpp
+// core/include/gittide/GraphBuilder.hpp
 #pragma once
-#include "gitgui/Graph.hpp"
+#include "gittide/Graph.hpp"
 #include <vector>
 
-namespace gitgui {
+namespace gittide {
 
 class GraphBuilder {
 public:
@@ -12,4 +12,4 @@ public:
     static GraphLayout build(std::vector<CommitNode> commits);
 };
 
-}  // namespace gitgui
+}  // namespace gittide

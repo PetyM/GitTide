@@ -1,16 +1,16 @@
 #include "support/TempRepo.hpp"
-#include "gitgui/PathUtil.hpp"
+#include "gittide/PathUtil.hpp"
 #include <git2.h>
 #include <fstream>
 #include <random>
 #include <stdexcept>
 
-namespace gitgui::test {
+namespace gittide::test {
 namespace {
 std::filesystem::path unique_dir() {
     std::random_device rd;
     auto base = std::filesystem::temp_directory_path();
-    return base / ("gitgui_test_" + std::to_string(rd()));
+    return base / ("gittide_test_" + std::to_string(rd()));
 }
 void check(int rc, const char* what) {
     if (rc < 0) throw std::runtime_error(what);
@@ -87,4 +87,4 @@ void TempRepo::set_identity(std::string_view name, std::string_view email) {
     git_config_free(cfg);
 }
 
-}  // namespace gitgui::test
+}  // namespace gittide::test

@@ -2,12 +2,12 @@
 #include <QtTest/QtTest>
 #include <QAbstractItemModelTester>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/ProjectListModel.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/ProjectListModel.hpp"
 
-using gitgui::Project;
-using gitgui::ProjectStore;
-using gitgui::ui::ProjectListModel;
+using gittide::Project;
+using gittide::ProjectStore;
+using gittide::ui::ProjectListModel;
 
 class TestProjectListModel : public QObject {
     Q_OBJECT

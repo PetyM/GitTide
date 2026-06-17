@@ -3,9 +3,9 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include "gitgui/GitError.hpp"
+#include "gittide/GitError.hpp"
 
-namespace gitgui {
+namespace gittide {
 
 struct RepoRef {
     std::string path;    // absolute, stored as UTF-8 generic path
@@ -63,4 +63,4 @@ private:
     int loadedVersion_ = kVersion;
 };
 
-}  // namespace gitgui
+}  // namespace gittide

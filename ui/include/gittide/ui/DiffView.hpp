@@ -3,11 +3,11 @@
 #include <filesystem>
 #include <optional>
 
-#include "gitgui/Diff.hpp"
+#include "gittide/Diff.hpp"
 
 class QListWidget;
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // Renders a DiffResult as one row per diff line. The user selects lines and
 // triggers stage/unstage/discard; the view builds a StageSelection covering the
@@ -18,12 +18,12 @@ class DiffView : public QWidget {
 public:
     explicit DiffView(QWidget* parent = nullptr);
 
-    void setDiff(const gitgui::DiffResult& result, const std::filesystem::path& file);
+    void setDiff(const gittide::DiffResult& result, const std::filesystem::path& file);
     void clear();
 
     // Build a selection from the currently selected non-context lines.
     // nullopt when nothing stageable is selected.
-    std::optional<gitgui::StageSelection> currentSelection() const;
+    std::optional<gittide::StageSelection> currentSelection() const;
 
 public slots:
     void requestStage();
@@ -31,13 +31,13 @@ public slots:
     void requestDiscard();
 
 signals:
-    void stageRequested(const gitgui::StageSelection& sel);
-    void unstageRequested(const gitgui::StageSelection& sel);
-    void discardRequested(const gitgui::StageSelection& sel);
+    void stageRequested(const gittide::StageSelection& sel);
+    void unstageRequested(const gittide::StageSelection& sel);
+    void discardRequested(const gittide::StageSelection& sel);
 
 private:
     QListWidget* lines_;
     std::filesystem::path file_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

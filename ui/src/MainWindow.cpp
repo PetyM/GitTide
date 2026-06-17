@@ -1,10 +1,10 @@
-#include "gitgui/ui/MainWindow.hpp"
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/ProjectSidebar.hpp"
-#include "gitgui/ui/RepoController.hpp"
-#include "gitgui/ui/ChangesView.hpp"
-#include "gitgui/ui/DashboardModel.hpp"
-#include "gitgui/ui/AddRepoDialogs.hpp"
+#include "gittide/ui/MainWindow.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/ProjectSidebar.hpp"
+#include "gittide/ui/RepoController.hpp"
+#include "gittide/ui/ChangesView.hpp"
+#include "gittide/ui/DashboardModel.hpp"
+#include "gittide/ui/AddRepoDialogs.hpp"
 
 #include <filesystem>
 #include <vector>
@@ -24,7 +24,7 @@
 #include <QTabWidget>
 #include <QVBoxLayout>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // ---- helpers ----
 namespace {
@@ -66,7 +66,7 @@ QWidget* makeNoReposPage(QWidget* parent) {
 }  // namespace
 
 // ---- MainWindow ----
-MainWindow::MainWindow(gitgui::ProjectStore* store,
+MainWindow::MainWindow(gittide::ProjectStore* store,
                        std::filesystem::path storePath,
                        QWidget* parent)
     : QMainWindow(parent),
@@ -77,7 +77,7 @@ MainWindow::MainWindow(gitgui::ProjectStore* store,
       changesView_(new ChangesView(this)),
       dashboardModel_(new DashboardModel(this)),
       centralStack_(new QStackedWidget(this)) {
-    setWindowTitle(QStringLiteral("GitGUI"));
+    setWindowTitle(QStringLiteral("GitTide"));
 
     // Left dock
     auto* dock = new QDockWidget(QStringLiteral("Projects"), this);
@@ -124,27 +124,27 @@ MainWindow::MainWindow(gitgui::ProjectStore* store,
     connect(repoController_, &RepoController::statusChanged,
             changesView_, &ChangesView::setStatus);
     connect(repoController_, &RepoController::diffReady, this,
-            [this](const QString& path, const gitgui::DiffResult& result) {
+            [this](const QString& path, const gittide::DiffResult& result) {
                 changesView_->setDiff(result, std::filesystem::path(path.toStdString()));
             });
     connect(changesView_, &ChangesView::fileSelected, this,
-            [this](const QString& path, gitgui::DiffTarget target) {
+            [this](const QString& path, gittide::DiffTarget target) {
                 QCoro::connect(repoController_->refreshDiff(path, target), this, [] {});
             });
     connect(changesView_, &ChangesView::stageRequested, this,
-            [this](const gitgui::StageSelection& sel) {
+            [this](const gittide::StageSelection& sel) {
                 QCoro::connect(repoController_->stage(sel), this, [] {});
             });
     connect(changesView_, &ChangesView::unstageRequested, this,
-            [this](const gitgui::StageSelection& sel) {
+            [this](const gittide::StageSelection& sel) {
                 QCoro::connect(repoController_->unstage(sel), this, [] {});
             });
     connect(changesView_, &ChangesView::discardRequested, this,
-            [this](const gitgui::StageSelection& sel) {
+            [this](const gittide::StageSelection& sel) {
                 QCoro::connect(repoController_->discard(sel), this, [] {});
             });
     connect(changesView_, &ChangesView::commitRequested, this,
-            [this](const gitgui::CommitRequest& req) {
+            [this](const gittide::CommitRequest& req) {
                 QCoro::connect(repoController_->commit(req), this, [] {});
             });
 
@@ -260,4 +260,4 @@ void MainWindow::showProject(const QString& projectId) {
     controller_->activate(projectId);
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

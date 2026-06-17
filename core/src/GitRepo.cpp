@@ -1,6 +1,6 @@
-#include "gitgui/GitRepo.hpp"
-#include "gitgui/DiffEngine.hpp"
-#include "gitgui/PathUtil.hpp"
+#include "gittide/GitRepo.hpp"
+#include "gittide/DiffEngine.hpp"
+#include "gittide/PathUtil.hpp"
 #include <git2.h>
 #include <git2/revwalk.h>
 #include <git2/commit.h>
@@ -10,10 +10,10 @@
 
 namespace {
 // True when the selection targets the whole file (no hunk chosen).
-bool is_whole_file(const gitgui::StageSelection& sel) { return !sel.hunkIndex.has_value(); }
+bool is_whole_file(const gittide::StageSelection& sel) { return !sel.hunkIndex.has_value(); }
 
-gitgui::StatusFlag map_status(unsigned int s) {
-    using gitgui::StatusFlag;
+gittide::StatusFlag map_status(unsigned int s) {
+    using gittide::StatusFlag;
     StatusFlag f = StatusFlag::None;
     if (s & GIT_STATUS_INDEX_NEW)      f |= StatusFlag::IndexNew;
     if (s & GIT_STATUS_INDEX_MODIFIED) f |= StatusFlag::IndexModified;
@@ -25,12 +25,12 @@ gitgui::StatusFlag map_status(unsigned int s) {
 }
 
 int transfer_progress_trampoline(const git_indexer_progress* stats, void* payload) {
-    auto* cb = static_cast<gitgui::ProgressCallback*>(payload);
+    auto* cb = static_cast<gittide::ProgressCallback*>(payload);
     return (*cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
 }
 }  // anonymous namespace
 
-namespace gitgui {
+namespace gittide {
 
 GitRepo::GitRepo(GitRepo&& o) noexcept : repo_(std::exchange(o.repo_, nullptr)) {}
 
@@ -361,4 +361,4 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const {
     return result;
 }
 
-}  // namespace gitgui
+}  // namespace gittide

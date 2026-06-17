@@ -1,9 +1,9 @@
 #pragma once
 #include <QAbstractItemModel>
 #include <vector>
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ProjectStore.hpp"
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class RepoListModel : public QAbstractItemModel {
     Q_OBJECT
@@ -21,11 +21,11 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    void setRepos(const std::vector<gitgui::RepoRef>& repos);
+    void setRepos(const std::vector<gittide::RepoRef>& repos);
 
 private:
     struct Row { QString alias; QString path; bool missing; };
     std::vector<Row> rows_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

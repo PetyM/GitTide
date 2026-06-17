@@ -5,18 +5,18 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 
-#include "gitgui/ui/ChangesView.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/ChangesView.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
-using gitgui::ui::ChangesView;
+using gittide::ui::ChangesView;
 
 namespace changes_view_test {
-std::vector<gitgui::FileStatus> mixed_status() {
+std::vector<gittide::FileStatus> mixed_status() {
     return {
-        {std::filesystem::path("staged.txt"),   gitgui::StatusFlag::IndexModified},
-        {std::filesystem::path("unstaged.txt"), gitgui::StatusFlag::WtModified},
+        {std::filesystem::path("staged.txt"),   gittide::StatusFlag::IndexModified},
+        {std::filesystem::path("unstaged.txt"), gittide::StatusFlag::WtModified},
         {std::filesystem::path("both.txt"),
-            gitgui::StatusFlag::IndexModified | gitgui::StatusFlag::WtModified},
+            gittide::StatusFlag::IndexModified | gittide::StatusFlag::WtModified},
     };
 }
 }  // namespace changes_view_test
@@ -57,8 +57,8 @@ private slots:
         unstaged->setCurrentRow(0);
 
         QCOMPARE(spy.count(), 1);
-        QCOMPARE(spy.at(0).at(1).value<gitgui::DiffTarget>(),
-                 gitgui::DiffTarget::WorktreeVsIndex);
+        QCOMPARE(spy.at(0).at(1).value<gittide::DiffTarget>(),
+                 gittide::DiffTarget::WorktreeVsIndex);
     }
 
     void commit_button_emits_request_with_message() {
@@ -72,7 +72,7 @@ private slots:
         button->click();
 
         QCOMPARE(spy.count(), 1);
-        const auto req = spy.at(0).at(0).value<gitgui::CommitRequest>();
+        const auto req = spy.at(0).at(0).value<gittide::CommitRequest>();
         QCOMPARE(QString::fromStdString(req.message), QStringLiteral("my commit"));
     }
 };

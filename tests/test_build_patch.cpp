@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gitgui/DiffEngine.hpp"
+#include "gittide/DiffEngine.hpp"
 
-using namespace gitgui;
+using namespace gittide;
 
 static DiffHunk sample_hunk() {
     // Original file: a / b / c    New file: a / B2 / c

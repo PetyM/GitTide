@@ -1,17 +1,17 @@
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/ProjectListModel.hpp"
-#include "gitgui/ui/RepoListModel.hpp"
-#include "gitgui/GitRepo.hpp"
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/ProjectListModel.hpp"
+#include "gittide/ui/RepoListModel.hpp"
+#include "gittide/GitRepo.hpp"
+#include "gittide/ProjectStore.hpp"
 
 #include <filesystem>
 
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
-ProjectController::ProjectController(gitgui::ProjectStore* store,
+ProjectController::ProjectController(gittide::ProjectStore* store,
                                      std::filesystem::path storePath,
                                      QObject* parent)
     : QObject(parent),
@@ -20,8 +20,8 @@ ProjectController::ProjectController(gitgui::ProjectStore* store,
       projectModel_(new ProjectListModel(store, this)),
       repoModel_(new RepoListModel(this)) {}
 
-const std::vector<gitgui::RepoRef>& ProjectController::activeRepos() const {
-    static const std::vector<gitgui::RepoRef> kEmpty;
+const std::vector<gittide::RepoRef>& ProjectController::activeRepos() const {
+    static const std::vector<gittide::RepoRef> kEmpty;
     for (const auto& p : store_->projects()) {
         if (QString::fromStdString(p.id) == activeId_) return p.repos;
     }
@@ -72,13 +72,13 @@ void ProjectController::addExistingRepo(const QString& path) {
         return;
     }
     const std::filesystem::path p(path.toStdString());
-    auto validation = gitgui::GitRepo::open(p);
+    auto validation = gittide::GitRepo::open(p);
     if (!validation) {
         emit repoAddFailed(QString::fromStdString(validation.error().message));
         return;
     }
     auto result = store_->addRepo(activeId_.toStdString(),
-                                  gitgui::RepoRef{.path = path.toStdString()});
+                                  gittide::RepoRef{.path = path.toStdString()});
     if (!result) {
         emit repoAddFailed(QString::fromStdString(result.error().message));
         return;
@@ -95,13 +95,13 @@ void ProjectController::initRepo(const QString& parentDir, const QString& name) 
     }
     const std::filesystem::path dest =
         std::filesystem::path(parentDir.toStdString()) / name.toStdString();
-    auto repo = gitgui::GitRepo::init(dest);
+    auto repo = gittide::GitRepo::init(dest);
     if (!repo) {
         emit repoAddFailed(QString::fromStdString(repo.error().message));
         return;
     }
     auto result = store_->addRepo(activeId_.toStdString(),
-                                  gitgui::RepoRef{.path = dest.generic_string()});
+                                  gittide::RepoRef{.path = dest.generic_string()});
     if (!result) {
         emit repoAddFailed(QString::fromStdString(result.error().message));
         return;
@@ -118,7 +118,7 @@ void ProjectController::cancelClone() {
 QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
     cloneCancel_.store(false);
 
-    gitgui::ProgressCallback cb = [this](unsigned r, unsigned t) -> bool {
+    gittide::ProgressCallback cb = [this](unsigned r, unsigned t) -> bool {
         if (cloneCancel_.load()) return false;
         QMetaObject::invokeMethod(this, [this, r, t] {
             emit cloneProgress(static_cast<int>(r), static_cast<int>(t));
@@ -130,8 +130,8 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
     const std::filesystem::path destPath(dest.toStdString());
 
     auto result = co_await QtConcurrent::run(
-        [urlStr, destPath, cb = std::move(cb)]() mutable -> gitgui::Expected<void> {
-            auto r = gitgui::GitRepo::clone(urlStr, destPath, std::move(cb));
+        [urlStr, destPath, cb = std::move(cb)]() mutable -> gittide::Expected<void> {
+            auto r = gittide::GitRepo::clone(urlStr, destPath, std::move(cb));
             if (!r) return std::unexpected(r.error());
             return {};
         });
@@ -144,7 +144,7 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
     }
 
     auto addResult = store_->addRepo(activeId_.toStdString(),
-                                     gitgui::RepoRef{.path = dest.toStdString()});
+                                     gittide::RepoRef{.path = dest.toStdString()});
     if (!addResult) {
         emit repoAddFailed(QString::fromStdString(addResult.error().message));
         co_return;
@@ -154,4 +154,4 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest) {
     emit repoAdded(dest);
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

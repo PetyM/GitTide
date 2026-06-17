@@ -7,9 +7,9 @@
 
 #include <qcorotask.h>
 
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ProjectStore.hpp"
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class ProjectListModel;
 class RepoListModel;
@@ -20,14 +20,14 @@ class RepoListModel;
 class ProjectController : public QObject {
     Q_OBJECT
 public:
-    explicit ProjectController(gitgui::ProjectStore* store,
+    explicit ProjectController(gittide::ProjectStore* store,
                                std::filesystem::path storePath = {},
                                QObject* parent = nullptr);
 
     ProjectListModel* projects() const { return projectModel_; }
     RepoListModel* repos() const { return repoModel_; }
     QString activeProjectId() const { return activeId_; }
-    const std::vector<gitgui::RepoRef>& activeRepos() const;
+    const std::vector<gittide::RepoRef>& activeRepos() const;
 
 public slots:
     // Activate the project with this id. Unknown id is a no-op (no signal).
@@ -46,7 +46,7 @@ signals:
     void cloneProgress(int received, int total);
 
 private:
-    gitgui::ProjectStore* store_;
+    gittide::ProjectStore* store_;
     std::filesystem::path storePath_;
     ProjectListModel* projectModel_;
     RepoListModel* repoModel_;
@@ -57,4 +57,4 @@ private:
     void refreshRepoModel();
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

@@ -6,16 +6,16 @@
 
 #include <git2.h>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/DashboardModel.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/DashboardModel.hpp"
 
-using gitgui::RepoRef;
-using gitgui::ui::DashboardModel;
+using gittide::RepoRef;
+using gittide::ui::DashboardModel;
 
 namespace {
 std::filesystem::path make_repo_with_untracked() {
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui-dash-" + std::to_string(::QRandomGenerator::global()->generate()));
+               ("gittide-dash-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_libgit2_init();
     git_repository* raw = nullptr;
@@ -34,7 +34,7 @@ private slots:
         const auto repo = make_repo_with_untracked();
         std::vector<RepoRef> repos{
             RepoRef{.path = repo.generic_string(), .alias = "present"},
-            RepoRef{.path = "/no/such/gitgui-dash", .alias = "gone"},
+            RepoRef{.path = "/no/such/gittide-dash", .alias = "gone"},
         };
 
         DashboardModel model;

@@ -4,7 +4,7 @@
 // silently skips the test:
 //
 //   Step 1 — Register the source in tests/CMakeLists.txt:
-//     Add the new file to the `gitgui_ui_test_sources` list (HEADER_FILE_ONLY)
+//     Add the new file to the `gittide_ui_test_sources` list (HEADER_FILE_ONLY)
 //     so AUTOMOC scans it and Q_OBJECT macros are processed.
 //
 //   Step 2 — Wire it up in THIS file (tests/ui/main.cpp):

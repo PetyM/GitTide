@@ -2,9 +2,9 @@
 #include <QAbstractListModel>
 #include <vector>
 #include <qcorotask.h>
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ProjectStore.hpp"
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // Read-only aggregated status for the project Dashboard tab.
 // Plan 2: refresh() opens each repo and reads status synchronously.
@@ -22,11 +22,11 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     // Recompute rows from the given repos (synchronous).
-    void refresh(const std::vector<gitgui::RepoRef>& repos);
+    void refresh(const std::vector<gittide::RepoRef>& repos);
 
     // Recompute rows in parallel: one pool task per repo, each opening its OWN
     // GitRepo (no shared state). Emits refreshed() when all results are gathered.
-    QCoro::Task<void> refreshAsync(std::vector<gitgui::RepoRef> repos);
+    QCoro::Task<void> refreshAsync(std::vector<gittide::RepoRef> repos);
 
 signals:
     void refreshed();
@@ -36,4 +36,4 @@ private:
     std::vector<Row> rows_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

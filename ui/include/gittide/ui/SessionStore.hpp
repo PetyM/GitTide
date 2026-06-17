@@ -3,7 +3,7 @@
 #include <QString>
 #include <vector>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 struct WindowSession {
     QString projectId;
@@ -28,4 +28,4 @@ public:
     static SessionStore load(const QString& file);
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

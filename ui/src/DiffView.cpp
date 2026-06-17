@@ -1,5 +1,5 @@
-#include "gitgui/ui/DiffView.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/DiffView.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
 #include <algorithm>
 
@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 namespace {
 constexpr int HunkRole = Qt::UserRole + 1;
@@ -19,7 +19,7 @@ constexpr int OriginRole = Qt::UserRole + 3;
 
 DiffView::DiffView(QWidget* parent)
     : QWidget(parent), lines_(new QListWidget(this)) {
-    qRegisterMetaType<gitgui::StageSelection>();
+    qRegisterMetaType<gittide::StageSelection>();
     lines_->setObjectName(QStringLiteral("diffLines"));
     lines_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     QFont mono(QStringLiteral("monospace"));
@@ -56,15 +56,15 @@ void DiffView::clear() {
     file_.clear();
 }
 
-void DiffView::setDiff(const gitgui::DiffResult& result, const std::filesystem::path& file) {
+void DiffView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file) {
     lines_->clear();
     file_ = file;
     for (int h = 0; h < static_cast<int>(result.hunks.size()); ++h) {
         const auto& hunk = result.hunks[h];
         for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i) {
             const auto& ln = hunk.lines[i];
-            const QChar prefix = ln.origin == gitgui::DiffLineOrigin::Added   ? QChar('+')
-                               : ln.origin == gitgui::DiffLineOrigin::Removed ? QChar('-')
+            const QChar prefix = ln.origin == gittide::DiffLineOrigin::Added   ? QChar('+')
+                               : ln.origin == gittide::DiffLineOrigin::Removed ? QChar('-')
                                                                               : QChar(' ');
             auto* item = new QListWidgetItem(prefix + QString::fromStdString(ln.text), lines_);
             item->setData(HunkRole, h);
@@ -74,13 +74,13 @@ void DiffView::setDiff(const gitgui::DiffResult& result, const std::filesystem::
     }
 }
 
-std::optional<gitgui::StageSelection> DiffView::currentSelection() const {
+std::optional<gittide::StageSelection> DiffView::currentSelection() const {
     const auto selected = lines_->selectedItems();
     int hunk = -1;
     std::vector<int> lineIdx;
     for (auto* item : selected) {
-        const auto origin = static_cast<gitgui::DiffLineOrigin>(item->data(OriginRole).toInt());
-        if (origin == gitgui::DiffLineOrigin::Context) continue;  // context not stageable
+        const auto origin = static_cast<gittide::DiffLineOrigin>(item->data(OriginRole).toInt());
+        if (origin == gittide::DiffLineOrigin::Context) continue;  // context not stageable
         const int h = item->data(HunkRole).toInt();
         if (hunk == -1) hunk = h;
         if (h != hunk) continue;  // restrict to the first selected hunk
@@ -88,7 +88,7 @@ std::optional<gitgui::StageSelection> DiffView::currentSelection() const {
     }
     if (hunk == -1 || lineIdx.empty()) return std::nullopt;
     std::sort(lineIdx.begin(), lineIdx.end());
-    return gitgui::StageSelection{.path = file_, .hunkIndex = hunk, .lineIndices = std::move(lineIdx)};
+    return gittide::StageSelection{.path = file_, .hunkIndex = hunk, .lineIndices = std::move(lineIdx)};
 }
 
 void DiffView::requestStage() {
@@ -101,4 +101,4 @@ void DiffView::requestDiscard() {
     if (auto sel = currentSelection()) emit discardRequested(*sel);
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

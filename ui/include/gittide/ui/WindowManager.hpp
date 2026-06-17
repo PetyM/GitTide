@@ -3,10 +3,10 @@
 #include <QList>
 #include <QString>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/SessionStore.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/SessionStore.hpp"
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class MainWindow;
 
@@ -20,7 +20,7 @@ public:
     explicit WindowManager(QString configDir = {}, QObject* parent = nullptr);
     ~WindowManager() override;
 
-    gitgui::ProjectStore* store() { return &store_; }
+    gittide::ProjectStore* store() { return &store_; }
 
     void setDeduplicate(bool on) { dedup_ = on; }
     bool deduplicate() const { return dedup_; }
@@ -44,10 +44,10 @@ private:
     MainWindow* findWindowForProject(const QString& id) const;
     MainWindow* createWindow(const QString& projectId);
 
-    gitgui::ProjectStore store_;
+    gittide::ProjectStore store_;
     QList<MainWindow*> windows_;
     QString configDir_;
     bool dedup_ = false;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

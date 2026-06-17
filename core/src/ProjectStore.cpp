@@ -1,4 +1,4 @@
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ProjectStore.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <fstream>
@@ -10,7 +10,7 @@
 
 using json = nlohmann::json;
 
-namespace gitgui {
+namespace gittide {
 
 std::string ProjectStore::to_json() const {
     json root;
@@ -166,4 +166,4 @@ Expected<void> ProjectStore::addRepo(const std::string& projectId, RepoRef repo)
     return {};
 }
 
-}  // namespace gitgui
+}  // namespace gittide

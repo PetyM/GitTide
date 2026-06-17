@@ -1,15 +1,15 @@
-#include "gitgui/ui/DashboardModel.hpp"
-#include "gitgui/GitRepo.hpp"
+#include "gittide/ui/DashboardModel.hpp"
+#include "gittide/GitRepo.hpp"
 #include <filesystem>
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 #include <vector>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 DashboardModel::DashboardModel(QObject* parent) : QAbstractListModel(parent) {}
 
-void DashboardModel::refresh(const std::vector<gitgui::RepoRef>& repos) {
+void DashboardModel::refresh(const std::vector<gittide::RepoRef>& repos) {
     beginResetModel();
     rows_.clear();
     rows_.reserve(repos.size());
@@ -20,7 +20,7 @@ void DashboardModel::refresh(const std::vector<gitgui::RepoRef>& repos) {
             .changeCount = 0,
             .missing = false,
         };
-        auto repo = gitgui::GitRepo::open(std::filesystem::path(r.path));
+        auto repo = gittide::GitRepo::open(std::filesystem::path(r.path));
         if (!repo) {
             row.missing = true;
         } else if (auto status = repo->status()) {
@@ -33,7 +33,7 @@ void DashboardModel::refresh(const std::vector<gitgui::RepoRef>& repos) {
     endResetModel();
 }
 
-QCoro::Task<void> DashboardModel::refreshAsync(std::vector<gitgui::RepoRef> repos) {
+QCoro::Task<void> DashboardModel::refreshAsync(std::vector<gittide::RepoRef> repos) {
     std::vector<QFuture<Row>> futures;
     futures.reserve(repos.size());
     for (const auto& r : repos) {
@@ -44,7 +44,7 @@ QCoro::Task<void> DashboardModel::refreshAsync(std::vector<gitgui::RepoRef> repo
                 .changeCount = 0,
                 .missing = false,
             };
-            auto repo = gitgui::GitRepo::open(std::filesystem::path(r.path));
+            auto repo = gittide::GitRepo::open(std::filesystem::path(r.path));
             if (!repo) {
                 row.missing = true;
             } else if (auto status = repo->status()) {
@@ -95,4 +95,4 @@ QHash<int, QByteArray> DashboardModel::roleNames() const {
     return roles;
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

@@ -7,16 +7,16 @@
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gitgui/ui/DashboardModel.hpp"
-#include "gitgui/ProjectStore.hpp"
+#include "gittide/ui/DashboardModel.hpp"
+#include "gittide/ProjectStore.hpp"
 
-using gitgui::ui::DashboardModel;
+using gittide::ui::DashboardModel;
 
 namespace async_test_helpers {
 std::filesystem::path make_repo_with_untracked() {
     git_libgit2_init();
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui-da-" + std::to_string(::QRandomGenerator::global()->generate()));
+               ("gittide-da-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -32,9 +32,9 @@ class TestDashboardAsync : public QObject {
 private slots:
     void refresh_async_fans_out_and_reports() {
         const auto good = async_test_helpers::make_repo_with_untracked();
-        std::vector<gitgui::RepoRef> repos = {
-            gitgui::RepoRef{.path = good.generic_string(), .alias = "good"},
-            gitgui::RepoRef{.path = "/no/such/gitgui-dash", .alias = "gone"},
+        std::vector<gittide::RepoRef> repos = {
+            gittide::RepoRef{.path = good.generic_string(), .alias = "good"},
+            gittide::RepoRef{.path = "/no/such/gittide-dash", .alias = "gone"},
         };
 
         DashboardModel model;

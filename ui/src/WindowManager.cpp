@@ -1,13 +1,13 @@
-#include "gitgui/ui/WindowManager.hpp"
-#include "gitgui/ui/MainWindow.hpp"
-#include "gitgui/ui/ProjectController.hpp"
+#include "gittide/ui/WindowManager.hpp"
+#include "gittide/ui/MainWindow.hpp"
+#include "gittide/ui/ProjectController.hpp"
 
 #include <filesystem>
 
 #include <QDir>
 #include <QStandardPaths>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 WindowManager::WindowManager(QString configDir, QObject* parent)
     : QObject(parent),
@@ -97,4 +97,4 @@ void WindowManager::restoreSession() {
     }
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

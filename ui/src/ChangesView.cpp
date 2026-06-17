@@ -1,6 +1,6 @@
-#include "gitgui/ui/ChangesView.hpp"
-#include "gitgui/ui/DiffView.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/ChangesView.hpp"
+#include "gittide/ui/DiffView.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
 #include <QListWidget>
 #include <QPlainTextEdit>
@@ -9,18 +9,18 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 namespace {
 constexpr int PathRole = Qt::UserRole + 1;
 
-bool any_index_flag(gitgui::StatusFlag f) {
-    using gitgui::has_flag; using gitgui::StatusFlag;
+bool any_index_flag(gittide::StatusFlag f) {
+    using gittide::has_flag; using gittide::StatusFlag;
     return has_flag(f, StatusFlag::IndexNew) || has_flag(f, StatusFlag::IndexModified) ||
            has_flag(f, StatusFlag::IndexDeleted);
 }
-bool any_wt_flag(gitgui::StatusFlag f) {
-    using gitgui::has_flag; using gitgui::StatusFlag;
+bool any_wt_flag(gittide::StatusFlag f) {
+    using gittide::has_flag; using gittide::StatusFlag;
     return has_flag(f, StatusFlag::WtNew) || has_flag(f, StatusFlag::WtModified) ||
            has_flag(f, StatusFlag::WtDeleted);
 }
@@ -33,9 +33,9 @@ ChangesView::ChangesView(QWidget* parent)
       diff_(new DiffView(this)),
       message_(new QPlainTextEdit(this)),
       commitButton_(new QPushButton(QStringLiteral("Commit"), this)) {
-    qRegisterMetaType<gitgui::CommitRequest>();
-    qRegisterMetaType<gitgui::StageSelection>();
-    qRegisterMetaType<gitgui::DiffTarget>();
+    qRegisterMetaType<gittide::CommitRequest>();
+    qRegisterMetaType<gittide::StageSelection>();
+    qRegisterMetaType<gittide::DiffTarget>();
 
     staged_->setObjectName(QStringLiteral("stagedList"));
     unstaged_->setObjectName(QStringLiteral("unstagedList"));
@@ -62,16 +62,16 @@ ChangesView::ChangesView(QWidget* parent)
     connect(staged_, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0) return;
         emit fileSelected(staged_->item(row)->data(PathRole).toString(),
-                          gitgui::DiffTarget::IndexVsHead);
+                          gittide::DiffTarget::IndexVsHead);
     });
     connect(unstaged_, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row < 0) return;
         emit fileSelected(unstaged_->item(row)->data(PathRole).toString(),
-                          gitgui::DiffTarget::WorktreeVsIndex);
+                          gittide::DiffTarget::WorktreeVsIndex);
     });
     connect(message_, &QPlainTextEdit::textChanged, this, &ChangesView::updateCommitEnabled);
     connect(commitButton_, &QPushButton::clicked, this, [this]() {
-        emit commitRequested(gitgui::CommitRequest{.message = commitMessage().toStdString()});
+        emit commitRequested(gittide::CommitRequest{.message = commitMessage().toStdString()});
     });
 
     connect(diff_, &DiffView::stageRequested, this, &ChangesView::stageRequested);
@@ -79,7 +79,7 @@ ChangesView::ChangesView(QWidget* parent)
     connect(diff_, &DiffView::discardRequested, this, &ChangesView::discardRequested);
 }
 
-void ChangesView::setStatus(const std::vector<gitgui::FileStatus>& files) {
+void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files) {
     staged_->clear();
     unstaged_->clear();
     for (const auto& f : files) {
@@ -96,7 +96,7 @@ void ChangesView::setStatus(const std::vector<gitgui::FileStatus>& files) {
     updateCommitEnabled();
 }
 
-void ChangesView::setDiff(const gitgui::DiffResult& result, const std::filesystem::path& file) {
+void ChangesView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file) {
     diff_->setDiff(result, file);
 }
 
@@ -109,4 +109,4 @@ void ChangesView::updateCommitEnabled() {
                               staged_->count() > 0);
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

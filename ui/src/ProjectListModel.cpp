@@ -1,9 +1,9 @@
-#include <gitgui/ui/ProjectListModel.hpp>
-#include <gitgui/ProjectStore.hpp>
+#include <gittide/ui/ProjectListModel.hpp>
+#include <gittide/ProjectStore.hpp>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
-ProjectListModel::ProjectListModel(gitgui::ProjectStore* store, QObject* parent)
+ProjectListModel::ProjectListModel(gittide::ProjectStore* store, QObject* parent)
     : QAbstractListModel(parent), store_(store) {}
 
 int ProjectListModel::rowCount(const QModelIndex& parent) const {
@@ -34,4 +34,4 @@ void ProjectListModel::refresh() {
     endResetModel();
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

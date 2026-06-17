@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gitgui/GitRepo.hpp"
-#include "gitgui/Graph.hpp"
-#include "gitgui/LibGit2Context.hpp"
+#include "gittide/GitRepo.hpp"
+#include "gittide/Graph.hpp"
+#include "gittide/LibGit2Context.hpp"
 #include "support/TempRepo.hpp"
 #include <filesystem>
 #include <random>
@@ -10,16 +10,16 @@ namespace {
 std::filesystem::path unique_empty_dir_log() {
     std::mt19937_64 rng{std::random_device{}()};
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui_log_" + std::to_string(rng()));
+               ("gittide_log_" + std::to_string(rng()));
     std::filesystem::create_directories(dir);
     return dir;
 }
 }  // namespace
 
 TEST_CASE("GitRepo::log on empty repo returns empty vector", "[git_repo][log]") {
-    gitgui::LibGit2Context ctx;
+    gittide::LibGit2Context ctx;
     auto dir = unique_empty_dir_log();
-    auto repo = gitgui::GitRepo::init(dir);
+    auto repo = gittide::GitRepo::init(dir);
     REQUIRE(repo.has_value());
 
     auto result = repo->log();
@@ -30,14 +30,14 @@ TEST_CASE("GitRepo::log on empty repo returns empty vector", "[git_repo][log]") 
 }
 
 TEST_CASE("GitRepo::log returns commits newest-first", "[git_repo][log]") {
-    gitgui::test::TempRepo tmp;
+    gittide::test::TempRepo tmp;
     tmp.set_identity("Test", "t@t.test");
     tmp.write_file("a.txt", "a");
     tmp.commit_all("first");
     tmp.write_file("b.txt", "b");
     tmp.commit_all("second");
 
-    auto repo = gitgui::GitRepo::open(tmp.path());
+    auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
 
     auto result = repo->log();
@@ -55,14 +55,14 @@ TEST_CASE("GitRepo::log returns commits newest-first", "[git_repo][log]") {
 }
 
 TEST_CASE("GitRepo::log respects the limit parameter", "[git_repo][log]") {
-    gitgui::test::TempRepo tmp;
+    gittide::test::TempRepo tmp;
     tmp.set_identity("Test", "t@t.test");
     for (int i = 0; i < 5; ++i) {
         tmp.write_file("f.txt", std::to_string(i));
         tmp.commit_all("commit " + std::to_string(i));
     }
 
-    auto repo = gitgui::GitRepo::open(tmp.path());
+    auto repo = gittide::GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
 
     auto result = repo->log(3);

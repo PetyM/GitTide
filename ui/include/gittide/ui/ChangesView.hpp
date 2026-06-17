@@ -2,14 +2,14 @@
 #include <QWidget>
 #include <vector>
 
-#include "gitgui/Diff.hpp"
-#include "gitgui/FileStatus.hpp"
+#include "gittide/Diff.hpp"
+#include "gittide/FileStatus.hpp"
 
 class QListWidget;
 class QPlainTextEdit;
 class QPushButton;
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class DiffView;
 
@@ -23,17 +23,17 @@ class ChangesView : public QWidget {
 public:
     explicit ChangesView(QWidget* parent = nullptr);
 
-    void setStatus(const std::vector<gitgui::FileStatus>& files);
-    void setDiff(const gitgui::DiffResult& result, const std::filesystem::path& file);
+    void setStatus(const std::vector<gittide::FileStatus>& files);
+    void setDiff(const gittide::DiffResult& result, const std::filesystem::path& file);
     QString commitMessage() const;
     DiffView* diffView() const { return diff_; }
 
 signals:
-    void fileSelected(const QString& path, gitgui::DiffTarget target);
-    void commitRequested(const gitgui::CommitRequest& req);
-    void stageRequested(const gitgui::StageSelection& sel);
-    void unstageRequested(const gitgui::StageSelection& sel);
-    void discardRequested(const gitgui::StageSelection& sel);
+    void fileSelected(const QString& path, gittide::DiffTarget target);
+    void commitRequested(const gittide::CommitRequest& req);
+    void stageRequested(const gittide::StageSelection& sel);
+    void unstageRequested(const gittide::StageSelection& sel);
+    void discardRequested(const gittide::StageSelection& sel);
 
 private:
     void updateCommitEnabled();
@@ -45,4 +45,4 @@ private:
     QPushButton* commitButton_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

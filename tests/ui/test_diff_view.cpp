@@ -4,21 +4,21 @@
 #include <QListWidget>
 #include <QPushButton>
 
-#include "gitgui/ui/DiffView.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/DiffView.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
-using gitgui::ui::DiffView;
+using gittide::ui::DiffView;
 
 namespace diff_view_test {
-gitgui::DiffResult two_added_one_context() {
-    gitgui::DiffHunk h;
+gittide::DiffResult two_added_one_context() {
+    gittide::DiffHunk h;
     h.oldStart = 1; h.oldLines = 1; h.newStart = 1; h.newLines = 3;
     h.lines = {
-        {gitgui::DiffLineOrigin::Added,   -1, 1, "alpha", false},
-        {gitgui::DiffLineOrigin::Added,   -1, 2, "beta",  false},
-        {gitgui::DiffLineOrigin::Context,  1, 3, "gamma", false},
+        {gittide::DiffLineOrigin::Added,   -1, 1, "alpha", false},
+        {gittide::DiffLineOrigin::Added,   -1, 2, "beta",  false},
+        {gittide::DiffLineOrigin::Context,  1, 3, "gamma", false},
     };
-    return gitgui::DiffResult{.hunks = {h}};
+    return gittide::DiffResult{.hunks = {h}};
 }
 }  // namespace diff_view_test
 
@@ -44,7 +44,7 @@ private slots:
         view.requestStage();
 
         QCOMPARE(spy.count(), 1);
-        const auto sel = spy.at(0).at(0).value<gitgui::StageSelection>();
+        const auto sel = spy.at(0).at(0).value<gittide::StageSelection>();
         QCOMPARE(sel.path, std::filesystem::path("f.txt"));
         QVERIFY(sel.hunkIndex.has_value());
         QCOMPARE(sel.hunkIndex.value(), 0);
@@ -71,7 +71,7 @@ private slots:
         stageBtn->click();
 
         QCOMPARE(spy.count(), 1);
-        const auto sel = spy.at(0).at(0).value<gitgui::StageSelection>();
+        const auto sel = spy.at(0).at(0).value<gittide::StageSelection>();
         QCOMPARE(static_cast<int>(sel.lineIndices.size()), 1);
         QCOMPARE(sel.lineIndices[0], 0);
     }

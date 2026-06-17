@@ -2,7 +2,7 @@
 #include <expected>
 #include <string>
 
-namespace gitgui {
+namespace gittide {
 
 struct GitError {
     int code = 0;          // libgit2 error code (git_error_code) or custom
@@ -19,4 +19,4 @@ using Expected = std::expected<T, GitError>;
 // error. `code` is the return code of the failed call and is forwarded verbatim.
 GitError last_git_error(int code);
 
-}  // namespace gitgui
+}  // namespace gittide

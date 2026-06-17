@@ -2,21 +2,21 @@
 #include <QDir>
 #include <QStandardPaths>
 
-#include "gitgui/LibGit2Context.hpp"
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/WindowManager.hpp"
+#include "gittide/LibGit2Context.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/WindowManager.hpp"
 
-using gitgui::ui::WindowManager;
+using gittide::ui::WindowManager;
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
-    QApplication::setApplicationName(QStringLiteral("gitgui"));
-    QApplication::setOrganizationName(QStringLiteral("gitgui"));
+    QApplication::setApplicationName(QStringLiteral("gittide"));
+    QApplication::setOrganizationName(QStringLiteral("gittide"));
 
     // Initialise libgit2 once for the whole process lifetime. GitRepo-backed
     // code paths (DashboardModel, RepoController) are wired up in Plan 3, but
     // a correct bootstrap owns the global init here.
-    const gitgui::LibGit2Context git_ctx;
+    const gittide::LibGit2Context git_ctx;
 
     WindowManager manager;
 
@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     const QString configDir =
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     const QString projectsFile = QDir(configDir).filePath(QStringLiteral("projects.json"));
-    if (auto loaded = gitgui::ProjectStore::load(std::filesystem::path(projectsFile.toStdString()))) {
+    if (auto loaded = gittide::ProjectStore::load(std::filesystem::path(projectsFile.toStdString()))) {
         *manager.store() = std::move(*loaded);
     }
 

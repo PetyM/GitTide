@@ -9,22 +9,22 @@
 
 #include <git2.h>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/MainWindow.hpp"
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/ProjectSidebar.hpp"
-#include "gitgui/ui/ChangesView.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/MainWindow.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/ProjectSidebar.hpp"
+#include "gittide/ui/ChangesView.hpp"
 
-using gitgui::Project;
-using gitgui::ProjectStore;
-using gitgui::RepoRef;
-using gitgui::ui::MainWindow;
+using gittide::Project;
+using gittide::ProjectStore;
+using gittide::RepoRef;
+using gittide::ui::MainWindow;
 
 namespace main_window_test {
 std::filesystem::path make_repo() {
     git_libgit2_init();
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui-mw-" + std::to_string(::QRandomGenerator::global()->generate()));
+               ("gittide-mw-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -70,7 +70,7 @@ private slots:
         MainWindow win(&store);
         win.showProject(QStringLiteral("id-a"));
         QSignalSpy spy(&win, &MainWindow::openInNewWindowRequested);
-        auto* sidebar = win.findChild<gitgui::ui::ProjectSidebar*>();
+        auto* sidebar = win.findChild<gittide::ui::ProjectSidebar*>();
         QVERIFY(sidebar != nullptr);
         sidebar->requestOpenInNewWindow();
         QCOMPARE(spy.count(), 1);
@@ -82,7 +82,7 @@ private slots:
         ProjectStore store;
         store.projects().push_back(Project{.id = "id-a", .name = "Work"});
         MainWindow win(&store);
-        QVERIFY(win.findChild<gitgui::ui::ChangesView*>() != nullptr);
+        QVERIFY(win.findChild<gittide::ui::ChangesView*>() != nullptr);
         main_window_test::drainAsync();
     }
 
@@ -95,7 +95,7 @@ private slots:
         MainWindow win(&store);
         win.showProject(QStringLiteral("id-a"));
 
-        auto* sidebar = win.findChild<gitgui::ui::ProjectSidebar*>();
+        auto* sidebar = win.findChild<gittide::ui::ProjectSidebar*>();
         QSignalSpy spy(&win, &MainWindow::repoOpened);
         emit sidebar->repoSelected(QString::fromStdString(dir.generic_string()));
 

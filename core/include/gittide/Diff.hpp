@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace gitgui {
+namespace gittide {
 
 // Which pair of trees a diff compares.
 enum class DiffTarget {
@@ -48,4 +48,4 @@ struct CommitRequest {
     // author / committer come from git config (git_signature_default).
 };
 
-}  // namespace gitgui
+}  // namespace gittide

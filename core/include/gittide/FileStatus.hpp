@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <cstdint>
 
-namespace gitgui {
+namespace gittide {
 
 enum class StatusFlag : std::uint32_t {
     None          = 0,
@@ -35,4 +35,4 @@ struct FileStatus {
     StatusFlag flags = StatusFlag::None;
 };
 
-}  // namespace gitgui
+}  // namespace gittide

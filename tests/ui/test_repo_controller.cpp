@@ -7,16 +7,16 @@
 #include <git2.h>
 #include <qcorotask.h>
 
-#include "gitgui/ui/RepoController.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/RepoController.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
-using gitgui::ui::RepoController;
+using gittide::ui::RepoController;
 
 namespace repo_controller_test {
 std::filesystem::path make_empty_repo() {
     git_libgit2_init();
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui-rc-" + std::to_string(::QRandomGenerator::global()->generate()));
+               ("gittide-rc-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -29,7 +29,7 @@ std::filesystem::path make_empty_repo() {
 std::filesystem::path make_dirty_repo() {
     git_libgit2_init();
     auto dir = std::filesystem::temp_directory_path() /
-               ("gitgui-rcd-" + std::to_string(::QRandomGenerator::global()->generate()));
+               ("gittide-rcd-" + std::to_string(::QRandomGenerator::global()->generate()));
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -73,7 +73,7 @@ private slots:
         RepoController controller;
         QSignalSpy ok(&controller, &RepoController::repoOpened);
         QSignalSpy bad(&controller, &RepoController::repoFailed);
-        controller.open(QStringLiteral("/no/such/gitgui-repo"));
+        controller.open(QStringLiteral("/no/such/gittide-repo"));
         QCOMPARE(ok.count(), 0);
         QCOMPARE(bad.count(), 1);
         QVERIFY(!controller.isOpen());
@@ -86,7 +86,7 @@ private slots:
         QSignalSpy spy(&controller, &RepoController::statusChanged);
         QCoro::waitFor(controller.refreshStatus());
         QCOMPARE(spy.count(), 1);
-        const auto files = spy.at(0).at(0).value<std::vector<gitgui::FileStatus>>();
+        const auto files = spy.at(0).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
         std::filesystem::remove_all(dir);
     }
@@ -96,11 +96,11 @@ private slots:
         RepoController controller;
         controller.open(QString::fromStdString(dir.generic_string()));
         QSignalSpy spy(&controller, &RepoController::statusChanged);
-        QCoro::waitFor(controller.stage(gitgui::StageSelection{.path = "a.txt"}));
+        QCoro::waitFor(controller.stage(gittide::StageSelection{.path = "a.txt"}));
         QVERIFY(spy.count() >= 1);  // stage chains a refreshStatus
-        const auto files = spy.at(spy.count() - 1).at(0).value<std::vector<gitgui::FileStatus>>();
+        const auto files = spy.at(spy.count() - 1).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
-        QVERIFY(gitgui::has_flag(files[0].flags, gitgui::StatusFlag::IndexModified));
+        QVERIFY(gittide::has_flag(files[0].flags, gittide::StatusFlag::IndexModified));
         std::filesystem::remove_all(dir);
     }
 
@@ -110,9 +110,9 @@ private slots:
         controller.open(QString::fromStdString(dir.generic_string()));
         QSignalSpy spy(&controller, &RepoController::diffReady);
         QCoro::waitFor(controller.refreshDiff(QStringLiteral("a.txt"),
-                                              gitgui::DiffTarget::WorktreeVsIndex));
+                                              gittide::DiffTarget::WorktreeVsIndex));
         QCOMPARE(spy.count(), 1);
-        const auto result = spy.at(0).at(1).value<gitgui::DiffResult>();
+        const auto result = spy.at(0).at(1).value<gittide::DiffResult>();
         QVERIFY(!result.hunks.empty());
         std::filesystem::remove_all(dir);
     }

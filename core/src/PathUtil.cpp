@@ -1,6 +1,6 @@
-#include "gitgui/PathUtil.hpp"
+#include "gittide/PathUtil.hpp"
 
-namespace gitgui {
+namespace gittide {
 
 std::string to_git_path(const std::filesystem::path& p) {
     // generic_u8string() yields UTF-8 with '/' separators on every platform.
@@ -13,4 +13,4 @@ std::filesystem::path from_git_path(std::string_view git_path) {
     return std::filesystem::path(u8).lexically_normal();
 }
 
-}  // namespace gitgui
+}  // namespace gittide

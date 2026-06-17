@@ -1,10 +1,10 @@
 #pragma once
-#include "gitgui/Diff.hpp"
-#include "gitgui/GitError.hpp"
+#include "gittide/Diff.hpp"
+#include "gittide/GitError.hpp"
 
 struct git_diff;
 
-namespace gitgui {
+namespace gittide {
 
 class DiffEngine {
 public:
@@ -21,4 +21,4 @@ std::string build_patch(const std::string& gitPath,
                         const StageSelection& sel,
                         bool reverse);
 
-}  // namespace gitgui
+}  // namespace gittide

@@ -1,9 +1,9 @@
 // core/src/GraphBuilder.cpp
-#include "gitgui/GraphBuilder.hpp"
+#include "gittide/GraphBuilder.hpp"
 #include <algorithm>
 #include <string>
 
-namespace gitgui {
+namespace gittide {
 
 namespace {
 
@@ -95,4 +95,4 @@ GraphLayout GraphBuilder::build(std::vector<CommitNode> commits) {
     return layout;
 }
 
-}  // namespace gitgui
+}  // namespace gittide

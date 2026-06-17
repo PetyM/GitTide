@@ -1,7 +1,7 @@
-#include "gitgui/ui/ProjectSidebar.hpp"
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/ProjectListModel.hpp"
-#include "gitgui/ui/RepoListModel.hpp"
+#include "gittide/ui/ProjectSidebar.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/ProjectListModel.hpp"
+#include "gittide/ui/RepoListModel.hpp"
 
 #include <QComboBox>
 #include <QHBoxLayout>
@@ -11,7 +11,7 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 static constexpr auto kSentinel = "__new__";
 
@@ -123,4 +123,4 @@ void ProjectSidebar::requestOpenInNewWindow() {
     if (!id.isEmpty()) emit openInNewWindowRequested(id);
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

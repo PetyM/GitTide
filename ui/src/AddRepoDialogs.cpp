@@ -1,5 +1,5 @@
 // ui/src/AddRepoDialogs.cpp
-#include "gitgui/ui/AddRepoDialogs.hpp"
+#include "gittide/ui/AddRepoDialogs.hpp"
 
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -9,7 +9,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 InitRepoDialog::InitRepoDialog(QWidget* parent)
     : QDialog(parent),
@@ -83,4 +83,4 @@ CloneRepoDialog::CloneRepoDialog(QWidget* parent)
 QString CloneRepoDialog::url()  const { return urlEdit_->text(); }
 QString CloneRepoDialog::dest() const { return destEdit_->text(); }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

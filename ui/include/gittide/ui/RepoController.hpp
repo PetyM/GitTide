@@ -6,11 +6,11 @@
 
 #include <qcorotask.h>
 
-#include "gitgui/ui/AsyncRepo.hpp"
-#include "gitgui/Diff.hpp"
-#include "gitgui/FileStatus.hpp"
+#include "gittide/ui/AsyncRepo.hpp"
+#include "gittide/Diff.hpp"
+#include "gittide/FileStatus.hpp"
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // Holds the active repository for a window and drives it asynchronously. open()
 // is synchronous (cheap); all git work runs through AsyncRepo on the thread pool.
@@ -26,17 +26,17 @@ public:
 public slots:
     void open(const QString& path);
     QCoro::Task<void> refreshStatus();
-    QCoro::Task<void> refreshDiff(QString path, gitgui::DiffTarget target);
-    QCoro::Task<void> stage(gitgui::StageSelection sel);
-    QCoro::Task<void> unstage(gitgui::StageSelection sel);
-    QCoro::Task<void> discard(gitgui::StageSelection sel);
-    QCoro::Task<void> commit(gitgui::CommitRequest req);
+    QCoro::Task<void> refreshDiff(QString path, gittide::DiffTarget target);
+    QCoro::Task<void> stage(gittide::StageSelection sel);
+    QCoro::Task<void> unstage(gittide::StageSelection sel);
+    QCoro::Task<void> discard(gittide::StageSelection sel);
+    QCoro::Task<void> commit(gittide::CommitRequest req);
 
 signals:
     void repoOpened(const QString& path);
     void repoFailed(const QString& path, const QString& message);
-    void statusChanged(const std::vector<gitgui::FileStatus>& files);
-    void diffReady(const QString& path, const gitgui::DiffResult& result);
+    void statusChanged(const std::vector<gittide::FileStatus>& files);
+    void diffReady(const QString& path, const gittide::DiffResult& result);
     void committed(const QString& oid);
     void operationFailed(const QString& message);
 
@@ -45,4 +45,4 @@ private:
     QString path_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

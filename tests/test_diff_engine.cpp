@@ -1,18 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gitgui/DiffEngine.hpp"
-#include "gitgui/PathUtil.hpp"
+#include "gittide/DiffEngine.hpp"
+#include "gittide/PathUtil.hpp"
 #include "support/TempRepo.hpp"
 #include <git2.h>
 #include <memory>
 
-using gitgui::DiffEngine;
-using gitgui::DiffLineOrigin;
+using gittide::DiffEngine;
+using gittide::DiffLineOrigin;
 
 // Helper: worktree-vs-index diff for a single file, parsed via DiffEngine.
-static gitgui::DiffResult diff_file(const std::filesystem::path& repo_path,
+static gittide::DiffResult diff_file(const std::filesystem::path& repo_path,
                                     const char* file) {
     git_repository* repo = nullptr;
-    REQUIRE(git_repository_open(&repo, gitgui::to_git_path(repo_path).c_str()) == 0);
+    REQUIRE(git_repository_open(&repo, gittide::to_git_path(repo_path).c_str()) == 0);
 
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     char* paths[] = {const_cast<char*>(file)};
@@ -29,7 +29,7 @@ static gitgui::DiffResult diff_file(const std::filesystem::path& repo_path,
 }
 
 TEST_CASE("DiffEngine parses a single modified hunk", "[diff]") {
-    gitgui::test::TempRepo tmp;
+    gittide::test::TempRepo tmp;
     tmp.write_file("a.txt", "line1\nline2\nline3\n");
     tmp.commit_all("init");
     tmp.write_file("a.txt", "line1\nCHANGED\nline3\n");

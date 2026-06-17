@@ -1,11 +1,11 @@
 #pragma once
 #include <filesystem>
 #include <string_view>
-#include "gitgui/LibGit2Context.hpp"
+#include "gittide/LibGit2Context.hpp"
 
 struct git_repository;
 
-namespace gitgui::test {
+namespace gittide::test {
 
 // Creates a unique temporary git repository under temp_directory_path().
 // Removes the directory on destruction. Owns a LibGit2Context for its lifetime.
@@ -33,4 +33,4 @@ private:
     git_repository* repo_ = nullptr;
 };
 
-}  // namespace gitgui::test
+}  // namespace gittide::test

@@ -2,10 +2,10 @@
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
 
-#include "gitgui/ui/SessionStore.hpp"
+#include "gittide/ui/SessionStore.hpp"
 
-using gitgui::ui::SessionStore;
-using gitgui::ui::WindowSession;
+using gittide::ui::SessionStore;
+using gittide::ui::WindowSession;
 
 class TestSessionStore : public QObject {
     Q_OBJECT

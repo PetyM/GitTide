@@ -1,4 +1,4 @@
-#include "gitgui/ui/SessionStore.hpp"
+#include "gittide/ui/SessionStore.hpp"
 
 #include <QFile>
 #include <QJsonArray>
@@ -6,7 +6,7 @@
 #include <QJsonObject>
 #include <QSaveFile>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 QByteArray SessionStore::toJson() const {
     QJsonArray arr;
@@ -54,4 +54,4 @@ SessionStore SessionStore::load(const QString& file) {
     return fromJson(f.readAll());
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

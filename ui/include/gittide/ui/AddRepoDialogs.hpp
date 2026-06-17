@@ -1,10 +1,10 @@
-// ui/include/gitgui/ui/AddRepoDialogs.hpp
+// ui/include/gittide/ui/AddRepoDialogs.hpp
 #pragma once
 #include <QDialog>
 
 class QLineEdit;
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 // Dialog for "Initialize new repository" — parent directory + repo name.
 class InitRepoDialog : public QDialog {
@@ -32,4 +32,4 @@ private:
     QLineEdit* destEdit_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

@@ -4,16 +4,16 @@
 #include <QAbstractButton>
 #include <QComboBox>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/ProjectSidebar.hpp"
-#include "gitgui/ui/RepoListModel.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/ProjectSidebar.hpp"
+#include "gittide/ui/RepoListModel.hpp"
 
-using gitgui::Project;
-using gitgui::ProjectStore;
-using gitgui::RepoRef;
-using gitgui::ui::ProjectController;
-using gitgui::ui::ProjectSidebar;
+using gittide::Project;
+using gittide::ProjectStore;
+using gittide::RepoRef;
+using gittide::ui::ProjectController;
+using gittide::ui::ProjectSidebar;
 
 class TestProjectSidebar : public QObject {
     Q_OBJECT

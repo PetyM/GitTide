@@ -3,11 +3,11 @@
 #include <QString>
 #include <filesystem>
 
-namespace gitgui { class ProjectStore; }
+namespace gittide { class ProjectStore; }
 
 class QStackedWidget;
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class ProjectController;
 class ProjectSidebar;
@@ -18,7 +18,7 @@ class DashboardModel;
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(gitgui::ProjectStore* store,
+    explicit MainWindow(gittide::ProjectStore* store,
                         std::filesystem::path storePath = {},
                         QWidget* parent = nullptr);
 
@@ -38,7 +38,7 @@ private slots:
     void onCloneRepoRequested();  // stub in Task 4; implemented in Task 5
 
 private:
-    gitgui::ProjectStore* store_;
+    gittide::ProjectStore* store_;
     ProjectController* controller_;
     ProjectSidebar* sidebar_;
     RepoController* repoController_;
@@ -47,4 +47,4 @@ private:
     QStackedWidget* centralStack_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

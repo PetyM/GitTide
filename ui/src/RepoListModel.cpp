@@ -1,11 +1,11 @@
-#include "gitgui/ui/RepoListModel.hpp"
+#include "gittide/ui/RepoListModel.hpp"
 #include <filesystem>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 RepoListModel::RepoListModel(QObject* parent) : QAbstractItemModel(parent) {}
 
-void RepoListModel::setRepos(const std::vector<gitgui::RepoRef>& repos) {
+void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos) {
     beginResetModel();
     rows_.clear();
     rows_.reserve(repos.size());
@@ -64,4 +64,4 @@ QHash<int, QByteArray> RepoListModel::roleNames() const {
     return roles;
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

@@ -9,14 +9,14 @@
 
 #include <qcorotask.h>
 
-#include "gitgui/ProjectStore.hpp"
-#include "gitgui/ui/ProjectController.hpp"
-#include "gitgui/ui/RepoListModel.hpp"
+#include "gittide/ProjectStore.hpp"
+#include "gittide/ui/ProjectController.hpp"
+#include "gittide/ui/RepoListModel.hpp"
 
-using gitgui::Project;
-using gitgui::ProjectStore;
-using gitgui::RepoRef;
-using gitgui::ui::ProjectController;
+using gittide::Project;
+using gittide::ProjectStore;
+using gittide::RepoRef;
+using gittide::ui::ProjectController;
 
 class TestProjectController : public QObject {
     Q_OBJECT
@@ -82,7 +82,7 @@ private slots:
 
     void addExistingRepo_valid_repo_emits_repoAdded() {
         auto dir = std::filesystem::temp_directory_path() /
-                   ("gitgui-pc-add-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+                   ("gittide-pc-add-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::create_directories(dir);
         git_repository* raw = nullptr;
         git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -108,7 +108,7 @@ private slots:
         controller.activate(QString::fromStdString(p.id));
 
         QSignalSpy spy(&controller, &ProjectController::repoAddFailed);
-        controller.addExistingRepo(QStringLiteral("/no/such/gitgui-notarepo"));
+        controller.addExistingRepo(QStringLiteral("/no/such/gittide-notarepo"));
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(!spy.at(0).at(0).toString().isEmpty());
@@ -117,7 +117,7 @@ private slots:
     void initRepo_creates_repo_and_emits_repoAdded() {
         const auto parentDir = std::filesystem::temp_directory_path();
         const std::string repoName =
-            "gitgui-pc-init-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
+            "gittide-pc-init-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
         const auto dest = parentDir / repoName;
 
         ProjectStore store;
@@ -139,7 +139,7 @@ private slots:
     void cloneRepo_file_url_succeeds_and_emits_repoAdded() {
         // Create a source repo with one commit so transfer_progress fires
         auto srcDir = std::filesystem::temp_directory_path() /
-                      ("gitgui-pc-src-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+                      ("gittide-pc-src-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::create_directories(srcDir);
         git_repository* srcRaw = nullptr;
         git_repository_init(&srcRaw, srcDir.generic_string().c_str(), 0);
@@ -162,7 +162,7 @@ private slots:
         git_repository_free(srcRaw);
 
         auto destDir = std::filesystem::temp_directory_path() /
-                       ("gitgui-pc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+                       ("gittide-pc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::remove_all(destDir);  // clone creates it
 
         ProjectStore store;
@@ -192,8 +192,8 @@ private slots:
         QSignalSpy spyAdded(&controller, &ProjectController::repoAdded);
         QSignalSpy spyFailed(&controller, &ProjectController::repoAddFailed);
         QCoro::waitFor(controller.cloneRepo(
-            QStringLiteral("file:///no/such/gitgui-repo-notexist"),
-            QStringLiteral("/tmp/gitgui-clone-dst-noexist")));
+            QStringLiteral("file:///no/such/gittide-repo-notexist"),
+            QStringLiteral("/tmp/gittide-clone-dst-noexist")));
 
         QCOMPARE(spyAdded.count(), 0);
         QCOMPARE(spyFailed.count(), 1);

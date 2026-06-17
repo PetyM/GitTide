@@ -1,10 +1,10 @@
-#include "gitgui/DiffEngine.hpp"
+#include "gittide/DiffEngine.hpp"
 #include <git2.h>
 #include <memory>
 #include <set>
 #include <sstream>
 
-namespace gitgui {
+namespace gittide {
 
 Expected<DiffResult> DiffEngine::parse(git_diff* diff) {
     DiffResult out;
@@ -106,4 +106,4 @@ std::string build_patch(const std::string& gitPath,
     return out.str();
 }
 
-}  // namespace gitgui
+}  // namespace gittide

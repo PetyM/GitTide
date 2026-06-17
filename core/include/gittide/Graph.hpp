@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace gitgui {
+namespace gittide {
 
 // A single commit as returned by GitRepo::log. lane is filled by GraphBuilder.
 struct CommitNode {
@@ -46,4 +46,4 @@ struct GraphLayout {
     int laneCount = 0;  // max lane index used + 1
 };
 
-}  // namespace gitgui
+}  // namespace gittide

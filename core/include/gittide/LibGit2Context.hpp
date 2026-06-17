@@ -1,6 +1,6 @@
 #pragma once
 
-namespace gitgui {
+namespace gittide {
 
 // RAII wrapper around git_libgit2_init / git_libgit2_shutdown.
 // Construct once near program start (and once per test that uses libgit2).
@@ -17,4 +17,4 @@ public:
     LibGit2Context& operator=(LibGit2Context&&) = delete;
 };
 
-}  // namespace gitgui
+}  // namespace gittide

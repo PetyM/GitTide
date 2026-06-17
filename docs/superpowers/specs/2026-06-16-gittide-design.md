@@ -1,4 +1,4 @@
-# GitGUI — Design Spec
+# GitTide — Design Spec
 
 **Date:** 2026-06-16
 **Status:** Approved design, pre-implementation
@@ -103,7 +103,7 @@ Clean layering; each layer independently understandable and testable. Dependenci
 
 ## 5. Data Model
 
-### ProjectStore JSON (`~/.config/gitgui/projects.json` or OS-appropriate config dir)
+### ProjectStore JSON (`~/.config/gittide/projects.json` or OS-appropriate config dir)
 ```json
 {
   "version": 1,
@@ -130,7 +130,7 @@ Clean layering; each layer independently understandable and testable. Dependenci
 
 ### Window session (multi-window restore) — separate file
 Window/session state is persisted separately from the project registry, e.g.
-`~/.config/gitgui/session.json`, so opening/closing/moving windows never rewrites the
+`~/.config/gittide/session.json`, so opening/closing/moving windows never rewrites the
 project registry:
 ```json
 {

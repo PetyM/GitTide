@@ -6,7 +6,7 @@ class QComboBox;
 class QTreeView;
 class QToolButton;
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 class ProjectController;
 
@@ -38,4 +38,4 @@ private:
     QToolButton* cloneBtn_;
 };
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui

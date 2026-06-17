@@ -1,15 +1,15 @@
-#include "gitgui/ui/RepoController.hpp"
-#include "gitgui/ui/Metatypes.hpp"
+#include "gittide/ui/RepoController.hpp"
+#include "gittide/ui/Metatypes.hpp"
 
 #include <filesystem>
 
-namespace gitgui::ui {
+namespace gittide::ui {
 
 RepoController::RepoController(QObject* parent) : QObject(parent) {
-    qRegisterMetaType<std::vector<gitgui::FileStatus>>();
-    qRegisterMetaType<gitgui::DiffResult>();
-    qRegisterMetaType<gitgui::StageSelection>();
-    qRegisterMetaType<gitgui::CommitRequest>();
+    qRegisterMetaType<std::vector<gittide::FileStatus>>();
+    qRegisterMetaType<gittide::DiffResult>();
+    qRegisterMetaType<gittide::StageSelection>();
+    qRegisterMetaType<gittide::CommitRequest>();
 }
 
 void RepoController::open(const QString& path) {
@@ -35,7 +35,7 @@ QCoro::Task<void> RepoController::refreshStatus() {
     emit statusChanged(*result);
 }
 
-QCoro::Task<void> RepoController::refreshDiff(QString path, gitgui::DiffTarget target) {
+QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget target) {
     if (!repo_) co_return;
     auto result = co_await repo_->diff(target, std::filesystem::path(path.toStdString()));
     if (!result) {
@@ -45,7 +45,7 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gitgui::DiffTarget t
     emit diffReady(path, *result);
 }
 
-QCoro::Task<void> RepoController::stage(gitgui::StageSelection sel) {
+QCoro::Task<void> RepoController::stage(gittide::StageSelection sel) {
     if (!repo_) co_return;
     auto result = co_await repo_->stage(sel);
     if (!result) {
@@ -55,7 +55,7 @@ QCoro::Task<void> RepoController::stage(gitgui::StageSelection sel) {
     co_await refreshStatus();
 }
 
-QCoro::Task<void> RepoController::unstage(gitgui::StageSelection sel) {
+QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel) {
     if (!repo_) co_return;
     auto result = co_await repo_->unstage(sel);
     if (!result) {
@@ -65,7 +65,7 @@ QCoro::Task<void> RepoController::unstage(gitgui::StageSelection sel) {
     co_await refreshStatus();
 }
 
-QCoro::Task<void> RepoController::discard(gitgui::StageSelection sel) {
+QCoro::Task<void> RepoController::discard(gittide::StageSelection sel) {
     if (!repo_) co_return;
     auto result = co_await repo_->discard(sel);
     if (!result) {
@@ -75,7 +75,7 @@ QCoro::Task<void> RepoController::discard(gitgui::StageSelection sel) {
     co_await refreshStatus();
 }
 
-QCoro::Task<void> RepoController::commit(gitgui::CommitRequest req) {
+QCoro::Task<void> RepoController::commit(gittide::CommitRequest req) {
     if (!repo_) co_return;
     auto result = co_await repo_->commit(req);
     if (!result) {
@@ -86,4 +86,4 @@ QCoro::Task<void> RepoController::commit(gitgui::CommitRequest req) {
     co_await refreshStatus();
 }
 
-}  // namespace gitgui::ui
+}  // namespace gittide::ui
