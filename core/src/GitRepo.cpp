@@ -171,9 +171,29 @@ Expected<void> GitRepo::unstage(const StageSelection& sel) {
     return apply_partial(sel, /*stage=*/false);
 }
 
-// TEMPORARY stub — a later task replaces this with the real partial-apply logic.
-Expected<void> GitRepo::apply_partial(const StageSelection&, bool) {
-    return std::unexpected(GitError{-1, "partial staging not yet implemented"});
+Expected<void> GitRepo::apply_partial(const StageSelection& sel, bool stage) {
+    // 1. Get the diff that contains the selected hunk.
+    DiffTarget target = stage ? DiffTarget::WorktreeVsIndex : DiffTarget::IndexVsHead;
+    auto fileDiff = diff(target, sel.path);
+    if (!fileDiff) return std::unexpected(fileDiff.error());
+
+    int hi = sel.hunkIndex.value_or(-1);
+    if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
+        return std::unexpected(GitError{-1, "hunk index out of range"});
+
+    // 2. Build the patch buffer. Unstage reverses the index->HEAD diff.
+    std::string patch =
+        build_patch(to_git_path(sel.path), fileDiff->hunks[hi], sel, /*reverse=*/!stage);
+
+    // 3. Parse the buffer into a git_diff and apply it to the index.
+    git_diff* raw = nullptr;
+    int rc = git_diff_from_buffer(&raw, patch.data(), patch.size());
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    rc = git_apply(repo_, raw, GIT_APPLY_LOCATION_INDEX, nullptr);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+    return {};
 }
 
 Expected<std::string> GitRepo::commit(const CommitRequest& req) {

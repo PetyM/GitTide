@@ -57,3 +57,55 @@ TEST_CASE("stage whole file handles deletion", "[stage]") {
     REQUIRE(repo->stage(gitgui::StageSelection{"gone.txt", std::nullopt, {}}).has_value());
     REQUIRE(has_flag(flags_for(*repo, "gone.txt"), StatusFlag::IndexDeleted));
 }
+
+TEST_CASE("stage a single hunk stages only that change", "[stage]") {
+    gitgui::test::TempRepo tmp;
+    tmp.set_identity("Test", "test@example.com");
+    // Two separate change regions far apart so they form two hunks.
+    tmp.write_file("a.txt", "1\n2\n3\n4\n5\n6\n7\n8\n9\n");
+    tmp.commit_all("init");
+    tmp.write_file("a.txt", "ONE\n2\n3\n4\n5\n6\n7\n8\nNINE\n");
+
+    auto repo = gitgui::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto d = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 2);
+
+    // Stage only the first hunk.
+    REQUIRE(repo->stage(gitgui::StageSelection{"a.txt", 0, {}}).has_value());
+
+    // Staged diff (index vs HEAD) now contains exactly one hunk (the first).
+    auto staged = repo->diff(gitgui::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 1);
+
+    // The worktree still has the second change unstaged.
+    auto unstaged = repo->diff(gitgui::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(unstaged.has_value());
+    REQUIRE(unstaged->hunks.size() == 1);
+}
+
+TEST_CASE("unstage a staged hunk returns it to the worktree", "[stage]") {
+    gitgui::test::TempRepo tmp;
+    tmp.set_identity("Test", "test@example.com");
+    tmp.write_file("a.txt", "1\n2\n3\n");
+    tmp.commit_all("init");
+    tmp.write_file("a.txt", "1\nTWO\n3\n");
+
+    auto repo = gitgui::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->stage(gitgui::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    auto staged = repo->diff(gitgui::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 1);
+
+    // Unstage that one hunk.
+    REQUIRE(repo->unstage(gitgui::StageSelection{"a.txt", 0, {}}).has_value());
+
+    auto after = repo->diff(gitgui::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(after.has_value());
+    REQUIRE(after->hunks.empty());
+}
