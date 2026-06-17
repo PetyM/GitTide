@@ -64,6 +64,10 @@ void ProjectController::createProject(const QString& name) {
 }
 
 void ProjectController::addExistingRepo(const QString& path) {
+    if (activeId_.isEmpty()) {
+        emit repoAddFailed(QStringLiteral("No active project"));
+        return;
+    }
     const std::filesystem::path p(path.toStdString());
     auto validation = gitgui::GitRepo::open(p);
     if (!validation) {
@@ -82,6 +86,10 @@ void ProjectController::addExistingRepo(const QString& path) {
 }
 
 void ProjectController::initRepo(const QString& parentDir, const QString& name) {
+    if (activeId_.isEmpty()) {
+        emit repoAddFailed(QStringLiteral("No active project"));
+        return;
+    }
     const std::filesystem::path dest =
         std::filesystem::path(parentDir.toStdString()) / name.toStdString();
     auto repo = gitgui::GitRepo::init(dest);

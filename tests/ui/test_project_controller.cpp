@@ -1,6 +1,7 @@
 #include <QObject>
 #include <QtTest/QtTest>
 #include <QSignalSpy>
+#include <QUuid>
 
 #include <filesystem>
 #include <git2.h>
@@ -78,7 +79,7 @@ private slots:
 
     void addExistingRepo_valid_repo_emits_repoAdded() {
         auto dir = std::filesystem::temp_directory_path() /
-                   ("gitgui-pc-add-" + std::to_string(rand()));
+                   ("gitgui-pc-add-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
         std::filesystem::create_directories(dir);
         git_repository* raw = nullptr;
         git_repository_init(&raw, dir.generic_string().c_str(), 0);
@@ -113,7 +114,7 @@ private slots:
     void initRepo_creates_repo_and_emits_repoAdded() {
         const auto parentDir = std::filesystem::temp_directory_path();
         const std::string repoName =
-            "gitgui-pc-init-" + std::to_string(rand());
+            "gitgui-pc-init-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString();
         const auto dest = parentDir / repoName;
 
         ProjectStore store;
