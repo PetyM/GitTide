@@ -29,6 +29,7 @@
 #include "test_project_sidebar.cpp"
 #include "test_main_window.cpp"
 #include "test_window_manager.cpp"
+#include "test_qcoro_smoke.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -71,6 +72,10 @@ int main(int argc, char** argv) {
     }
     {
         TestWindowManager t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestQCoroSmoke t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;

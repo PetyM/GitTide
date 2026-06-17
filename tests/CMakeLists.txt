@@ -30,6 +30,7 @@ if(GITGUI_BUILD_UI)
   # without compiling them as separate translation units.
   set(gitgui_ui_test_sources
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_smoke.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qcoro_smoke.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
@@ -48,7 +49,8 @@ if(GITGUI_BUILD_UI)
   )
   set_target_properties(gitgui_ui_tests PROPERTIES AUTOMOC ON)
   target_include_directories(gitgui_ui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ui ${libgit2_SOURCE_DIR}/include)
-  target_link_libraries(gitgui_ui_tests PRIVATE gitgui_ui Qt6::Widgets Qt6::Test libgit2package)
+  target_link_libraries(gitgui_ui_tests PRIVATE
+    gitgui_ui Qt6::Widgets Qt6::Test Qt6::Concurrent QCoro6::Core libgit2package)
   add_test(NAME gitgui_ui_tests COMMAND gitgui_ui_tests)
   set_tests_properties(gitgui_ui_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
