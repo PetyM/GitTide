@@ -11,6 +11,14 @@ ProjectController::ProjectController(gitgui::ProjectStore* store, QObject* paren
       projectModel_(new ProjectListModel(store, this)),
       repoModel_(new RepoListModel(this)) {}
 
+const std::vector<gitgui::RepoRef>& ProjectController::activeRepos() const {
+    static const std::vector<gitgui::RepoRef> kEmpty;
+    for (const auto& p : store_->projects()) {
+        if (QString::fromStdString(p.id) == activeId_) return p.repos;
+    }
+    return kEmpty;
+}
+
 void ProjectController::activate(const QString& projectId) {
     const std::string id = projectId.toStdString();
     for (const auto& p : store_->projects()) {

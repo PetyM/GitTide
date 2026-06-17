@@ -4,6 +4,7 @@
 #include "gitgui/ui/RepoListModel.hpp"
 
 #include <QComboBox>
+#include <QItemSelectionModel>
 #include <QListView>
 #include <QVBoxLayout>
 
@@ -25,6 +26,13 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     auto* layout = new QVBoxLayout(this);
     layout->addWidget(switcher_);
     layout->addWidget(repoList_, /*stretch=*/1);
+
+    // Selecting a repo row emits repoSelected.
+    connect(repoList_->selectionModel(), &QItemSelectionModel::currentChanged, this,
+            [this](const QModelIndex& current) {
+                if (!current.isValid()) return;
+                emit repoSelected(current.data(RepoListModel::PathRole).toString());
+            });
 
     // Switching the combo activates the matching project.
     connect(switcher_, &QComboBox::currentIndexChanged, this, [this](int row) {
