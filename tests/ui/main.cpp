@@ -31,6 +31,7 @@
 #include "test_window_manager.cpp"
 #include "test_qcoro_smoke.cpp"
 #include "test_async_repo.cpp"
+#include "test_dashboard_async.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -81,6 +82,10 @@ int main(int argc, char** argv) {
     }
     {
         TestAsyncRepo t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestDashboardAsync t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;

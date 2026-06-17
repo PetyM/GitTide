@@ -1,6 +1,9 @@
 #include "gitgui/ui/DashboardModel.hpp"
 #include "gitgui/GitRepo.hpp"
 #include <filesystem>
+#include <QtConcurrent>
+#include <core/qcorofuture.h>
+#include <vector>
 
 namespace gitgui::ui {
 
@@ -28,6 +31,41 @@ void DashboardModel::refresh(const std::vector<gitgui::RepoRef>& repos) {
         rows_.push_back(std::move(row));
     }
     endResetModel();
+}
+
+QCoro::Task<void> DashboardModel::refreshAsync(std::vector<gitgui::RepoRef> repos) {
+    std::vector<QFuture<Row>> futures;
+    futures.reserve(repos.size());
+    for (const auto& r : repos) {
+        futures.push_back(QtConcurrent::run([r]() -> Row {
+            Row row{
+                .alias = QString::fromStdString(r.alias),
+                .path = QString::fromStdString(r.path),
+                .changeCount = 0,
+                .missing = false,
+            };
+            auto repo = gitgui::GitRepo::open(std::filesystem::path(r.path));
+            if (!repo) {
+                row.missing = true;
+            } else if (auto status = repo->status()) {
+                row.changeCount = static_cast<int>(status->size());
+            } else {
+                row.missing = true;
+            }
+            return row;
+        }));
+    }
+
+    std::vector<Row> rows;
+    rows.reserve(futures.size());
+    for (auto& f : futures) {
+        rows.push_back(co_await f);
+    }
+
+    beginResetModel();
+    rows_ = std::move(rows);
+    endResetModel();
+    emit refreshed();
 }
 
 int DashboardModel::rowCount(const QModelIndex& parent) const {
