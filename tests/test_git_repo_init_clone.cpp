@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <random>
+#include <string>
 
 #include "gittide/gitrepo.hpp"
 #include "gittide/libgit2context.hpp"
@@ -13,6 +14,16 @@ std::filesystem::path unique_empty_dir()
     auto dir = std::filesystem::temp_directory_path() / ("gittide_init_" + std::to_string(rng()));
     std::filesystem::create_directories(dir);
     return dir;
+}
+
+// Build a RFC 8089 file:// URL from a local path. POSIX paths are absolute and
+// start with '/', so "file://" + "/tmp/x" already yields the required three
+// slashes; Windows paths start with a drive letter ("C:/x"), which needs an
+// explicit leading slash ("file:///C:/x") or libgit2 treats "C:" as the host.
+std::string fileUrl(const std::filesystem::path& p)
+{
+    std::string generic = p.generic_string();
+    return generic.starts_with('/') ? "file://" + generic : "file:///" + generic;
 }
 
 struct TempDir
@@ -71,7 +82,7 @@ TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callb
         ++progress_calls;
         return true; // continue
     };
-    auto result = gittide::GitRepo::clone("file://" + source.path().generic_string(), dest, std::move(cb));
+    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, std::move(cb));
 
     REQUIRE(result.has_value());
     REQUIRE(std::filesystem::exists(dest / "README.md"));
@@ -93,7 +104,7 @@ TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone
     {
         return false;
     }; // cancel
-    auto result = gittide::GitRepo::clone("file://" + source.path().generic_string(), dest, std::move(cb));
+    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, std::move(cb));
 
     REQUIRE_FALSE(result.has_value());
 }

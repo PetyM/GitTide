@@ -5,7 +5,9 @@
 
 TEST_CASE("toGitPath produces forward-slash UTF-8", "[path]")
 {
-    std::filesystem::path p = std::filesystem::path("a") / "b c" / "ünïcode.txt";
+    // u8"" so the non-ASCII component is interpreted as UTF-8 on every platform;
+    // path(const char*) would decode it via the active ANSI code page on Windows.
+    std::filesystem::path p = std::filesystem::path("a") / "b c" / u8"ünïcode.txt";
     std::string g           = gittide::toGitPath(p);
     REQUIRE(g.find('\\') == std::string::npos);  // no backslashes even on Windows
     REQUIRE(g.find("b c") != std::string::npos); // spaces preserved verbatim
@@ -14,6 +16,6 @@ TEST_CASE("toGitPath produces forward-slash UTF-8", "[path]")
 
 TEST_CASE("fromGitPath round-trips toGitPath", "[path]")
 {
-    std::filesystem::path p = std::filesystem::path("dir") / "ünïcode.txt";
+    std::filesystem::path p = std::filesystem::path("dir") / u8"ünïcode.txt";
     REQUIRE(gittide::fromGitPath(gittide::toGitPath(p)) == p.lexically_normal());
 }

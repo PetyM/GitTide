@@ -38,10 +38,23 @@
 
 #include <QApplication>
 #include <QtTest/QtTest>
+#include <git2.h>
 
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
+
+    // Hold a process-wide libgit2 reference for the whole run. The per-test repo
+    // helpers each call git_libgit2_init()/git_libgit2_shutdown(); without this
+    // anchor the refcount can hit zero and tear down global state (incl. the
+    // filter registry) while an AsyncRepo worker thread is mid-operation.
+    git_libgit2_init();
+    // Ignore the host's system/global/XDG git config so CI's Windows runner
+    // (which sets core.autocrlf=true globally) cannot inject the CRLF filter into
+    // these test repos — that filter ran on a worker thread and crashed.
+    for (int level : {GIT_CONFIG_LEVEL_PROGRAMDATA, GIT_CONFIG_LEVEL_SYSTEM, GIT_CONFIG_LEVEL_XDG, GIT_CONFIG_LEVEL_GLOBAL})
+        git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, level, "");
+
     int status = 0;
     {
         TestUiSmoke t;
@@ -119,5 +132,6 @@ int main(int argc, char** argv)
         TestThemeManager t;
         status |= QTest::qExec(&t, argc, argv);
     }
+    git_libgit2_shutdown();
     return status;
 }

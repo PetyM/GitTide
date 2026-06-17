@@ -27,6 +27,16 @@ TempRepo::TempRepo()
 {
     std::filesystem::create_directories(m_dir);
     check(git_repository_init(&m_repo, toGitPath(m_dir).c_str(), /*is_bare=*/0), "git_repository_init failed");
+
+    // CI's Windows runners ship a global core.autocrlf=true, which rewrites
+    // committed "\n" to "\r\n" on checkout and breaks byte-exact content asserts
+    // (e.g. discard). Pin line endings off in the repo-local config so tests are
+    // deterministic regardless of the host's global git configuration.
+    git_config* cfg = nullptr;
+    check(git_repository_config(&cfg, m_repo), "git_repository_config failed");
+    git_config_set_string(cfg, "core.autocrlf", "false");
+    git_config_set_string(cfg, "core.eol", "lf");
+    git_config_free(cfg);
 }
 
 TempRepo::~TempRepo()
