@@ -3,7 +3,7 @@
 
 namespace gitgui::ui {
 
-RepoListModel::RepoListModel(QObject* parent) : QAbstractListModel(parent) {}
+RepoListModel::RepoListModel(QObject* parent) : QAbstractItemModel(parent) {}
 
 void RepoListModel::setRepos(const std::vector<gitgui::RepoRef>& repos) {
     beginResetModel();
@@ -15,16 +15,33 @@ void RepoListModel::setRepos(const std::vector<gitgui::RepoRef>& repos) {
         const bool present = std::filesystem::exists(p, ec) && !ec;
         rows_.push_back(Row{
             .alias = QString::fromStdString(r.alias),
-            .path = QString::fromStdString(r.path),
+            .path  = QString::fromStdString(r.path),
             .missing = !present,
         });
     }
     endResetModel();
 }
 
+QModelIndex RepoListModel::index(int row, int column,
+                                  const QModelIndex& parent) const {
+    if (parent.isValid()) return {};
+    if (row < 0 || row >= static_cast<int>(rows_.size())) return {};
+    if (column != 0) return {};
+    return createIndex(row, column, nullptr);
+}
+
+QModelIndex RepoListModel::parent(const QModelIndex&) const {
+    return {};
+}
+
 int RepoListModel::rowCount(const QModelIndex& parent) const {
     if (parent.isValid()) return 0;
     return static_cast<int>(rows_.size());
+}
+
+int RepoListModel::columnCount(const QModelIndex& parent) const {
+    if (parent.isValid()) return 0;
+    return 1;
 }
 
 QVariant RepoListModel::data(const QModelIndex& index, int role) const {
@@ -41,8 +58,8 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const {
 }
 
 QHash<int, QByteArray> RepoListModel::roleNames() const {
-    auto roles = QAbstractListModel::roleNames();
-    roles[PathRole] = "repoPath";
+    auto roles = QAbstractItemModel::roleNames();
+    roles[PathRole]   = "repoPath";
     roles[MissingRole] = "missing";
     return roles;
 }

@@ -1,20 +1,23 @@
 #pragma once
-#include <QAbstractListModel>
+#include <QAbstractItemModel>
 #include <vector>
 #include "gitgui/ProjectStore.hpp"
 
 namespace gitgui::ui {
 
-// Read model over a single project's repos. setRepos() resets the model and
-// recomputes the on-disk "missing" flag for each entry.
-class RepoListModel : public QAbstractListModel {
+class RepoListModel : public QAbstractItemModel {
     Q_OBJECT
 public:
     enum Roles { PathRole = Qt::UserRole + 1, MissingRole };
 
     explicit RepoListModel(QObject* parent = nullptr);
 
+    // QAbstractItemModel overrides
+    QModelIndex index(int row, int column,
+                      const QModelIndex& parent = {}) const override;
+    QModelIndex parent(const QModelIndex& child) const override;
     int rowCount(const QModelIndex& parent = {}) const override;
+    int columnCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
