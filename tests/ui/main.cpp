@@ -36,6 +36,7 @@
 #include "test_changes_view.cpp"
 #include "test_theme.cpp"
 #include "test_theme_style.cpp"
+#include "test_theme_manager.cpp"
 
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -106,6 +107,10 @@ int main(int argc, char** argv) {
     }
     {
         TestThemeStyle t;
+        status |= QTest::qExec(&t, argc, argv);
+    }
+    {
+        TestThemeManager t;
         status |= QTest::qExec(&t, argc, argv);
     }
     return status;
