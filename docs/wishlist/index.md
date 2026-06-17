@@ -16,7 +16,7 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
-| _none yet_ | | | |
+| [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
 
 <!-- Add a row per wish. When a wish reaches `done` or `dropped`, keep it here
 for the record (or move done ones to a "Shipped" section below once there are
