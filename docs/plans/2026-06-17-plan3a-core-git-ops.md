@@ -1,6 +1,11 @@
 # Plan 3a — Core Git Ops (diff / stage / unstage / discard / commit) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [engineering](../spec/engineering/engineering.md) · [product](../spec/product/product.md) |
+| **Depends on** | [Core foundation](2026-06-16-core-foundation.md) |
 
 **Goal:** Add diff, partial staging (file / hunk / line), unstage, discard, and commit to the Qt-free Core `GitRepo`, plus a `DiffEngine` that parses libgit2 diffs — all unit-tested with Catch2.
 
@@ -1195,3 +1200,9 @@ git add -A && git commit -m "test(core): finalize Plan 3a git-ops suite"
 
 The verified Core surface this plan delivers — `GitRepo::diff / stage / unstage / discard / commit`, `DiffResult`/`DiffHunk`/`DiffLine`, `StageSelection`, `CommitRequest` — is the exact contract Plan 3b will wrap in `AsyncRepo` (QtConcurrent + QCoro), drive from `DashboardModel::refreshAsync`, and surface in the Changes tab. Plan 3b is authored after 3a is green so its signatures match reality.
 ```
+
+---
+
+## Outcome
+
+`GitRepo` gained `diff`/`stage`/`unstage`/`discard`/`commit` at file/hunk/line granularity, plus `DiffEngine` and the pure `build_patch` helper. Core-only, Catch2-tested.

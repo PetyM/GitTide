@@ -1,6 +1,11 @@
 # Plan 6 — Rebrand: GitGUI → GitTide
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | — (cross-cutting rename) |
+| **Depends on** | all prior plans |
 
 **Goal:** Rename the project from `gitgui`/`GitGUI` to `gittide`/`GitTide` everywhere — C++ namespace, include dirs, CMake targets, app/window strings, docs — and migrate the user's on-disk config from the old location to the new one without data loss.
 
@@ -345,3 +350,9 @@ git commit -m "feat: one-time config migration from gitgui to gittide config dir
 - **Spec coverage:** Rebrand spec (Section A of the design) — namespace ✓ (Task 1.2), include paths ✓ (1.1–1.2), CMake ✓ (1.2), window/app name ✓ (1.2–1.3), config path + migration ✓ (Task 2), docs ✓ (1.4). Packaging metadata (NSIS/dmg/AppImage names) is **not** yet present in the repo (no packaging files exist), so there is nothing to rename — it lands branded when packaging is added.
 - **Type consistency:** `migrate_config(old, new) -> bool` used identically in header, impl, tests, and `main.cpp`.
 - **Migration assumption:** deriving `oldCfg` by replacing `"gittide"`→`"gitgui"` in the config path is correct because both org and app names are `gittide`; documented inline in main.cpp.
+
+---
+
+## Outcome
+
+Renamed `gitgui`/`GitGUI` → `gittide`/`GitTide` across the namespace, include dirs, CMake targets, and app strings, plus a `migrate_config` helper that relocates `projects.json`/`session.json` to the new config dir. Earlier plan bodies still say `gitgui_*` by design — this plan is why.

@@ -1,6 +1,11 @@
 # Plan 5a — Core: Graph Types + GitRepo::log + GraphBuilder
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [engineering](../spec/engineering/engineering.md) · [product](../spec/product/product.md) |
+| **Depends on** | [Core foundation](2026-06-16-core-foundation.md) |
 
 **Goal:** Add `CommitNode`/`GraphLayout` types, `GitRepo::log()` commit walk, and `GraphBuilder::build()` lane-assignment algorithm to the Core library.
 
@@ -718,3 +723,9 @@ git commit -m "test(core): GraphBuilder branch+merge tests — diamond and indep
 - `git_revwalk_push_head` returns `GIT_ENOTFOUND` for repos with no commits (no HEAD yet). Handled as empty-vector, not an error.
 - `GraphBuilder` does NOT call `GitRepo::log`; it is a pure transformation. Tests use hand-crafted vectors so they run without libgit2.
 - `laneCount` is `max_lane + 1` where `max_lane` is tracked during the walk. For an empty input it stays 0.
+
+---
+
+## Outcome
+
+Added `CommitNode`/`GraphLayout` types, `GitRepo::log()` (revwalk), and `GraphBuilder::build()` lane-assignment. Core-only, Catch2-tested.

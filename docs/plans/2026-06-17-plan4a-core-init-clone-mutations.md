@@ -1,6 +1,11 @@
 # Plan 4a — Core: GitRepo::init / GitRepo::clone / ProjectStore Mutations
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [engineering](../spec/engineering/engineering.md) · [product](../spec/product/product.md) |
+| **Depends on** | [Core foundation](2026-06-16-core-foundation.md) |
 
 **Goal:** Extend the Core library with `GitRepo::init`, `GitRepo::clone` (with cancellable progress callback), `ProjectStore::createProject`, and `ProjectStore::addRepo` with duplicate-path rejection.
 
@@ -617,3 +622,9 @@ git commit -m "feat(core): ProjectStore::addRepo with duplicate-path rejection"
 - `clone()` uses `file://` in tests to force libgit2's packfile (network) transport, which reliably calls `transfer_progress`. A bare path would use the local copy transport which may skip the callback.
 - `addRepo` and `createProject` do NOT auto-save; the `ProjectController` (Plan 4b) calls `save()` after mutations. This keeps Core Qt-free and the `ProjectStore` path-agnostic.
 - `init` checks only for `.git` at the exact target path. Detecting "inside an existing repo" (i.e., nested) is deferred — the spec's "unsafe target" requirement is satisfied by the existing-repo check.
+
+---
+
+## Outcome
+
+Added `GitRepo::init` and `GitRepo::clone` (cancellable progress callback), plus `ProjectStore::createProject` and `addRepo` (duplicate-path rejection). Core-only.

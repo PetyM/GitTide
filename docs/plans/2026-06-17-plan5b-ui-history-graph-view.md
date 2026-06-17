@@ -1,6 +1,11 @@
 # Plan 5b — UI: HistoryModel + GraphDelegate + HistoryView + Wiring
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [product](../spec/product/product.md) |
+| **Depends on** | [Plan 5a](2026-06-17-plan5a-core-graph-log.md) · [Plan 3b](2026-06-17-plan3b-async-changes-ui.md) |
 
 **Goal:** Wire Plan 5a's Core graph layer into the UI — async commit log fetching, a table model backed by `GraphLayout`, a custom delegate that paints the lane graph, and a `HistoryView` widget wired into MainWindow's History tab.
 
@@ -795,3 +800,9 @@ git commit -m "feat(ui): wire HistoryView into MainWindow History tab"
 - Column ColGraph width is set explicitly in `HistoryView::setHistory` based on `laneCount`; ColSummary stretches to fill remaining space.
 - `historyReady` signal passes `GraphLayout` by value (copy) — `GraphLayout` contains `std::vector<GraphRow>` which contains `std::vector<CommitNode>`. For typical repos (< 10k commits in the limit) this is fast; for very large layouts the copy could be replaced with `std::shared_ptr<const GraphLayout>` post-MVP.
 - The two `repoOpened` connections in `MainWindow` are additive — the existing one triggers `refreshStatus`, the new one triggers `refreshHistory`. Both fire on every repo open.
+
+---
+
+## Outcome
+
+Added `AsyncRepo::log`, `RepoController::refreshHistory`, the `HistoryModel` table model, `GraphDelegate` (paints the lane graph), and `HistoryView` wired into MainWindow's History tab. Rendering is virtualized.

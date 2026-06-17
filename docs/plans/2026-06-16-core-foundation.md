@@ -1,6 +1,11 @@
 # Core Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-16 |
+| **Status** | `done` |
+| **Spec** | [engineering](../spec/engineering/engineering.md) — Core layer |
+| **Depends on** | — |
 
 **Goal:** Build a tested, Qt-free C++23 Core library for GitGUI: project scaffold, libgit2-backed `GitRepo` (open + status), path helpers, and JSON `ProjectStore`.
 
@@ -1321,3 +1326,9 @@ git commit -m "ci: build and test on Linux/macOS/Windows"
 - **Type consistency:** `to_git_path`/`from_git_path`, `Expected<T>`, `GitError{code,message}`, `StatusFlag`/`has_flag`, `FileStatus{path,flags}`, `RepoRef{path,alias}`, `Project{id,name,repos,lastActiveRepo}`, `ProjectStore::{projects,activeProject,setActiveProject,to_json,from_json,save,load}` are used consistently across tasks.
 - **libgit2 target name caveat** flagged in Task 2 — verify the exact FetchContent target at configure time.
 ```
+
+---
+
+## Outcome
+
+Established the `core/` static library (originally `gitgui_core`, renamed to `gittide_core` in Plan 6): `GitRepo` (open + status), `PathUtil`, `GitError`, and the JSON `ProjectStore`, all returning `Expected<T>` and covered by Catch2. Now described by [`spec/engineering`](../spec/engineering/engineering.md).

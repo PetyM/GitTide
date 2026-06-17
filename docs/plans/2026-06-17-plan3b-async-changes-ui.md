@@ -1,6 +1,11 @@
 # Plan 3b — Async Layer + Changes Tab UI Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [engineering](../spec/engineering/engineering.md) (async) · [product](../spec/product/product.md) (Changes tab) |
+| **Depends on** | [Plan 3a](2026-06-17-plan3a-core-git-ops.md) · [UI shell](2026-06-16-ui-shell.md) |
 
 **Goal:** Wire the verified Plan-3a Core git ops into the Qt UI through a QCoro async layer, an asynchronous parallel dashboard, and a working Changes tab (staged/unstaged lists, diff view with partial-staging, commit box).
 
@@ -2005,3 +2010,9 @@ git commit -m "feat(ui): wire Changes + Dashboard tabs to async RepoController/D
 - **Coroutine lifetime:** if any reviewer flags that fire-and-forget coroutine slots could be destroyed early, the mitigation is already in place — `AsyncRepo` work is anchored by `shared_ptr<Impl>` and `QCoro::Task` root coroutines run to completion detached. Tests use `QCoro::waitFor` to make this deterministic.
 - **`std::vector<gitgui::FileStatus>` as a metatype** requires `Q_DECLARE_METATYPE` (Task 2) — without it `QSignalSpy` capture fails to compile.
 ```
+
+---
+
+## Outcome
+
+Introduced `AsyncRepo` (QtConcurrent + QCoro, per-repo serialization), async `DashboardModel::refreshAsync`, the `ChangesView`/`DiffView` widgets, and coroutine slots on `RepoController`. The async/threading model now lives in [`spec/engineering`](../spec/engineering/engineering.md).

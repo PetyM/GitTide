@@ -1,5 +1,10 @@
 # Plan 4b — UI: Project / Repo Management
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+| | |
+|--|--|
+| **Date** | 2026-06-17 |
+| **Status** | `done` |
+| **Spec** | [product](../spec/product/product.md) |
+| **Depends on** | [Plan 4a](2026-06-17-plan4a-core-init-clone-mutations.md) · [Plan 3b](2026-06-17-plan3b-async-changes-ui.md) |
 
 **Goal:** Wire Plan 4a's Core mutations into the UI — project/repo creation dialogs, empty-state onboarding screens, sidebar toolbar, clone-with-progress modal.
 
@@ -1630,3 +1635,9 @@ git add ui/include/gitgui/ui/ProjectController.hpp \
         tests/ui/test_project_controller.cpp
 git commit -m "feat(ui): ProjectController::cloneRepo async + CloneRepoDialog + progress modal"
 ```
+
+---
+
+## Outcome
+
+Added `ProjectController` mutation slots, promoted `RepoListModel` to a tree model, gave `ProjectSidebar` a "New project…" combo item and an add-repo toolbar, added `MainWindow` empty-state onboarding, and init/clone dialogs with a clone-progress modal. Realises the onboarding/management flows in [`spec/product`](../spec/product/product.md).

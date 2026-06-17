@@ -1,0 +1,65 @@
+﻿---
+Language: Cpp
+BasedOnStyle: LLVM
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlignConsecutiveAssignments: true
+AllowShortLambdasOnASingleLine: Empty
+AlwaysBreakTemplateDeclarations: true
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterObjCDeclaration: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: true
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+BinPackArguments: false
+ColumnLimit: 130
+BreakConstructorInitializers: BeforeComma
+PackConstructorInitializers: BinPack
+IndentWidth: 4
+AccessModifierOffset: -4
+IndentAccessModifiers: false
+NamespaceIndentation: None
+CompactNamespaces: false
+FixNamespaceComments: true
+PointerAlignment: Left
+SortIncludes: true
+UseTab: Never
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex:           ^"\.*"$
+    Priority:        1
+    SortPriority:    0
+  - Regex:           ^"[^/]+\.*"$
+    Priority:        2
+    SortPriority:    0
+  - Regex:           ^"(drivers/).+\.*"$
+    Priority:        4
+    SortPriority:    0
+  - Regex:           ^"(etl/).+\.*"$
+    Priority:        5
+    SortPriority:    0
+  - Regex:           ^".+/.+\.h"$
+    Priority:        3
+    SortPriority:    0
+  - Regex:           ^<.*>$
+    Priority:        6
+    SortPriority:    0
+
+
+...
