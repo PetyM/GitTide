@@ -1,9 +1,9 @@
 #pragma once
 #include <QMetaType>
 #include <vector>
-#include "gittide/Diff.hpp"
-#include "gittide/FileStatus.hpp"
-#include "gittide/Graph.hpp"
+#include "gittide/diff.hpp"
+#include "gittide/filestatus.hpp"
+#include "gittide/graph.hpp"
 
 // Core types carried across Qt signals / captured by QSignalSpy. Q_DECLARE_METATYPE
 // must appear at global scope. Call qRegisterMetaType<T>() once per type before use

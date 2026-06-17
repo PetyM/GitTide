@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/GitError.hpp"
+#include "gittide/giterror.hpp"
 
 TEST_CASE("GitError carries code and message", "[error]") {
     gittide::GitError e{-3, "not found"};

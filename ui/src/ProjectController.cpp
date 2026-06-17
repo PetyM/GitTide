@@ -1,8 +1,8 @@
 #include "gittide/ui/ProjectController.hpp"
 #include "gittide/ui/ProjectListModel.hpp"
 #include "gittide/ui/RepoListModel.hpp"
-#include "gittide/GitRepo.hpp"
-#include "gittide/ProjectStore.hpp"
+#include "gittide/gitrepo.hpp"
+#include "gittide/projectstore.hpp"
 
 #include <filesystem>
 

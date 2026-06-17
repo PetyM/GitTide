@@ -1,7 +1,7 @@
 #pragma once
 #include <QWidget>
 
-#include "gittide/Graph.hpp"
+#include "gittide/graph.hpp"
 
 class QTableView;
 

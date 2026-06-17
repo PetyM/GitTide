@@ -2,8 +2,8 @@
 #include <QDir>
 #include <QStandardPaths>
 
-#include "gittide/LibGit2Context.hpp"
-#include "gittide/ProjectStore.hpp"
+#include "gittide/libgit2context.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/ThemeManager.hpp"
 #include "gittide/ui/WindowManager.hpp"
 

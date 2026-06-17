@@ -1,7 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <string_view>
-#include "gittide/LibGit2Context.hpp"
+#include "gittide/libgit2context.hpp"
 
 struct git_repository;
 

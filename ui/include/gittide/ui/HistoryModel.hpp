@@ -1,7 +1,7 @@
 #pragma once
 #include <QAbstractTableModel>
 
-#include "gittide/Graph.hpp"
+#include "gittide/graph.hpp"
 
 namespace gittide::ui {
 

@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <optional>
 
-#include "gittide/Diff.hpp"
+#include "gittide/diff.hpp"
 
 class QListWidget;
 

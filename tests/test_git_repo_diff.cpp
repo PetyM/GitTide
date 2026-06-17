@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/GitRepo.hpp"
+#include "gittide/gitrepo.hpp"
 #include "support/TempRepo.hpp"
 
 using gittide::DiffTarget;

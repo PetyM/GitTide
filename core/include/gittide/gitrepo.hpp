@@ -3,10 +3,10 @@
 #include <vector>
 #include <functional>
 #include <string>
-#include "gittide/GitError.hpp"
-#include "gittide/FileStatus.hpp"
-#include "gittide/Diff.hpp"
-#include "gittide/Graph.hpp"
+#include "gittide/giterror.hpp"
+#include "gittide/filestatus.hpp"
+#include "gittide/diff.hpp"
+#include "gittide/graph.hpp"
 
 struct git_repository;
 

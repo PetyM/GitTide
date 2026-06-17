@@ -6,7 +6,7 @@
 
 #include <git2.h>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/DashboardModel.hpp"
 
 using gittide::RepoRef;

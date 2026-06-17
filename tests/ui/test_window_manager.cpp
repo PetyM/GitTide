@@ -2,7 +2,7 @@
 #include <QtTest/QtTest>
 #include <QTemporaryDir>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/MainWindow.hpp"
 #include "gittide/ui/WindowManager.hpp"
 

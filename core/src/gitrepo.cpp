@@ -1,6 +1,6 @@
-#include "gittide/GitRepo.hpp"
-#include "gittide/DiffEngine.hpp"
-#include "gittide/PathUtil.hpp"
+#include "gittide/gitrepo.hpp"
+#include "gittide/diffengine.hpp"
+#include "gittide/pathutil.hpp"
 #include <git2.h>
 #include <git2/revwalk.h>
 #include <git2/commit.h>

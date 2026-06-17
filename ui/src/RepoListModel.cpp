@@ -1,5 +1,5 @@
 #include "gittide/ui/RepoListModel.hpp"
-#include "gittide/GitRepo.hpp"
+#include "gittide/gitrepo.hpp"
 #include <filesystem>
 
 namespace gittide::ui {

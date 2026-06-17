@@ -1,6 +1,6 @@
-// core/include/gittide/GraphBuilder.hpp
+// core/include/gittide/graphbuilder.hpp
 #pragma once
-#include "gittide/Graph.hpp"
+#include "gittide/graph.hpp"
 #include <vector>
 
 namespace gittide {

@@ -7,7 +7,7 @@
 #include <qcorotask.h>
 
 #include "gittide/ui/AsyncRepo.hpp"
-#include "gittide/FileStatus.hpp"
+#include "gittide/filestatus.hpp"
 
 using gittide::ui::AsyncRepo;
 

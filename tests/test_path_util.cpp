@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/PathUtil.hpp"
+#include "gittide/pathutil.hpp"
 #include <filesystem>
 
 TEST_CASE("to_git_path produces forward-slash UTF-8", "[path]") {

@@ -1,6 +1,6 @@
 #pragma once
-#include "gittide/Diff.hpp"
-#include "gittide/GitError.hpp"
+#include "gittide/diff.hpp"
+#include "gittide/giterror.hpp"
 
 struct git_diff;
 

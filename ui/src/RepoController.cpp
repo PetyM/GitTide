@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <utility>
 
-#include "gittide/GraphBuilder.hpp"
+#include "gittide/graphbuilder.hpp"
 
 namespace gittide::ui {
 

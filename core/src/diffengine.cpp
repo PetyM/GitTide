@@ -1,4 +1,4 @@
-#include "gittide/DiffEngine.hpp"
+#include "gittide/diffengine.hpp"
 #include <git2.h>
 #include <memory>
 #include <set>

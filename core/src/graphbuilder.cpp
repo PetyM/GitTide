@@ -1,5 +1,5 @@
 // core/src/GraphBuilder.cpp
-#include "gittide/GraphBuilder.hpp"
+#include "gittide/graphbuilder.hpp"
 #include <algorithm>
 #include <string>
 

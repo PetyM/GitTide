@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 
 TEST_CASE("ProjectStore serializes and deserializes round-trip", "[store]") {
     gittide::ProjectStore store;

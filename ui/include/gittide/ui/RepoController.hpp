@@ -7,9 +7,9 @@
 #include <qcorotask.h>
 
 #include "gittide/ui/AsyncRepo.hpp"
-#include "gittide/Diff.hpp"
-#include "gittide/FileStatus.hpp"
-#include "gittide/Graph.hpp"
+#include "gittide/diff.hpp"
+#include "gittide/filestatus.hpp"
+#include "gittide/graph.hpp"
 
 namespace gittide::ui {
 

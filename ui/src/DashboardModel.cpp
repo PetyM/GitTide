@@ -1,5 +1,5 @@
 #include "gittide/ui/DashboardModel.hpp"
-#include "gittide/GitRepo.hpp"
+#include "gittide/gitrepo.hpp"
 #include <filesystem>
 #include <QtConcurrent>
 #include <core/qcorofuture.h>

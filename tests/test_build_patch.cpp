@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/DiffEngine.hpp"
+#include "gittide/diffengine.hpp"
 
 using namespace gittide;
 

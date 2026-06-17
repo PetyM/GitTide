@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/Graph.hpp"
-#include "gittide/GraphBuilder.hpp"
+#include "gittide/graph.hpp"
+#include "gittide/graphbuilder.hpp"
 
 // Helpers
 static gittide::CommitNode make_commit(std::string oid,

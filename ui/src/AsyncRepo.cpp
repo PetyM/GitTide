@@ -6,7 +6,7 @@
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 
-#include "gittide/GitRepo.hpp"
+#include "gittide/gitrepo.hpp"
 
 namespace gittide::ui {
 

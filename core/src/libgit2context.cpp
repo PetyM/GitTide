@@ -1,4 +1,4 @@
-#include "gittide/LibGit2Context.hpp"
+#include "gittide/libgit2context.hpp"
 #include <git2.h>
 
 namespace gittide {

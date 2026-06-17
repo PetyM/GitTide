@@ -1,7 +1,7 @@
 #include <QObject>
 #include <QtTest/QtTest>
 
-#include "gittide/Graph.hpp"
+#include "gittide/graph.hpp"
 #include "gittide/ui/HistoryModel.hpp"
 
 namespace {

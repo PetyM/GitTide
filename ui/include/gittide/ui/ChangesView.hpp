@@ -2,8 +2,8 @@
 #include <QWidget>
 #include <vector>
 
-#include "gittide/Diff.hpp"
-#include "gittide/FileStatus.hpp"
+#include "gittide/diff.hpp"
+#include "gittide/filestatus.hpp"
 
 class QListWidget;
 class QPlainTextEdit;

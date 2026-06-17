@@ -1,4 +1,4 @@
-#include "gittide/PathUtil.hpp"
+#include "gittide/pathutil.hpp"
 
 namespace gittide {
 

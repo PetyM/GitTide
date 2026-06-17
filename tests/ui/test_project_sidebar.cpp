@@ -4,7 +4,7 @@
 #include <QAbstractButton>
 #include <QComboBox>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/ProjectController.hpp"
 #include "gittide/ui/ProjectSidebar.hpp"
 #include "gittide/ui/RepoListModel.hpp"

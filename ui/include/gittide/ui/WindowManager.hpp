@@ -3,7 +3,7 @@
 #include <QList>
 #include <QString>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/SessionStore.hpp"
 
 namespace gittide::ui {

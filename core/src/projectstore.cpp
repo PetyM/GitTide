@@ -1,4 +1,4 @@
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <fstream>

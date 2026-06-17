@@ -9,7 +9,7 @@
 
 #include <qcorotask.h>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/ProjectController.hpp"
 #include "gittide/ui/RepoListModel.hpp"
 

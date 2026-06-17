@@ -7,7 +7,7 @@
 
 #include <qcorotask.h>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 
 namespace gittide::ui {
 

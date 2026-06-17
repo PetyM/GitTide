@@ -1,12 +1,12 @@
 add_library(gittide_core STATIC)
 target_sources(gittide_core PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/LibGit2Context.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/PathUtil.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/GitError.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/GitRepo.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/DiffEngine.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/ProjectStore.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/GraphBuilder.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/libgit2context.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/pathutil.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/giterror.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/gitrepo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/diffengine.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/projectstore.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/graphbuilder.cpp
 )
 target_include_directories(gittide_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(gittide_core PUBLIC cxx_std_23)

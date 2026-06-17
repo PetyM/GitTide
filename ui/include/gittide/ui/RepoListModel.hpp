@@ -1,7 +1,7 @@
 #pragma once
 #include <QAbstractItemModel>
 #include <vector>
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 
 namespace gittide::ui {
 

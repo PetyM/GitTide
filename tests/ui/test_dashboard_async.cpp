@@ -8,7 +8,7 @@
 #include <qcorotask.h>
 
 #include "gittide/ui/DashboardModel.hpp"
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 
 using gittide::ui::DashboardModel;
 

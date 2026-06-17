@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/LibGit2Context.hpp"
+#include "gittide/libgit2context.hpp"
 #include <git2.h>
 
 TEST_CASE("libgit2 initializes and reports a version", "[libgit2]") {

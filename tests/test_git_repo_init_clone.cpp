@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gittide/GitRepo.hpp"
-#include "gittide/LibGit2Context.hpp"
+#include "gittide/gitrepo.hpp"
+#include "gittide/libgit2context.hpp"
 #include "support/TempRepo.hpp"
 #include <filesystem>
 #include <random>

@@ -4,7 +4,7 @@
 #include <filesystem>
 #include <vector>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/RepoListModel.hpp"
 
 using gittide::RepoRef;

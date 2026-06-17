@@ -11,7 +11,7 @@
 
 #include <git2.h>
 
-#include "gittide/ProjectStore.hpp"
+#include "gittide/projectstore.hpp"
 #include "gittide/ui/MainWindow.hpp"
 #include "gittide/ui/ProjectController.hpp"
 #include "gittide/ui/ProjectSidebar.hpp"

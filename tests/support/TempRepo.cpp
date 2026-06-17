@@ -1,5 +1,5 @@
 #include "support/TempRepo.hpp"
-#include "gittide/PathUtil.hpp"
+#include "gittide/pathutil.hpp"
 #include <git2.h>
 #include <fstream>
 #include <random>

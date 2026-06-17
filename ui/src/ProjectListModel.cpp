@@ -1,5 +1,5 @@
 #include <gittide/ui/ProjectListModel.hpp>
-#include <gittide/ProjectStore.hpp>
+#include <gittide/projectstore.hpp>
 
 namespace gittide::ui {
 

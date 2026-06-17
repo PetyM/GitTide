@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include "gittide/GitError.hpp"
+#include "gittide/giterror.hpp"
 
 namespace gittide {
 

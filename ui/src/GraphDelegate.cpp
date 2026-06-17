@@ -3,7 +3,7 @@
 #include <QPainter>
 #include <QStyleOptionViewItem>
 
-#include "gittide/Graph.hpp"
+#include "gittide/graph.hpp"
 #include "gittide/ui/HistoryModel.hpp"
 #include "gittide/ui/Metatypes.hpp"
 

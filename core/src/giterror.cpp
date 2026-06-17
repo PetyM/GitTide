@@ -1,4 +1,4 @@
-#include "gittide/GitError.hpp"
+#include "gittide/giterror.hpp"
 #include <git2.h>
 
 namespace gittide {
