@@ -13,6 +13,7 @@ add_executable(gitgui_core_tests
   test_build_patch.cpp
   test_git_repo_discard.cpp
   test_git_repo_init_clone.cpp
+  test_git_repo_log.cpp
   support/TempRepo.cpp
 )
 # Tests use <git2.h> directly (test_libgit2.cpp, support/TempRepo.cpp), so the

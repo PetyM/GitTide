@@ -6,6 +6,7 @@
 #include "gitgui/GitError.hpp"
 #include "gitgui/FileStatus.hpp"
 #include "gitgui/Diff.hpp"
+#include "gitgui/Graph.hpp"
 
 struct git_repository;
 
@@ -55,6 +56,10 @@ public:
 
     // Revert worktree changes for the selection (whole file or hunk/lines).
     Expected<void> discard(const StageSelection& sel);
+
+    // Walk commits reachable from HEAD, newest first (topological + time).
+    // Returns empty vector if repo has no commits. limit=0 means unlimited.
+    Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
 
 private:
     explicit GitRepo(git_repository* repo) : repo_(repo) {}

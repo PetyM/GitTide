@@ -2,6 +2,8 @@
 #include "gitgui/DiffEngine.hpp"
 #include "gitgui/PathUtil.hpp"
 #include <git2.h>
+#include <git2/revwalk.h>
+#include <git2/commit.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -301,6 +303,62 @@ Expected<std::string> GitRepo::commit(const CommitRequest& req) {
     char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
     git_oid_tostr(buf, sizeof(buf), &commit_oid);
     return std::string(buf);
+}
+
+Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const {
+    git_revwalk* walk = nullptr;
+    int rc = git_revwalk_new(&walk, repo_);
+    if (rc < 0) return std::unexpected(last_git_error(rc));
+
+    git_revwalk_sorting(walk, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
+
+    rc = git_revwalk_push_head(walk);
+    if (rc < 0) {
+        git_revwalk_free(walk);
+        // If the branch is unborn (no commits yet) or HEAD is missing,
+        // treat as empty history rather than an error.
+        int unborn = git_repository_head_unborn(repo_);
+        if (unborn > 0) return std::vector<CommitNode>{};
+        return std::unexpected(last_git_error(rc));
+    }
+
+    std::vector<CommitNode> result;
+    git_oid oid;
+    unsigned count = 0;
+
+    while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0) {
+        git_commit* c = nullptr;
+        if (git_commit_lookup(&c, repo_, &oid) < 0) continue;
+
+        CommitNode node;
+
+        char hex[GIT_OID_SHA1_HEXSIZE + 1];
+        git_oid_tostr(hex, sizeof(hex), &oid);
+        node.oid = hex;
+
+        const char* msg = git_commit_summary(c);
+        node.summary = msg ? msg : "";
+
+        const git_signature* author = git_commit_author(c);
+        node.author = author ? author->name : "";
+        node.time   = author ? author->when.time : 0;
+
+        unsigned nparents = git_commit_parentcount(c);
+        node.parents.reserve(nparents);
+        for (unsigned i = 0; i < nparents; ++i) {
+            const git_oid* pid = git_commit_parent_id(c, i);
+            char phex[GIT_OID_SHA1_HEXSIZE + 1];
+            git_oid_tostr(phex, sizeof(phex), pid);
+            node.parents.push_back(phex);
+        }
+
+        git_commit_free(c);
+        result.push_back(std::move(node));
+        ++count;
+    }
+
+    git_revwalk_free(walk);
+    return result;
 }
 
 }  // namespace gitgui
