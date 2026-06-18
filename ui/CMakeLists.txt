@@ -8,7 +8,7 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/projectcontroller.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/repocontroller.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/repocontroller.hpp
-${CMAKE_CURRENT_SOURCE_DIR}/src/projectsidebar.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/projectsidebar.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/projectsidebar.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/addrepodialogs.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/addrepodialogs.hpp

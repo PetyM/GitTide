@@ -134,6 +134,7 @@ private slots:
         QVERIFY(tabs);
         // exactly two sub-tabs now: Changes, History
         QCOMPARE(tabs->count(), 2);
+        QVERIFY(!win.findChild<QWidget*>(QStringLiteral("dashboardList")));
         // one shared diff panel exists
         QVERIFY(win.findChild<QWidget*>(QStringLiteral("diffLines")));
         // sidebar collapse toggle exists
