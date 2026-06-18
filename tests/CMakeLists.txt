@@ -58,6 +58,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_bar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_dialogs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_list.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

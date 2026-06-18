@@ -17,6 +17,7 @@
 // executed — there will be no failure, no warning, just zero test runs for that class.
 
 #include "test_async_repo.cpp"
+#include "test_changed_files_list.cpp"
 #include "test_branch_bar.cpp"
 #include "test_branch_dialogs.cpp"
 #include "test_changes_view.cpp"
@@ -65,6 +66,7 @@ int main(int argc, char** argv)
         git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, level, "");
 
     int status = 0;
+    RUN(TestChangedFilesList);
     RUN(TestUiSmoke);
     RUN(TestProjectListModel);
     RUN(TestRepoListModel);
