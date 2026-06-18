@@ -130,6 +130,12 @@ exposes them as slots and emits the result.
 There is **no staging area**: the UI owns the commit selection, and `core/` stays
 the place that touches the index. This shapes two flows.
 
+- **Working diff is vs `HEAD`.** The editable Changes diff shows *all* of a file's
+  working changes against `HEAD` (the index is not the user's model), so `diff()`
+  gains a `WorktreeVsHead` target alongside `WorktreeVsIndex` / `IndexVsHead`.
+  Because `commitSelection` resets the index to `HEAD` before staging, the
+  partial-staging patch (computed from `WorktreeVsIndex` at that moment) lines up
+  with the line indices the user picked from the displayed `WorktreeVsHead` diff.
 - **Commit from the checked set.** The Changes view holds the checked selection
   (whole files, or specific line indices within a file) as ViewModel state, not
   in the git index. On commit, `RepoController` rebuilds the index to match
