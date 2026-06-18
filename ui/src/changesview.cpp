@@ -42,6 +42,8 @@ ChangesView::ChangesView(QWidget* parent)
     qRegisterMetaType<gittide::StageSelection>();
     qRegisterMetaType<gittide::DiffTarget>();
 
+    m_diff->setMode(DiffView::Mode::Editable);
+
     m_staged->setObjectName(QStringLiteral("stagedList"));
     m_unstaged->setObjectName(QStringLiteral("unstagedList"));
     m_message->setObjectName(QStringLiteral("commitMessage"));
@@ -100,8 +102,8 @@ ChangesView::ChangesView(QWidget* parent)
                 emit commitRequested(gittide::CommitRequest{.message = commitMessage().toStdString()});
             });
 
-    connect(m_diff, &DiffView::stageRequested, this, &ChangesView::stageRequested);
-    connect(m_diff, &DiffView::unstageRequested, this, &ChangesView::unstageRequested);
+    // DiffView no longer emits stageRequested/unstageRequested (removed in Task 5;
+    // the commit-from-selection model wires these differently in Tasks 6/7).
     connect(m_diff, &DiffView::discardRequested, this, &ChangesView::discardRequested);
 }
 
@@ -128,7 +130,10 @@ void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files)
 
 void ChangesView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file)
 {
-    m_diff->setDiff(result, file);
+    // Task 5: DiffView::setDiff now requires mode + checkedLines. Pass Editable
+    // mode with wholeChecked=true and empty checkedLines (all lines checked by
+    // default). Tasks 6/7 will wire per-line selection state properly.
+    m_diff->setDiff(result, file, /*wholeChecked=*/true, {});
 }
 
 QString ChangesView::commitMessage() const
