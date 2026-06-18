@@ -1,4 +1,5 @@
 #include <QFrame>
+#include <QtWidgets/QStatusBar>
 #include <QLabel>
 #include <QObject>
 #include <QPushButton>
@@ -165,6 +166,21 @@ private slots:
         QCOMPARE(stack->currentIndex(), 2);
         auto* tabs = win.findChild<QTabWidget*>(QStringLiteral("mainTabs"));
         QVERIFY(tabs != nullptr);
+        main_window_test::drainAsync();
+    }
+
+    void failed_repo_open_shows_status_bar_message()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "P"});
+        MainWindow win(&store);
+        win.showProject(QStringLiteral("id-a"));
+
+        auto* sidebar = win.findChild<gittide::ui::ProjectSidebar*>();
+        QVERIFY(sidebar != nullptr);
+        // Opening a non-existent path triggers repoFailed → status bar
+        emit sidebar->repoSelected(QStringLiteral("/no/such/gittide-path"));
+        QVERIFY(!win.statusBar()->currentMessage().isEmpty());
         main_window_test::drainAsync();
     }
 };

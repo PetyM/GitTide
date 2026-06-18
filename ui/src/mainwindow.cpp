@@ -1,6 +1,7 @@
 #include "gittide/ui/mainwindow.hpp"
 
 #include <QDockWidget>
+#include <QtWidgets/QStatusBar>
 #include <QFileDialog>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -225,14 +226,14 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 QCoro::connect(m_repoController->commit(req), this, [] {});
             });
 
-    // Activating a project refreshes the dashboard from its repos.
-    connect(m_controller,
-            &ProjectController::projectActivated,
-            this,
-            [this](const QString&)
-            {
-                QCoro::connect(m_dashboardModel->refreshAsync(m_controller->activeRepos()), this, [] {});
-            });
+    // Activating a project or mutating its repo list refreshes the dashboard.
+    auto refreshDashboard = [this]()
+    {
+        QCoro::connect(m_dashboardModel->refreshAsync(m_controller->activeRepos()), this, [] {});
+    };
+    connect(m_controller, &ProjectController::projectActivated, this, [=](const QString&) { refreshDashboard(); });
+    connect(m_controller, &ProjectController::repoAdded, this, [=](const QString&) { refreshDashboard(); });
+    connect(m_controller, &ProjectController::repoRemoved, this, [=](const QString&) { refreshDashboard(); });
 
     // Empty-state page switching
     connect(m_controller, &ProjectController::projectActivated, this, &MainWindow::updateCentralPage);
@@ -246,6 +247,22 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
             [this](const QString& message)
             {
                 QMessageBox::warning(this, QStringLiteral("Repository Error"), message);
+            });
+
+    // Git operation errors → non-intrusive status bar message (5 s).
+    connect(m_repoController,
+            &RepoController::operationFailed,
+            this,
+            [this](const QString& message)
+            {
+                statusBar()->showMessage(message, 5000);
+            });
+    connect(m_repoController,
+            &RepoController::repoFailed,
+            this,
+            [this](const QString&, const QString& message)
+            {
+                statusBar()->showMessage(message, 5000);
             });
 
     // Sidebar mutation signals → handlers
