@@ -186,8 +186,10 @@ Test `tests/test_git_repo_branches.cpp` (append cases).
 
 **Interfaces — Produces:**
 ```cpp
-// empty fromOid = from current HEAD; checkout=true switches to the new branch.
-Expected<void> createBranch(std::string name, std::string fromOid, bool checkout);
+// empty fromOid = from current HEAD. Creation only — does NOT switch; the
+// create-then-switch orchestration lives in RepoController (Task 7), which keeps
+// this method free of the checkout forward-dependency.
+Expected<void> createBranch(std::string name, std::string fromOid);
 ```
 **Consumes:** `branches()`, `head()` (Task 1).
 
@@ -202,7 +204,7 @@ TEST_CASE("createBranch from HEAD makes a listable branch", "[branches]")
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
 
-    REQUIRE(repo->createBranch("feature", "", /*checkout=*/false).has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
     auto list = repo->branches();
     REQUIRE(list.has_value());
     REQUIRE(has(*list, "feature"));
@@ -219,7 +221,7 @@ TEST_CASE("createBranch rejects an invalid name", "[branches]")
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
 
-    auto r = repo->createBranch("bad name~^:", "", false);
+    auto r = repo->createBranch("bad name~^:", "");
     REQUIRE_FALSE(r.has_value());
 }
 ```
@@ -230,7 +232,7 @@ TEST_CASE("createBranch rejects an invalid name", "[branches]")
   commit, then:
 
 ```cpp
-Expected<void> GitRepo::createBranch(std::string name, std::string fromOid, bool checkout)
+Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
 {
     int valid = 0;
     if (git_branch_name_is_valid(&valid, name.c_str()) < 0 || valid == 0)
@@ -263,15 +265,9 @@ Expected<void> GitRepo::createBranch(std::string name, std::string fromOid, bool
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     git_reference_free(new_ref);
-
-    if (checkout)
-        return checkoutBranch(name); // defined in Task 3
     return {};
 }
 ```
-> If Task 3 is not yet implemented, temporarily compile with `checkout==false`
-> only; Task 3 lands `checkoutBranch` and re-enables the branch. (Subagent order:
-> do Task 3 before exercising `checkout=true`.)
 
 - [ ] **Step 4: Run — expect PASS** (both new cases).
 
@@ -320,7 +316,7 @@ TEST_CASE("checkoutBranch switches a clean tree", "[checkout]")
     tmp.commitAll("init");
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
-    REQUIRE(repo->createBranch("feature", "", false).has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
 
     REQUIRE(repo->checkoutBranch("feature").has_value());
     auto h = repo->head();
@@ -335,7 +331,7 @@ TEST_CASE("checkoutBranch carries uncommitted changes to the target", "[checkout
     tmp.commitAll("init");
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
-    REQUIRE(repo->createBranch("feature", "", false).has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
 
     tmp.writeFile("a.txt", "dirty\n"); // uncommitted edit
     REQUIRE(repo->checkoutBranch("feature").has_value());
@@ -517,7 +513,7 @@ TEST_CASE("deleteBranch removes a merged branch but blocks the current one", "[b
     REQUIRE(repo.has_value());
     const std::string cur = repo->head()->branch;
 
-    REQUIRE(repo->createBranch("merged", "", false).has_value()); // same tip => merged
+    REQUIRE(repo->createBranch("merged", "").has_value()); // same tip => merged
     REQUIRE(repo->deleteBranch("merged", /*force=*/false).has_value());
     REQUIRE_FALSE(has(*repo->branches(), "merged"));
 
@@ -531,7 +527,7 @@ TEST_CASE("renameBranch renames and rejects invalid names", "[branches]")
     tmp.commitAll("init");
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
-    REQUIRE(repo->createBranch("old", "", false).has_value());
+    REQUIRE(repo->createBranch("old", "").has_value());
 
     REQUIRE(repo->renameBranch("old", "new", false).has_value());
     REQUIRE(has(*repo->branches(), "new"));
@@ -615,7 +611,7 @@ if not already listed (it is).
 ```cpp
 QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> branches();
 QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
-QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid, bool checkout);
+QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid);
 QCoro::Task<gittide::Expected<void>> checkoutBranch(QString name);
 QCoro::Task<gittide::Expected<void>> checkoutCommit(QString oid);
 QCoro::Task<gittide::Expected<void>> deleteBranch(QString name, bool force);
@@ -632,8 +628,7 @@ void branches_lists_and_creates()
     auto repo      = gittide::ui::AsyncRepo::open(dir);
     QVERIFY(repo.has_value());
 
-    auto created = QCoro::waitFor(repo->createBranch(QStringLiteral("feature"),
-                                                     QString(), /*checkout=*/false));
+    auto created = QCoro::waitFor(repo->createBranch(QStringLiteral("feature"), QString()));
     QVERIFY(created.has_value());
     auto list = QCoro::waitFor(repo->branches());
     QVERIFY(list.has_value());
@@ -789,7 +784,7 @@ QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bo
 {
     if (!m_repo)
         co_return;
-    auto r = co_await m_repo->createBranch(name, fromOid, checkout);
+    auto r = co_await m_repo->createBranch(name, fromOid);
     if (!r)
     {
         emit operationFailed(QString::fromStdString(r.error().message));
@@ -797,6 +792,13 @@ QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bo
     }
     if (checkout)
     {
+        auto sw = co_await m_repo->checkoutBranch(name);
+        if (!sw)
+        {
+            emit operationFailed(QString::fromStdString(sw.error().message));
+            co_await refreshBranches(); // branch exists even if the switch failed
+            co_return;
+        }
         co_await refreshStatus();
         co_await refreshHistory();
     }
