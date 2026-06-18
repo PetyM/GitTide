@@ -723,4 +723,84 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
     return {};
 }
 
+Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTree, git_tree** outParentTree) const
+{
+    *outTree       = nullptr;
+    *outParentTree = nullptr;
+
+    git_oid oid;
+    int rc = git_oid_fromstr(&oid, oidHex.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_commit* commit = nullptr;
+    rc                 = git_commit_lookup(&commit, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    rc = git_commit_tree(outTree, commit);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    if (git_commit_parentcount(commit) > 0)
+    {
+        git_commit* parent = nullptr;
+        if (git_commit_parent(&parent, commit, 0) == 0)
+        {
+            std::unique_ptr<git_commit, decltype(&git_commit_free)> parent_guard(parent, git_commit_free);
+            rc = git_commit_tree(outParentTree, parent);
+            if (rc < 0)
+            {
+                git_tree_free(*outTree);
+                *outTree = nullptr;
+                return std::unexpected(lastGitError(rc));
+            }
+        }
+    }
+    return {};
+}
+
+Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
+{
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    std::vector<FileStatus> result;
+    size_t n = git_diff_num_deltas(raw);
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const git_diff_delta* d = git_diff_get_delta(raw, i);
+        StatusFlag flag         = StatusFlag::IndexModified;
+        const char* path        = d->new_file.path;
+        switch (d->status)
+        {
+            case GIT_DELTA_ADDED:
+                flag = StatusFlag::IndexNew;
+                break;
+            case GIT_DELTA_DELETED:
+                flag = StatusFlag::IndexDeleted;
+                path = d->old_file.path;
+                break;
+            default: // MODIFIED, RENAMED, COPIED, TYPECHANGE → show as modified
+                flag = StatusFlag::IndexModified;
+                break;
+        }
+        if (path)
+            result.push_back(FileStatus{fromGitPath(path), flag});
+    }
+    return result;
+}
+
 } // namespace gittide

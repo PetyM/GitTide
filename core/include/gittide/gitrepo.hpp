@@ -12,6 +12,7 @@
 
 struct git_repository;
 struct git_oid;
+struct git_tree;
 
 namespace gittide {
 
@@ -67,6 +68,11 @@ public:
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
 
+    // Files changed by the commit identified by the 40-char hex oid, relative to its
+    // first parent (root commit: relative to an empty tree). Flags use Index* to mean
+    // added / modified / deleted, matching the working-changes display model.
+    Expected<std::vector<FileStatus>> commitFiles(std::string oid) const;
+
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
 
@@ -108,6 +114,10 @@ private:
 
     std::filesystem::path workdir() const;                              // repo working directory
     Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
+
+    // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
+    // root commit). Both out-trees are owned by the caller (git_tree_free).
+    Expected<void> commitTrees(const std::string& oid, git_tree** outTree, git_tree** outParentTree) const;
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty
