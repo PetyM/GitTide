@@ -56,6 +56,27 @@ QProgressBar { border: 1px solid %4; border-radius: 6px; text-align: center; }
 QProgressBar::chunk { background: %8; border-radius: 6px; }
 
 QToolTip { background: %2; border: 1px solid %4; color: %7; border-radius: 6px; padding: 4px 8px; }
+
+QWidget#branchBar {
+    background: %2;
+    border-bottom: 1px solid %4;
+}
+
+QToolButton#currentBranchButton {
+    background: %2;
+    color: %5;
+    border: 1px solid %4;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-weight: 600;
+}
+QToolButton#currentBranchButton:hover { border-color: %8; }
+
+QDialog#newBranchDialog, QDialog#renameBranchDialog, QDialog#deleteBranchDialog {
+    background: %2;
+    border: 1px solid %4;
+    border-radius: 18px;
+}
 )")
         .arg(t.surfaceBase,    // %1
              t.surfaceRaised,  // %2

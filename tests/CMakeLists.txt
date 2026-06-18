@@ -14,6 +14,8 @@ add_executable(gittide_core_tests
   test_git_repo_discard.cpp
   test_git_repo_init_clone.cpp
   test_git_repo_log.cpp
+  test_git_repo_branches.cpp
+  test_git_repo_checkout.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
 )
@@ -51,6 +53,9 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_style.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_bar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_dialogs.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_view.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

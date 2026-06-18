@@ -17,11 +17,14 @@
 // executed — there will be no failure, no warning, just zero test runs for that class.
 
 #include "test_async_repo.cpp"
+#include "test_branch_bar.cpp"
+#include "test_branch_dialogs.cpp"
 #include "test_changes_view.cpp"
 #include "test_dashboard_async.cpp"
 #include "test_dashboard_model.cpp"
 #include "test_diff_view.cpp"
 #include "test_history_model.cpp"
+#include "test_history_view.cpp"
 #include "test_main_window.cpp"
 #include "test_project_controller.cpp"
 #include "test_project_list_model.cpp"
@@ -74,10 +77,13 @@ int main(int argc, char** argv)
     RUN(TestWindowManager);
     RUN(TestQCoroSmoke);
     RUN(TestAsyncRepo);
+    RUN(TestBranchBar);
+    RUN(TestBranchDialogs);
     RUN(TestDashboardAsync);
     RUN(TestDiffView);
     RUN(TestChangesView);
     RUN(TestHistoryModel);
+    RUN(TestHistoryView);
     RUN(TestTheme);
     RUN(TestThemeStyle);
     RUN(TestThemeManager);

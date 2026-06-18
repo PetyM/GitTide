@@ -46,7 +46,7 @@ and testable on its own.
 
 | Concern | Code |
 |---------|------|
-| Git operations (status/diff/stage/commit/log/submodules) | `core/src/gitrepo.cpp`, `core/include/gittide/gitrepo.hpp` |
+| Git operations (status/diff/stage/commit/log/submodules/branches) | `core/src/gitrepo.cpp`, `core/include/gittide/gitrepo.hpp` |
 | Diff parsing + partial-staging patch synthesis | `core/src/diffengine.cpp` |
 | Commit graph lane layout | `core/src/graphbuilder.cpp` |
 | Project registry persistence (JSON) | `core/src/projectstore.cpp` |
@@ -105,6 +105,28 @@ The UI thread never blocks; git work runs off it.
   QtConcurrent).
 - **Rendering** of graph/log/diff is lazy and virtualized — only visible rows
   render — so a very large history never stalls the UI.
+
+### Branch operations & the refresh cascade
+
+Branch enumeration and mutation (list / create / checkout / delete / rename, plus
+detached-commit checkout) are pure git operations → they live on `GitRepo` in
+`core/` over the libgit2 `git_branch_*` / `git_checkout_tree` /
+`git_repository_set_head[_detached]` / `git_stash_*` APIs, returning `Expected<T>`
+like the rest of core. `AsyncRepo` wraps each as a `QCoro::Task`; `RepoController`
+exposes them as slots and emits the result.
+
+- **Safe-switch invariant — never clobber uncommitted work.** A checkout that
+  would overwrite a dirty working tree must not silently discard it. Both branch
+  checkout and detached-commit checkout route through one core helper that, on a
+  dirty tree, stashes (`git_stash_save`, including untracked), checks out the
+  target, then re-applies (`git_stash_pop`). A pop conflict is the single
+  non-clean exit: it stops, **keeps** the stash, and returns a `GitError` —
+  `HEAD` has moved but no work is lost. Checkout uses `GIT_CHECKOUT_SAFE`, not
+  `FORCE`. (Rationale and rejected alternatives: D21.)
+- **Cascade.** A successful switch / checkout / create-with-checkout invalidates
+  status + history + branches and triggers the same refresh cascade as "switch
+  project," scoped to the one repo. Delete / rename (HEAD unchanged) refreshes the
+  branch list only.
 
 ## Code style
 

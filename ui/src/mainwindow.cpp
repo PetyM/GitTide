@@ -15,11 +15,14 @@
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>
+#include <QWidget>
 #include <filesystem>
 #include <qcorotask.h>
 #include <vector>
 
 #include "gittide/ui/addrepodialogs.hpp"
+#include "gittide/ui/branchbar.hpp"
+#include "gittide/ui/branchdialogs.hpp"
 #include "gittide/ui/changesview.hpp"
 #include "gittide/ui/dashboardmodel.hpp"
 #include "gittide/ui/historyview.hpp"
@@ -118,6 +121,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
     , m_controller(new ProjectController(store, std::move(storePath), this))
     , m_sidebar(new ProjectSidebar(m_controller, this))
     , m_repoController(new RepoController(this))
+    , m_branchBar(new BranchBar(this))
     , m_changesView(new ChangesView(this))
     , m_historyView(new HistoryView(this))
     , m_dashboardModel(new DashboardModel(this))
@@ -146,9 +150,19 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
     dashboardView->setModel(m_dashboardModel);
     tabs->addTab(dashboardView, QStringLiteral("Dashboard"));
 
+    // Wrap BranchBar + tab widget in a vertical container so BranchBar sits
+    // above the tabs. This container becomes central-stack index 2.
+    auto* repoPage = new QWidget(this);
+    repoPage->setObjectName(QStringLiteral("repoPage"));
+    auto* repoPageLayout = new QVBoxLayout(repoPage);
+    repoPageLayout->setContentsMargins(0, 0, 0, 0);
+    repoPageLayout->setSpacing(0);
+    repoPageLayout->addWidget(m_branchBar);
+    repoPageLayout->addWidget(tabs);
+
     m_centralStack->addWidget(noProjectsPage); // index 0
     m_centralStack->addWidget(noReposPage);    // index 1
-    m_centralStack->addWidget(tabs);           // index 2
+    m_centralStack->addWidget(repoPage);       // index 2
     setCentralWidget(m_centralStack);
 
     // Wire existing repo/sidebar connections (unchanged from before)
@@ -172,6 +186,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 emit repoOpened(path);
                 QCoro::connect(m_repoController->refreshStatus(), this, [] {});
                 QCoro::connect(m_repoController->refreshHistory(), this, [] {});
+                QCoro::connect(m_repoController->refreshBranches(), this, [] {});
             });
     connect(m_repoController,
             &RepoController::historyReady,
@@ -179,6 +194,95 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
             [this](const gittide::GraphLayout& layout)
             {
                 m_historyView->setHistory(layout);
+            });
+
+    // Branch state → BranchBar
+    connect(m_repoController,
+            &RepoController::branchesChanged,
+            m_branchBar,
+            &BranchBar::setBranches);
+    connect(m_repoController,
+            &RepoController::headChanged,
+            this,
+            [this](const gittide::HeadState& head)
+            {
+                m_currentBranch = QString::fromStdString(head.branch);
+                m_branchBar->setHead(head);
+            });
+
+    // BranchBar intent signals → controller
+    connect(m_branchBar,
+            &BranchBar::switchRequested,
+            this,
+            [this](const QString& name)
+            {
+                QCoro::connect(m_repoController->switchBranch(name), this, [] {});
+            });
+    connect(m_branchBar,
+            &BranchBar::createRequested,
+            this,
+            [this]()
+            {
+                auto choice = askNewBranch(this, m_currentBranch);
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->createBranch(choice.name, QString(), choice.checkout), this, [] {});
+            });
+    connect(m_branchBar,
+            &BranchBar::renameRequested,
+            this,
+            [this](const QString& name)
+            {
+                auto choice = askRenameBranch(this, name);
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->renameBranch(name, choice.name), this, [] {});
+            });
+    connect(m_branchBar,
+            &BranchBar::deleteRequested,
+            this,
+            [this](const QString& name)
+            {
+                auto choice = askDeleteBranch(this, name, /*unmerged=*/false);
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->deleteBranch(name, choice.force), this, [] {});
+            });
+    // When a non-forced delete hits an unmerged branch, re-prompt with the
+    // "delete anyway?" (unmerged=true) confirmation and retry with force=true.
+    connect(m_repoController,
+            &RepoController::deleteFailedUnmerged,
+            this,
+            [this](const QString& name)
+            {
+                auto choice = askDeleteBranch(this, name, /*unmerged=*/true);
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->deleteBranch(name, /*force=*/true), this, [] {});
+            });
+
+    // HistoryView graph context menu → controller
+    connect(m_historyView,
+            &HistoryView::newBranchFromCommitRequested,
+            this,
+            [this](const QString& oid)
+            {
+                auto choice = askNewBranch(this, oid.left(7));
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->createBranch(choice.name, oid, choice.checkout), this, [] {});
+            });
+    connect(m_historyView,
+            &HistoryView::checkoutCommitRequested,
+            this,
+            [this](const QString& oid)
+            {
+                QCoro::connect(m_repoController->checkoutCommit(oid), this, [] {});
             });
 
     // Async wiring between controller and ChangesView.

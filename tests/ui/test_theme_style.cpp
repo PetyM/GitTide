@@ -28,6 +28,13 @@ private slots:
         const QString qss = buildStyleSheet(darkTheme());
         QVERIFY(qss.contains(QStringLiteral("#createProjectCta")));
     }
+    void branch_bar_and_dialogs_are_styled_by_objectname()
+    {
+        const QString qss = buildStyleSheet(darkTheme());
+        QVERIFY(qss.contains(QStringLiteral("#branchBar")));
+        QVERIFY(qss.contains(QStringLiteral("#currentBranchButton")));
+        QVERIFY(qss.contains(QStringLiteral("#newBranchDialog")));
+    }
 };
 
 #include "test_theme_style.moc"

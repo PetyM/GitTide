@@ -24,6 +24,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 6 — Rebrand → GitTide](2026-06-17-plan6-rebrand-gittide.md) | 2026-06-17 | done | — |
 | [Plan 7 — Visual theme](2026-06-17-plan7-visual-theme.md) | 2026-06-17 | done | design |
 | [Code-style conformance](2026-06-17-code-style-conformance.md) | 2026-06-17 | done | engineering · code-style |
+| [Plan 8 — Branch management](2026-06-18-plan8-branch-management.md) | 2026-06-18 | done | product · engineering · design |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

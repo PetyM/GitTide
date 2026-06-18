@@ -11,6 +11,7 @@ class QStackedWidget;
 
 namespace gittide::ui {
 
+class BranchBar;
 class ProjectController;
 class ProjectSidebar;
 class RepoController;
@@ -47,10 +48,12 @@ private:
     ProjectController* m_controller;
     ProjectSidebar* m_sidebar;
     RepoController* m_repoController;
+    BranchBar* m_branchBar;
     ChangesView* m_changesView;
     HistoryView* m_historyView;
     DashboardModel* m_dashboardModel;
     QStackedWidget* m_centralStack;
+    QString m_currentBranch; // tracks latest headChanged branch name
 };
 
 } // namespace gittide::ui

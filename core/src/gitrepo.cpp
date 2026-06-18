@@ -1,8 +1,12 @@
 #include "gittide/gitrepo.hpp"
 
 #include <git2.h>
+#include <git2/branch.h>
+#include <git2/checkout.h>
 #include <git2/commit.h>
+#include <git2/graph.h>
 #include <git2/revwalk.h>
+#include <git2/stash.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -448,6 +452,242 @@ Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     return result;
+}
+
+Expected<std::vector<BranchInfo>> GitRepo::branches() const
+{
+    git_branch_iterator* it = nullptr;
+    int rc = git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_branch_iterator, decltype(&git_branch_iterator_free)> guard(it, git_branch_iterator_free);
+
+    std::vector<BranchInfo> result;
+    git_reference* ref    = nullptr;
+    git_branch_t br_type;
+    while ((rc = git_branch_next(&ref, &br_type, it)) == 0)
+    {
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+        const char* name = nullptr;
+        if (git_branch_name(&name, ref) == 0 && name)
+            result.push_back(BranchInfo{name, git_branch_is_head(ref) == 1});
+    }
+    if (rc != GIT_ITEROVER)
+        return std::unexpected(lastGitError(rc));
+    return result;
+}
+
+Expected<HeadState> GitRepo::head() const
+{
+    HeadState st;
+    if (git_repository_head_unborn(m_repo) == 1)
+    {
+        st.unborn = true;
+        return st;
+    }
+    git_reference* ref = nullptr;
+    int rc             = git_repository_head(&ref, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    git_oid oid;
+    if (git_reference_name_to_id(&oid, m_repo, "HEAD") == 0)
+    {
+        char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+        git_oid_tostr(hex, sizeof(hex), &oid);
+        st.oid = hex;
+    }
+    st.detached = git_repository_head_detached(m_repo) == 1;
+    if (!st.detached)
+    {
+        const char* sh = git_reference_shorthand(ref);
+        st.branch      = sh ? sh : "";
+    }
+    return st;
+}
+
+Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
+{
+    int valid = 0;
+    if (git_branch_name_is_valid(&valid, name.c_str()) < 0 || valid == 0)
+        return std::unexpected(GitError{-1, "invalid branch name"});
+
+    git_commit* target = nullptr;
+    int rc;
+    if (fromOid.empty())
+    {
+        git_oid head_oid;
+        rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        rc = git_commit_lookup(&target, m_repo, &head_oid);
+    }
+    else
+    {
+        git_oid oid;
+        rc = git_oid_fromstr(&oid, fromOid.c_str());
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        rc = git_commit_lookup(&target, m_repo, &oid);
+    }
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> target_guard(target, git_commit_free);
+
+    git_reference* new_ref = nullptr;
+    rc = git_branch_create(&new_ref, m_repo, name.c_str(), target, /*force=*/0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_reference_free(new_ref);
+    return {};
+}
+
+Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::string& refToSet)
+{
+    // 1. Detect dirty working tree.
+    auto st = status();
+    if (!st)
+        return std::unexpected(st.error());
+    const bool dirty = !st->empty();
+
+    // 2. Auto-stash if dirty.
+    git_oid stash_oid;
+    bool stashed = false;
+    if (dirty)
+    {
+        git_signature* sig = nullptr;
+        if (git_signature_default(&sig, m_repo) < 0)
+            git_signature_now(&sig, "GitTide", "gittide@localhost");
+        if (!sig)
+            return std::unexpected(GitError{-1, "could not build a signature for the auto-stash"});
+        std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+        int rc = git_stash_save(&stash_oid, m_repo, sig, "gittide: auto-stash on switch",
+                                GIT_STASH_INCLUDE_UNTRACKED);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        stashed = true;
+    }
+
+    // 3. Checkout the target commit tree.
+    git_commit* commit = nullptr;
+    int rc             = git_commit_lookup(&commit, m_repo, &targetCommit);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy    = GIT_CHECKOUT_SAFE;
+    rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(commit), &opts);
+    if (rc < 0)
+        // On failure here the auto-stash remains; HEAD is unchanged so the
+        // user's changes are recoverable via the stash.
+        return std::unexpected(lastGitError(rc));
+
+    // 4. Update HEAD.
+    if (refToSet.empty())
+        rc = git_repository_set_head_detached(m_repo, &targetCommit);
+    else
+        rc = git_repository_set_head(m_repo, refToSet.c_str());
+    if (rc < 0)
+    {
+        if (stashed)
+            return std::unexpected(
+                GitError{rc, "Failed to update HEAD; your uncommitted changes are saved in the stash"});
+        return std::unexpected(lastGitError(rc));
+    }
+
+    // 5. Re-apply the stash if we created one.
+    if (stashed)
+    {
+        git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+        rc = git_stash_pop(m_repo, 0, &aopts);
+        if (rc < 0)
+        {
+            // Stash is intentionally preserved — the caller can inspect it.
+            return std::unexpected(GitError{rc,
+                "Switched branch, but your changes conflict and are kept in the stash"});
+        }
+    }
+    return {};
+}
+
+Expected<void> GitRepo::checkoutBranch(std::string name)
+{
+    // Resolve the branch short-name to a full ref and OID.
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+
+    git_oid oid;
+    rc = git_reference_name_to_id(&oid, m_repo, git_reference_name(ref));
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    return safeSwitch(oid, std::string("refs/heads/") + name);
+}
+
+Expected<void> GitRepo::checkoutCommit(std::string oid)
+{
+    git_oid target;
+    int rc = git_oid_fromstr(&target, oid.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return safeSwitch(target, /*refToSet=*/"");
+}
+
+Expected<void> GitRepo::deleteBranch(std::string name, bool force)
+{
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    if (git_branch_is_head(ref) == 1)
+        return std::unexpected(GitError{-1, "cannot delete the current branch"});
+
+    if (!force)
+    {
+        git_oid branch_oid, head_oid;
+        if (git_reference_name_to_id(&branch_oid, m_repo, git_reference_name(ref)) == 0
+            && git_reference_name_to_id(&head_oid, m_repo, "HEAD") == 0)
+        {
+            // merged == branch tip is an ancestor of (or equal to) HEAD.
+            int merged = git_oid_equal(&branch_oid, &head_oid)
+                         || git_graph_descendant_of(m_repo, &head_oid, &branch_oid) == 1;
+            if (!merged)
+                return std::unexpected(GitError{-1, "branch is not fully merged"});
+        }
+    }
+
+    rc = git_branch_delete(ref);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, bool force)
+{
+    int valid = 0;
+    if (git_branch_name_is_valid(&valid, newName.c_str()) < 0 || valid == 0)
+        return std::unexpected(GitError{-1, "invalid branch name"});
+
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, oldName.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    git_reference* moved = nullptr;
+    rc = git_branch_move(&moved, ref, newName.c_str(), force ? 1 : 0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_reference_free(moved);
+    return {};
 }
 
 } // namespace gittide

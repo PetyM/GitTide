@@ -4,12 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 
 struct git_repository;
+struct git_oid;
 
 namespace gittide {
 
@@ -60,8 +62,37 @@ public:
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
 
+    // List all local branches. BranchInfo::isHead is true for the current branch.
+    Expected<std::vector<BranchInfo>> branches() const;
+
+    // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
+    Expected<HeadState> head() const;
+
+    // Create a new local branch pointing at fromOid (40-char hex SHA).
+    // Pass an empty fromOid to branch from current HEAD.
+    // Does NOT switch HEAD — creation only.
+    Expected<void> createBranch(std::string name, std::string fromOid);
+
     // Returns absolute paths of direct submodules (from .gitmodules).
     Expected<std::vector<std::filesystem::path>> submodules() const;
+
+    // Switch HEAD to the named local branch. If the working tree is dirty the
+    // changes are auto-stashed before the switch and re-applied afterwards.
+    // Returns an error if the branch does not exist or the stash-pop conflicts.
+    Expected<void> checkoutBranch(std::string name);
+
+    // Detach HEAD at the commit identified by the 40-char hex oid.
+    // If the working tree is dirty the changes are auto-stashed and re-applied
+    // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.
+    Expected<void> checkoutCommit(std::string oid);
+
+    // Delete the named local branch. Blocks if it is the current branch.
+    // Without force, also blocks if the branch is not fully merged into HEAD.
+    Expected<void> deleteBranch(std::string name, bool force);
+
+    // Rename a local branch from oldName to newName.
+    // Validates newName; with force=true overwrites an existing branch of that name.
+    Expected<void> renameBranch(std::string oldName, std::string newName, bool force);
 
 private:
     explicit GitRepo(git_repository* repo)
@@ -72,6 +103,12 @@ private:
 
     std::filesystem::path workdir() const;                              // repo working directory
     Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
+
+    // Low-level: checkout the commit identified by targetCommit, then update
+    // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty
+    // working tree and pops afterwards. On pop conflict the stash is preserved
+    // and an error is returned.
+    Expected<void> safeSwitch(const git_oid& targetCommit, const std::string& refToSet);
 };
 
 } // namespace gittide
