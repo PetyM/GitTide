@@ -327,6 +327,48 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void commit_selection_commits_only_checked_files()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+
+        // create two new files in the worktree
+        { std::ofstream(dir / "keep.txt") << "keep\n"; }
+        { std::ofstream(dir / "skip.txt") << "skip\n"; }
+
+        QSignalSpy committed(&controller, &RepoController::committed);
+        std::vector<gittide::StageSelection> sel{ {"keep.txt", std::nullopt, {}} }; // only keep.txt
+        QCoro::waitFor(controller.commitSelection(gittide::CommitRequest{"add keep"}, sel));
+
+        QCOMPARE(committed.count(), 1);
+
+        // skip.txt must still be an uncommitted change after the commit
+        auto repo = gittide::ui::AsyncRepo::open(dir);
+        auto st   = QCoro::waitFor(repo->status());
+        QVERIFY(st.has_value());
+        bool skipStillThere = std::any_of(st->begin(), st->end(),
+            [](const auto& f){ return f.path.generic_string() == "skip.txt"; });
+        QVERIFY(skipStillThere);
+        std::filesystem::remove_all(dir);
+    }
+
+    void refresh_commit_files_emits_for_a_commit()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        qRegisterMetaType<std::vector<gittide::FileStatus>>();
+        controller.open(QString::fromStdString(dir.generic_string()));
+
+        auto repo = gittide::ui::AsyncRepo::open(dir);
+        const QString oid = QString::fromStdString(QCoro::waitFor(repo->log())->front().oid);
+
+        QSignalSpy spy(&controller, &RepoController::commitFilesReady);
+        QCoro::waitFor(controller.refreshCommitFiles(oid));
+        QCOMPARE(spy.count(), 1);
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_controller.moc"

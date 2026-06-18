@@ -234,4 +234,68 @@ QCoro::Task<void> RepoController::renameBranch(QString oldName, QString newName)
     co_await refreshBranches();
 }
 
+QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
+                                                  std::vector<gittide::StageSelection> selections)
+{
+    if (!m_repo)
+        co_return;
+    if (selections.empty())
+    {
+        emit operationFailed(QStringLiteral("Nothing selected to commit"));
+        co_return;
+    }
+    auto reset = co_await m_repo->resetIndexToHead();
+    if (!reset)
+    {
+        emit operationFailed(QString::fromStdString(reset.error().message));
+        co_return;
+    }
+    for (const auto& sel : selections)
+    {
+        auto s = co_await m_repo->stage(sel);
+        if (!s)
+        {
+            emit operationFailed(QString::fromStdString(s.error().message));
+            co_await refreshStatus(); // leave the user in a consistent state
+            co_return;
+        }
+    }
+    auto oid = co_await m_repo->commit(req);
+    if (!oid)
+    {
+        emit operationFailed(QString::fromStdString(oid.error().message));
+        co_await refreshStatus();
+        co_return;
+    }
+    emit committed(QString::fromStdString(*oid));
+    co_await refreshStatus();
+    co_await refreshHistory();
+}
+
+QCoro::Task<void> RepoController::refreshCommitFiles(QString oid)
+{
+    if (!m_repo)
+        co_return;
+    auto files = co_await m_repo->commitFiles(oid);
+    if (!files)
+    {
+        emit operationFailed(QString::fromStdString(files.error().message));
+        co_return;
+    }
+    emit commitFilesReady(oid, *files);
+}
+
+QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
+{
+    if (!m_repo)
+        co_return;
+    auto d = co_await m_repo->commitDiff(oid, std::filesystem::path(path.toStdString()));
+    if (!d)
+    {
+        emit operationFailed(QString::fromStdString(d.error().message));
+        co_return;
+    }
+    emit commitDiffReady(oid, path, *d);
+}
+
 } // namespace gittide::ui
