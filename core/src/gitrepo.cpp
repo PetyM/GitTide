@@ -803,4 +803,27 @@ Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
     return result;
 }
 
+Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem::path& file) const
+{
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    std::string git_file = toGitPath(file);
+    char* paths[]        = {git_file.data()};
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count   = 1;
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+    return DiffEngine::parse(diff_guard.get());
+}
+
 } // namespace gittide

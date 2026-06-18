@@ -73,6 +73,10 @@ public:
     // added / modified / deleted, matching the working-changes display model.
     Expected<std::vector<FileStatus>> commitFiles(std::string oid) const;
 
+    // Diff one file inside the commit identified by the 40-char hex oid against its
+    // first parent (root commit: against an empty tree). Mirrors diff()'s DiffResult.
+    Expected<DiffResult> commitDiff(std::string oid, const std::filesystem::path& file) const;
+
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
 

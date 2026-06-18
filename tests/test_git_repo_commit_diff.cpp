@@ -54,3 +54,27 @@ TEST_CASE("commitFiles treats the root commit's files as added", "[commitfiles]"
     REQUIRE(has(*files, "a.txt"));
     REQUIRE(hasFlag((*files)[0].flags, StatusFlag::IndexNew));
 }
+
+TEST_CASE("commitDiff returns the added lines of a file in a commit", "[commitfiles]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "one\n");
+    tmp.commitAll("c1");
+    tmp.writeFile("a.txt", "one\ntwo\n");      // modify a.txt in c2
+    tmp.commitAll("c2");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    const std::string c2 = repo->log()->front().oid;
+
+    auto d = repo->commitDiff(c2, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE_FALSE(d->hunks.empty());
+
+    bool sawAddedTwo = false;
+    for (const auto& h : d->hunks)
+        for (const auto& ln : h.lines)
+            if (ln.origin == gittide::DiffLineOrigin::Added && ln.text == "two")
+                sawAddedTwo = true;
+    REQUIRE(sawAddedTwo);
+}
