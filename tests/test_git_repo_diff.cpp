@@ -43,3 +43,25 @@ TEST_CASE("GitRepo::diff IndexVsHead is empty with nothing staged", "[diff]")
     REQUIRE(d.has_value());
     REQUIRE(d->hunks.empty());
 }
+
+TEST_CASE("WorktreeVsHead shows changes even when the index is staged", "[diff]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "one\n");
+    tmp.commitAll("init");
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    tmp.writeFile("a.txt", "one\ntwo\n");
+    REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    // index now matches the worktree, so WorktreeVsIndex is empty...
+    auto wi = repo->diff(gittide::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(wi.has_value());
+    REQUIRE(wi->hunks.empty());
+
+    // ...but WorktreeVsHead still reports the added line.
+    auto wh = repo->diff(gittide::DiffTarget::WorktreeVsHead, "a.txt");
+    REQUIRE(wh.has_value());
+    REQUIRE_FALSE(wh->hunks.empty());
+}

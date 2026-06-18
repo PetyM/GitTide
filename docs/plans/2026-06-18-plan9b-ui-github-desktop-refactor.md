@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-18 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product` §Screens & Changes/History](../spec/product/product.md#screens--navigation) · [`spec/design` §Theming + Components](../spec/design/design.md#theming) · [`spec/engineering` §Inline selection](../spec/engineering/engineering.md#inline-selection-commit-and-the-history-diff) · [D22](../decisions.md) · [D23](../decisions.md) · [D24](../decisions.md) · [D25](../decisions.md) |
 | **Depends on** | **Plan 9a** (core `resetIndexToHead` / `commitFiles` / `commitDiff`), Plan 3b (AsyncRepo/RepoController/ChangesView/DiffView), Plan 5b (HistoryView), Plan 7 (theme) |
 
@@ -798,14 +798,25 @@ void central_layout_has_no_dashboard_and_a_shared_diff()
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: staging area replaced by a default-checked `ChangedFilesList` + diff
->   line checkboxes committing via `RepoController::commitSelection`; History folded
->   into a shared `DiffView` (commit → `commitFilesList` → read-only diff);
->   Dashboard removed; collapsible sidebar; Fusion style + token `QPalette`.
-> - Spec: product §Screens/Changes/History, design §Theming/Components,
->   engineering §Inline selection; decisions D22–D25.
-> - Code: `ui/{changedfileslist,changesview,diffview,repocontroller,asyncrepo,
->   thememanager,themestyle,mainwindow}.*`; deleted `ui/dashboardmodel.*`.
+- Shipped: the staging area is replaced by a default-checked `ChangedFilesList`
+  (tri-state checkboxes, A/M/D/U cue) + per-line diff checkboxes; commits build from
+  the checked set via `RepoController::commitSelection` (reset index → stage checked
+  → commit). History folds into one shared `DiffView` (commit → read-only
+  `commitFilesList` → read-only diff). Dashboard removed; project sidebar
+  collapsible; base look switched to Fusion + a token-built `QPalette` + accent
+  stylesheet, with `ThemeManager` publishing `gittide.state*` properties for the
+  status-letter colours. Full suite 75/75 green.
+- Spec updated: product §Screens/Changes/History, design §Theming/Components,
+  engineering §Inline selection; decisions D22–D25 (all current).
+- Code: `ui/{asyncrepo,repocontroller,themestyle,thememanager,changedfileslist,
+  diffview,changesview,mainwindow}.*` (+ `metatypes.hpp`); deleted
+  `ui/dashboardmodel.*` and its two tests.
+- Commits: `9cd0615..80fb496` (8 tasks; Task 8 needed a fix to restore the
+  `dashboardList` layout regression assertion, then review-clean).
+- Carry-forward Minors (see final-review triage): `diffview.cpp` uses
+  `generic_string()` not `generic_u8string()` (path invariant); `*:focus` accent
+  selector is broad; `ChangedFilesList::setMode` Editable→ReadOnly does not clear
+  stored check-states; history selection wired via `findChild("historyTable")`;
+  `gittide.stateConflict` published but unread; async-layer reset/commitDiff
+  untested (core covers them); `path(QString.toStdString())` non-ASCII on Windows.
 </content>

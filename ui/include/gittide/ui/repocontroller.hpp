@@ -46,6 +46,13 @@ public slots:
     QCoro::Task<void> checkoutCommit(QString oid);
     QCoro::Task<void> deleteBranch(QString name, bool force);
     QCoro::Task<void> renameBranch(QString oldName, QString newName);
+    // Stage-on-commit (D23): reset index to HEAD, stage each selection, commit,
+    // then refresh status + history. Empty selections => no-op + operationFailed.
+    QCoro::Task<void> commitSelection(gittide::CommitRequest req,
+                                      std::vector<gittide::StageSelection> selections);
+    // Read-only history diff:
+    QCoro::Task<void> refreshCommitFiles(QString oid);
+    QCoro::Task<void> refreshCommitDiff(QString oid, QString path);
 
 signals:
     void repoOpened(const QString& path);
@@ -58,6 +65,8 @@ signals:
     void deleteFailedUnmerged(const QString& name);
     void branchesChanged(std::vector<gittide::BranchInfo>);
     void headChanged(gittide::HeadState);
+    void commitFilesReady(QString oid, std::vector<gittide::FileStatus> files);
+    void commitDiffReady(QString oid, QString path, gittide::DiffResult result);
 
 private:
     std::optional<AsyncRepo> m_repo;

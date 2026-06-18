@@ -8,8 +8,6 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/projectcontroller.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/repocontroller.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/repocontroller.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/dashboardmodel.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/dashboardmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/projectsidebar.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/projectsidebar.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/addrepodialogs.cpp
@@ -22,6 +20,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/windowmanager.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/asyncrepo.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/asyncrepo.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/changedfileslist.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changedfileslist.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/diffview.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/diffview.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/changesview.cpp

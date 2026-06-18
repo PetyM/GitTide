@@ -5,6 +5,7 @@
 #include <git2/checkout.h>
 #include <git2/commit.h>
 #include <git2/graph.h>
+#include <git2/reset.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
 #include <memory>
@@ -155,15 +156,22 @@ Expected<DiffResult> GitRepo::diff(DiffTarget target, const std::filesystem::pat
     {
         rc = git_diff_index_to_workdir(&raw, m_repo, nullptr, &opts);
     }
-    else
+    else if (target == DiffTarget::WorktreeVsHead)
     {
-        // IndexVsHead: compare HEAD's tree to the index. Unborn HEAD -> null tree.
         git_object* head_obj = nullptr;
         git_tree* head_tree  = nullptr;
         if (git_revparse_single(&head_obj, m_repo, "HEAD^{tree}") == 0)
-        {
             head_tree = reinterpret_cast<git_tree*>(head_obj);
-        }
+        rc = git_diff_tree_to_workdir(&raw, m_repo, head_tree, &opts);
+        if (head_tree)
+            git_tree_free(head_tree);
+    }
+    else // IndexVsHead (unchanged)
+    {
+        git_object* head_obj = nullptr;
+        git_tree* head_tree  = nullptr;
+        if (git_revparse_single(&head_obj, m_repo, "HEAD^{tree}") == 0)
+            head_tree = reinterpret_cast<git_tree*>(head_obj);
         rc = git_diff_tree_to_index(&raw, m_repo, head_tree, nullptr, &opts);
         if (head_tree)
             git_tree_free(head_tree);
@@ -362,6 +370,38 @@ Expected<std::string> GitRepo::commit(const CommitRequest& req)
     char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
     git_oid_tostr(buf, sizeof(buf), &commit_oid);
     return std::string(buf);
+}
+
+Expected<void> GitRepo::resetIndexToHead()
+{
+    // Unborn HEAD: there is no commit to reset to, so clearing the index is the
+    // equivalent "nothing staged" state.
+    if (git_repository_head_unborn(m_repo) == 1)
+    {
+        git_index* index = nullptr;
+        int rc           = git_repository_index(&index, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index, decltype(&git_index_free)> guard(index, git_index_free);
+        git_index_clear(index);
+        rc = git_index_write(index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        return {};
+    }
+
+    git_object* head = nullptr;
+    int rc           = git_revparse_single(&head, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_object, decltype(&git_object_free)> head_guard(head, git_object_free);
+
+    // MIXED resets the index to the target, leaving the working tree as-is.
+    // Target is HEAD, so HEAD does not move — only the index is rewritten.
+    rc = git_reset(m_repo, head, GIT_RESET_MIXED, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
 }
 
 Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
@@ -688,6 +728,109 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
         return std::unexpected(lastGitError(rc));
     git_reference_free(moved);
     return {};
+}
+
+Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTree, git_tree** outParentTree) const
+{
+    *outTree       = nullptr;
+    *outParentTree = nullptr;
+
+    git_oid oid;
+    int rc = git_oid_fromstr(&oid, oidHex.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_commit* commit = nullptr;
+    rc                 = git_commit_lookup(&commit, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    rc = git_commit_tree(outTree, commit);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    if (git_commit_parentcount(commit) > 0)
+    {
+        git_commit* parent = nullptr;
+        if (git_commit_parent(&parent, commit, 0) == 0)
+        {
+            std::unique_ptr<git_commit, decltype(&git_commit_free)> parent_guard(parent, git_commit_free);
+            rc = git_commit_tree(outParentTree, parent);
+            if (rc < 0)
+            {
+                git_tree_free(*outTree);
+                *outTree = nullptr;
+                return std::unexpected(lastGitError(rc));
+            }
+        }
+    }
+    return {};
+}
+
+Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
+{
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    std::vector<FileStatus> result;
+    size_t n = git_diff_num_deltas(raw);
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const git_diff_delta* d = git_diff_get_delta(raw, i);
+        StatusFlag flag         = StatusFlag::IndexModified;
+        const char* path        = d->new_file.path;
+        switch (d->status)
+        {
+            case GIT_DELTA_ADDED:
+                flag = StatusFlag::IndexNew;
+                break;
+            case GIT_DELTA_DELETED:
+                flag = StatusFlag::IndexDeleted;
+                path = d->old_file.path;
+                break;
+            default: // MODIFIED, RENAMED, COPIED, TYPECHANGE → show as modified
+                flag = StatusFlag::IndexModified;
+                break;
+        }
+        if (path)
+            result.push_back(FileStatus{fromGitPath(path), flag});
+    }
+    return result;
+}
+
+Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem::path& file) const
+{
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    std::string git_file = toGitPath(file);
+    char* paths[]        = {git_file.data()};
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count   = 1;
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+    return DiffEngine::parse(diff_guard.get());
 }
 
 } // namespace gittide

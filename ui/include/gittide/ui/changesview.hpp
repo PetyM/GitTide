@@ -1,52 +1,76 @@
 #pragma once
 #include <QWidget>
+#include <map>
 #include <vector>
 
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
+#include "gittide/ui/changedfileslist.hpp"
 
-class QListWidget;
 class QPlainTextEdit;
 class QPushButton;
 
 namespace gittide::ui {
 
-class DiffView;
-
-// Changes tab body: staged + unstaged file lists (left), DiffView (right),
-// commit message + button (bottom). A file is listed under "staged" if it has
-// any Index* flag and under "unstaged" if it has any Wt* flag (it may appear in
-// both). Selecting a file emits fileSelected(path, target); target is IndexVsHead
-// for the staged list, WorktreeVsIndex for the unstaged list.
+// Changes tab body (post staging-area removal, D23). Hosts a ChangedFilesList in
+// Editable mode and pins a commit message box + Commit button at the bottom. The
+// diff is NOT embedded here — it is a shared panel owned by MainWindow; this view
+// only owns the per-file commit-selection model and exposes the file list so
+// MainWindow can wire fileSelected → the shared DiffView.
+//
+// A commit is built from the CHECKED set: each non-Unchecked file contributes a
+// StageSelection (whole file when Checked, per-hunk line selections when Partial).
 class ChangesView : public QWidget
 {
     Q_OBJECT
 public:
     explicit ChangesView(QWidget* parent = nullptr);
 
+    // Populate from a status vector. Resets the selection model: every file Checked.
     void setStatus(const std::vector<gittide::FileStatus>& files);
-    void setDiff(const gittide::DiffResult& result, const std::filesystem::path& file);
-    QString commitMessage() const;
-    DiffView* diffView() const
+
+    // The hosted file list (MainWindow wires its fileSelected → shared diff).
+    ChangedFilesList* filesList() const
     {
-        return m_diff;
+        return m_files;
     }
 
+    QString commitMessage() const;
+
+    // Apply a user line toggle coming back from the shared DiffView. Moves the
+    // file to Partial and updates checkedLinesByHunk[hunkIndex] (adds or removes
+    // lineIndex). Collapses to Checked if every tracked line ends up checked, to
+    // Unchecked if none remain checked. Pushes the resulting tri-state to the list
+    // via setRowCheck. MainWindow forwards DiffView::lineCheckToggled here.
+    void applyLineToggle(const QString& path, int hunkIndex, int lineIndex, bool checked);
+
+    // The current per-file selection for a path, so MainWindow can populate the
+    // shared DiffView when that file is selected. wholeChecked is true unless the
+    // file is Partial; checkedLines carries the per-hunk checked line indices when
+    // Partial (empty otherwise).
+    void selectionFor(const QString& path, bool& wholeChecked,
+                      std::map<int, std::vector<int>>& checkedLines) const;
+
 signals:
-    void fileSelected(const QString& path, gittide::DiffTarget target);
-    void commitRequested(const gittide::CommitRequest& req);
-    void stageRequested(const gittide::StageSelection& sel);
-    void unstageRequested(const gittide::StageSelection& sel);
+    void commitRequested(const gittide::CommitRequest& req,
+                         std::vector<gittide::StageSelection> selections);
     void discardRequested(const gittide::StageSelection& sel);
 
 private:
+    // Per-file selection state (default Checked). Partial stores checked line
+    // indices per hunk; whole-file Checked/Unchecked carry no line map.
+    struct FileSel
+    {
+        ChangedFilesList::Check state = ChangedFilesList::Check::Checked;
+        std::map<int, std::vector<int>> checkedLinesByHunk; // only when Partial
+    };
+
     void updateCommitEnabled();
 
-    QListWidget* m_staged;
-    QListWidget* m_unstaged;
-    DiffView* m_diff;
-    QPlainTextEdit* m_message;
-    QPushButton* m_commitButton;
+    ChangedFilesList* m_files;
+    QPlainTextEdit*   m_message;
+    QPushButton*      m_commitButton;
+    std::map<QString, FileSel> m_sel;
 };
 
 } // namespace gittide::ui

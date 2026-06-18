@@ -1,3 +1,4 @@
+#include <QAbstractButton>
 #include <QFrame>
 #include <QtWidgets/QStatusBar>
 #include <QLabel>
@@ -117,7 +118,27 @@ private slots:
         QCOMPARE(win.controller()->repos()->rowCount(), 1);
         auto* tabs = win.findChild<QTabWidget*>(QStringLiteral("mainTabs"));
         QVERIFY(tabs != nullptr);
-        QCOMPARE(tabs->count(), 3);
+        QCOMPARE(tabs->count(), 2);
+        main_window_test::drainAsync();
+    }
+
+    void central_layout_has_no_dashboard_and_a_shared_diff()
+    {
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id = "id-a", .name = "Work", .repos = {RepoRef{.path = "/home/u/api", .alias = "api"}}});
+        MainWindow win(&store);
+        win.showProject(QStringLiteral("id-a"));
+
+        auto* tabs = win.findChild<QTabWidget*>(QStringLiteral("mainTabs"));
+        QVERIFY(tabs);
+        // exactly two sub-tabs now: Changes, History
+        QCOMPARE(tabs->count(), 2);
+        QVERIFY(!win.findChild<QWidget*>(QStringLiteral("dashboardList")));
+        // one shared diff panel exists
+        QVERIFY(win.findChild<QWidget*>(QStringLiteral("diffLines")));
+        // sidebar collapse toggle exists
+        QVERIFY(win.findChild<QAbstractButton*>(QStringLiteral("sidebarCollapseButton")));
         main_window_test::drainAsync();
     }
 

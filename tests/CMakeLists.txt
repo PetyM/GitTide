@@ -14,8 +14,10 @@ add_executable(gittide_core_tests
   test_git_repo_discard.cpp
   test_git_repo_init_clone.cpp
   test_git_repo_log.cpp
+  test_git_repo_commit_diff.cpp
   test_git_repo_branches.cpp
   test_git_repo_checkout.cpp
+  test_git_repo_reset.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
 )
@@ -41,12 +43,10 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_session_store.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_dashboard_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_sidebar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_main_window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_window_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_dashboard_async.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changes_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_model.cpp
@@ -56,6 +56,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_bar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_dialogs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_list.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

@@ -1,134 +1,105 @@
 #include "gittide/ui/changesview.hpp"
 
-#include <QLabel>
-#include <QListWidget>
+#include <algorithm>
+
 #include <QPlainTextEdit>
 #include <QPushButton>
-#include <QSplitter>
 #include <QVBoxLayout>
-#include <QWidget>
 
-#include "gittide/ui/diffview.hpp"
 #include "gittide/ui/metatypes.hpp"
 
 namespace gittide::ui {
 
-namespace {
-constexpr int PathRole = Qt::UserRole + 1;
-
-bool anyIndexFlag(gittide::StatusFlag f)
-{
-    using gittide::hasFlag;
-    using gittide::StatusFlag;
-    return hasFlag(f, StatusFlag::IndexNew) || hasFlag(f, StatusFlag::IndexModified) || hasFlag(f, StatusFlag::IndexDeleted);
-}
-bool anyWtFlag(gittide::StatusFlag f)
-{
-    using gittide::hasFlag;
-    using gittide::StatusFlag;
-    return hasFlag(f, StatusFlag::WtNew) || hasFlag(f, StatusFlag::WtModified) || hasFlag(f, StatusFlag::WtDeleted);
-}
-} // namespace
-
 ChangesView::ChangesView(QWidget* parent)
     : QWidget(parent)
-    , m_staged(new QListWidget(this))
-    , m_unstaged(new QListWidget(this))
-    , m_diff(new DiffView(this))
+    , m_files(new ChangedFilesList(this))
     , m_message(new QPlainTextEdit(this))
     , m_commitButton(new QPushButton(QStringLiteral("Commit"), this))
 {
     qRegisterMetaType<gittide::CommitRequest>();
     qRegisterMetaType<gittide::StageSelection>();
-    qRegisterMetaType<gittide::DiffTarget>();
+    qRegisterMetaType<std::vector<gittide::StageSelection>>();
 
-    m_staged->setObjectName(QStringLiteral("stagedList"));
-    m_unstaged->setObjectName(QStringLiteral("unstagedList"));
+    m_files->setMode(ChangedFilesList::Mode::Editable);
+
     m_message->setObjectName(QStringLiteral("commitMessage"));
     m_commitButton->setObjectName(QStringLiteral("commitButton"));
     m_commitButton->setEnabled(false);
-
     m_message->setPlaceholderText(QStringLiteral("Commit message…"));
-
-    auto* stagedLabel = new QLabel(QStringLiteral("Staged Changes"), this);
-    stagedLabel->setProperty("role", "sectionHeader");
-    auto* unstagedLabel = new QLabel(QStringLiteral("Unstaged Changes"), this);
-    unstagedLabel->setProperty("role", "sectionHeader");
-
-    auto* leftLayout = new QVBoxLayout;
-    leftLayout->addWidget(stagedLabel);
-    leftLayout->addWidget(m_staged, 1);
-    leftLayout->addWidget(unstagedLabel);
-    leftLayout->addWidget(m_unstaged, 1);
-    leftLayout->addWidget(m_message);
-    leftLayout->addWidget(m_commitButton);
-    auto* left = new QWidget(this);
-    left->setLayout(leftLayout);
-
-    auto* splitter = new QSplitter(this);
-    splitter->addWidget(left);
-    splitter->addWidget(m_diff);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(splitter);
+    layout->addWidget(m_files, 1);
+    layout->addWidget(m_message);
+    layout->addWidget(m_commitButton);
 
-    connect(m_staged,
-            &QListWidget::currentRowChanged,
-            this,
-            [this](int row)
-            {
-                if (row < 0)
-                    return;
-                emit fileSelected(m_staged->item(row)->data(PathRole).toString(), gittide::DiffTarget::IndexVsHead);
-            });
-    connect(m_unstaged,
-            &QListWidget::currentRowChanged,
-            this,
-            [this](int row)
-            {
-                if (row < 0)
-                    return;
-                emit fileSelected(m_unstaged->item(row)->data(PathRole).toString(), gittide::DiffTarget::WorktreeVsIndex);
-            });
     connect(m_message, &QPlainTextEdit::textChanged, this, &ChangesView::updateCommitEnabled);
+
+    // A real user click on a row checkbox sets the whole-file state and clears
+    // any per-line selection for that file.
+    connect(m_files,
+            &ChangedFilesList::fileCheckToggled,
+            this,
+            [this](const QString& path, bool checked)
+            {
+                auto& fs = m_sel[path];
+                fs.state = checked ? ChangedFilesList::Check::Checked : ChangedFilesList::Check::Unchecked;
+                fs.checkedLinesByHunk.clear();
+                updateCommitEnabled();
+            });
+
+    connect(m_files,
+            &ChangedFilesList::discardRequested,
+            this,
+            [this](const QString& path)
+            {
+                emit discardRequested(gittide::StageSelection{
+                    .path = qstringToPath(path), .hunkIndex = std::nullopt, .lineIndices = {}});
+            });
+
     connect(m_commitButton,
             &QPushButton::clicked,
             this,
             [this]()
             {
-                emit commitRequested(gittide::CommitRequest{.message = commitMessage().toStdString()});
+                std::vector<gittide::StageSelection> selections;
+                for (const auto& [path, fs] : m_sel)
+                {
+                    // The list row checkbox is the source of truth for whole-file
+                    // Checked/Unchecked (setRowCheck is silent, so m_sel may lag);
+                    // the model carries the Partial per-hunk line map.
+                    const ChangedFilesList::Check rowState = m_files->rowCheck(path);
+                    if (rowState == ChangedFilesList::Check::Unchecked)
+                        continue;
+                    const std::filesystem::path fsPath = qstringToPath(path);
+                    if (rowState == ChangedFilesList::Check::Partial)
+                    {
+                        for (const auto& [hunk, lines] : fs.checkedLinesByHunk)
+                            selections.push_back(
+                                gittide::StageSelection{.path = fsPath, .hunkIndex = hunk, .lineIndices = lines});
+                    }
+                    else // Checked: whole file
+                    {
+                        selections.push_back(
+                            gittide::StageSelection{.path = fsPath, .hunkIndex = std::nullopt, .lineIndices = {}});
+                    }
+                }
+                emit commitRequested(gittide::CommitRequest{.message = commitMessage().toStdString()},
+                                     std::move(selections));
             });
-
-    connect(m_diff, &DiffView::stageRequested, this, &ChangesView::stageRequested);
-    connect(m_diff, &DiffView::unstageRequested, this, &ChangesView::unstageRequested);
-    connect(m_diff, &DiffView::discardRequested, this, &ChangesView::discardRequested);
 }
 
 void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files)
 {
-    m_staged->clear();
-    m_unstaged->clear();
+    m_files->setFiles(files);
+    // Reset the selection model: every file starts fully Checked.
+    m_sel.clear();
     for (const auto& f : files)
     {
-        const QString path = QString::fromStdString(f.path.generic_string());
-        if (anyIndexFlag(f.flags))
-        {
-            auto* item = new QListWidgetItem(path, m_staged);
-            item->setData(PathRole, path);
-        }
-        if (anyWtFlag(f.flags))
-        {
-            auto* item = new QListWidgetItem(path, m_unstaged);
-            item->setData(PathRole, path);
-        }
+        const QString path = pathToQString(f.path);
+        m_sel[path] = FileSel{};
     }
     updateCommitEnabled();
-}
-
-void ChangesView::setDiff(const gittide::DiffResult& result, const std::filesystem::path& file)
-{
-    m_diff->setDiff(result, file);
 }
 
 QString ChangesView::commitMessage() const
@@ -136,9 +107,70 @@ QString ChangesView::commitMessage() const
     return m_message->toPlainText();
 }
 
+void ChangesView::applyLineToggle(const QString& path, int hunkIndex, int lineIndex, bool checked)
+{
+    auto& fs = m_sel[path];
+    fs.state = ChangedFilesList::Check::Partial;
+
+    auto& lines = fs.checkedLinesByHunk[hunkIndex];
+    auto it = std::find(lines.begin(), lines.end(), lineIndex);
+    if (checked)
+    {
+        if (it == lines.end())
+        {
+            lines.push_back(lineIndex);
+            std::sort(lines.begin(), lines.end());
+        }
+    }
+    else if (it != lines.end())
+    {
+        lines.erase(it);
+    }
+
+    // Drop now-empty hunks so "no lines anywhere" is detectable.
+    for (auto hit = fs.checkedLinesByHunk.begin(); hit != fs.checkedLinesByHunk.end();)
+    {
+        if (hit->second.empty())
+            hit = fs.checkedLinesByHunk.erase(hit);
+        else
+            ++hit;
+    }
+
+    // Collapse: if nothing remains checked, the file is Unchecked. We cannot
+    // reliably collapse back to whole-file Checked here because applyLineToggle
+    // is fed one line at a time and the model does not carry the total checkable
+    // line count per hunk — so a file with all-but-one line checked and a file
+    // with every line checked would be indistinguishable. The safe choice is to
+    // stay Partial until the user explicitly re-checks the whole file via the row
+    // checkbox (which routes through fileCheckToggled and clears the line map).
+    if (fs.checkedLinesByHunk.empty())
+        fs.state = ChangedFilesList::Check::Unchecked;
+
+    m_files->setRowCheck(path, fs.state);
+    updateCommitEnabled();
+}
+
+void ChangesView::selectionFor(const QString& path, bool& wholeChecked,
+                               std::map<int, std::vector<int>>& checkedLines) const
+{
+    auto it = m_sel.find(path);
+    if (it == m_sel.end())
+    {
+        wholeChecked = true;
+        checkedLines.clear();
+        return;
+    }
+    wholeChecked = it->second.state != ChangedFilesList::Check::Partial;
+    checkedLines = it->second.checkedLinesByHunk;
+}
+
 void ChangesView::updateCommitEnabled()
 {
-    m_commitButton->setEnabled(!m_message->toPlainText().trimmed().isEmpty() && m_staged->count() > 0);
+    const bool hasMessage = !m_message->toPlainText().trimmed().isEmpty();
+    const bool anyChecked = std::any_of(m_sel.begin(), m_sel.end(),
+                                        [](const auto& kv)
+                                        { return kv.second.state != ChangedFilesList::Check::Unchecked; });
+    m_commitButton->setEnabled(hasMessage && anyChecked);
 }
 
 } // namespace gittide::ui

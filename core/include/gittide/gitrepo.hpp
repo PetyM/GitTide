@@ -12,6 +12,7 @@
 
 struct git_repository;
 struct git_oid;
+struct git_tree;
 
 namespace gittide {
 
@@ -51,6 +52,11 @@ public:
     Expected<void> stage(const StageSelection& sel);
     Expected<void> unstage(const StageSelection& sel);
 
+    // Reset the index to HEAD (git reset --mixed HEAD): unstage everything, leave the
+    // working tree untouched. On an unborn branch the index is cleared. Used to
+    // rebuild the index from a checked selection before committing.
+    Expected<void> resetIndexToHead();
+
     // Commit the current index. Author/committer come from git config
     // (user.name/user.email). Returns the new commit's hex oid.
     Expected<std::string> commit(const CommitRequest& req);
@@ -61,6 +67,15 @@ public:
     // Walk commits reachable from HEAD, newest first (topological + time).
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
+
+    // Files changed by the commit identified by the 40-char hex oid, relative to its
+    // first parent (root commit: relative to an empty tree). Flags use Index* to mean
+    // added / modified / deleted, matching the working-changes display model.
+    Expected<std::vector<FileStatus>> commitFiles(std::string oid) const;
+
+    // Diff one file inside the commit identified by the 40-char hex oid against its
+    // first parent (root commit: against an empty tree). Mirrors diff()'s DiffResult.
+    Expected<DiffResult> commitDiff(std::string oid, const std::filesystem::path& file) const;
 
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
@@ -103,6 +118,10 @@ private:
 
     std::filesystem::path workdir() const;                              // repo working directory
     Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
+
+    // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
+    // root commit). Both out-trees are owned by the caller (git_tree_free).
+    Expected<void> commitTrees(const std::string& oid, git_tree** outTree, git_tree** outParentTree) const;
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty

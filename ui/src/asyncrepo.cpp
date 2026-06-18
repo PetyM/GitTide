@@ -106,6 +106,39 @@ QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::log(
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::resetIndexToHead()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.resetIndexToHead();
+        });
+}
+
+QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::commitFiles(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.commitFiles(o);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::commitDiff(QString oid, std::filesystem::path file)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString(), file = std::move(file)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.commitDiff(o, file);
+        });
+}
+
 QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> AsyncRepo::branches()
 {
     auto impl = m_impl;

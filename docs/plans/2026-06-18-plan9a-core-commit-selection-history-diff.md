@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-18 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/engineering` §Inline selection, commit, and the history diff](../spec/engineering/engineering.md#inline-selection-commit-and-the-history-diff) · [`spec/product` §Changes/History](../spec/product/product.md#changes-tab) · [D22](../decisions.md) · [D23](../decisions.md) |
 | **Depends on** | Plan 3a (core git ops: status/diff/stage/commit), Plan 5a (graph + log) |
 
@@ -571,12 +571,18 @@ else // IndexVsHead (unchanged)
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: `GitRepo::resetIndexToHead`, `GitRepo::commitFiles`,
->   `GitRepo::commitDiff` (+ private `commitTrees` helper), `DiffTarget::WorktreeVsHead`.
-> - Spec: engineering §Inline selection, commit, and the history diff.
-> - Code: `core/include/gittide/gitrepo.hpp`, `core/src/gitrepo.cpp`; tests
->   `tests/test_git_repo_reset.cpp`, `tests/test_git_repo_commit_diff.cpp`.
+- Shipped: `GitRepo::resetIndexToHead` (stage-on-commit primitive),
+  `GitRepo::commitFiles` + `GitRepo::commitDiff` (history diff; share a private
+  `commitTrees` helper), and `DiffTarget::WorktreeVsHead` (index-independent
+  working diff). All test-first; full suite 75/75 green.
+- Spec updated: engineering §Inline selection, commit, and the history diff
+  (already current — describes all three endpoints + the WorktreeVsHead target).
+- Code: `core/include/gittide/{diff.hpp,gitrepo.hpp}`, `core/src/gitrepo.cpp`;
+  tests `tests/test_git_repo_reset.cpp`, `tests/test_git_repo_commit_diff.cpp`,
+  `tests/test_git_repo_diff.cpp`.
+- Commits: `5a20ff4..d6df08c` (Tasks 1–4, each review-clean).
+- Carry-forward Minor (final-review triage): `commitTrees` treats a
+  `git_commit_parent` failure when `parentcount>0` as a root commit
+  (theoretical, unreachable by tests).
 </content>
 </invoke>

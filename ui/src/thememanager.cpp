@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QIcon>
+#include <QStyle>
 #include <QStyleHints>
 
 #include "gittide/ui/themestyle.hpp"
@@ -68,7 +69,25 @@ void ThemeManager::setMode(Mode mode)
 void ThemeManager::applyTo(QApplication* app)
 {
     m_app = app;
-    app->setStyleSheet(buildStyleSheet(currentTheme()));
+
+    // Set Fusion as the base style once; it renders correctly from a QPalette
+    // and provides a consistent cross-platform baseline (D24/D25).
+    if (!app->style() || app->style()->objectName() != QStringLiteral("fusion"))
+        app->setStyle(QStringLiteral("Fusion"));
+
+    const Theme t = currentTheme();
+    app->setPalette(buildPalette(t));
+    app->setStyleSheet(buildAccentStyleSheet(t));
+
+    // Publish the per-state status-letter colours as dynamic app properties so
+    // ChangedFilesList can tint A/M/D/U/C letters from the active theme (it reads
+    // these "gittide.state*" keys; falls back to gray when unset).
+    app->setProperty("gittide.stateAdded", t.stateAdded);
+    app->setProperty("gittide.stateModified", t.stateModified);
+    app->setProperty("gittide.stateDeleted", t.stateDeleted);
+    app->setProperty("gittide.stateUntracked", t.stateUntracked);
+    app->setProperty("gittide.stateConflict", t.stateConflict);
+
     app->setWindowIcon(QIcon(iconResource()));
 }
 

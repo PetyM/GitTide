@@ -41,6 +41,10 @@ public:
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
 
+    QCoro::Task<gittide::Expected<void>> resetIndexToHead();
+    QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> commitFiles(QString oid);
+    QCoro::Task<gittide::Expected<gittide::DiffResult>> commitDiff(QString oid, std::filesystem::path file);
+
     QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> branches();
     QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
     QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid);

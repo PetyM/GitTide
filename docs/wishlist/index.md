@@ -25,7 +25,7 @@ and it links out to them.
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `idea` | product, design, engineering |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
-| [GitHub-Desktop-style UI refactor](github-desktop-ui-refactor.md) | 2026-06-17 | `designed` | product, design, engineering |
+| [GitHub-Desktop-style UI refactor](github-desktop-ui-refactor.md) | 2026-06-17 | `done` | product, design, engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |
 
 <!-- Add a row per wish. When a wish reaches `done` or `dropped`, keep it here

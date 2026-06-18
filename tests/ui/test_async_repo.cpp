@@ -11,6 +11,65 @@
 using gittide::ui::AsyncRepo;
 
 namespace {
+// Repo with two commits: c1 adds a.txt, c2 adds b.txt.
+std::filesystem::path make_repo_with_two_commits()
+{
+    git_libgit2_init();
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-ar2-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
+
+    // Commit 1: add a.txt
+    {
+        std::ofstream(dir / "a.txt") << "one\n";
+    }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "a.txt");
+    git_index_write(idx);
+    git_oid tree_oid1;
+    git_index_write_tree(&tree_oid1, idx);
+    git_tree* tree1 = nullptr;
+    git_tree_lookup(&tree1, raw, &tree_oid1);
+    git_oid c1_oid;
+    git_commit_create_v(&c1_oid, raw, "HEAD", sig, sig, nullptr, "first", tree1, 0);
+    git_tree_free(tree1);
+
+    // Commit 2: add b.txt
+    {
+        std::ofstream(dir / "b.txt") << "two\n";
+    }
+    git_index_add_bypath(idx, "b.txt");
+    git_index_write(idx);
+    git_oid tree_oid2;
+    git_index_write_tree(&tree_oid2, idx);
+    git_tree* tree2 = nullptr;
+    git_tree_lookup(&tree2, raw, &tree_oid2);
+    git_commit* c1 = nullptr;
+    git_commit_lookup(&c1, raw, &c1_oid);
+    git_oid c2_oid;
+    git_commit_create_v(&c2_oid, raw, "HEAD", sig, sig, nullptr, "second", tree2, 1, c1);
+    git_commit_free(c1);
+    git_tree_free(tree2);
+
+    git_index_free(idx);
+    git_signature_free(sig);
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    return dir;
+}
+
 // Repo with one committed file "a.txt", then locally modified (1 unstaged change).
 std::filesystem::path make_dirty_repo()
 {
@@ -126,6 +185,22 @@ private slots:
         auto list = QCoro::waitFor(repo->branches());
         QVERIFY(list.has_value());
         QVERIFY(list->size() == 2);
+        std::filesystem::remove_all(dir);
+    }
+
+    void commit_files_lists_changed_paths()
+    {
+        const auto dir = make_repo_with_two_commits(); // helper: c1 adds a.txt, c2 adds b.txt
+        auto repo      = gittide::ui::AsyncRepo::open(dir);
+        QVERIFY(repo.has_value());
+
+        auto log = QCoro::waitFor(repo->log());
+        QVERIFY(log.has_value());
+        const QString newest = QString::fromStdString(log->front().oid);
+
+        auto files = QCoro::waitFor(repo->commitFiles(newest));
+        QVERIFY(files.has_value());
+        QVERIFY(!files->empty());
         std::filesystem::remove_all(dir);
     }
 };
