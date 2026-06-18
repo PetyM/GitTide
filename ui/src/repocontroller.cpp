@@ -211,7 +211,11 @@ QCoro::Task<void> RepoController::deleteBranch(QString name, bool force)
     auto r = co_await m_repo->deleteBranch(name, force);
     if (!r)
     {
-        emit operationFailed(QString::fromStdString(r.error().message));
+        const QString msg = QString::fromStdString(r.error().message);
+        if (msg.contains(QStringLiteral("not fully merged")))
+            emit deleteFailedUnmerged(name);
+        else
+            emit operationFailed(msg);
         co_return;
     }
     co_await refreshBranches();

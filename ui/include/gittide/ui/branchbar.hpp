@@ -25,8 +25,8 @@ public:
 signals:
     void switchRequested(const QString& name);
     void createRequested();
-    void renameRequested();
-    void deleteRequested();
+    void renameRequested(const QString& name);
+    void deleteRequested(const QString& name);
 
 private:
     void rebuildMenu();

@@ -100,6 +100,86 @@ std::filesystem::path make_repo_with_commit()
     git_libgit2_shutdown();
     return dir;
 }
+// Repo where "feature" branch has a commit not reachable from HEAD (main).
+// Returns the path and sets `branchName` to the unmerged branch name.
+// The repo has two branches: the default HEAD branch and "feature" which has
+// one extra commit not reachable from HEAD, so a non-forced delete will fail
+// with "not fully merged".
+std::filesystem::path make_repo_with_unmerged_branch(std::string& branchName)
+{
+    git_libgit2_init();
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-rcub-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    // Helper: write a.txt, stage it, commit it to `ref` using git_commit_create_v.
+    auto makeCommit0 = [&](const char* ref, const char* msg, git_oid* out_oid)
+    {
+        std::ofstream(dir / "a.txt") << msg << "\n";
+        git_index* idx = nullptr;
+        git_repository_index(&idx, raw);
+        git_index_add_bypath(idx, "a.txt");
+        git_index_write(idx);
+        git_oid tree_oid;
+        git_index_write_tree(&tree_oid, idx);
+        git_tree* tree = nullptr;
+        git_tree_lookup(&tree, raw, &tree_oid);
+        git_signature* sig = nullptr;
+        git_signature_now(&sig, "T", "t@e.x");
+        git_commit_create_v(out_oid, raw, ref, sig, sig, nullptr, msg, tree, 0);
+        git_signature_free(sig);
+        git_tree_free(tree);
+        git_index_free(idx);
+    };
+
+    auto makeCommit1 = [&](const char* ref, const char* msg, git_oid* out_oid, git_commit* parent)
+    {
+        std::ofstream(dir / "a.txt") << msg << "\n";
+        git_index* idx = nullptr;
+        git_repository_index(&idx, raw);
+        git_index_add_bypath(idx, "a.txt");
+        git_index_write(idx);
+        git_oid tree_oid;
+        git_index_write_tree(&tree_oid, idx);
+        git_tree* tree = nullptr;
+        git_tree_lookup(&tree, raw, &tree_oid);
+        git_signature* sig = nullptr;
+        git_signature_now(&sig, "T", "t@e.x");
+        git_commit_create_v(out_oid, raw, ref, sig, sig, nullptr, msg, tree, 1, parent);
+        git_signature_free(sig);
+        git_tree_free(tree);
+        git_index_free(idx);
+    };
+
+    // 1. Initial commit on HEAD (default branch, e.g. "master" or "main").
+    git_oid base_oid;
+    makeCommit0("HEAD", "init", &base_oid);
+
+    // 2. Create "feature" branch pointing at the base commit.
+    git_commit* base_commit = nullptr;
+    git_commit_lookup(&base_commit, raw, &base_oid);
+    git_reference* feat_ref = nullptr;
+    git_branch_create(&feat_ref, raw, "feature", base_commit, 0);
+    git_reference_free(feat_ref);
+
+    // 3. Make a commit on "feature" that is NOT reachable from the default branch.
+    git_oid feat_oid;
+    makeCommit1("refs/heads/feature", "feature-work", &feat_oid, base_commit);
+    git_commit_free(base_commit);
+
+    // HEAD remains on the default branch — "feature" is the non-HEAD branch.
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    branchName = "feature";
+    return dir;
+}
 } // namespace repo_controller_test
 
 class TestRepoController : public QObject
@@ -215,9 +295,36 @@ private slots:
         QSignalSpy branches(&controller, &RepoController::branchesChanged);
         QCoro::waitFor(controller.switchBranch(QStringLiteral("feature")));
 
-        QVERIFY(status.count() >= 1);
-        QVERIFY(history.count() >= 1);
-        QVERIFY(branches.count() >= 1);
+        QCOMPARE(status.count(), 1);
+        QCOMPARE(history.count(), 1);
+        QCOMPARE(branches.count(), 1);
+        std::filesystem::remove_all(dir);
+    }
+
+    void delete_unmerged_branch_emits_deleteFailedUnmerged()
+    {
+        std::string branchName;
+        const auto dir = repo_controller_test::make_repo_with_unmerged_branch(branchName);
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(controller.isOpen());
+
+        const QString qBranchName = QString::fromStdString(branchName);
+        QSignalSpy unmergedSpy(&controller, &RepoController::deleteFailedUnmerged);
+        QSignalSpy failedSpy(&controller, &RepoController::operationFailed);
+        QSignalSpy branchesSpy(&controller, &RepoController::branchesChanged);
+
+        // Non-forced delete of an unmerged branch should emit deleteFailedUnmerged.
+        QCoro::waitFor(controller.deleteBranch(qBranchName, false));
+        QCOMPARE(unmergedSpy.count(), 1);
+        QCOMPARE(unmergedSpy.at(0).at(0).toString(), qBranchName);
+        QCOMPARE(failedSpy.count(), 0); // not routed to operationFailed
+        QCOMPARE(branchesSpy.count(), 0); // branch was NOT deleted
+
+        // Force delete should succeed and emit branchesChanged.
+        QCoro::waitFor(controller.deleteBranch(qBranchName, true));
+        QCOMPARE(branchesSpy.count(), 1);
+
         std::filesystem::remove_all(dir);
     }
 };

@@ -55,6 +55,7 @@ signals:
     void committed(const QString& oid);
     void historyReady(gittide::GraphLayout layout);
     void operationFailed(const QString& message);
+    void deleteFailedUnmerged(const QString& name);
     void branchesChanged(std::vector<gittide::BranchInfo>);
     void headChanged(gittide::HeadState);
 

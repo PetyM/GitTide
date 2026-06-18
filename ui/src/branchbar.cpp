@@ -53,29 +53,53 @@ void BranchBar::rebuildMenu()
 
     for (const auto& branch : m_branches)
     {
-        const QString name = QString::fromStdString(branch.name);
-        QAction* action    = m_menu->addAction(name);
-        action->setCheckable(true);
-        action->setChecked(branch.isHead);
-        connect(action,
+        const QString name    = QString::fromStdString(branch.name);
+        const bool    isCurrent = branch.isHead;
+
+        // Each branch gets its own submenu so every branch is individually
+        // actionable. addMenu() creates a child QMenu owned by m_menu; clear()
+        // above already deleted any previous children — no leak.
+        const QString title = isCurrent ? (QStringLiteral("* ") + name) : name;
+        QMenu* sub          = m_menu->addMenu(title);
+
+        if (!isCurrent)
+        {
+            QAction* switchAction = sub->addAction(QStringLiteral("Switch to this branch"));
+            connect(switchAction,
+                    &QAction::triggered,
+                    this,
+                    [this, name]()
+                    {
+                        emit switchRequested(name);
+                    });
+        }
+
+        QAction* renameAction = sub->addAction(QStringLiteral("Rename…"));
+        connect(renameAction,
                 &QAction::triggered,
                 this,
                 [this, name]()
                 {
-                    emit switchRequested(name);
+                    emit renameRequested(name);
                 });
+
+        QAction* deleteAction = sub->addAction(QStringLiteral("Delete…"));
+        if (isCurrent)
+            deleteAction->setEnabled(false);
+        else
+            connect(deleteAction,
+                    &QAction::triggered,
+                    this,
+                    [this, name]()
+                    {
+                        emit deleteRequested(name);
+                    });
     }
 
     m_menu->addSeparator();
 
     QAction* newAction = m_menu->addAction(QStringLiteral("New branch…"));
     connect(newAction, &QAction::triggered, this, &BranchBar::createRequested);
-
-    QAction* renameAction = m_menu->addAction(QStringLiteral("Rename current…"));
-    connect(renameAction, &QAction::triggered, this, &BranchBar::renameRequested);
-
-    QAction* deleteAction = m_menu->addAction(QStringLiteral("Delete…"));
-    connect(deleteAction, &QAction::triggered, this, &BranchBar::deleteRequested);
 }
 
 } // namespace gittide::ui

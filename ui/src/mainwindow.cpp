@@ -232,24 +232,37 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
     connect(m_branchBar,
             &BranchBar::renameRequested,
             this,
-            [this]()
+            [this](const QString& name)
             {
-                auto choice = askRenameBranch(this, m_currentBranch);
+                auto choice = askRenameBranch(this, name);
                 if (!choice.accepted)
                     return;
                 QCoro::connect(
-                    m_repoController->renameBranch(m_currentBranch, choice.name), this, [] {});
+                    m_repoController->renameBranch(name, choice.name), this, [] {});
             });
     connect(m_branchBar,
             &BranchBar::deleteRequested,
             this,
-            [this]()
+            [this](const QString& name)
             {
-                auto choice = askDeleteBranch(this, m_currentBranch, /*unmerged=*/false);
+                auto choice = askDeleteBranch(this, name, /*unmerged=*/false);
                 if (!choice.accepted)
                     return;
                 QCoro::connect(
-                    m_repoController->deleteBranch(m_currentBranch, choice.force), this, [] {});
+                    m_repoController->deleteBranch(name, choice.force), this, [] {});
+            });
+    // When a non-forced delete hits an unmerged branch, re-prompt with the
+    // "delete anyway?" (unmerged=true) confirmation and retry with force=true.
+    connect(m_repoController,
+            &RepoController::deleteFailedUnmerged,
+            this,
+            [this](const QString& name)
+            {
+                auto choice = askDeleteBranch(this, name, /*unmerged=*/true);
+                if (!choice.accepted)
+                    return;
+                QCoro::connect(
+                    m_repoController->deleteBranch(name, /*force=*/true), this, [] {});
             });
 
     // HistoryView graph context menu → controller
