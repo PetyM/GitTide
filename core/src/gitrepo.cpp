@@ -1,6 +1,7 @@
 #include "gittide/gitrepo.hpp"
 
 #include <git2.h>
+#include <git2/branch.h>
 #include <git2/commit.h>
 #include <git2/revwalk.h>
 #include <memory>
@@ -448,6 +449,59 @@ Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     return result;
+}
+
+Expected<std::vector<BranchInfo>> GitRepo::branches() const
+{
+    git_branch_iterator* it = nullptr;
+    int rc = git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_branch_iterator, decltype(&git_branch_iterator_free)> guard(it, git_branch_iterator_free);
+
+    std::vector<BranchInfo> result;
+    git_reference* ref    = nullptr;
+    git_branch_t br_type;
+    while ((rc = git_branch_next(&ref, &br_type, it)) == 0)
+    {
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+        const char* name = nullptr;
+        if (git_branch_name(&name, ref) == 0 && name)
+            result.push_back(BranchInfo{name, git_branch_is_head(ref) == 1});
+    }
+    if (rc != GIT_ITEROVER)
+        return std::unexpected(lastGitError(rc));
+    return result;
+}
+
+Expected<HeadState> GitRepo::head() const
+{
+    HeadState st;
+    if (git_repository_head_unborn(m_repo) == 1)
+    {
+        st.unborn = true;
+        return st;
+    }
+    git_reference* ref = nullptr;
+    int rc             = git_repository_head(&ref, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    git_oid oid;
+    if (git_reference_name_to_id(&oid, m_repo, "HEAD") == 0)
+    {
+        char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+        git_oid_tostr(hex, sizeof(hex), &oid);
+        st.oid = hex;
+    }
+    st.detached = git_repository_head_detached(m_repo) == 1;
+    if (!st.detached)
+    {
+        const char* sh = git_reference_shorthand(ref);
+        st.branch      = sh ? sh : "";
+    }
+    return st;
 }
 
 } // namespace gittide

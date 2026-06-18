@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
@@ -59,6 +60,12 @@ public:
     // Walk commits reachable from HEAD, newest first (topological + time).
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
+
+    // List all local branches. BranchInfo::isHead is true for the current branch.
+    Expected<std::vector<BranchInfo>> branches() const;
+
+    // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
+    Expected<HeadState> head() const;
 
     // Returns absolute paths of direct submodules (from .gitmodules).
     Expected<std::vector<std::filesystem::path>> submodules() const;
