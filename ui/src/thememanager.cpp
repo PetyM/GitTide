@@ -79,6 +79,15 @@ void ThemeManager::applyTo(QApplication* app)
     app->setPalette(buildPalette(t));
     app->setStyleSheet(buildAccentStyleSheet(t));
 
+    // Publish the per-state status-letter colours as dynamic app properties so
+    // ChangedFilesList can tint A/M/D/U/C letters from the active theme (it reads
+    // these "gittide.state*" keys; falls back to gray when unset).
+    app->setProperty("gittide.stateAdded", t.stateAdded);
+    app->setProperty("gittide.stateModified", t.stateModified);
+    app->setProperty("gittide.stateDeleted", t.stateDeleted);
+    app->setProperty("gittide.stateUntracked", t.stateUntracked);
+    app->setProperty("gittide.stateConflict", t.stateConflict);
+
     app->setWindowIcon(QIcon(iconResource()));
 }
 

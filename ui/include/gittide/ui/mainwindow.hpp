@@ -8,6 +8,8 @@ class ProjectStore;
 }
 
 class QStackedWidget;
+class QDockWidget;
+class QTabWidget;
 
 namespace gittide::ui {
 
@@ -16,8 +18,9 @@ class ProjectController;
 class ProjectSidebar;
 class RepoController;
 class ChangesView;
+class ChangedFilesList;
+class DiffView;
 class HistoryView;
-class DashboardModel;
 
 class MainWindow : public QMainWindow
 {
@@ -47,13 +50,17 @@ private:
     gittide::ProjectStore* m_store;
     ProjectController* m_controller;
     ProjectSidebar* m_sidebar;
+    QDockWidget* m_projectsDock;
     RepoController* m_repoController;
     BranchBar* m_branchBar;
     ChangesView* m_changesView;
     HistoryView* m_historyView;
-    DashboardModel* m_dashboardModel;
+    ChangedFilesList* m_commitFiles; // read-only file list for the selected commit
+    DiffView* m_diff;                // shared diff panel (right pane)
+    QTabWidget* m_mainTabs;
     QStackedWidget* m_centralStack;
     QString m_currentBranch; // tracks latest headChanged branch name
+    QString m_currentOid;    // tracks the currently selected history commit OID
 };
 
 } // namespace gittide::ui

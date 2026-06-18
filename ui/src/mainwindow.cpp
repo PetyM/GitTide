@@ -7,24 +7,29 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QInputDialog>
+#include <QItemSelectionModel>
 #include <QLabel>
-#include <QListView>
+#include <QTableView>
 #include <QMessageBox>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QSplitter>
 #include <QStackedWidget>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <filesystem>
+#include <map>
 #include <qcorotask.h>
 #include <vector>
 
 #include "gittide/ui/addrepodialogs.hpp"
 #include "gittide/ui/branchbar.hpp"
 #include "gittide/ui/branchdialogs.hpp"
+#include "gittide/ui/changedfileslist.hpp"
 #include "gittide/ui/changesview.hpp"
-#include "gittide/ui/dashboardmodel.hpp"
+#include "gittide/ui/diffview.hpp"
 #include "gittide/ui/historyview.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/projectsidebar.hpp"
@@ -120,50 +125,94 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
     , m_store(store)
     , m_controller(new ProjectController(store, std::move(storePath), this))
     , m_sidebar(new ProjectSidebar(m_controller, this))
+    , m_projectsDock(nullptr)
     , m_repoController(new RepoController(this))
     , m_branchBar(new BranchBar(this))
     , m_changesView(new ChangesView(this))
     , m_historyView(new HistoryView(this))
-    , m_dashboardModel(new DashboardModel(this))
+    , m_commitFiles(new ChangedFilesList(this))
+    , m_diff(new DiffView(this))
+    , m_mainTabs(nullptr)
     , m_centralStack(new QStackedWidget(this))
 {
     setWindowTitle(QStringLiteral("GitTide"));
 
     // Left dock
-    auto* dock = new QDockWidget(QStringLiteral("Projects"), this);
-    dock->setObjectName(QStringLiteral("projectsDock"));
-    dock->setWidget(m_sidebar);
-    dock->setFeatures(QDockWidget::NoDockWidgetFeatures);
-    addDockWidget(Qt::LeftDockWidgetArea, dock);
+    m_projectsDock = new QDockWidget(QStringLiteral("Projects"), this);
+    m_projectsDock->setObjectName(QStringLiteral("projectsDock"));
+    m_projectsDock->setWidget(m_sidebar);
+    m_projectsDock->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    addDockWidget(Qt::LeftDockWidgetArea, m_projectsDock);
 
     // Central stack
     m_centralStack->setObjectName(QStringLiteral("centralStack"));
     auto* noProjectsPage = makeNoProjectsPage(this);
     auto* noReposPage    = makeNoReposPage(this);
 
-    auto* tabs = new QTabWidget(this);
-    tabs->setObjectName(QStringLiteral("mainTabs"));
-    tabs->addTab(m_changesView, QStringLiteral("Changes"));
-    tabs->addTab(m_historyView, QStringLiteral("History"));
-    auto* dashboardView = new QListView(this);
-    dashboardView->setObjectName(QStringLiteral("dashboardList"));
-    dashboardView->setModel(m_dashboardModel);
-    tabs->addTab(dashboardView, QStringLiteral("Dashboard"));
+    // List column: a two-tab QTabWidget (Changes | History).
+    m_mainTabs = new QTabWidget(this);
+    m_mainTabs->setObjectName(QStringLiteral("mainTabs"));
+    m_mainTabs->addTab(m_changesView, QStringLiteral("Changes"));
 
-    // Wrap BranchBar + tab widget in a vertical container so BranchBar sits
-    // above the tabs. This container becomes central-stack index 2.
+    // History tab body: a vertical splitter — commit table on top, the read-only
+    // commit-files list below.
+    m_commitFiles->setObjectName(QStringLiteral("commitFilesList"));
+    m_commitFiles->setMode(ChangedFilesList::Mode::ReadOnly);
+    auto* historyTab = new QSplitter(Qt::Vertical, this);
+    historyTab->setObjectName(QStringLiteral("historyTab"));
+    historyTab->addWidget(m_historyView);
+    historyTab->addWidget(m_commitFiles);
+    historyTab->setStretchFactor(0, 3);
+    historyTab->setStretchFactor(1, 1);
+    m_mainTabs->addTab(historyTab, QStringLiteral("History"));
+
+    // Shared diff (right pane).
+    m_diff->setObjectName(QStringLiteral("sharedDiff"));
+
+    // repoPage: BranchBar above a horizontal splitter (list column | shared diff).
     auto* repoPage = new QWidget(this);
     repoPage->setObjectName(QStringLiteral("repoPage"));
     auto* repoPageLayout = new QVBoxLayout(repoPage);
     repoPageLayout->setContentsMargins(0, 0, 0, 0);
     repoPageLayout->setSpacing(0);
-    repoPageLayout->addWidget(m_branchBar);
-    repoPageLayout->addWidget(tabs);
+
+    // BranchBar row: a sidebar-collapse toggle precedes the branch bar.
+    auto* topRow       = new QWidget(repoPage);
+    auto* topRowLayout = new QHBoxLayout(topRow);
+    topRowLayout->setContentsMargins(0, 0, 0, 0);
+    topRowLayout->setSpacing(0);
+    auto* collapseBtn = new QToolButton(topRow);
+    collapseBtn->setObjectName(QStringLiteral("sidebarCollapseButton"));
+    collapseBtn->setText(QStringLiteral("☰")); // ☰
+    collapseBtn->setToolTip(QStringLiteral("Toggle project sidebar"));
+    collapseBtn->setCheckable(true);
+    collapseBtn->setChecked(true);
+    topRowLayout->addWidget(collapseBtn);
+    topRowLayout->addWidget(m_branchBar, /*stretch=*/1);
+
+    auto* contentSplitter = new QSplitter(Qt::Horizontal, repoPage);
+    contentSplitter->setObjectName(QStringLiteral("repoContentSplitter"));
+    contentSplitter->addWidget(m_mainTabs);
+    contentSplitter->addWidget(m_diff);
+    contentSplitter->setStretchFactor(0, 2);
+    contentSplitter->setStretchFactor(1, 3);
+
+    repoPageLayout->addWidget(topRow);
+    repoPageLayout->addWidget(contentSplitter, /*stretch=*/1);
 
     m_centralStack->addWidget(noProjectsPage); // index 0
     m_centralStack->addWidget(noReposPage);    // index 1
     m_centralStack->addWidget(repoPage);       // index 2
     setCentralWidget(m_centralStack);
+
+    // Sidebar collapse: toggle the projects dock visibility.
+    connect(collapseBtn,
+            &QToolButton::toggled,
+            this,
+            [this](bool shown)
+            {
+                m_projectsDock->setVisible(shown);
+            });
 
     // Wire existing repo/sidebar connections (unchanged from before)
     connect(m_sidebar, &ProjectSidebar::openInNewWindowRequested, this, &MainWindow::openInNewWindowRequested);
@@ -285,14 +334,55 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 QCoro::connect(m_repoController->checkoutCommit(oid), this, [] {});
             });
 
-    // Async wiring between controller and ChangesView.
-    // NOTE: The shared-diff wiring (filesList()->fileSelected → shared DiffView,
-    // applyLineToggle/selectionFor) is reworked in Task 7. Only the commit and
-    // discard paths are wired here to keep the build green after the Task 6
-    // commit-selection rework.
+    // ---- Working-changes wiring (Changes tab → shared diff) ----
     connect(m_repoController, &RepoController::statusChanged, m_changesView, &ChangesView::setStatus);
+
+    // File selection in the Changes list → request the working diff (vs HEAD).
+    connect(m_changesView->filesList(),
+            &ChangedFilesList::fileSelected,
+            this,
+            [this](const QString& path, gittide::StatusFlag)
+            {
+                QCoro::connect(
+                    m_repoController->refreshDiff(path, gittide::DiffTarget::WorktreeVsHead), this, [] {});
+            });
+
+    // Diff arrives → render it editable in the shared panel, seeded from the
+    // ChangesView per-file selection. Only when the Changes tab is active so a
+    // history diff request does not get overwritten.
+    connect(m_repoController,
+            &RepoController::diffReady,
+            this,
+            [this](const QString& path, const gittide::DiffResult& result)
+            {
+                if (m_mainTabs->currentIndex() != 0)
+                    return;
+                bool whole = true;
+                std::map<int, std::vector<int>> lines;
+                m_changesView->selectionFor(path, whole, lines);
+                m_diff->setMode(DiffView::Mode::Editable);
+                m_diff->setDiff(result, std::filesystem::path(path.toStdString()), whole, lines);
+            });
+
+    // Line toggles in the shared diff feed back into the ChangesView selection.
+    connect(m_diff,
+            &DiffView::lineCheckToggled,
+            this,
+            [this](const QString& path, int hunkIndex, int lineIndex, bool checked)
+            {
+                m_changesView->applyLineToggle(path, hunkIndex, lineIndex, checked);
+            });
+
+    // Discard from either the Changes list or the shared diff context menu.
     connect(m_changesView,
             &ChangesView::discardRequested,
+            this,
+            [this](const gittide::StageSelection& sel)
+            {
+                QCoro::connect(m_repoController->discard(sel), this, [] {});
+            });
+    connect(m_diff,
+            &DiffView::discardRequested,
             this,
             [this](const gittide::StageSelection& sel)
             {
@@ -306,14 +396,57 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 QCoro::connect(m_repoController->commitSelection(req, std::move(selections)), this, [] {});
             });
 
-    // Activating a project or mutating its repo list refreshes the dashboard.
-    auto refreshDashboard = [this]()
+    // ---- History wiring (History tab → shared diff, read-only) ----
+    // The HistoryView's inner commit table drives the current-commit selection;
+    // it has no dedicated selection signal, so listen on its selection model and
+    // resolve the OID via oidForRow().
+    if (auto* historyTable = m_historyView->findChild<QTableView*>(QStringLiteral("historyTable")))
     {
-        QCoro::connect(m_dashboardModel->refreshAsync(m_controller->activeRepos()), this, [] {});
-    };
-    connect(m_controller, &ProjectController::projectActivated, this, [=](const QString&) { refreshDashboard(); });
-    connect(m_controller, &ProjectController::repoAdded, this, [=](const QString&) { refreshDashboard(); });
-    connect(m_controller, &ProjectController::repoRemoved, this, [=](const QString&) { refreshDashboard(); });
+        connect(historyTable->selectionModel(),
+                &QItemSelectionModel::currentRowChanged,
+                this,
+                [this](const QModelIndex& current, const QModelIndex&)
+                {
+                    const QString oid = m_historyView->oidForRow(current);
+                    if (oid.isEmpty())
+                        return;
+                    m_currentOid = oid;
+                    QCoro::connect(m_repoController->refreshCommitFiles(oid), this, [] {});
+                });
+    }
+    connect(m_repoController,
+            &RepoController::commitFilesReady,
+            this,
+            [this](const QString&, const std::vector<gittide::FileStatus>& files)
+            {
+                m_commitFiles->setFiles(files);
+            });
+    connect(m_commitFiles,
+            &ChangedFilesList::fileSelected,
+            this,
+            [this](const QString& path, gittide::StatusFlag)
+            {
+                if (m_currentOid.isEmpty())
+                    return;
+                QCoro::connect(m_repoController->refreshCommitDiff(m_currentOid, path), this, [] {});
+            });
+    connect(m_repoController,
+            &RepoController::commitDiffReady,
+            this,
+            [this](const QString&, const QString& path, const gittide::DiffResult& result)
+            {
+                m_diff->setMode(DiffView::Mode::ReadOnly);
+                m_diff->setDiff(result, std::filesystem::path(path.toStdString()), false, {});
+            });
+
+    // Switching tabs clears the shared diff so a stale diff does not linger.
+    connect(m_mainTabs,
+            &QTabWidget::currentChanged,
+            this,
+            [this](int)
+            {
+                m_diff->clear();
+            });
 
     // Empty-state page switching
     connect(m_controller, &ProjectController::projectActivated, this, &MainWindow::updateCentralPage);
