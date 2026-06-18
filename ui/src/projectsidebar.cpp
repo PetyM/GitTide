@@ -23,6 +23,7 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     : QWidget(parent)
     , m_controller(controller)
     , m_switcher(new QComboBox(this))
+    , m_openInNewWindowBtn(new QToolButton(this))
     , m_removeProjectBtn(new QToolButton(this))
     , m_repoList(new QTreeView(this))
     , m_addExistingBtn(new QToolButton(this))
@@ -32,6 +33,10 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
 
     m_switcher->setObjectName(QStringLiteral("projectSwitcher"));
     m_switcher->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    m_openInNewWindowBtn->setObjectName(QStringLiteral("openInNewWindowButton"));
+    m_openInNewWindowBtn->setText(QStringLiteral("⧉"));
+    m_openInNewWindowBtn->setToolTip(QStringLiteral("Open current project in a new window"));
 
     m_removeProjectBtn->setObjectName(QStringLiteral("removeProjectButton"));
     m_removeProjectBtn->setText(QStringLiteral("✕"));
@@ -59,6 +64,7 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
     auto* switcherLayout = new QHBoxLayout(switcherRow);
     switcherLayout->setContentsMargins(0, 0, 0, 0);
     switcherLayout->addWidget(m_switcher);
+    switcherLayout->addWidget(m_openInNewWindowBtn);
     switcherLayout->addWidget(m_removeProjectBtn);
 
     auto* toolbar       = new QWidget(this);
@@ -164,6 +170,9 @@ ProjectSidebar::ProjectSidebar(ProjectController* controller, QWidget* parent)
                     m_controller->removeRepo(path);
                 }
             });
+
+    // Switcher-row buttons
+    connect(m_openInNewWindowBtn, &QToolButton::clicked, this, &ProjectSidebar::requestOpenInNewWindow);
 
     // Toolbar buttons
     connect(m_addExistingBtn, &QToolButton::clicked, this, &ProjectSidebar::addExistingRequested);
