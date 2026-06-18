@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `designed` |
+| **Status** | `done` |
 | **Touches** | product (screens & flows), design (visual system), engineering (ui layer, possible framework change) |
 
 ## What
