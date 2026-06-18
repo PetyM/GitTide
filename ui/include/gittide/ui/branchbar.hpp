@@ -4,6 +4,7 @@
 
 #include "gittide/branchinfo.hpp"
 
+class QMenu;
 class QToolButton;
 
 namespace gittide::ui {
@@ -31,7 +32,8 @@ private:
     void rebuildMenu();
     QString labelForHead() const;
 
-    QToolButton*                    m_button;
+    QMenu*                           m_menu    = nullptr;
+    QToolButton*                     m_button;
     std::vector<gittide::BranchInfo> m_branches;
     gittide::HeadState               m_head;
 };

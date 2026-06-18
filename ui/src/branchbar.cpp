@@ -8,12 +8,14 @@ namespace gittide::ui {
 
 BranchBar::BranchBar(QWidget* parent)
     : QWidget(parent)
+    , m_menu(new QMenu(this))
     , m_button(new QToolButton(this))
 {
     setObjectName(QStringLiteral("branchBar"));
     m_button->setObjectName(QStringLiteral("currentBranchButton"));
     m_button->setPopupMode(QToolButton::InstantPopup);
     m_button->setText(QStringLiteral("(no commits)"));
+    m_button->setMenu(m_menu);
 
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -47,12 +49,12 @@ void BranchBar::setBranches(const std::vector<gittide::BranchInfo>& branches)
 
 void BranchBar::rebuildMenu()
 {
-    auto* menu = new QMenu(this);
+    m_menu->clear();
 
     for (const auto& branch : m_branches)
     {
         const QString name = QString::fromStdString(branch.name);
-        QAction* action    = menu->addAction(name);
+        QAction* action    = m_menu->addAction(name);
         action->setCheckable(true);
         action->setChecked(branch.isHead);
         connect(action,
@@ -64,18 +66,16 @@ void BranchBar::rebuildMenu()
                 });
     }
 
-    menu->addSeparator();
+    m_menu->addSeparator();
 
-    QAction* newAction = menu->addAction(QStringLiteral("New branch…"));
+    QAction* newAction = m_menu->addAction(QStringLiteral("New branch…"));
     connect(newAction, &QAction::triggered, this, &BranchBar::createRequested);
 
-    QAction* renameAction = menu->addAction(QStringLiteral("Rename current…"));
+    QAction* renameAction = m_menu->addAction(QStringLiteral("Rename current…"));
     connect(renameAction, &QAction::triggered, this, &BranchBar::renameRequested);
 
-    QAction* deleteAction = menu->addAction(QStringLiteral("Delete…"));
+    QAction* deleteAction = m_menu->addAction(QStringLiteral("Delete…"));
     connect(deleteAction, &QAction::triggered, this, &BranchBar::deleteRequested);
-
-    m_button->setMenu(menu);
 }
 
 } // namespace gittide::ui
