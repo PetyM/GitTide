@@ -2,91 +2,66 @@
 
 namespace gittide::ui {
 
-QString buildStyleSheet(const Theme& t)
+QPalette buildPalette(const Theme& t)
 {
-    return QStringLiteral(R"(
-QWidget {
-    background: %1;
-    color: %5;
-    font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
-    font-size: 13px;
-}
-QDockWidget, QFrame#emptyStateCard, QTabWidget::pane, QDialog {
-    background: %2;
-    border: 1px solid %4;
-    border-radius: 10px;
-}
-QLabel { background: transparent; }
-QLabel[role="headline"] { font-size: 22px; font-weight: 700; color: %5; }
-QLabel[role="subtext"]  { font-size: 13px; color: %6; }
+    QPalette p;
 
-QPushButton, QToolButton {
-    background: %2;
-    color: %5;
-    border: 1px solid %4;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-weight: 600;
-}
-QPushButton:hover, QToolButton:hover { border-color: %8; }
+    // Active / Inactive groups — full token mapping.
+    for (auto group : {QPalette::Active, QPalette::Inactive})
+    {
+        p.setColor(group, QPalette::Window,          QColor(t.surfaceBase));
+        p.setColor(group, QPalette::WindowText,      QColor(t.textPrimary));
+        p.setColor(group, QPalette::Text,            QColor(t.textPrimary));
+        p.setColor(group, QPalette::ButtonText,      QColor(t.textPrimary));
+        p.setColor(group, QPalette::Base,            QColor(t.surfaceRaised));
+        p.setColor(group, QPalette::AlternateBase,   QColor(t.surfaceOverlay));
+        p.setColor(group, QPalette::Button,          QColor(t.surfaceRaised));
+        p.setColor(group, QPalette::ToolTipBase,     QColor(t.surfaceOverlay));
+        p.setColor(group, QPalette::ToolTipText,     QColor(t.textPrimary));
+        p.setColor(group, QPalette::Highlight,       QColor(t.accent));
+        p.setColor(group, QPalette::HighlightedText, QColor(t.surfaceBase));
+        p.setColor(group, QPalette::PlaceholderText, QColor(t.textMuted));
+        p.setColor(group, QPalette::Link,            QColor(t.accent));
+    }
 
-QPushButton#createProjectCta, QPushButton#addExistingCta {
-    background: %8;
-    color: %1;
-    border: none;
-}
-QPushButton#createProjectCta:hover, QPushButton#addExistingCta:hover { background: %9; }
+    // Disabled group — muted text.
+    p.setColor(QPalette::Disabled, QPalette::Text,       QColor(t.textMuted));
+    p.setColor(QPalette::Disabled, QPalette::WindowText, QColor(t.textMuted));
+    p.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(t.textMuted));
 
-QComboBox#projectSwitcher {
-    background: %2; border: 1px solid %4; border-radius: 6px; padding: 6px 12px;
+    return p;
 }
 
-QTreeView#repoList {
-    background: %2; border: 1px solid %4; border-radius: 10px;
-}
-QTreeView#repoList::item { padding: 4px 8px; }
-QTreeView#repoList::item:selected {
-    background: %3; border-left: 2px solid %8; color: %5;
-}
-
-QTabBar::tab { background: transparent; color: %6; padding: 8px 16px; }
-QTabBar::tab:selected { color: %5; border-bottom: 2px solid %8; }
-
-QProgressBar { border: 1px solid %4; border-radius: 6px; text-align: center; }
-QProgressBar::chunk { background: %8; border-radius: 6px; }
-
-QToolTip { background: %2; border: 1px solid %4; color: %7; border-radius: 6px; padding: 4px 8px; }
-
-QWidget#branchBar {
-    background: %2;
-    border-bottom: 1px solid %4;
-}
-
-QToolButton#currentBranchButton {
-    background: %2;
-    color: %5;
-    border: 1px solid %4;
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-weight: 600;
-}
-QToolButton#currentBranchButton:hover { border-color: %8; }
-
-QDialog#newBranchDialog, QDialog#renameBranchDialog, QDialog#deleteBranchDialog {
-    background: %2;
-    border: 1px solid %4;
-    border-radius: 18px;
-}
-)")
-        .arg(t.surfaceBase,    // %1
-             t.surfaceRaised,  // %2
-             t.surfaceOverlay, // %3
-             t.border,         // %4
-             t.textPrimary,    // %5
-             t.textSecondary,  // %6
-             t.textMuted,      // %7
-             t.accent,         // %8
-             t.accentHover);   // %9
+QString buildAccentStyleSheet(const Theme& t)
+{
+    // QSS for cues that a QPalette cannot express:
+    //   - QTabBar selected-tab underline
+    //   - Selection left-border on named list widgets
+    //   - Focus ring
+    //   - Diff gutter added/deleted row background
+    return QStringLiteral(
+               "QTabBar::tab:selected {"
+               "    border-bottom: 2px solid %1;"
+               "}"
+               "#changedFilesList::item:selected {"
+               "    border-left: 2px solid %1;"
+               "}"
+               "#repoList::item:selected {"
+               "    border-left: 2px solid %1;"
+               "}"
+               "*:focus {"
+               "    outline: 2px solid %1;"
+               "}"
+               "QFrame[diffRole=\"added\"] {"
+               "    background: %2;"
+               "}"
+               "QFrame[diffRole=\"deleted\"] {"
+               "    background: %3;"
+               "}")
+        .arg(t.accent,       // %1 — accent
+             t.stateAdded,   // %2 — diff gutter added
+             t.stateDeleted  // %3 — diff gutter deleted
+        );
 }
 
 } // namespace gittide::ui

@@ -1,3 +1,4 @@
+#include <QPalette>
 #include <QtTest>
 
 #include "gittide/ui/theme.hpp"
@@ -9,31 +10,41 @@ class TestThemeStyle : public QObject
 {
     Q_OBJECT
 private slots:
-    void stylesheet_is_nonempty_and_uses_tokens()
+    void palette_uses_surface_and_text_tokens()
     {
-        const Theme t     = darkTheme();
-        const QString qss = buildStyleSheet(t);
+        const auto t = gittide::ui::darkTheme();
+        const QPalette p = gittide::ui::buildPalette(t);
+        QCOMPARE(p.color(QPalette::Window).name().toUpper(), QString(t.surfaceBase).toUpper());
+        QCOMPARE(p.color(QPalette::WindowText).name().toUpper(), QString(t.textPrimary).toUpper());
+        QCOMPARE(p.color(QPalette::Base).name().toUpper(), QString(t.surfaceRaised).toUpper());
+        QCOMPARE(p.color(QPalette::Highlight).name().toUpper(), QString(t.accent).toUpper());
+    }
+    void accent_stylesheet_references_accent_token()
+    {
+        const auto t = gittide::ui::darkTheme();
+        const QString qss = gittide::ui::buildAccentStyleSheet(t);
+        QVERIFY(qss.contains(t.accent));   // accent underline / focus uses the token
         QVERIFY(!qss.isEmpty());
-        QVERIFY(qss.contains(t.accent));                      // accent token used
-        QVERIFY(qss.contains(t.surfaceBase));                 // base surface used
-        QVERIFY(qss.contains(QStringLiteral("QPushButton"))); // styles buttons
     }
-    void light_and_dark_produce_different_sheets()
+    void light_and_dark_produce_different_palettes()
     {
-        QVERIFY(buildStyleSheet(darkTheme()) != buildStyleSheet(lightTheme()));
+        const QPalette dark  = buildPalette(darkTheme());
+        const QPalette light = buildPalette(lightTheme());
+        QVERIFY(dark.color(QPalette::Window) != light.color(QPalette::Window));
     }
-    void primary_cta_is_styled_by_objectname()
+    void accent_stylesheet_contains_state_tokens()
     {
-        // Empty-state CTAs are accent-filled; sheet must reference the id.
-        const QString qss = buildStyleSheet(darkTheme());
-        QVERIFY(qss.contains(QStringLiteral("#createProjectCta")));
+        const auto t = gittide::ui::darkTheme();
+        const QString qss = gittide::ui::buildAccentStyleSheet(t);
+        QVERIFY(qss.contains(t.stateAdded));
+        QVERIFY(qss.contains(t.stateDeleted));
     }
-    void branch_bar_and_dialogs_are_styled_by_objectname()
+    void accent_stylesheet_contains_objectname_selectors()
     {
-        const QString qss = buildStyleSheet(darkTheme());
-        QVERIFY(qss.contains(QStringLiteral("#branchBar")));
-        QVERIFY(qss.contains(QStringLiteral("#currentBranchButton")));
-        QVERIFY(qss.contains(QStringLiteral("#newBranchDialog")));
+        const QString qss = buildAccentStyleSheet(darkTheme());
+        QVERIFY(qss.contains(QStringLiteral("#changedFilesList")));
+        QVERIFY(qss.contains(QStringLiteral("#repoList")));
+        QVERIFY(qss.contains(QStringLiteral("QTabBar::tab:selected")));
     }
 };
 

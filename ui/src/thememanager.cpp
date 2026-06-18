@@ -2,6 +2,7 @@
 
 #include <QApplication>
 #include <QIcon>
+#include <QStyle>
 #include <QStyleHints>
 
 #include "gittide/ui/themestyle.hpp"
@@ -68,7 +69,16 @@ void ThemeManager::setMode(Mode mode)
 void ThemeManager::applyTo(QApplication* app)
 {
     m_app = app;
-    app->setStyleSheet(buildStyleSheet(currentTheme()));
+
+    // Set Fusion as the base style once; it renders correctly from a QPalette
+    // and provides a consistent cross-platform baseline (D24/D25).
+    if (!app->style() || app->style()->objectName() != QStringLiteral("fusion"))
+        app->setStyle(QStringLiteral("Fusion"));
+
+    const Theme t = currentTheme();
+    app->setPalette(buildPalette(t));
+    app->setStyleSheet(buildAccentStyleSheet(t));
+
     app->setWindowIcon(QIcon(iconResource()));
 }
 
