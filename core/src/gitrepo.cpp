@@ -4,6 +4,7 @@
 #include <git2/branch.h>
 #include <git2/checkout.h>
 #include <git2/commit.h>
+#include <git2/graph.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
 #include <memory>
@@ -633,6 +634,57 @@ Expected<void> GitRepo::checkoutCommit(std::string oid)
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     return safeSwitch(target, /*refToSet=*/"");
+}
+
+Expected<void> GitRepo::deleteBranch(std::string name, bool force)
+{
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    if (git_branch_is_head(ref) == 1)
+        return std::unexpected(GitError{-1, "cannot delete the current branch"});
+
+    if (!force)
+    {
+        git_oid branch_oid, head_oid;
+        if (git_reference_name_to_id(&branch_oid, m_repo, git_reference_name(ref)) == 0
+            && git_reference_name_to_id(&head_oid, m_repo, "HEAD") == 0)
+        {
+            // merged == branch tip is an ancestor of (or equal to) HEAD.
+            int merged = git_oid_equal(&branch_oid, &head_oid)
+                         || git_graph_descendant_of(m_repo, &head_oid, &branch_oid) == 1;
+            if (!merged)
+                return std::unexpected(GitError{-1, "branch is not fully merged"});
+        }
+    }
+
+    rc = git_branch_delete(ref);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, bool force)
+{
+    int valid = 0;
+    if (git_branch_name_is_valid(&valid, newName.c_str()) < 0 || valid == 0)
+        return std::unexpected(GitError{-1, "invalid branch name"});
+
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, oldName.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> guard(ref, git_reference_free);
+
+    git_reference* moved = nullptr;
+    rc = git_branch_move(&moved, ref, newName.c_str(), force ? 1 : 0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_reference_free(moved);
+    return {};
 }
 
 } // namespace gittide

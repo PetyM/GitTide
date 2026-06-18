@@ -61,3 +61,35 @@ TEST_CASE("branches lists the default branch and marks HEAD", "[branches]")
     REQUIRE(h->branch == (*list)[0].name);
     REQUIRE(h->oid.size() == 40);
 }
+
+TEST_CASE("deleteBranch removes a merged branch but blocks the current one", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    const std::string cur = repo->head()->branch;
+
+    REQUIRE(repo->createBranch("merged", "").has_value()); // same tip => merged
+    REQUIRE(repo->deleteBranch("merged", /*force=*/false).has_value());
+    REQUIRE_FALSE(has(*repo->branches(), "merged"));
+
+    REQUIRE_FALSE(repo->deleteBranch(cur, false).has_value()); // current is blocked
+}
+
+TEST_CASE("renameBranch renames and rejects invalid names", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->createBranch("old", "").has_value());
+
+    REQUIRE(repo->renameBranch("old", "new", false).has_value());
+    REQUIRE(has(*repo->branches(), "new"));
+    REQUIRE_FALSE(has(*repo->branches(), "old"));
+
+    REQUIRE_FALSE(repo->renameBranch("new", "bad~name", false).has_value());
+}

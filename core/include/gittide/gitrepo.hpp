@@ -86,6 +86,14 @@ public:
     // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.
     Expected<void> checkoutCommit(std::string oid);
 
+    // Delete the named local branch. Blocks if it is the current branch.
+    // Without force, also blocks if the branch is not fully merged into HEAD.
+    Expected<void> deleteBranch(std::string name, bool force);
+
+    // Rename a local branch from oldName to newName.
+    // Validates newName; with force=true overwrites an existing branch of that name.
+    Expected<void> renameBranch(std::string oldName, std::string newName, bool force);
+
 private:
     explicit GitRepo(git_repository* repo)
         : m_repo(repo)
