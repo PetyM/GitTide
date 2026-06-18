@@ -18,6 +18,7 @@
 
 #include "test_async_repo.cpp"
 #include "test_branch_bar.cpp"
+#include "test_branch_dialogs.cpp"
 #include "test_changes_view.cpp"
 #include "test_dashboard_async.cpp"
 #include "test_dashboard_model.cpp"
@@ -76,6 +77,7 @@ int main(int argc, char** argv)
     RUN(TestQCoroSmoke);
     RUN(TestAsyncRepo);
     RUN(TestBranchBar);
+    RUN(TestBranchDialogs);
     RUN(TestDashboardAsync);
     RUN(TestDiffView);
     RUN(TestChangesView);
