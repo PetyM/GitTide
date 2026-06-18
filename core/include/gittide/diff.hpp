@@ -11,6 +11,7 @@ enum class DiffTarget
 {
     WorktreeVsIndex, // unstaged changes
     IndexVsHead,     // staged changes
+    WorktreeVsHead,  // all working changes vs HEAD (index-independent)
 };
 
 enum class DiffLineOrigin

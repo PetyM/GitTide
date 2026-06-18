@@ -156,15 +156,22 @@ Expected<DiffResult> GitRepo::diff(DiffTarget target, const std::filesystem::pat
     {
         rc = git_diff_index_to_workdir(&raw, m_repo, nullptr, &opts);
     }
-    else
+    else if (target == DiffTarget::WorktreeVsHead)
     {
-        // IndexVsHead: compare HEAD's tree to the index. Unborn HEAD -> null tree.
         git_object* head_obj = nullptr;
         git_tree* head_tree  = nullptr;
         if (git_revparse_single(&head_obj, m_repo, "HEAD^{tree}") == 0)
-        {
             head_tree = reinterpret_cast<git_tree*>(head_obj);
-        }
+        rc = git_diff_tree_to_workdir(&raw, m_repo, head_tree, &opts);
+        if (head_tree)
+            git_tree_free(head_tree);
+    }
+    else // IndexVsHead (unchanged)
+    {
+        git_object* head_obj = nullptr;
+        git_tree* head_tree  = nullptr;
+        if (git_revparse_single(&head_obj, m_repo, "HEAD^{tree}") == 0)
+            head_tree = reinterpret_cast<git_tree*>(head_obj);
         rc = git_diff_tree_to_index(&raw, m_repo, head_tree, nullptr, &opts);
         if (head_tree)
             git_tree_free(head_tree);
