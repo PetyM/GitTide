@@ -24,6 +24,7 @@
 #include "test_dashboard_model.cpp"
 #include "test_diff_view.cpp"
 #include "test_history_model.cpp"
+#include "test_history_view.cpp"
 #include "test_main_window.cpp"
 #include "test_project_controller.cpp"
 #include "test_project_list_model.cpp"
@@ -82,6 +83,7 @@ int main(int argc, char** argv)
     RUN(TestDiffView);
     RUN(TestChangesView);
     RUN(TestHistoryModel);
+    RUN(TestHistoryView);
     RUN(TestTheme);
     RUN(TestThemeStyle);
     RUN(TestThemeManager);
