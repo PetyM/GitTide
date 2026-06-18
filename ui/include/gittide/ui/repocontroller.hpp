@@ -5,6 +5,7 @@
 #include <qcorotask.h>
 #include <vector>
 
+#include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
@@ -39,6 +40,12 @@ public slots:
     QCoro::Task<void> discard(gittide::StageSelection sel);
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
+    QCoro::Task<void> refreshBranches();
+    QCoro::Task<void> createBranch(QString name, QString fromOid, bool checkout);
+    QCoro::Task<void> switchBranch(QString name);
+    QCoro::Task<void> checkoutCommit(QString oid);
+    QCoro::Task<void> deleteBranch(QString name, bool force);
+    QCoro::Task<void> renameBranch(QString oldName, QString newName);
 
 signals:
     void repoOpened(const QString& path);
@@ -48,6 +55,8 @@ signals:
     void committed(const QString& oid);
     void historyReady(gittide::GraphLayout layout);
     void operationFailed(const QString& message);
+    void branchesChanged(std::vector<gittide::BranchInfo>);
+    void headChanged(gittide::HeadState);
 
 private:
     std::optional<AsyncRepo> m_repo;

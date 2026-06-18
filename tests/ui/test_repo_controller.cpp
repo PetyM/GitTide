@@ -64,6 +64,42 @@ std::filesystem::path make_dirty_repo()
     git_libgit2_shutdown();
     return dir;
 }
+// Repo with one committed file and no working-tree modifications.
+std::filesystem::path make_repo_with_commit()
+{
+    git_libgit2_init();
+    auto dir =
+        std::filesystem::temp_directory_path() / ("gittide-rcwc-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+    {
+        std::ofstream(dir / "a.txt") << "one\n";
+    }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "a.txt");
+    git_index_write(idx);
+    git_oid tree_oid;
+    git_index_write_tree(&tree_oid, idx);
+    git_tree* tree = nullptr;
+    git_tree_lookup(&tree, raw, &tree_oid);
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
+    git_oid commit_oid;
+    git_commit_create_v(&commit_oid, raw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+    git_signature_free(sig);
+    git_tree_free(tree);
+    git_index_free(idx);
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    return dir;
+}
 } // namespace repo_controller_test
 
 class TestRepoController : public QObject
@@ -147,6 +183,41 @@ private slots:
         QVERIFY(historySpy.count() >= 1);
         const auto layout = historySpy.last().at(0).value<gittide::GraphLayout>();
         QVERIFY(layout.rows.size() >= 2); // initial commit + new commit
+        std::filesystem::remove_all(dir);
+    }
+
+    void refresh_branches_emits_branches_and_head()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        qRegisterMetaType<std::vector<gittide::BranchInfo>>();
+        qRegisterMetaType<gittide::HeadState>();
+        QSignalSpy branches(&controller, &RepoController::branchesChanged);
+        QSignalSpy head(&controller, &RepoController::headChanged);
+
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QCoro::waitFor(controller.refreshBranches());
+
+        QCOMPARE(branches.count(), 1);
+        QCOMPARE(head.count(), 1);
+        std::filesystem::remove_all(dir);
+    }
+
+    void switch_branch_runs_the_refresh_cascade()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QCoro::waitFor(controller.createBranch(QStringLiteral("feature"), QString(), false));
+
+        QSignalSpy status(&controller, &RepoController::statusChanged);
+        QSignalSpy history(&controller, &RepoController::historyReady);
+        QSignalSpy branches(&controller, &RepoController::branchesChanged);
+        QCoro::waitFor(controller.switchBranch(QStringLiteral("feature")));
+
+        QVERIFY(status.count() >= 1);
+        QVERIFY(history.count() >= 1);
+        QVERIFY(branches.count() >= 1);
         std::filesystem::remove_all(dir);
     }
 };

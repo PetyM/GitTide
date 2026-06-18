@@ -2,6 +2,7 @@
 #include <QMetaType>
 #include <vector>
 
+#include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
@@ -16,3 +17,6 @@ Q_DECLARE_METATYPE(std::vector<gittide::FileStatus>)
 Q_DECLARE_METATYPE(gittide::DiffTarget)
 Q_DECLARE_METATYPE(gittide::GraphLayout)
 Q_DECLARE_METATYPE(gittide::GraphRow)
+Q_DECLARE_METATYPE(gittide::BranchInfo)
+Q_DECLARE_METATYPE(std::vector<gittide::BranchInfo>)
+Q_DECLARE_METATYPE(gittide::HeadState)
