@@ -16,7 +16,7 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
-| [Branch management — create / switch / delete](branch-management.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Branch management — create / switch / delete](branch-management.md) | 2026-06-17 | `designed` | product, engineering, design |
 | [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Merge — with conflict resolution](merge.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |

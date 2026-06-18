@@ -40,7 +40,8 @@ parallel, and large histories/diffs render incrementally.
 
 - Network operations beyond clone: push / pull / fetch, and bulk "fetch/pull
   all" across a project.
-- Branch management: create / switch / delete, merge, conflict-resolution UI.
+- Branch **merge** and conflict-resolution UI. (Local branch *create / switch /
+  delete / rename* is now designed — see [Branches](#branches).)
 - An aggregated project-wide timeline graph (all repos on one axis).
 - Remove / rename of projects or repos and repo reordering.
 
@@ -54,7 +55,9 @@ The window uses **Layout A** — a two-level sidebar, GitHub-Desktop-like:
 - **Left sidebar.** Top: the **project switcher** (a combo; its dropdown includes
   a "New project…" item). Below: the **repo tree** of the active project, with an
   add-repo toolbar (three buttons: add existing / init / clone) at the bottom.
-- **Main area.** Tabs: **Changes** and **History**.
+- **Main area.** A **branch bar** across the top shows the current branch and
+  hosts branch actions (see [Branches](#branches)); below it, tabs: **Changes**
+  and **History**.
 
 When there is nothing to show, the main area shows a **branded empty state**
 instead (see [design](../design/design.md)):
@@ -76,6 +79,34 @@ Read history as a commit graph. A table lists commits (graph · summary · autho
 date); the graph column paints the branch/merge lanes. Rendering is virtualized,
 so a very large history scrolls smoothly.
 
+### Branches
+
+Work with a repo's **local** branches without dropping to a terminal. Scope is
+deliberately local-only: no fetch/push, no tracking-branch setup, no merge —
+those are separate later wishes.
+
+- **See.** A branch bar above the tabs names the current branch, or shows a
+  `detached @ <short-oid>` state when `HEAD` is on a bare commit (paired with an
+  icon, never colour alone).
+- **Switch.** The branch bar's dropdown lists local branches; picking one checks
+  it out. Checkout is **safe-by-default**: with a dirty working tree, GitTide
+  stashes the changes, switches, then re-applies the stash onto the target so the
+  work "follows" the user. If re-applying conflicts, it stops, keeps the stash,
+  and reports — it never clobbers uncommitted work silently. (This uses git's
+  stash internally; it is *not* the user-facing stash feature.)
+- **Create.** From the branch bar (new branch from current `HEAD`) or from a
+  commit's context menu in the History graph ("New branch from here"), optionally
+  switching to it.
+- **Checkout a commit.** The History graph's context menu can check out a bare
+  commit, yielding a detached `HEAD`; switching to any branch re-attaches.
+- **Delete / rename.** From the branch bar. Deleting the current branch is
+  blocked; deleting an unmerged branch requires an explicit "delete anyway"
+  confirmation. Names are validated before the operation.
+
+The flow is per-repo: a successful switch/checkout refreshes that repo's status,
+history, and branch list together (the same cascade as switching project, scoped
+to one repo).
+
 ### Dashboard
 
 A read-only aggregated view of the active project: every repo's status computed
@@ -92,6 +123,9 @@ the others.
   refreshes.
 - **Add a repository** → pick one of the three modes; clone shows a determinate
   progress modal with a working Cancel.
+- **Switch branch** → pick a branch (or "New branch from here" on a commit) →
+  safe-checkout (stash + re-apply if dirty) → the repo's status, history, and
+  branch bar refresh together.
 
 ## Multi-window
 

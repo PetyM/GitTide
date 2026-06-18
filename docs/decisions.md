@@ -20,6 +20,13 @@ an entry with a newer one if it changes.
 - **D4 — Submodules discovered live, never persisted.** Git state is the single
   source of truth; opening a submodule reuses the normal repo machinery. *Why:* no
   stale list when `.gitmodules` changes. → [`product`](spec/product/product.md)
+- **D21 — Branch checkout is stash-and-switch (safe by default).** On a dirty
+  working tree, checkout stashes, switches, then re-applies the stash onto the
+  target so the work follows the user; a re-apply conflict stops and keeps the
+  stash. *Rejected:* clean-tree-only (blocks the most common case), block-with-
+  message (same), and stash-then-leave-it-parked (no stash-list UI yet → work gets
+  forgotten). Uses git stash **internally** only — not the user-facing stash wish.
+  → [`product`](spec/product/product.md), [`engineering`](spec/engineering/engineering.md)
 - **D5 — Two persistence files.** `projects.json` (registry) is separate from
   `session.json` (window state). *Why:* opening/moving windows never rewrites the
   project registry. → [`product`](spec/product/product.md)

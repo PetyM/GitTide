@@ -103,6 +103,19 @@ letter (A / M / D / U / C).
   inactive in `text.secondary`.
 - **Diff gutter.** Added lines `state.added`, deleted `state.deleted` at low-alpha
   background with a full-strength sign in the gutter. Mono font.
+- **Branch bar** (`branchBar`). A bar above the tabs. The current-branch button
+  reads as `surface.raised` with a `border` outline and a branch icon + the branch
+  name in `text.primary`; a detached `HEAD` shows `detached @ <short-oid>` (mono
+  OID) with a distinct icon — state paired with a cue, never colour alone. Its
+  dropdown is a menu on `surface.overlay`: local branches with the current one
+  marked by an `accent` left border + check icon; a separator; then sentinel rows
+  ("New branch…", "Rename current…", "Delete…") in `text.secondary`.
+- **Branch dialogs.** New-branch / rename / delete-confirm follow the dialog
+  pattern: `surface.raised` card, radius 18, `border` outline, 2px `accent` focus
+  rings. New-branch = name input + a "switch to it" checkbox; an invalid name
+  disables the primary button and shows the reason in `text.secondary`.
+  Delete-confirm for an unmerged branch reveals a second-step "delete anyway (not
+  fully merged)" action styled as a destructive secondary button.
 - **Clone progress modal.** `surface.raised` card, `accent` progress bar, Cancel
   as a secondary button.
 - **Empty-state cards.** Each empty page is a centered card (`surface.raised`,
