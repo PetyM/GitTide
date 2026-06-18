@@ -141,8 +141,12 @@ QCoro::Task<void> RepoController::refreshBranches()
     }
     emit branchesChanged(*list);
     auto h = co_await m_repo->head();
-    if (h)
-        emit headChanged(*h);
+    if (!h)
+    {
+        emit operationFailed(QString::fromStdString(h.error().message));
+        co_return;
+    }
+    emit headChanged(*h);
 }
 
 QCoro::Task<void> RepoController::switchBranch(QString name)
