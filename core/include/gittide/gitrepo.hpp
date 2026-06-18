@@ -81,6 +81,11 @@ public:
     // Returns an error if the branch does not exist or the stash-pop conflicts.
     Expected<void> checkoutBranch(std::string name);
 
+    // Detach HEAD at the commit identified by the 40-char hex oid.
+    // If the working tree is dirty the changes are auto-stashed and re-applied
+    // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.
+    Expected<void> checkoutCommit(std::string oid);
+
 private:
     explicit GitRepo(git_repository* repo)
         : m_repo(repo)

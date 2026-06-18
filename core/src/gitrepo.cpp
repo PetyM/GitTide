@@ -626,4 +626,13 @@ Expected<void> GitRepo::checkoutBranch(std::string name)
     return safeSwitch(oid, std::string("refs/heads/") + name);
 }
 
+Expected<void> GitRepo::checkoutCommit(std::string oid)
+{
+    git_oid target;
+    int rc = git_oid_fromstr(&target, oid.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return safeSwitch(target, /*refToSet=*/"");
+}
+
 } // namespace gittide

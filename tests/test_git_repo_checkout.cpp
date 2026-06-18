@@ -129,3 +129,27 @@ TEST_CASE("checkoutBranch pop-conflict: stash preserved on failure", "[checkout]
         REQUIRE(stash_count >= 1);
     }
 }
+
+TEST_CASE("checkoutCommit yields a detached HEAD and reattaches", "[checkout]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "one\n");
+    tmp.commitAll("c1");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    const std::string first = repo->head()->oid;
+
+    tmp.writeFile("a.txt", "two\n");
+    tmp.commitAll("c2");
+    REQUIRE(repo->checkoutCommit(first).has_value());
+
+    auto h = repo->head();
+    REQUIRE(h.has_value());
+    REQUIRE(h->detached);
+    REQUIRE(h->oid == first);
+
+    auto branch = repo->branches();
+    REQUIRE(branch->size() == 1);
+    REQUIRE(repo->checkoutBranch((*branch)[0].name).has_value());
+    REQUIRE_FALSE(repo->head()->detached); // reattached
+}
