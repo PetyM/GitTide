@@ -96,9 +96,6 @@ The UI thread never blocks; git work runs off it.
   touch the same `git_repository` at once — invariant #5, enforced. The repo +
   mutex live behind a `shared_ptr` so in-flight work stays valid even if the
   `AsyncRepo` is destroyed first.
-- **Dashboard fan-out.** Aggregated project status runs one `QtConcurrent::run`
-  per repo, each opening its **own** `GitRepo` — no shared mutable state, full
-  parallelism across independent repos.
 - **Why QtConcurrent + QCoro.** QtConcurrent ships with Qt6 (no new dep); QCoro
   adds `co_await` over `QFuture` via FetchContent. Rejected: `std::execution
   par_unseq` (drags in TBB on libstdc++) and a hand-rolled pool (reinvents
@@ -127,6 +124,28 @@ exposes them as slots and emits the result.
   status + history + branches and triggers the same refresh cascade as "switch
   project," scoped to the one repo. Delete / rename (HEAD unchanged) refreshes the
   branch list only.
+
+### Inline selection, commit, and the history diff
+
+There is **no staging area**: the UI owns the commit selection, and `core/` stays
+the place that touches the index. This shapes two flows.
+
+- **Commit from the checked set.** The Changes view holds the checked selection
+  (whole files, or specific line indices within a file) as ViewModel state, not
+  in the git index. On commit, `RepoController` rebuilds the index to match
+  exactly the checked set and then commits it: reset the index to `HEAD`, stage
+  each checked whole-file and each checked line-selection (reusing the existing
+  file/hunk/line `stage` patch-synthesis, D11), then `commit`. The index is an
+  invisible build buffer; the user never manages it. This needs one new core
+  primitive — **reset the index to `HEAD`** (`git_reset_default` over all paths /
+  unborn-safe) — alongside the existing `stage` / `commit`.
+- **History shares the diff view.** Inspecting a commit reuses the same diff
+  panel as working changes, so `core/` gains read-only commit-diff endpoints:
+  **list a commit's changed files** and **diff one file in a commit** (its tree
+  vs its first parent, with the root commit handled via an empty parent tree).
+  These mirror the working `status` / `diff` shapes (`FileStatus` / `DiffResult`)
+  so the UI renders both through one widget. Per-symbol contracts live in the
+  `gitrepo.hpp` Doxygen.
 
 ## Code style
 

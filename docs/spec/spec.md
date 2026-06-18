@@ -2,8 +2,9 @@
 
 GitTide is a cross-platform (macOS / Windows / Linux) desktop git client built
 around a first-class **Project** concept layered over many repositories — group
-repos into a project, switch fast, see an aggregated status dashboard, stage at
-file/hunk/line granularity, and read history as a commit graph.
+repos into a project, switch fast, select changes to commit at file/hunk/line
+granularity with inline checkboxes (no separate staging area), and read history
+in a shared diff view as a commit graph.
 
 This directory is the **living specification**: the durable description of what
 GitTide is and how it is built — the design we commit to, and (for shipped

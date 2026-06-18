@@ -25,11 +25,12 @@ parallel, and large histories/diffs render incrementally.
 - Projects: create, group repositories, switch the active project, persist state.
 - Add a repository three ways: add an existing local repo, initialise a new one,
   or clone from a URL (with progress + cancel).
-- Per-repo working state: status, stage/unstage/discard at **file, hunk, and
-  line** granularity, and commit.
-- Diff viewer (file / hunk / intra-line).
+- Per-repo working state: status, **inline change selection** at **file, hunk,
+  and line** granularity (checkboxes — no separate staging area), discard, and
+  commit.
+- Diff viewer (file / hunk / intra-line), shared between working changes and
+  history.
 - Per-repo commit **history with a graph** (branches, merges).
-- Project **dashboard**: read-only aggregated status across the project's repos.
 - **Multi-window** (hybrid): each window has the in-window project switcher, and
   any project can also be opened in a new top-level window. Window/session state
   persists for restore.
@@ -50,14 +51,21 @@ parallel, and large histories/diffs render incrementally.
 
 ## Screens & navigation
 
-The window uses **Layout A** — a two-level sidebar, GitHub-Desktop-like:
+The window is GitHub-Desktop-like, with three zones left-to-right:
 
-- **Left sidebar.** Top: the **project switcher** (a combo; its dropdown includes
-  a "New project…" item). Below: the **repo tree** of the active project, with an
-  add-repo toolbar (three buttons: add existing / init / clone) at the bottom.
-- **Main area.** A **branch bar** across the top shows the current branch and
-  hosts branch actions (see [Branches](#branches)); below it, tabs: **Changes**
-  and **History**.
+- **Project/repo sidebar (collapsible).** Top: the **project switcher** (a combo;
+  its dropdown includes a "New project…" item). Below: the **repo tree** of the
+  active project, with an add-repo toolbar (three buttons: add existing / init /
+  clone) at the bottom. A toggle collapses the whole sidebar to a slim rail to
+  reclaim width; expanding restores it. This zone is GitTide's multi-repo
+  differentiator and is always present (collapsed or not).
+- **List column.** A **branch bar** across the top shows the current branch and
+  hosts branch actions (see [Branches](#branches)). Below it, two sub-tabs —
+  **Changes** and **History** — select what the list shows and what feeds the
+  diff panel.
+- **Diff panel.** One shared **diff view** on the right, driven by whatever is
+  selected in the list column: a working file (editable, with checkboxes) or a
+  file from a historical commit (read-only).
 
 When there is nothing to show, the main area shows a **branded empty state**
 instead (see [design](../design/design.md)):
@@ -67,17 +75,28 @@ instead (see [design](../design/design.md)):
 
 ### Changes tab
 
-Stage work and commit. Left: staged and unstaged file lists from the repo's
-status. Right: the **diff view** for the selected file. Bottom: a commit message
-box and Commit button (enabled when a message is present and something is
-staged). Selecting a hunk or a line range in the diff stages / unstages /
-discards exactly that selection — partial staging is a first-class flow.
+Select changes and commit — **no separate staging area**. The list column shows
+one list of changed files, each with a **checkbox**, defaulting to **checked**
+(GitHub-Desktop style). Selecting a file shows its diff in the shared panel;
+inside the diff, individual lines carry checkboxes too, so a file's checkbox is
+tri-state (all / none / some lines checked). The commit message box and Commit
+button are pinned at the **bottom of the list** (enabled when a message is
+present and at least one change is checked).
+
+Committing builds the commit from exactly the **checked** set — checked whole
+files and checked lines within partially-checked files. Staging is an invisible
+implementation detail (the git index is rebuilt from the checked set at commit
+time), not a place files live. **Discard** is available from a right-click
+context menu on a file or a line selection.
 
 ### History tab
 
-Read history as a commit graph. A table lists commits (graph · summary · author ·
-date); the graph column paints the branch/merge lanes. Rendering is virtualized,
-so a very large history scrolls smoothly.
+Read history as a commit graph, then inspect any commit's diff in the same panel.
+The list column splits in two: a **commit list** on top (graph · summary ·
+author · date; the graph column paints the branch/merge lanes, virtualized so a
+very large history scrolls smoothly), and below it the **changed-files list** of
+the selected commit (read-only, no checkboxes). Selecting one of those files
+shows its diff in the shared diff panel, read-only.
 
 ### Branches
 
@@ -107,20 +126,17 @@ The flow is per-repo: a successful switch/checkout refreshes that repo's status,
 history, and branch list together (the same cascade as switching project, scoped
 to one repo).
 
-### Dashboard
-
-A read-only aggregated view of the active project: every repo's status computed
-in parallel, off the UI thread, so adding a repo with a slow status never stalls
-the others.
-
 ## Key flows
 
-- **Switch project** → load its repos → redraw the repo tree → kick off the
-  parallel dashboard status. Only the active repo is fully loaded; others are
-  lazy.
-- **Stage → commit** → stage a file/hunk/line → status refreshes → write a
-  message → commit (author/committer come from the repo's git config) → history
-  refreshes.
+- **Switch project** → load its repos → redraw the repo tree. Only the active
+  repo is fully loaded; others are lazy.
+- **Select → commit** → status refreshes with every change checked by default →
+  uncheck what to leave out (whole files, or individual lines in the diff) →
+  write a message → commit, which rebuilds the index from the checked set and
+  commits it (author/committer come from the repo's git config) → status and
+  history refresh.
+- **Inspect history** → History tab → pick a commit → its changed files list →
+  pick a file → its diff shows read-only in the shared panel.
 - **Add a repository** → pick one of the three modes; clone shows a determinate
   progress modal with a working Cancel.
 - **Switch branch** → pick a branch (or "New branch from here" on a commit) →

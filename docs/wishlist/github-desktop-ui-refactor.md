@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `idea` |
+| **Status** | `designed` |
 | **Touches** | product (screens & flows), design (visual system), engineering (ui layer, possible framework change) |
 
 ## What
@@ -64,7 +64,25 @@ a more obviously modern app.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (screens & flows), spec/design, spec/engineering (ui) · plan: plans/<file>
-- If QML/framework migration is taken: log the choice in decisions.md
--->
+## Graduated
+
+Designed into the living spec (2026-06-18):
+
+- **Product** — [`product.md`](../spec/product/product.md): Screens & navigation
+  (collapsible Project sidebar + list column + shared diff panel), the rewritten
+  **Changes** tab (default-checked checkboxes, no staging area, commit from the
+  checked set, discard via context menu), the rewritten **History** tab (commit
+  list + commit-files list feeding the shared read-only diff), Dashboard removed.
+- **Design** — [`design.md`](../spec/design/design.md): Fusion base style with a
+  token-driven `QPalette` + accent stylesheet; `changedFilesList` and diff
+  line-checkbox component contracts; sidebar collapse.
+- **Engineering** — [`engineering.md`](../spec/engineering/engineering.md):
+  "Inline selection, commit, and the history diff" — stage-on-commit flow and the
+  new core endpoints (reset index to `HEAD`; list a commit's files; diff a file in
+  a commit).
+- **Decisions** — [`decisions.md`](../decisions.md): D22 (UI model), D23
+  (stage-on-commit), D24 (QWidgets reaffirmed + Fusion), D25 (palette over QSS).
+
+Toolkit: the QML fork was **rejected** — stays QWidgets (D24).
+
+Plan: see [`plans/`](../plans/index.md).

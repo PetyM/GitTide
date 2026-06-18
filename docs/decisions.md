@@ -30,11 +30,38 @@ an entry with a newer one if it changes.
 - **D5 — Two persistence files.** `projects.json` (registry) is separate from
   `session.json` (window state). *Why:* opening/moving windows never rewrites the
   project registry. → [`product`](spec/product/product.md)
+- **D22 — GitHub-Desktop UI model: no staging area, no Dashboard, unified diff.**
+  The Changes surface drops the staged/unstaged lists for one list of changed
+  files with **default-checked** checkboxes (and per-line checkboxes in the diff);
+  History stops being a standalone graph tab and shares one **diff panel** with
+  working changes (commit → its files → read-only diff); the **Dashboard** is
+  removed. *Rejected:* keeping the explicit staging area (more ceremony than a
+  focused client needs) and a separate History tab (duplicate diff surface).
+  *Why:* fewer surfaces, an inline tick-what-to-commit model that's faster and
+  more legible. The multi-repo **Project** sidebar (now collapsible) stays — it's
+  the differentiator. → [`product`](spec/product/product.md)
 
 ## Engineering
 
 - **D6 — C++23 + Qt 6 Widgets (not QML).** Native desktop; the graph uses
   `QGraphicsView`. → [`engineering`](spec/engineering/engineering.md)
+- **D23 — Stage-on-commit; the index is an invisible build buffer.** With the
+  staging area gone, the checked selection lives in ViewModel state; on commit the
+  index is reset to `HEAD`, the checked whole-files/lines are staged (reusing the
+  D11 patch synthesis), then committed. *Rejected:* mirroring the index live
+  (checkbox = `stage`/`unstage`), which keeps "staging" in the user's mental model
+  and surfaces pre-existing CLI-staged state. *Why:* makes staging truly invisible
+  while keeping all index mutation in `core/`. Adds one core primitive (reset
+  index to `HEAD`). → [`engineering`](spec/engineering/engineering.md)
+- **D24 — UI-refactor reaffirms QWidgets over QML; Fusion base style.** The
+  GitHub-Desktop refactor reopened the QML question (D6) and again chose
+  QWidgets: QML would mean *more* design work for a native feel, immature native
+  controls, and rewiring the `AsyncRepo`/controller boundary and test harness for
+  near-zero benefit given a native-modern-minimal goal. The modern look comes from
+  the Qt **Fusion** style instead of a hand-rolled QSS skin. *Rejected:* QML
+  migration (large blast radius), a third-party QSS theme (dependency, less
+  native), pure platform-native (inconsistent across OSes). →
+  [`engineering`](spec/engineering/engineering.md), [`design`](spec/design/design.md)
 - **D7 — Strict layering; `core/` is pure C++, no Qt.** *Why:* the git engine stays
   unit-testable and the boundaries stay honest. → [`engineering`](spec/engineering/engineering.md)
 - **D8 — libgit2 & nlohmann/json are PRIVATE to `core/`.** *Why:* no dependency
@@ -72,6 +99,12 @@ an entry with a newer one if it changes.
 - **D18 — Colour comes only from tokens; both themes define every token.** *Why:*
   adding a theme is adding one column, and no widget hard-codes a hex. →
   [`design`](spec/design/design.md)
+- **D25 — Tokens drive a `QPalette` over Fusion, not a full QSS skin.** Supersedes
+  the "ThemeManager produces a full QSS string" approach: with Fusion as the base
+  style (D24), tokens resolve into a `QPalette` plus a small accent stylesheet for
+  the few cues a palette can't express (selection border, tab underline, focus
+  ring, diff gutter). *Why:* less hand-maintained QSS, a more native look, while
+  the token-only colour rule (D18) still holds. → [`design`](spec/design/design.md)
 - **D19 — Never signal state by colour alone** — always pair with an icon/letter.
   *Why:* accessibility. → [`design`](spec/design/design.md)
 

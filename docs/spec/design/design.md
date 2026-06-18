@@ -14,7 +14,7 @@ near-black, a white HEAD. The source art lives in
 
 Tokens are the **only** legal source of colour. Both themes define every token; a
 widget reads a token, never a literal hex. `ThemeManager` resolves the active
-theme's table into a Qt stylesheet (§ Theming).
+theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Theming).
 
 ### Surfaces, borders, text
 
@@ -76,17 +76,25 @@ letter (A / M / D / U / C).
 
 ## Theming
 
+- **Base style: Fusion.** The app sets the Qt **Fusion** style
+  (`QApplication::setStyle("Fusion")`) — a flat, modern, cross-OS-consistent
+  native widget style. We do **not** hand-roll a full QSS skin; Fusion provides
+  the widget look, tokens provide the colour.
 - **`ThemeManager`** (`gittide::ui`) owns the active `Theme` (token table) and
-  produces a Qt **QSS** string from it, applied app-wide via
-  `qApp->setStyleSheet(...)`.
+  resolves it into a Qt **`QPalette`** (the primary colour mechanism over
+  Fusion), applied via `qApp->setPalette(...)`. It also emits a **small accent
+  stylesheet** for the few cues `QPalette` can't express — selection's 2px
+  `accent` left border, the active-tab `accent` underline, the focus ring, and
+  the diff gutter's `state.*` colours — applied via `qApp->setStyleSheet(...)`.
 - **OS-driven default:** read `QStyleHints::colorScheme()`; subscribe to
   `colorSchemeChanged` and re-apply live. A manual override (dark / light /
   system) may force the mode; default is `system`.
 - **Icon swap:** dark uses `gittide-icon.svg`, light uses
   `gittide-icon-light.svg`. The app/window icon and empty-state art follow the
   active theme.
-- **No literals:** widgets carry object names / classes; QSS resolves colour from
-  tokens. Adding a theme = adding one token column, nothing else.
+- **No literals:** widgets read colour from the palette / token-driven accent
+  stylesheet, never a hard-coded hex. Adding a theme = adding one token column,
+  nothing else.
 
 ## Components
 
@@ -99,10 +107,20 @@ letter (A / M / D / U / C).
 - **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
   `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
   a warning icon, never red text alone. Radius 10 on hover highlight.
-- **Tabs** (`mainTabs`). Flat; active tab marked by a 2px `accent` underline,
-  inactive in `text.secondary`.
-- **Diff gutter.** Added lines `state.added`, deleted `state.deleted` at low-alpha
-  background with a full-strength sign in the gutter. Mono font.
+- **Tabs** (`mainTabs`). The list column's Changes | History sub-tabs. Flat;
+  active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
+- **Changed-files list** (`changedFilesList`). One row per changed file: a
+  leading **tri-state checkbox** (checked / unchecked / partial), the path, and a
+  trailing `state.*`-coloured **letter** (A / M / D / U / C) — state paired with a
+  cue, never colour alone. Selected row = `surface.raised` + 2px `accent` left
+  border. The same widget renders a commit's files in **read-only** mode (no
+  checkboxes) under the History tab.
+- **Diff gutter & line checkboxes.** Added lines `state.added`, deleted
+  `state.deleted` at low-alpha background with a full-strength sign in the gutter;
+  mono font. In working-changes (editable) mode each line carries a leading
+  checkbox; in history (read-only) mode no checkboxes appear.
+- **Sidebar collapse.** A toggle collapses the project/repo sidebar to a slim
+  rail and back; the collapsed rail keeps the active-repo affordance reachable.
 - **Branch bar** (`branchBar`). A bar above the tabs. The current-branch button
   reads as `surface.raised` with a `border` outline and a branch icon + the branch
   name in `text.primary`; a detached `HEAD` shows `detached @ <short-oid>` (mono
@@ -148,6 +166,7 @@ that only works in one theme.
 ## Wiring
 
 Token table and theme factories: `ui/src/theme.cpp` (`Theme`, `darkTheme()`,
-`lightTheme()`). QSS generation: `ui/src/themestyle.cpp` (pure `Theme → QString`).
-Application + OS-scheme resolution + live re-apply + icon: `ui/src/thememanager.cpp`.
+`lightTheme()`). Token → `QPalette` + accent-QSS generation:
+`ui/src/themestyle.cpp` (pure functions over `Theme`). Fusion style application +
+OS-scheme resolution + live re-apply + icon: `ui/src/thememanager.cpp`.
 Per-symbol contracts live in the headers under `ui/include/gittide/ui/`.
