@@ -51,7 +51,7 @@ DiffView::DiffView(QWidget* parent)
                 const int lineIdx = item->data(LineRole).toInt();
                 const bool checked = (item->checkState() == Qt::Checked);
                 emit lineCheckToggled(
-                    QString::fromStdString(m_file.generic_string()),
+                    pathToQString(m_file),
                     hunk,
                     lineIdx,
                     checked);

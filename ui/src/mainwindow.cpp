@@ -31,6 +31,7 @@
 #include "gittide/ui/changesview.hpp"
 #include "gittide/ui/diffview.hpp"
 #include "gittide/ui/historyview.hpp"
+#include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/projectsidebar.hpp"
 #include "gittide/ui/repocontroller.hpp"
@@ -361,7 +362,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 std::map<int, std::vector<int>> lines;
                 m_changesView->selectionFor(path, whole, lines);
                 m_diff->setMode(DiffView::Mode::Editable);
-                m_diff->setDiff(result, std::filesystem::path(path.toStdString()), whole, lines);
+                m_diff->setDiff(result, qstringToPath(path), whole, lines);
             });
 
     // Line toggles in the shared diff feed back into the ChangesView selection.
@@ -436,7 +437,7 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
             [this](const QString&, const QString& path, const gittide::DiffResult& result)
             {
                 m_diff->setMode(DiffView::Mode::ReadOnly);
-                m_diff->setDiff(result, std::filesystem::path(path.toStdString()), false, {});
+                m_diff->setDiff(result, qstringToPath(path), false, {});
             });
 
     // Switching tabs clears the shared diff so a stale diff does not linger.

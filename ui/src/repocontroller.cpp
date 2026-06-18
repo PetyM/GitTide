@@ -23,7 +23,7 @@ RepoController::RepoController(QObject* parent)
 
 void RepoController::open(const QString& path)
 {
-    auto result = AsyncRepo::open(std::filesystem::path(path.toStdString()));
+    auto result = AsyncRepo::open(qstringToPath(path));
     if (!result)
     {
         m_repo.reset();
@@ -53,7 +53,7 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget 
 {
     if (!m_repo)
         co_return;
-    auto result = co_await m_repo->diff(target, std::filesystem::path(path.toStdString()));
+    auto result = co_await m_repo->diff(target, qstringToPath(path));
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -289,7 +289,7 @@ QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
 {
     if (!m_repo)
         co_return;
-    auto d = co_await m_repo->commitDiff(oid, std::filesystem::path(path.toStdString()));
+    auto d = co_await m_repo->commitDiff(oid, qstringToPath(path));
     if (!d)
     {
         emit operationFailed(QString::fromStdString(d.error().message));

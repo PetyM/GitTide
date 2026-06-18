@@ -54,7 +54,7 @@ ChangesView::ChangesView(QWidget* parent)
             [this](const QString& path)
             {
                 emit discardRequested(gittide::StageSelection{
-                    .path = std::filesystem::path(path.toStdString()), .hunkIndex = std::nullopt, .lineIndices = {}});
+                    .path = qstringToPath(path), .hunkIndex = std::nullopt, .lineIndices = {}});
             });
 
     connect(m_commitButton,
@@ -71,7 +71,7 @@ ChangesView::ChangesView(QWidget* parent)
                     const ChangedFilesList::Check rowState = m_files->rowCheck(path);
                     if (rowState == ChangedFilesList::Check::Unchecked)
                         continue;
-                    const std::filesystem::path fsPath(path.toStdString());
+                    const std::filesystem::path fsPath = qstringToPath(path);
                     if (rowState == ChangedFilesList::Check::Partial)
                     {
                         for (const auto& [hunk, lines] : fs.checkedLinesByHunk)
@@ -96,7 +96,7 @@ void ChangesView::setStatus(const std::vector<gittide::FileStatus>& files)
     m_sel.clear();
     for (const auto& f : files)
     {
-        const QString path = QString::fromStdString(f.path.generic_string());
+        const QString path = pathToQString(f.path);
         m_sel[path] = FileSel{};
     }
     updateCommitEnabled();

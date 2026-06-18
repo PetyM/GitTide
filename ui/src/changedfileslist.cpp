@@ -162,6 +162,12 @@ void ChangedFilesList::setMode(Mode mode)
             if (item->checkState() == Qt::Unchecked)
                 ; // preserve existing check state
         }
+        else
+        {
+            // Switching to ReadOnly: clear check state so checkedPaths() cannot
+            // return stale rows that were checked in the previous Editable mode.
+            item->setCheckState(Qt::Unchecked);
+        }
         item->setFlags(f);
     }
     m_updating = false;

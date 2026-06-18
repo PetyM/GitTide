@@ -126,6 +126,42 @@ private slots:
         QCOMPARE(sel.path.generic_string(), std::string("a.txt"));
         QVERIFY(!sel.hunkIndex.has_value());
     }
+
+    // Verify that the path→QString conversion used by ChangesView::setStatus
+    // (pathToQString) and the one used by ChangedFilesList::makeItem (inline
+    // QString::fromUtf8 on generic_u8string) produce byte-identical QStrings for
+    // a non-ASCII filename.  This seals the m_sel key lookup for Windows/MSVC
+    // paths where generic_string() would use the ANSI codepage and diverge.
+    void nonascii_path_key_roundtrip()
+    {
+        const std::filesystem::path nonAscii(std::u8string(u8"ünïcödé.txt"));
+
+        // pathToQString (used by ChangesView::setStatus to build m_sel keys)
+        const QString viaHelper = gittide::ui::pathToQString(nonAscii);
+
+        // makeItem-style conversion (used by ChangedFilesList for PathRole)
+        const auto u8 = nonAscii.generic_u8string();
+        const QString viaInline = QString::fromUtf8(
+            reinterpret_cast<const char*>(u8.data()),
+            static_cast<qsizetype>(u8.size()));
+
+        QCOMPARE(viaHelper, viaInline);
+
+        // Also verify that qstringToPath round-trips back to the same path.
+        const std::filesystem::path roundTripped = gittide::ui::qstringToPath(viaHelper);
+        QCOMPARE(roundTripped.generic_u8string(), nonAscii.generic_u8string());
+
+        // End-to-end: setStatus must populate m_sel with the same key that
+        // ChangedFilesList stores in PathRole (viaInline), so selectionFor
+        // and applyLineToggle can find it.
+        ChangesView view;
+        view.setStatus({{nonAscii, gittide::StatusFlag::WtModified}});
+
+        bool whole = false;
+        std::map<int, std::vector<int>> lines;
+        view.selectionFor(viaInline, whole, lines); // key as list would emit it
+        QVERIFY(whole); // default state is Checked == whole-file
+    }
 };
 
 #include "test_changes_view.moc"
