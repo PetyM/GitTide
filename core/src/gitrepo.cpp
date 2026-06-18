@@ -5,6 +5,7 @@
 #include <git2/checkout.h>
 #include <git2/commit.h>
 #include <git2/graph.h>
+#include <git2/reset.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
 #include <memory>
@@ -362,6 +363,38 @@ Expected<std::string> GitRepo::commit(const CommitRequest& req)
     char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
     git_oid_tostr(buf, sizeof(buf), &commit_oid);
     return std::string(buf);
+}
+
+Expected<void> GitRepo::resetIndexToHead()
+{
+    // Unborn HEAD: there is no commit to reset to, so clearing the index is the
+    // equivalent "nothing staged" state.
+    if (git_repository_head_unborn(m_repo) == 1)
+    {
+        git_index* index = nullptr;
+        int rc           = git_repository_index(&index, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index, decltype(&git_index_free)> guard(index, git_index_free);
+        git_index_clear(index);
+        rc = git_index_write(index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        return {};
+    }
+
+    git_object* head = nullptr;
+    int rc           = git_revparse_single(&head, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_object, decltype(&git_object_free)> head_guard(head, git_object_free);
+
+    // MIXED resets the index to the target, leaving the working tree as-is.
+    // Target is HEAD, so HEAD does not move — only the index is rewritten.
+    rc = git_reset(m_repo, head, GIT_RESET_MIXED, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
 }
 
 Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const

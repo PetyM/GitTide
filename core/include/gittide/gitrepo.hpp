@@ -51,6 +51,11 @@ public:
     Expected<void> stage(const StageSelection& sel);
     Expected<void> unstage(const StageSelection& sel);
 
+    // Reset the index to HEAD (git reset --mixed HEAD): unstage everything, leave the
+    // working tree untouched. On an unborn branch the index is cleared. Used to
+    // rebuild the index from a checked selection before committing.
+    Expected<void> resetIndexToHead();
+
     // Commit the current index. Author/committer come from git config
     // (user.name/user.email). Returns the new commit's hex oid.
     Expected<std::string> commit(const CommitRequest& req);
