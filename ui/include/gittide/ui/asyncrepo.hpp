@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 
+#include <QString>
+
+#include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
@@ -37,6 +40,14 @@ public:
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
+
+    QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> branches();
+    QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
+    QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid);
+    QCoro::Task<gittide::Expected<void>> checkoutBranch(QString name);
+    QCoro::Task<gittide::Expected<void>> checkoutCommit(QString oid);
+    QCoro::Task<gittide::Expected<void>> deleteBranch(QString name, bool force);
+    QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);
 
 private:
     struct Impl;

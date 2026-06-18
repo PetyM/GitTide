@@ -114,6 +114,20 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void branches_lists_and_creates()
+    {
+        const auto dir = make_dirty_repo();
+        auto repo      = gittide::ui::AsyncRepo::open(dir);
+        QVERIFY(repo.has_value());
+
+        auto created = QCoro::waitFor(repo->createBranch(QStringLiteral("feature"), QString()));
+        QVERIFY(created.has_value());
+        auto list = QCoro::waitFor(repo->branches());
+        QVERIFY(list.has_value());
+        QVERIFY(list->size() == 2);
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_async_repo.moc"

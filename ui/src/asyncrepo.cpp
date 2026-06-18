@@ -106,4 +106,81 @@ QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::log(
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> AsyncRepo::branches()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.branches();
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::HeadState>> AsyncRepo::head()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.head();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::createBranch(QString name, QString fromOid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = name.toStdString(), oid = fromOid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.createBranch(n, oid);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::checkoutBranch(QString name)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = name.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.checkoutBranch(n);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::checkoutCommit(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.checkoutCommit(o);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::deleteBranch(QString name, bool force)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = name.toStdString(), force]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.deleteBranch(n, force);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::renameBranch(QString oldName, QString newName, bool force)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, old = oldName.toStdString(), nw = newName.toStdString(), force]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.renameBranch(old, nw, force);
+        });
+}
+
 } // namespace gittide::ui
