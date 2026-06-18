@@ -591,16 +591,19 @@ Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::strin
     else
         rc = git_repository_set_head(m_repo, refToSet.c_str());
     if (rc < 0)
-        // On failure here the auto-stash remains; HEAD is unchanged so the
-        // user's changes are recoverable via the stash.
+    {
+        if (stashed)
+            return std::unexpected(
+                GitError{rc, "Failed to update HEAD; your uncommitted changes are saved in the stash"});
         return std::unexpected(lastGitError(rc));
+    }
 
     // 5. Re-apply the stash if we created one.
     if (stashed)
     {
         git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
         rc = git_stash_pop(m_repo, 0, &aopts);
-        if (rc == GIT_EMERGECONFLICT || rc < 0)
+        if (rc < 0)
         {
             // Stash is intentionally preserved — the caller can inspect it.
             return std::unexpected(GitError{rc,
