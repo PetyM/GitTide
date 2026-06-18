@@ -67,6 +67,11 @@ public:
     // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
     Expected<HeadState> head() const;
 
+    // Create a new local branch pointing at fromOid (40-char hex SHA).
+    // Pass an empty fromOid to branch from current HEAD.
+    // Does NOT switch HEAD — creation only.
+    Expected<void> createBranch(std::string name, std::string fromOid);
+
     // Returns absolute paths of direct submodules (from .gitmodules).
     Expected<std::vector<std::filesystem::path>> submodules() const;
 

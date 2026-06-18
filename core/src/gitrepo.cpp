@@ -504,4 +504,40 @@ Expected<HeadState> GitRepo::head() const
     return st;
 }
 
+Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
+{
+    int valid = 0;
+    if (git_branch_name_is_valid(&valid, name.c_str()) < 0 || valid == 0)
+        return std::unexpected(GitError{-1, "invalid branch name"});
+
+    git_commit* target = nullptr;
+    int rc;
+    if (fromOid.empty())
+    {
+        git_oid head_oid;
+        rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        rc = git_commit_lookup(&target, m_repo, &head_oid);
+    }
+    else
+    {
+        git_oid oid;
+        rc = git_oid_fromstr(&oid, fromOid.c_str());
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        rc = git_commit_lookup(&target, m_repo, &oid);
+    }
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> target_guard(target, git_commit_free);
+
+    git_reference* new_ref = nullptr;
+    rc = git_branch_create(&new_ref, m_repo, name.c_str(), target, /*force=*/0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_reference_free(new_ref);
+    return {};
+}
+
 } // namespace gittide
