@@ -2,8 +2,10 @@
 
 #include <git2.h>
 #include <git2/branch.h>
+#include <git2/checkout.h>
 #include <git2/commit.h>
 #include <git2/revwalk.h>
+#include <git2/stash.h>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -538,6 +540,84 @@ Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
         return std::unexpected(lastGitError(rc));
     git_reference_free(new_ref);
     return {};
+}
+
+Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::string& refToSet)
+{
+    // 1. Detect dirty working tree.
+    auto st = status();
+    if (!st)
+        return std::unexpected(st.error());
+    const bool dirty = !st->empty();
+
+    // 2. Auto-stash if dirty.
+    git_oid stash_oid;
+    bool stashed = false;
+    if (dirty)
+    {
+        git_signature* sig = nullptr;
+        if (git_signature_default(&sig, m_repo) < 0)
+            git_signature_now(&sig, "GitTide", "gittide@localhost");
+        std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+        int rc = git_stash_save(&stash_oid, m_repo, sig, "gittide: auto-stash on switch",
+                                GIT_STASH_INCLUDE_UNTRACKED);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        stashed = true;
+    }
+
+    // 3. Checkout the target commit tree.
+    git_commit* commit = nullptr;
+    int rc             = git_commit_lookup(&commit, m_repo, &targetCommit);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy    = GIT_CHECKOUT_SAFE;
+    rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(commit), &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    // 4. Update HEAD.
+    if (refToSet.empty())
+        rc = git_repository_set_head_detached(m_repo, &targetCommit);
+    else
+        rc = git_repository_set_head(m_repo, refToSet.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    // 5. Re-apply the stash if we created one.
+    if (stashed)
+    {
+        git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+        rc = git_stash_pop(m_repo, 0, &aopts);
+        if (rc == GIT_EMERGECONFLICT || rc < 0)
+        {
+            // Stash is intentionally preserved — the caller can inspect it.
+            return std::unexpected(GitError{rc,
+                "Switched branch, but your changes conflict and are kept in the stash"});
+        }
+    }
+    return {};
+}
+
+Expected<void> GitRepo::checkoutBranch(std::string name)
+{
+    // Resolve the branch short-name to a full ref and OID.
+    git_reference* ref = nullptr;
+    int rc             = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+
+    git_oid oid;
+    rc = git_reference_name_to_id(&oid, m_repo, git_reference_name(ref));
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    return safeSwitch(oid, std::string("refs/heads/") + name);
 }
 
 } // namespace gittide

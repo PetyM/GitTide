@@ -11,6 +11,7 @@
 #include "gittide/graph.hpp"
 
 struct git_repository;
+struct git_oid;
 
 namespace gittide {
 
@@ -75,6 +76,11 @@ public:
     // Returns absolute paths of direct submodules (from .gitmodules).
     Expected<std::vector<std::filesystem::path>> submodules() const;
 
+    // Switch HEAD to the named local branch. If the working tree is dirty the
+    // changes are auto-stashed before the switch and re-applied afterwards.
+    // Returns an error if the branch does not exist or the stash-pop conflicts.
+    Expected<void> checkoutBranch(std::string name);
+
 private:
     explicit GitRepo(git_repository* repo)
         : m_repo(repo)
@@ -84,6 +90,12 @@ private:
 
     std::filesystem::path workdir() const;                              // repo working directory
     Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
+
+    // Low-level: checkout the commit identified by targetCommit, then update
+    // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty
+    // working tree and pops afterwards. On pop conflict the stash is preserved
+    // and an error is returned.
+    Expected<void> safeSwitch(const git_oid& targetCommit, const std::string& refToSet);
 };
 
 } // namespace gittide
