@@ -558,6 +558,8 @@ Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::strin
         git_signature* sig = nullptr;
         if (git_signature_default(&sig, m_repo) < 0)
             git_signature_now(&sig, "GitTide", "gittide@localhost");
+        if (!sig)
+            return std::unexpected(GitError{-1, "could not build a signature for the auto-stash"});
         std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
 
         int rc = git_stash_save(&stash_oid, m_repo, sig, "gittide: auto-stash on switch",
@@ -578,6 +580,8 @@ Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::strin
     opts.checkout_strategy    = GIT_CHECKOUT_SAFE;
     rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(commit), &opts);
     if (rc < 0)
+        // On failure here the auto-stash remains; HEAD is unchanged so the
+        // user's changes are recoverable via the stash.
         return std::unexpected(lastGitError(rc));
 
     // 4. Update HEAD.
@@ -586,6 +590,8 @@ Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::strin
     else
         rc = git_repository_set_head(m_repo, refToSet.c_str());
     if (rc < 0)
+        // On failure here the auto-stash remains; HEAD is unchanged so the
+        // user's changes are recoverable via the stash.
         return std::unexpected(lastGitError(rc));
 
     // 5. Re-apply the stash if we created one.
