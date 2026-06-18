@@ -53,6 +53,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_style.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_bar.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

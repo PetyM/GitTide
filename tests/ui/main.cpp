@@ -17,6 +17,7 @@
 // executed — there will be no failure, no warning, just zero test runs for that class.
 
 #include "test_async_repo.cpp"
+#include "test_branch_bar.cpp"
 #include "test_changes_view.cpp"
 #include "test_dashboard_async.cpp"
 #include "test_dashboard_model.cpp"
@@ -74,6 +75,7 @@ int main(int argc, char** argv)
     RUN(TestWindowManager);
     RUN(TestQCoroSmoke);
     RUN(TestAsyncRepo);
+    RUN(TestBranchBar);
     RUN(TestDashboardAsync);
     RUN(TestDiffView);
     RUN(TestChangesView);

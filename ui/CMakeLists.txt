@@ -24,6 +24,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/diffview.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/changesview.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changesview.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/branchbar.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/branchbar.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/historymodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/historymodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/graphdelegate.cpp
