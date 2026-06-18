@@ -7,11 +7,14 @@
 #include <QStackedWidget>
 #include <QTabWidget>
 #include <QThreadPool>
+#include <QToolButton>
 #include <QtTest/QtTest>
 #include <filesystem>
+#include <fstream>
 #include <git2.h>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/branchbar.hpp"
 #include "gittide/ui/changesview.hpp"
 #include "gittide/ui/mainwindow.hpp"
 #include "gittide/ui/projectcontroller.hpp"
@@ -32,6 +35,53 @@ std::filesystem::path make_repo()
     std::filesystem::create_directories(dir);
     git_repository* raw = nullptr;
     git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    return dir;
+}
+
+// Repo with an initial commit on "main" and a second local branch "feature".
+std::filesystem::path make_repo_with_two_branches()
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path() /
+               ("gittide-mw2b-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    // Write a file and create the initial commit on HEAD (master/main).
+    { std::ofstream(dir / "a.txt") << "one\n"; }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "a.txt");
+    git_index_write(idx);
+    git_oid tree_oid;
+    git_index_write_tree(&tree_oid, idx);
+    git_tree* tree = nullptr;
+    git_tree_lookup(&tree, raw, &tree_oid);
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
+    git_oid commit_oid;
+    git_commit_create_v(&commit_oid, raw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+    git_signature_free(sig);
+    git_tree_free(tree);
+    git_index_free(idx);
+
+    // Create a second branch "feature" pointing at the same commit.
+    git_commit* commit = nullptr;
+    git_commit_lookup(&commit, raw, &commit_oid);
+    git_reference* ref = nullptr;
+    git_branch_create(&ref, raw, "feature", commit, 0);
+    git_reference_free(ref);
+    git_commit_free(commit);
+
     git_repository_free(raw);
     git_libgit2_shutdown();
     return dir;
@@ -182,6 +232,40 @@ private slots:
         emit sidebar->repoSelected(QStringLiteral("/no/such/gittide-path"));
         QVERIFY(!win.statusBar()->currentMessage().isEmpty());
         main_window_test::drainAsync();
+    }
+
+    void branch_bar_exists_and_shows_current_branch_after_open()
+    {
+        const auto dir = main_window_test::make_repo_with_two_branches();
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id = "id-a", .name = "Work", .repos = {RepoRef{.path = dir.generic_string(), .alias = "r"}}});
+        MainWindow win(&store);
+        win.showProject(QStringLiteral("id-a"));
+
+        // A BranchBar must be present in the widget tree.
+        auto* bar = win.findChild<gittide::ui::BranchBar*>(QStringLiteral("branchBar"));
+        QVERIFY(bar != nullptr);
+
+        // Open the repo by emitting repoSelected from the sidebar.
+        auto* sidebar = win.findChild<gittide::ui::ProjectSidebar*>();
+        QVERIFY(sidebar != nullptr);
+        qRegisterMetaType<std::vector<gittide::BranchInfo>>();
+        qRegisterMetaType<gittide::HeadState>();
+        emit sidebar->repoSelected(QString::fromStdString(dir.generic_string()));
+
+        // Drain the async cascade so refreshBranches/headChanged can complete.
+        main_window_test::drainAsync();
+
+        // The current-branch button must show a non-empty branch name.
+        auto* btn = bar->findChild<QToolButton*>(QStringLiteral("currentBranchButton"));
+        QVERIFY(btn != nullptr);
+        QVERIFY(!btn->text().isEmpty());
+        // The initial commit was on the default branch (not detached, not "(no commits)").
+        QVERIFY(btn->text() != QStringLiteral("(no commits)"));
+        QVERIFY(!btn->text().startsWith(QStringLiteral("detached")));
+
+        std::filesystem::remove_all(dir);
     }
 };
 
