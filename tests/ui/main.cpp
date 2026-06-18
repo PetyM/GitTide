@@ -21,8 +21,6 @@
 #include "test_branch_bar.cpp"
 #include "test_branch_dialogs.cpp"
 #include "test_changes_view.cpp"
-#include "test_dashboard_async.cpp"
-#include "test_dashboard_model.cpp"
 #include "test_diff_view.cpp"
 #include "test_history_model.cpp"
 #include "test_history_view.cpp"
@@ -73,7 +71,6 @@ int main(int argc, char** argv)
     RUN(TestProjectController);
     RUN(TestRepoController);
     RUN(TestSessionStore);
-    RUN(TestDashboardModel);
     RUN(TestProjectSidebar);
     RUN(TestMainWindow);
     RUN(TestWindowManager);
@@ -81,7 +78,6 @@ int main(int argc, char** argv)
     RUN(TestAsyncRepo);
     RUN(TestBranchBar);
     RUN(TestBranchDialogs);
-    RUN(TestDashboardAsync);
     RUN(TestDiffView);
     RUN(TestChangesView);
     RUN(TestHistoryModel);

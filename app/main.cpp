@@ -17,8 +17,8 @@ int main(int argc, char** argv)
     QApplication::setOrganizationName(QStringLiteral("gittide"));
 
     // Initialise libgit2 once for the whole process lifetime. GitRepo-backed
-    // code paths (DashboardModel, RepoController) are wired up in Plan 3, but
-    // a correct bootstrap owns the global init here.
+    // code paths are wired up in the UI layer, but a correct bootstrap owns
+    // the global init here.
     const gittide::LibGit2Context git_ctx;
 
     gittide::ui::ThemeManager theme;
