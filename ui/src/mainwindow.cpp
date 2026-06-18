@@ -286,35 +286,11 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
             });
 
     // Async wiring between controller and ChangesView.
+    // NOTE: The shared-diff wiring (filesList()->fileSelected → shared DiffView,
+    // applyLineToggle/selectionFor) is reworked in Task 7. Only the commit and
+    // discard paths are wired here to keep the build green after the Task 6
+    // commit-selection rework.
     connect(m_repoController, &RepoController::statusChanged, m_changesView, &ChangesView::setStatus);
-    connect(m_repoController,
-            &RepoController::diffReady,
-            this,
-            [this](const QString& path, const gittide::DiffResult& result)
-            {
-                m_changesView->setDiff(result, std::filesystem::path(path.toStdString()));
-            });
-    connect(m_changesView,
-            &ChangesView::fileSelected,
-            this,
-            [this](const QString& path, gittide::DiffTarget target)
-            {
-                QCoro::connect(m_repoController->refreshDiff(path, target), this, [] {});
-            });
-    connect(m_changesView,
-            &ChangesView::stageRequested,
-            this,
-            [this](const gittide::StageSelection& sel)
-            {
-                QCoro::connect(m_repoController->stage(sel), this, [] {});
-            });
-    connect(m_changesView,
-            &ChangesView::unstageRequested,
-            this,
-            [this](const gittide::StageSelection& sel)
-            {
-                QCoro::connect(m_repoController->unstage(sel), this, [] {});
-            });
     connect(m_changesView,
             &ChangesView::discardRequested,
             this,
@@ -325,9 +301,9 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
     connect(m_changesView,
             &ChangesView::commitRequested,
             this,
-            [this](const gittide::CommitRequest& req)
+            [this](const gittide::CommitRequest& req, std::vector<gittide::StageSelection> selections)
             {
-                QCoro::connect(m_repoController->commit(req), this, [] {});
+                QCoro::connect(m_repoController->commitSelection(req, std::move(selections)), this, [] {});
             });
 
     // Activating a project or mutating its repo list refreshes the dashboard.

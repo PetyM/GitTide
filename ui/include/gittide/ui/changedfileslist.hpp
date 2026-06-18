@@ -41,6 +41,9 @@ public:
     // Returns paths of fully-checked rows (Check::Checked only).
     std::vector<QString> checkedPaths() const;
 
+    // The tri-state of a row by path. Returns Unchecked if the path is absent.
+    Check rowCheck(const QString& path) const;
+
 signals:
     // Emitted when the current (selected) item changes.
     void fileSelected(const QString& path, gittide::StatusFlag flags);

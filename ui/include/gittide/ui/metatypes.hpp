@@ -11,6 +11,7 @@
 // must appear at global scope. Call qRegisterMetaType<T>() once per type before use
 // (the emitting classes do this in their constructors).
 Q_DECLARE_METATYPE(gittide::StageSelection)
+Q_DECLARE_METATYPE(std::vector<gittide::StageSelection>)
 Q_DECLARE_METATYPE(gittide::DiffResult)
 Q_DECLARE_METATYPE(gittide::CommitRequest)
 Q_DECLARE_METATYPE(std::vector<gittide::FileStatus>)

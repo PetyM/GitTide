@@ -208,6 +208,24 @@ std::vector<QString> ChangedFilesList::checkedPaths() const
     return result;
 }
 
+ChangedFilesList::Check ChangedFilesList::rowCheck(const QString& path) const
+{
+    for (int i = 0; i < m_list->count(); ++i)
+    {
+        const auto* item = m_list->item(i);
+        if (item->data(PathRole).toString() == path)
+        {
+            switch (item->checkState())
+            {
+                case Qt::Checked:          return Check::Checked;
+                case Qt::PartiallyChecked: return Check::Partial;
+                default:                   return Check::Unchecked;
+            }
+        }
+    }
+    return Check::Unchecked;
+}
+
 void ChangedFilesList::onItemChanged(QListWidgetItem* item)
 {
     if (m_updating)
