@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `designed` |
+| **Status** | `done` |
 | **Touches** | product (a branch picker + branch actions), engineering (core: branch list/create/checkout/delete on `GitRepo`), design (branch picker UI, checkout-safety affordances) |
 
 ## What

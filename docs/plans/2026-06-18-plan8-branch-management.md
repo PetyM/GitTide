@@ -1,14 +1,14 @@
 # Plan 8 — Branch management
 
 > **For agentic workers:** implement this plan task-by-task, **test-first**. Each
-> task's steps use checkbox (`- [ ]`) syntax; tick them as you go. REQUIRED
+> task's steps use checkbox (`- [x]`) syntax; tick them as you go. REQUIRED
 > SUB-SKILL: `superpowers:subagent-driven-development` (recommended) or
 > `superpowers:executing-plans`.
 
 | | |
 |--|--|
 | **Date** | 2026-06-18 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product` §Branches](../spec/product/product.md#branches) · [`spec/engineering` §Branch operations](../spec/engineering/engineering.md#branch-operations--the-refresh-cascade) · [`spec/design` §Components](../spec/design/design.md#components) · [D21](../decisions.md) |
 | **Depends on** | Plan 3a (core git ops), Plan 3b (AsyncRepo/RepoController), Plan 5b (HistoryView) |
 
@@ -65,7 +65,7 @@ Expected<std::vector<BranchInfo>> branches() const;
 Expected<HeadState>               head() const;
 ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```cpp
 // tests/test_git_repo_branches.cpp
@@ -105,14 +105,14 @@ TEST_CASE("branches lists the default branch and marks HEAD", "[branches]")
 }
 ```
 
-- [ ] **Step 2: Run it — expect FAIL** (`branches`/`head` undeclared).
+- [x] **Step 2: Run it — expect FAIL** (`branches`/`head` undeclared).
   Run: `ctest --test-dir build -R 'branches' --output-on-failure`
 
-- [ ] **Step 3: Add the types + declarations.** Create `branchinfo.hpp` with the
+- [x] **Step 3: Add the types + declarations.** Create `branchinfo.hpp` with the
   structs above; `#include "gittide/branchinfo.hpp"` in `gitrepo.hpp` and declare
   the two methods near `log()`.
 
-- [ ] **Step 4: Implement in `gitrepo.cpp`** (add `#include <git2/branch.h>`):
+- [x] **Step 4: Implement in `gitrepo.cpp`** (add `#include <git2/branch.h>`):
 
 ```cpp
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
@@ -169,12 +169,12 @@ Expected<HeadState> GitRepo::head() const
 }
 ```
 
-- [ ] **Step 5: Run — expect PASS.** Then add `test_git_repo_branches.cpp` to
+- [x] **Step 5: Run — expect PASS.** Then add `test_git_repo_branches.cpp` to
   `gittide_core_tests` in `tests/CMakeLists.txt`, reconfigure, run the full core
   suite green.
   Run: `cmake --build build --parallel && ctest --test-dir build --output-on-failure`
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   `git commit -am "feat(core): list local branches and resolve HEAD state"`
 
 ---
@@ -193,7 +193,7 @@ Expected<void> createBranch(std::string name, std::string fromOid);
 ```
 **Consumes:** `branches()`, `head()` (Task 1).
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
 
 ```cpp
 TEST_CASE("createBranch from HEAD makes a listable branch", "[branches]")
@@ -226,9 +226,9 @@ TEST_CASE("createBranch rejects an invalid name", "[branches]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Declare + implement.** Add a private helper to resolve a target
+- [x] **Step 3: Declare + implement.** Add a private helper to resolve a target
   commit, then:
 
 ```cpp
@@ -269,9 +269,9 @@ Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS** (both new cases).
+- [x] **Step 4: Run — expect PASS** (both new cases).
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): create a local branch from HEAD or a commit"`
 
 ---
@@ -291,7 +291,7 @@ Expected<void> safeSwitch(const git_oid& targetCommit, const std::string& refToS
 ```
 **Consumes:** `status()` (existing), `head()` (Task 1).
 
-- [ ] **Step 1: Write the failing tests** (clean switch; dirty-follow; pop-conflict):
+- [x] **Step 1: Write the failing tests** (clean switch; dirty-follow; pop-conflict):
 
 ```cpp
 // tests/test_git_repo_checkout.cpp
@@ -342,9 +342,9 @@ TEST_CASE("checkoutBranch carries uncommitted changes to the target", "[checkout
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared / link error).
+- [x] **Step 2: Run — expect FAIL** (undeclared / link error).
 
-- [ ] **Step 3: Implement `safeSwitch` + `checkoutBranch`:**
+- [x] **Step 3: Implement `safeSwitch` + `checkoutBranch`:**
 
 ```cpp
 Expected<void> GitRepo::safeSwitch(const git_oid& targetCommit, const std::string& refToSet)
@@ -416,17 +416,17 @@ Expected<void> GitRepo::checkoutBranch(std::string name)
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS** (clean + dirty-follow). Add the pop-conflict
+- [x] **Step 4: Run — expect PASS** (clean + dirty-follow). Add the pop-conflict
   case if you can construct competing edits on `a.txt` in both branches; assert the
   call returns an error and `git stash list` still has an entry (open a second
   `status()` to confirm HEAD moved). If reliably constructing a pop conflict in a
   unit test proves flaky, cover it at the safeSwitch level with a targeted fixture
   and **log the limitation in the test file** rather than silently dropping it.
 
-- [ ] **Step 5:** Add `test_git_repo_checkout.cpp` to `gittide_core_tests`; build;
+- [x] **Step 5:** Add `test_git_repo_checkout.cpp` to `gittide_core_tests`; build;
   run full core suite green.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   `git commit -am "feat(core): safe branch checkout with stash-and-reapply (D21)"`
 
 ---
@@ -439,7 +439,7 @@ Expected<void> GitRepo::checkoutBranch(std::string name)
 **Interfaces — Produces:** `Expected<void> checkoutCommit(std::string oid);`
 **Consumes:** `safeSwitch` (Task 3), `head()` (Task 1).
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 TEST_CASE("checkoutCommit yields a detached HEAD and reattaches", "[checkout]")
@@ -467,9 +467,9 @@ TEST_CASE("checkoutCommit yields a detached HEAD and reattaches", "[checkout]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 ```cpp
 Expected<void> GitRepo::checkoutCommit(std::string oid)
@@ -482,9 +482,9 @@ Expected<void> GitRepo::checkoutCommit(std::string oid)
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): checkout a bare commit (detached HEAD)"`
 
 ---
@@ -500,7 +500,7 @@ Expected<void> deleteBranch(std::string name, bool force);   // force = allow un
 Expected<void> renameBranch(std::string oldName, std::string newName, bool force);
 ```
 
-- [ ] **Step 1: Write the failing tests** (delete merged ok; delete current
+- [x] **Step 1: Write the failing tests** (delete merged ok; delete current
   blocked; delete unmerged needs force; rename; rename validates name):
 
 ```cpp
@@ -537,9 +537,9 @@ TEST_CASE("renameBranch renames and rejects invalid names", "[branches]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement** (add `#include <git2/graph.h>`):
+- [x] **Step 3: Implement** (add `#include <git2/graph.h>`):
 
 ```cpp
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
@@ -594,9 +594,9 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): delete (merge-guarded) and rename local branches"`
 
 ---
@@ -618,7 +618,7 @@ QCoro::Task<gittide::Expected<void>> deleteBranch(QString name, bool force);
 QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 // in tests/ui/test_async_repo.cpp — add a slot
@@ -640,9 +640,9 @@ void branches_lists_and_creates()
 > none, build one inline with `gittide::test::TempRepo`-style libgit2 calls as the
 > other UI tests do.
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Add `#include "gittide/branchinfo.hpp"` to `asyncrepo.hpp` and
+- [x] **Step 3: Add `#include "gittide/branchinfo.hpp"` to `asyncrepo.hpp` and
   declare the methods. Implement each in `asyncrepo.cpp`** following the exact
   existing pattern, e.g.:
 
@@ -673,10 +673,10 @@ QcoroTaskVoid AsyncRepo::checkoutBranch(QString name) // pattern; real return ty
 > every `QString` arg with `.toStdString()` inside the captured lambda, exactly as
 > shown — never capture the `QString` by reference across the `co_await`.
 
-- [ ] **Step 4: Run — expect PASS.** Run the full UI suite green.
+- [x] **Step 4: Run — expect PASS.** Run the full UI suite green.
   Run: `ctest --test-dir build -R gittide_ui_tests --output-on-failure`
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): async wrappers for branch operations"`
 
 ---
@@ -701,7 +701,7 @@ signals:
   void headChanged(gittide::HeadState);
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 void refresh_branches_emits_branches_and_head()
@@ -740,9 +740,9 @@ void switch_branch_runs_the_refresh_cascade()
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3:** Add `Q_DECLARE_METATYPE(gittide::BranchInfo)`,
+- [x] **Step 3:** Add `Q_DECLARE_METATYPE(gittide::BranchInfo)`,
   `Q_DECLARE_METATYPE(std::vector<gittide::BranchInfo>)`,
   `Q_DECLARE_METATYPE(gittide::HeadState)` to `metatypes.hpp` (and
   `#include "gittide/branchinfo.hpp"`). Register them in the `RepoController`
@@ -847,9 +847,9 @@ QCoro::Task<void> RepoController::renameBranch(QString oldName, QString newName)
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): RepoController branch slots with refresh cascade"`
 
 ---
@@ -877,7 +877,7 @@ signals:
 ```
 Object names: widget `branchBar`; the button `currentBranchButton`.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 // tests/ui/test_branch_bar.cpp
@@ -913,9 +913,9 @@ private slots:
 #include "test_branch_bar.moc"
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (no such widget).
+- [x] **Step 2: Run — expect FAIL** (no such widget).
 
-- [ ] **Step 3: Implement** `BranchBar`: a `QToolButton` (objectName
+- [x] **Step 3: Implement** `BranchBar`: a `QToolButton` (objectName
   `currentBranchButton`) with a `QMenu` popup. `setHead` sets the label — branch
   name, or `"detached @ " + oid.left(7)` when `head.detached`, or `"(no commits)"`
   when `head.unborn`. `setBranches` rebuilds the menu: one action per branch
@@ -924,12 +924,12 @@ private slots:
   three signals. Set `setObjectName("branchBar")`. Colours come from QSS via object
   name — do **not** hard-code hex.
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5:** Add `branchbar.*` to `gittide_ui` sources and the test to
+- [x] **Step 5:** Add `branchbar.*` to `gittide_ui` sources and the test to
   `gittide_ui_test_sources`; build; full UI suite green.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   `git commit -am "feat(ui): BranchBar widget (current branch + actions menu)"`
 
 ---
@@ -952,7 +952,7 @@ struct DeleteChoice { bool accepted = false; bool force = false; };
 DeleteChoice askDeleteBranch(QWidget* parent, const QString& name, bool unmerged);
 ```
 
-- [ ] **Step 1: Write a focused test** for name validation feedback in
+- [x] **Step 1: Write a focused test** for name validation feedback in
   `askNewBranch` — drive it headlessly by constructing the dialog object the
   function builds (factor the dialog into a small `QDialog` subclass the test can
   instantiate without `exec()`), assert the OK button disables on an empty/invalid
@@ -960,18 +960,18 @@ DeleteChoice askDeleteBranch(QWidget* parent, const QString& name, bool unmerged
   exists; otherwise test the validation predicate as a free function and keep the
   `exec()` wrapper thin and untested.)
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement** the dialogs with token-styled object names
+- [x] **Step 3: Implement** the dialogs with token-styled object names
   (`surface.raised` card via QSS), a `QLineEdit` + live validation (disable primary
   on invalid), and for delete the two-step "delete anyway (not fully merged)"
   secondary action that sets `force = true`.
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5:** Wire into CMake; build; suite green.
+- [x] **Step 5:** Wire into CMake; build; suite green.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
   `git commit -am "feat(ui): new/rename/delete branch dialogs"`
 
 ---
@@ -987,25 +987,25 @@ void newBranchFromCommitRequested(const QString& oid);
 void checkoutCommitRequested(const QString& oid);
 ```
 
-- [ ] **Step 1: Write the failing test** — set a known history on the view, set
+- [x] **Step 1: Write the failing test** — set a known history on the view, set
   the table's current index to row 0, invoke the context-menu handler
   programmatically (factor it into a `void showContextMenuFor(const QModelIndex&)`
   helper that builds the menu and, in the test, trigger the "Checkout this commit"
   action), assert `checkoutCommitRequested` fires with the row's OID (read via the
   model's `GraphRowRole`).
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement** — set
+- [x] **Step 3: Implement** — set
   `table->setContextMenuPolicy(Qt::CustomContextMenu)`, connect
   `customContextMenuRequested` to a slot that resolves the row's OID from
   `HistoryModel` (via `GraphRowRole`) and shows a `QMenu` with "New branch from
   here…" → `newBranchFromCommitRequested(oid)` and "Checkout this commit" →
   `checkoutCommitRequested(oid)`.
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): History graph context menu for branch/checkout"`
 
 ---
@@ -1017,13 +1017,13 @@ Test `tests/ui/test_main_window.cpp` (append).
 
 **Interfaces — Consumes:** Tasks 7–10.
 
-- [ ] **Step 1: Write the failing test** — open a repo with two branches in a
+- [x] **Step 1: Write the failing test** — open a repo with two branches in a
   `MainWindow`, assert a `branchBar` child exists and, after the repo-open cascade,
   its `currentBranchButton` text contains the current branch name.
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement wiring:**
+- [x] **Step 3: Implement wiring:**
   - Insert a `BranchBar` above the tab widget at central-stack index 2.
   - On `repoOpened`, also `refreshBranches()` (extend the existing cascade in
     `mainwindow.cpp`).
@@ -1042,10 +1042,10 @@ Test `tests/ui/test_main_window.cpp` (append).
     `controller->createBranch(name, oid, checkout)`.
   - `HistoryView::checkoutCommitRequested(oid)` → `controller->checkoutCommit(oid)`.
 
-- [ ] **Step 4: Run — expect PASS.** Run the **entire** suite (core + ui) green.
+- [x] **Step 4: Run — expect PASS.** Run the **entire** suite (core + ui) green.
   Run: `ctest --test-dir build --output-on-failure`
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): wire branch bar and graph menu into the window"`
 
 ---
@@ -1056,28 +1056,35 @@ Test `tests/ui/test_main_window.cpp` (append).
 `#currentBranchButton`, and the branch dialogs' object names); verify
 `docs/spec/*` already matches; flip statuses.
 
-- [ ] **Step 1:** Add QSS rules keyed by the new object names using existing
+- [x] **Step 1:** Add QSS rules keyed by the new object names using existing
   tokens (`surface.raised`, `border`, `accent`, `text.primary`) — confirm no hex
   literal lands in any widget `.cpp` (grep). Add/adjust a `test_theme_style.cpp`
   assertion if that suite checks specific selectors; otherwise visual-only.
   Run: `grep -rnE '#[0-9a-fA-F]{6}' ui/src/branchbar.cpp ui/src/branchdialogs.cpp` → expect no matches.
-- [ ] **Step 2:** Build + full suite green; no new warnings.
-- [ ] **Step 3:** Confirm the spec sections (product §Branches, engineering
+- [x] **Step 2:** Build + full suite green; no new warnings.
+- [x] **Step 3:** Confirm the spec sections (product §Branches, engineering
   §Branch operations, design §Components, D21) describe what shipped; fix any
   drift (code is ground truth).
-- [ ] **Step 4:** Tick this plan's boxes, fill **Outcome** below, set this plan's
+- [x] **Step 4:** Tick this plan's boxes, fill **Outcome** below, set this plan's
   `Status` to `done` here and in [`plans/index.md`](index.md); set the
   [wish](../wishlist/branch-management.md) `Status` to `done`.
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "docs: close Plan 8 — branch management shipped"`
 
 ---
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
-> - Shipped: <summary>.
-> - Spec updated: product §Branches, engineering §Branch operations, design
->   §Components, decisions D21.
-> - Code: `core/{branchinfo.hpp,gitrepo.cpp}`, `ui/{asyncrepo,repocontroller,
->   branchbar,branchdialogs,historyview,mainwindow}.*`.
+- Shipped: Full local-branch management — list, create, safe-checkout (stash +
+  re-apply), delete (merge-guard + unmerged force-confirm), rename, detached-commit
+  checkout from the History graph — wired end-to-end from `GitRepo` through
+  `AsyncRepo` / `RepoController` to the `BranchBar` widget and three branch dialogs
+  (new / rename / delete) in `MainWindow`. All operations trigger the appropriate
+  refresh cascade (status + history + branches on switch/checkout; branches-only on
+  delete/rename). Theme tokens applied via QSS for all new object names.
+- Spec updated: product §Branches (already current), engineering §Branch
+  operations & the refresh cascade (already current), design §Components branch bar
+  + branch dialogs (already current), decisions D21 (already current). No drift
+  found — code matches spec.
+- Code: `core/{branchinfo.hpp,gitrepo.cpp}`, `ui/{asyncrepo,repocontroller,
+  branchbar,branchdialogs,historyview,mainwindow}.*`, `ui/src/themestyle.cpp`.
