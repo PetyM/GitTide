@@ -133,6 +133,22 @@ private slots:
         QVERIFY(!result.hunks.empty());
         std::filesystem::remove_all(dir);
     }
+
+    void commit_also_refreshes_history()
+    {
+        const auto dir = repo_controller_test::make_dirty_repo();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QCoro::waitFor(controller.stage(gittide::StageSelection{.path = "a.txt"}));
+
+        QSignalSpy historySpy(&controller, &RepoController::historyReady);
+        QCoro::waitFor(controller.commit(gittide::CommitRequest{.message = "second"}));
+
+        QVERIFY(historySpy.count() >= 1);
+        const auto layout = historySpy.last().at(0).value<gittide::GraphLayout>();
+        QVERIFY(layout.rows.size() >= 2); // initial commit + new commit
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_controller.moc"
