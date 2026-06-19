@@ -134,6 +134,11 @@ void ProjectController::cancelClone()
     m_cloneCancel.store(true);
 }
 
+void ProjectController::startClone(const QString& url, const QString& dest)
+{
+    QCoro::connect(cloneRepo(url, dest), this, [] {});
+}
+
 QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 {
     m_cloneCancel.store(false);

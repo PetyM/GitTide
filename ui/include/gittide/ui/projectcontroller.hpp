@@ -43,6 +43,10 @@ public slots:
     void addExistingRepo(const QString& path);
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
+    // QML-facing fire-and-forget wrapper: kicks cloneRepo() so QML (which cannot
+    // await a QCoro::Task) can start a clone; results arrive via the usual
+    // repoAdded / repoAddFailed / cloneProgress signals.
+    Q_INVOKABLE void startClone(const QString& url, const QString& dest);
     void cancelClone();
     void removeRepo(const QString& path);
     void removeProject();
