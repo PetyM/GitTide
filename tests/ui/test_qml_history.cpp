@@ -211,6 +211,34 @@ private slots:
         QCOMPARE(obj->property("laneCount").toInt(), 2);
     }
 
+    void selecting_a_commit_loads_its_files_and_diff()
+    {
+        const auto dir = qml_history_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+
+        // Select the HEAD commit (row 0) by its oid.
+        const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
+        QSignalSpy filesSpy(vm.commitFiles(), &QAbstractItemModel::modelReset);
+        vm.selectCommit(oid);
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.selectedCommit(), oid);
+        QVERIFY(vm.commitFiles()->rowCount(QModelIndex()) >= 1);
+
+        // Select the first file → its read-only diff loads.
+        const QString path = vm.commitFiles()->pathAt(0);
+        QSignalSpy diffSpy(vm.commitDiff(), &QAbstractItemModel::modelReset);
+        vm.selectCommitFile(path);
+        QVERIFY(diffSpy.wait(3000));
+        QCOMPARE(vm.activeCommitFile(), path);
+        QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
+
+        std::filesystem::remove_all(dir);
+    }
+
     void history_list_binds_to_history_model()
     {
         const auto dir = qml_history_test::make_dirty_repo();

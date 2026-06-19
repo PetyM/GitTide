@@ -17,12 +17,16 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_diff(new DiffLinesModel(this))
     , m_branches(new BranchListModel(this))
     , m_history(new HistoryListModel(this))
+    , m_commitFiles(new ChangedFilesModel(this))
+    , m_commitDiff(new DiffLinesModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
     connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
+    connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
+    connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
@@ -296,6 +300,59 @@ void RepoViewModel::recomputeActiveFileState()
     if (row >= 0)
         m_files->setCheckState(row, state);
     emit checkedChanged();
+}
+
+ChangedFilesModel* RepoViewModel::commitFiles() const
+{
+    return m_commitFiles;
+}
+
+DiffLinesModel* RepoViewModel::commitDiff() const
+{
+    return m_commitDiff;
+}
+
+QString RepoViewModel::selectedCommit() const
+{
+    return m_selectedCommit;
+}
+
+QString RepoViewModel::activeCommitFile() const
+{
+    return m_activeCommitFile;
+}
+
+void RepoViewModel::selectCommit(const QString& oid)
+{
+    m_selectedCommit = oid;
+    m_activeCommitFile.clear();
+    m_commitDiff->clear();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    QCoro::connect(m_controller->refreshCommitFiles(oid), this, [] {});
+}
+
+void RepoViewModel::selectCommitFile(const QString& path)
+{
+    m_activeCommitFile = path;
+    emit activeCommitFileChanged();
+    QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
+}
+
+void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files)
+{
+    if (oid != m_selectedCommit)
+        return;
+    m_commitFiles->setFiles(files);
+}
+
+void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result)
+{
+    if (oid != m_selectedCommit || path != m_activeCommitFile)
+        return;
+    // Read-only: no checked lines, not whole-file-checked. The QML detail view
+    // hides the per-line checkbox column.
+    m_commitDiff->setDiff(result, {}, false);
 }
 
 } // namespace gittide::ui

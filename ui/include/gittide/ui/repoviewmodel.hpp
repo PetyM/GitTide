@@ -35,6 +35,10 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::DiffLinesModel* diffLines READ diffLines CONSTANT)
     Q_PROPERTY(gittide::ui::BranchListModel* branches READ branches CONSTANT)
     Q_PROPERTY(gittide::ui::HistoryListModel* history READ history CONSTANT)
+    Q_PROPERTY(gittide::ui::ChangedFilesModel* commitFiles READ commitFiles CONSTANT)
+    Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
+    Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
+    Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -47,6 +51,10 @@ public:
     DiffLinesModel* diffLines() const;
     BranchListModel*    branches() const;
     HistoryListModel*   history() const;
+    ChangedFilesModel* commitFiles() const;
+    DiffLinesModel* commitDiff() const;
+    QString selectedCommit() const;
+    QString activeCommitFile() const;
 
     Q_INVOKABLE void open(const QString& path);
     Q_INVOKABLE void selectFile(const QString& path);
@@ -55,6 +63,9 @@ public:
     Q_INVOKABLE void setLineChecked(int row, bool checked);
     Q_INVOKABLE void setAllLinesChecked(bool checked);
     Q_INVOKABLE void commit(const QString& summary, const QString& description);
+
+    Q_INVOKABLE void selectCommit(const QString& oid);
+    Q_INVOKABLE void selectCommitFile(const QString& path);
 
     Q_INVOKABLE void switchBranch(const QString& name);
     Q_INVOKABLE void createBranch(const QString& name, const QString& fromOid, bool checkout);
@@ -70,6 +81,8 @@ signals:
     void committedOk();
     void operationFailed(const QString& message);
     void branchDeleteUnmerged(const QString& name);
+    void selectedCommitChanged();
+    void activeCommitFileChanged();
 
 private:
     struct FileSel
@@ -86,6 +99,8 @@ private:
     void applyHistoryIfReady();
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
+    void onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files);
+    void onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result);
 
     // Applies a whole-file check to one row without emitting checkedChanged;
     // returns true if the row was valid. Callers coalesce the emit.
@@ -96,8 +111,12 @@ private:
     DiffLinesModel*    m_diff       = nullptr;
     BranchListModel*   m_branches   = nullptr;
     HistoryListModel*  m_history    = nullptr;
+    ChangedFilesModel* m_commitFiles = nullptr;
+    DiffLinesModel*    m_commitDiff  = nullptr;
 
     bool                       m_open = false;
+    QString                    m_selectedCommit;
+    QString                    m_activeCommitFile;
     // History population is reconciled from two async signals (historyReady and
     // headChanged) that can arrive in either order. We cache both and apply once
     // both have landed for the current open(), so IsHeadRole is always correct
