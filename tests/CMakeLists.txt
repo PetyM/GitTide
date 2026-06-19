@@ -62,6 +62,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_lines_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_view_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_list_model.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

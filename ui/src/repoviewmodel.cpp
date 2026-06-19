@@ -14,12 +14,14 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_controller(new RepoController(this))
     , m_files(new ChangedFilesModel(this))
     , m_diff(new DiffLinesModel(this))
+    , m_branches(new BranchListModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
+    connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
 }
 
@@ -51,6 +53,11 @@ ChangedFilesModel* RepoViewModel::changedFiles() const
 DiffLinesModel* RepoViewModel::diffLines() const
 {
     return m_diff;
+}
+
+BranchListModel* RepoViewModel::branches() const
+{
+    return m_branches;
 }
 
 void RepoViewModel::open(const QString& path)
@@ -143,6 +150,26 @@ void RepoViewModel::commit(const QString& summary, const QString& description)
         [this]() { emit committedOk(); });
 }
 
+void RepoViewModel::switchBranch(const QString& name)
+{
+    QCoro::connect(m_controller->switchBranch(name), this, [] {});
+}
+
+void RepoViewModel::createBranch(const QString& name, const QString& fromOid, bool checkout)
+{
+    QCoro::connect(m_controller->createBranch(name, fromOid, checkout), this, [] {});
+}
+
+void RepoViewModel::deleteBranch(const QString& name, bool force)
+{
+    QCoro::connect(m_controller->deleteBranch(name, force), this, [] {});
+}
+
+void RepoViewModel::renameBranch(const QString& oldName, const QString& newName)
+{
+    QCoro::connect(m_controller->renameBranch(oldName, newName), this, [] {});
+}
+
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
 {
     m_files->setFiles(files);
@@ -181,6 +208,7 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
 
 void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
 {
+    m_branches->setBranches(branches);
     for (const auto& b : branches)
     {
         if (b.isHead)
