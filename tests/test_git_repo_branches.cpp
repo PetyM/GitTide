@@ -2,6 +2,18 @@
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <algorithm>
+#include <filesystem>
+
+#include <git2.h>
+
+TEST_CASE("BranchInfo defaults to a local branch with no upstream/worktree", "[branches]")
+{
+    gittide::BranchInfo b{};
+    REQUIRE(b.kind == gittide::BranchKind::Local);
+    REQUIRE(b.upstream.empty());
+    REQUIRE(b.worktreePath.empty());
+    REQUIRE_FALSE(b.isHead);
+}
 
 using gittide::GitRepo;
 
@@ -10,6 +22,98 @@ bool has(const std::vector<gittide::BranchInfo>& v, const std::string& n)
 {
     return std::any_of(v.begin(), v.end(), [&](const auto& b) { return b.name == n; });
 }
+}
+
+TEST_CASE("branches lists remote-tracking refs and local upstream", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+
+    // Fabricate refs/remotes/origin/main at HEAD and set the local branch's
+    // upstream to it, using raw libgit2 on the same repo.
+    git_repository* raw = nullptr;
+    REQUIRE(git_repository_open(&raw, tmp.path().generic_string().c_str()) == 0);
+    // A configured remote gives git_branch_upstream() a fetch refspec to map
+    // refs/heads/* onto refs/remotes/origin/*.
+    git_remote* remote = nullptr;
+    REQUIRE(git_remote_create(&remote, raw, "origin", "https://example.invalid/r.git") == 0);
+    git_remote_free(remote);
+    git_oid head_oid;
+    REQUIRE(git_reference_name_to_id(&head_oid, raw, "HEAD") == 0);
+    git_reference* remote_ref = nullptr;
+    REQUIRE(git_reference_create(&remote_ref, raw, "refs/remotes/origin/main", &head_oid, 0, "test") == 0);
+    git_reference_free(remote_ref);
+
+    git_reference* head_ref = nullptr;
+    REQUIRE(git_repository_head(&head_ref, raw) == 0);
+    const std::string local = git_reference_shorthand(head_ref);
+    git_reference* local_ref = nullptr;
+    REQUIRE(git_branch_lookup(&local_ref, raw, local.c_str(), GIT_BRANCH_LOCAL) == 0);
+    git_branch_set_upstream(local_ref, "origin/main"); // best-effort
+    git_reference_free(local_ref);
+    git_reference_free(head_ref);
+    git_repository_free(raw);
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto list = repo->branches();
+    REQUIRE(list.has_value());
+
+    const auto local_it = std::find_if(list->begin(), list->end(), [&](const auto& b) {
+        return b.kind == gittide::BranchKind::Local && b.name == local;
+    });
+    REQUIRE(local_it != list->end());
+    REQUIRE(local_it->upstream == "origin/main");
+
+    const auto remote_it = std::find_if(list->begin(), list->end(),
+                                        [](const auto& b) { return b.kind == gittide::BranchKind::RemoteTracking; });
+    REQUIRE(remote_it != list->end());
+    REQUIRE(remote_it->name == "origin/main");
+    REQUIRE_FALSE(remote_it->isHead);
+}
+
+TEST_CASE("branches marks a branch checked out in a linked worktree", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+
+    git_repository* raw = nullptr;
+    REQUIRE(git_repository_open(&raw, tmp.path().generic_string().c_str()) == 0);
+
+    // A worktree needs its own branch ref. Create "wt" at HEAD, then add a
+    // linked worktree checked out to it.
+    git_oid head_oid;
+    REQUIRE(git_reference_name_to_id(&head_oid, raw, "HEAD") == 0);
+    git_commit* head_commit = nullptr;
+    REQUIRE(git_commit_lookup(&head_commit, raw, &head_oid) == 0);
+    git_reference* wt_branch = nullptr;
+    REQUIRE(git_branch_create(&wt_branch, raw, "wt", head_commit, 0) == 0);
+
+    const auto  wt_path = tmp.path().parent_path() / (tmp.path().filename().string() + "-wt");
+    git_worktree* wt = nullptr;
+    git_worktree_add_options opts = GIT_WORKTREE_ADD_OPTIONS_INIT;
+    opts.ref = wt_branch;
+    REQUIRE(git_worktree_add(&wt, raw, "wt", wt_path.generic_string().c_str(), &opts) == 0);
+    git_worktree_free(wt);
+    git_reference_free(wt_branch);
+    git_commit_free(head_commit);
+    git_repository_free(raw);
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto list = repo->branches();
+    REQUIRE(list.has_value());
+
+    const auto it = std::find_if(list->begin(), list->end(),
+                                 [](const auto& b) { return b.name == "wt"; });
+    REQUIRE(it != list->end());
+    REQUIRE(it->kind == gittide::BranchKind::Local);
+    REQUIRE_FALSE(it->worktreePath.empty());
+    REQUIRE_FALSE(it->isHead); // the main repo's HEAD is the default branch, not "wt"
+
+    std::filesystem::remove_all(wt_path);
 }
 
 TEST_CASE("createBranch from HEAD makes a listable branch", "[branches]")
