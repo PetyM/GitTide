@@ -44,7 +44,7 @@ public:
     // Visible-row branch name; empty when out of range.
     Q_INVOKABLE QString nameAt(int row) const;
     // Local (non-remote) branch names, for base-ref / rename pickers.
-    QStringList localBranchNames() const;
+    Q_INVOKABLE QStringList localBranchNames() const;
 
 signals:
     void filterChanged();

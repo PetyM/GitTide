@@ -4,6 +4,10 @@
     <file>Sidebar.qml</file>
     <file>WorkingPane.qml</file>
     <file>BranchBar.qml</file>
+    <file>BranchDropdown.qml</file>
+    <file>NewBranchDialog.qml</file>
+    <file>RenameBranchDialog.qml</file>
+    <file>DeleteBranchDialog.qml</file>
     <file>ChangesPane.qml</file>
     <file>DiffView.qml</file>
   </qresource>
