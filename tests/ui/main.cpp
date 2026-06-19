@@ -37,6 +37,7 @@
 #include "test_theme_manager.cpp"
 #include "test_theme_style.cpp"
 #include "test_window_manager.cpp"
+#include "test_qml_theme.cpp"
 
 #include <QApplication>
 #include <QtTest/QtTest>
@@ -85,6 +86,7 @@ int main(int argc, char** argv)
     RUN(TestTheme);
     RUN(TestThemeStyle);
     RUN(TestThemeManager);
+    RUN(TestQmlTheme);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

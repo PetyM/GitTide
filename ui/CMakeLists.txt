@@ -40,6 +40,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/themestyle.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/thememanager.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/thememanager.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/qmltheme.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/qmltheme.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.qrc
 )
 set_target_properties(gittide_ui PROPERTIES AUTOMOC ON AUTORCC ON)
