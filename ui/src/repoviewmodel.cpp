@@ -1,6 +1,5 @@
 #include "gittide/ui/repoviewmodel.hpp"
 
-#include <algorithm>
 #include <utility>
 
 #include <qcorotask.h>
@@ -72,22 +71,31 @@ void RepoViewModel::selectFile(const QString& path)
 
 void RepoViewModel::setFileChecked(int row, bool checked)
 {
+    if (applyFileChecked(row, checked))
+        emit checkedChanged();
+}
+
+void RepoViewModel::setAllFilesChecked(bool checked)
+{
+    bool any = false;
+    for (int row = 0; row < m_files->rowCount(QModelIndex()); ++row)
+        any = applyFileChecked(row, checked) || any;
+    if (any)
+        emit checkedChanged();
+}
+
+bool RepoViewModel::applyFileChecked(int row, bool checked)
+{
     const QString path = m_files->pathAt(row);
     if (path.isEmpty())
-        return;
+        return false;
     FileSel& fs = m_sel[path];
     fs.state    = checked ? ChangedFilesModel::Checked : ChangedFilesModel::Unchecked;
     fs.checkedLinesByHunk.clear();
     m_files->setCheckState(row, fs.state);
     if (path == m_activeFile)
         m_diff->setAllChecked(checked);
-    emit checkedChanged();
-}
-
-void RepoViewModel::setAllFilesChecked(bool checked)
-{
-    for (int row = 0; row < m_files->rowCount(QModelIndex()); ++row)
-        setFileChecked(row, checked);
+    return true;
 }
 
 void RepoViewModel::setLineChecked(int row, bool checked)
@@ -101,8 +109,6 @@ void RepoViewModel::setAllLinesChecked(bool checked)
     if (m_activeFile.isEmpty())
         return;
     m_diff->setAllChecked(checked);
-    FileSel& fs = m_sel[m_activeFile];
-    fs.checkedLinesByHunk = m_diff->checkedLines();
     recomputeActiveFileState();
 }
 
@@ -144,7 +150,6 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     for (const auto& f : files)
         m_sel[pathToQString(f.path)] = FileSel{ChangedFilesModel::Checked, {}};
     m_activeFile.clear();
-    m_activeDiff = {};
     m_diff->clear();
     emit activeFileChanged();
     emit checkedChanged();
@@ -154,7 +159,6 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
 {
     if (path != m_activeFile)
         return;
-    m_activeDiff      = result;
     const FileSel& fs = m_sel[path];
     m_diff->setDiff(result, fs.checkedLinesByHunk, fs.state == ChangedFilesModel::Checked);
 }
@@ -192,26 +196,9 @@ void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
     }
 }
 
-void RepoViewModel::onLineToggled(int hunkIndex, int lineIndex, bool checked)
+void RepoViewModel::onLineToggled(int /*hunkIndex*/, int /*lineIndex*/, bool /*checked*/)
 {
-    if (m_activeFile.isEmpty())
-        return;
-    FileSel& fs = m_sel[m_activeFile];
-    auto& lines = fs.checkedLinesByHunk[hunkIndex];
-    if (checked)
-    {
-        if (std::find(lines.begin(), lines.end(), lineIndex) == lines.end())
-        {
-            lines.push_back(lineIndex);
-            std::sort(lines.begin(), lines.end());
-        }
-    }
-    else
-    {
-        lines.erase(std::remove(lines.begin(), lines.end(), lineIndex), lines.end());
-        if (lines.empty())
-            fs.checkedLinesByHunk.erase(hunkIndex);
-    }
+    // The diff model owns which lines are checked; just re-derive file state.
     recomputeActiveFileState();
 }
 
@@ -229,9 +216,14 @@ void RepoViewModel::recomputeActiveFileState()
     else
         state = ChangedFilesModel::Partial;
 
+    // Derive the per-hunk line selection from the diff model — the single source
+    // of truth for which lines are checked — so a Partial commit stages exactly
+    // the lines shown checked (only Partial carries an explicit line map).
     FileSel& fs = m_sel[m_activeFile];
     fs.state    = state;
-    if (state != ChangedFilesModel::Partial)
+    if (state == ChangedFilesModel::Partial)
+        fs.checkedLinesByHunk = m_diff->checkedLines();
+    else
         fs.checkedLinesByHunk.clear();
 
     const int row = m_files->rowForPath(m_activeFile);
