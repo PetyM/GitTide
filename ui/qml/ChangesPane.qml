@@ -25,12 +25,15 @@ RowLayout {
                 // 0 Unchecked, 1 PartiallyChecked, 2 Checked — mirror file states.
                 checkState: {
                     var n = repoVm ? repoVm.checkedCount : 0
-                    var total = repoVm && repoVm.changedFiles ? repoVm.changedFiles.rowCount() : 0
+                    var total = fileList.count
                     if (n === 0) return Qt.Unchecked
                     if (n === total) return Qt.Checked
                     return Qt.PartiallyChecked
                 }
-                onClicked: if (repoVm) repoVm.setAllFilesChecked(checkState !== Qt.Checked)
+                onClicked: {
+                    var allChecked = repoVm && fileList.count > 0 && repoVm.checkedCount === fileList.count
+                    if (repoVm) repoVm.setAllFilesChecked(!allChecked)
+                }
             }
             Label {
                 text: "Changed files"
@@ -40,9 +43,7 @@ RowLayout {
                 Layout.fillWidth: true
             }
             Label {
-                text: repoVm && repoVm.changedFiles
-                      ? (repoVm.checkedCount + " / " + repoVm.changedFiles.rowCount())
-                      : ""
+                text: repoVm ? (repoVm.checkedCount + " / " + fileList.count) : ""
                 color: theme.textMuted
                 font.pixelSize: 11
             }
@@ -61,6 +62,15 @@ RowLayout {
                 height: 30
                 color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
 
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    onClicked: {
+                        fileList.currentIndex = index
+                        if (repoVm) repoVm.selectFile(model.filePath)
+                    }
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 12
@@ -71,7 +81,7 @@ RowLayout {
                         checkState: model.checkState === 2 ? Qt.Checked
                                     : model.checkState === 1 ? Qt.PartiallyChecked
                                     : Qt.Unchecked
-                        onClicked: if (repoVm) repoVm.setFileChecked(index, checkState !== Qt.Checked)
+                        onClicked: if (repoVm) repoVm.setFileChecked(index, model.checkState !== 2)
                     }
                     Label {
                         Layout.fillWidth: true
@@ -91,15 +101,6 @@ RowLayout {
                                : model.statusKind === "deleted" ? theme.stateDeleted
                                : model.statusKind === "untracked" ? theme.stateUntracked
                                : theme.stateModified
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    onClicked: {
-                        fileList.currentIndex = index
-                        if (repoVm) repoVm.selectFile(model.filePath)
                     }
                 }
             }
@@ -130,6 +131,7 @@ RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 60
                 placeholderText: "Description"
+                wrapMode: TextArea.Wrap
                 color: theme.textPrimary
                 background: Rectangle {
                     radius: 6
