@@ -156,6 +156,23 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    void create_and_switch_branch_updates_model_and_head()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        vm.createBranch(QStringLiteral("feature"), QString(), true);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.branches()->rowCount() >= 2, 3000); // default branch + feature
+
+        vm.switchBranch(QStringLiteral("feature"));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
     // Unchecking one of two added lines must drive the file to Partial and stage
     // only the still-checked line: after a partial commit the file stays dirty
     // because the unstaged line remains uncommitted in the worktree.

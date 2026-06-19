@@ -8,6 +8,7 @@
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
+#include "gittide/ui/branchlistmodel.hpp"
 #include "gittide/ui/changedfilesmodel.hpp"
 #include "gittide/ui/difflinesmodel.hpp"
 
@@ -30,6 +31,7 @@ class RepoViewModel : public QObject
     Q_PROPERTY(int checkedCount READ checkedCount NOTIFY checkedChanged)
     Q_PROPERTY(gittide::ui::ChangedFilesModel* changedFiles READ changedFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* diffLines READ diffLines CONSTANT)
+    Q_PROPERTY(gittide::ui::BranchListModel* branches READ branches CONSTANT)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -40,6 +42,7 @@ public:
     int checkedCount() const;
     ChangedFilesModel* changedFiles() const;
     DiffLinesModel* diffLines() const;
+    BranchListModel* branches() const;
 
     Q_INVOKABLE void open(const QString& path);
     Q_INVOKABLE void selectFile(const QString& path);
@@ -49,6 +52,11 @@ public:
     Q_INVOKABLE void setAllLinesChecked(bool checked);
     Q_INVOKABLE void commit(const QString& summary, const QString& description);
 
+    Q_INVOKABLE void switchBranch(const QString& name);
+    Q_INVOKABLE void createBranch(const QString& name, const QString& fromOid, bool checkout);
+    Q_INVOKABLE void deleteBranch(const QString& name, bool force);
+    Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
+
 signals:
     void changed();
     void branchChanged();
@@ -56,6 +64,7 @@ signals:
     void checkedChanged();
     void committedOk();
     void operationFailed(const QString& message);
+    void branchDeleteUnmerged(const QString& name);
 
 private:
     struct FileSel
@@ -78,6 +87,7 @@ private:
     RepoController*    m_controller = nullptr;
     ChangedFilesModel* m_files      = nullptr;
     DiffLinesModel*    m_diff       = nullptr;
+    BranchListModel*   m_branches   = nullptr;
 
     bool                       m_open = false;
     QString                    m_branch;
