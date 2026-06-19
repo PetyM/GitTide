@@ -496,24 +496,50 @@ Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
 
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
 {
-    git_branch_iterator* it = nullptr;
-    int rc = git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL);
-    if (rc < 0)
-        return std::unexpected(lastGitError(rc));
-    std::unique_ptr<git_branch_iterator, decltype(&git_branch_iterator_free)> guard(it, git_branch_iterator_free);
-
     std::vector<BranchInfo> result;
-    git_reference* ref    = nullptr;
-    git_branch_t br_type;
-    while ((rc = git_branch_next(&ref, &br_type, it)) == 0)
-    {
-        std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
-        const char* name = nullptr;
-        if (git_branch_name(&name, ref) == 0 && name)
-            result.push_back(BranchInfo{name, git_branch_is_head(ref) == 1});
-    }
-    if (rc != GIT_ITEROVER)
-        return std::unexpected(lastGitError(rc));
+
+    // Enumerate one branch scope (local or remote-tracking), appending to result.
+    auto collect = [&](git_branch_t scope, BranchKind kind) -> Expected<void> {
+        git_branch_iterator* it = nullptr;
+        int rc = git_branch_iterator_new(&it, m_repo, scope);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_branch_iterator, decltype(&git_branch_iterator_free)> guard(it, git_branch_iterator_free);
+
+        git_reference* ref = nullptr;
+        git_branch_t   br_type;
+        while ((rc = git_branch_next(&ref, &br_type, it)) == 0)
+        {
+            std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+            const char* name = nullptr;
+            if (git_branch_name(&name, ref) != 0 || !name)
+                continue;
+            BranchInfo info;
+            info.name   = name;
+            info.kind   = kind;
+            info.isHead = kind == BranchKind::Local && git_branch_is_head(ref) == 1;
+            if (kind == BranchKind::Local)
+            {
+                git_reference* up = nullptr;
+                if (git_branch_upstream(&up, ref) == 0 && up)
+                {
+                    const char* up_name = nullptr;
+                    if (git_branch_name(&up_name, up) == 0 && up_name)
+                        info.upstream = up_name;
+                    git_reference_free(up);
+                }
+            }
+            result.push_back(std::move(info));
+        }
+        if (rc != GIT_ITEROVER)
+            return std::unexpected(lastGitError(rc));
+        return {};
+    };
+
+    if (auto r = collect(GIT_BRANCH_LOCAL, BranchKind::Local); !r)
+        return std::unexpected(r.error());
+    if (auto r = collect(GIT_BRANCH_REMOTE, BranchKind::RemoteTracking); !r)
+        return std::unexpected(r.error());
     return result;
 }
 
