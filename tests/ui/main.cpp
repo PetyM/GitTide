@@ -39,6 +39,7 @@
 #include "test_window_manager.cpp"
 #include "test_qml_theme.cpp"
 #include "test_qml_shell.cpp"
+#include "test_changed_files_model.cpp"
 
 #include <QApplication>
 #include <QtTest/QtTest>
@@ -91,6 +92,7 @@ int main(int argc, char** argv)
     RUN(TestThemeManager);
     RUN(TestQmlTheme);
     RUN(TestQmlShell);
+    RUN(TestChangedFilesModel);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

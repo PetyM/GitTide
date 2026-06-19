@@ -59,6 +59,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_shell.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_model.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 
