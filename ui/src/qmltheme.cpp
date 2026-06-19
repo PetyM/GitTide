@@ -83,7 +83,10 @@ QColor QmlTheme::stateConflict() const
 QVariantList QmlTheme::laneColors() const
 {
     // Graph lane palette — the one documented exception to single-accent.
-    return {QColor("#22D3EE"), QColor("#A371F7"), QColor("#3FB950"), QColor("#D29922"), QColor("#F778BA")};
+    static const QVariantList s_lanes = {
+        QColor("#22D3EE"), QColor("#A371F7"), QColor("#3FB950"),
+        QColor("#D29922"), QColor("#F778BA")};
+    return s_lanes;
 }
 
 QString QmlTheme::iconSource() const
