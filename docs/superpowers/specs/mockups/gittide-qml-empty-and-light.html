@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitTide — empty states + light theme</title>
+<style>
+  :root{
+    --base:#0B1623; --raised:#11202F; --overlay:#16293B;
+    --border:#1E3245; --txt:#C9D1D9; --txt2:#8B949E; --txt3:#6E7681;
+    --accent:#22D3EE; --accentHover:#4DDFF2; --head:#FFFFFF;
+    --added:#3FB950; --modified:#D29922; --deleted:#F85149;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Noto Sans",sans-serif;
+  }
+  /* light theme token overrides, scoped to .light */
+  .light{
+    --base:#EEF3F8; --raised:#FFFFFF; --overlay:#F4F8FB;
+    --border:#D4DFEA; --txt:#0B1623; --txt2:#51606E; --txt3:#8595A4;
+    --accent:#0891B2; --accentHover:#0AA5CC; --head:#0891B2;
+    --added:#3FB950; --modified:#D29922; --deleted:#F85149;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans); font-size:13px; color:var(--txt); background:#0B1623;
+    background-image:radial-gradient(1200px 700px at 70% -10%, #13283b 0%, rgba(19,40,59,0) 60%);
+    -webkit-font-smoothing:antialiased; padding:28px}
+  .label{color:#6E7681; text-transform:uppercase; font-size:11px; letter-spacing:.7px; font-weight:600; margin:0 0 12px}
+
+  /* ───────── empty-state cards ───────── */
+  .row{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:34px}
+  .estage{background:var(--base); border:1px solid var(--border); border-radius:14px; min-height:330px;
+    display:flex; align-items:center; justify-content:center; padding:28px; position:relative; overflow:hidden}
+  .ecard{max-width:420px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px}
+  .ecard .mark{width:72px;height:72px; margin-bottom:8px;
+    filter:drop-shadow(0 8px 28px rgba(34,211,238,.35))}
+  .ecard h1{font-size:22px; font-weight:700; color:var(--txt)}
+  .ecard p{font-size:13px; color:var(--txt2); line-height:1.5; max-width:340px}
+  .cta{margin-top:14px; display:flex; flex-direction:column; gap:10px; align-items:center; width:100%}
+  .btn{padding:10px 18px; border-radius:6px; font-weight:600; cursor:pointer; border:1px solid transparent; font-size:13px}
+  .btn.primary{background:linear-gradient(180deg,var(--accentHover),var(--accent)); color:#06202a; border:0;
+    box-shadow:0 6px 18px rgba(34,211,238,.28); min-width:200px}
+  .ghostrow{display:flex; gap:18px; margin-top:4px}
+  .btn.ghost{background:transparent; border:0; color:var(--accent); padding:6px 4px}
+  .btn.ghost:hover{color:var(--accentHover); text-decoration:underline}
+  .btn.secondary{background:transparent; border:1px solid var(--border); color:var(--txt); min-width:200px}
+  .btn.secondary:hover{background:var(--raised)}
+
+  /* ───────── light-theme main window ───────── */
+  .winframe{border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .win{display:grid; grid-template-columns:240px 1fr; height:440px; background:var(--base); color:var(--txt);
+    font-family:var(--sans); font-size:13px}
+  .sidebar{background:var(--raised); border-right:1px solid var(--border); display:flex; flex-direction:column}
+  .brand{display:flex; align-items:center; gap:9px; padding:14px 14px 10px}
+  .brand .mark{width:24px;height:24px} .brand .word{font-weight:700;font-size:15px} .brand .word b{color:var(--accent)}
+  .switcher{margin:2px 12px 10px; padding:8px 11px; border:1px solid var(--border); border-radius:6px;
+    background:var(--base); display:flex; justify-content:space-between; align-items:center}
+  .switcher small{color:var(--txt3); font-size:11px; display:block} .switcher .chev{color:var(--txt2)}
+  .reposcroll{flex:1; padding:0 8px} .grouphead{padding:8px; color:var(--txt3); text-transform:uppercase; font-size:10px; letter-spacing:.7px; font-weight:700}
+  .repo{display:flex; gap:8px; align-items:center; padding:7px 9px; border-radius:9px; border-left:2px solid transparent}
+  .repo .ic{color:var(--txt3)} .repo small{display:block;color:var(--txt3);font-size:11px}
+  .repo.sel{background:var(--base); border-left:2px solid var(--accent)} .repo.sel .ic{color:var(--accent)}
+  .addbtn{margin:6px 8px; padding:8px; border:1px dashed var(--border); border-radius:9px; text-align:center; color:var(--txt2); font-weight:600}
+
+  .main{display:flex; flex-direction:column; min-width:0}
+  .branchbar{display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--border)}
+  .branchbtn{display:flex;align-items:center;gap:8px; padding:8px 12px; border-radius:8px;
+    background:rgba(8,145,178,.1); border:1px solid rgba(8,145,178,.45); color:var(--txt); font-weight:700}
+  .branchbtn .ic{color:var(--accent)}
+  .sync{margin-left:auto; display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--raised)}
+  .sync button{padding:7px 12px; border:0; background:transparent; color:var(--txt); border-right:1px solid var(--border); font-weight:600}
+  .sync button:last-child{border-right:0}
+  .sync .badge{background:var(--accent); color:#fff; border-radius:9px; padding:0 6px; font-size:11px; font-weight:700}
+  .tabs{display:flex; padding:0 14px; border-bottom:1px solid var(--border)}
+  .tab{padding:10px 4px; margin-right:18px; color:var(--txt2); font-weight:600; border-bottom:2px solid transparent; margin-bottom:-1px}
+  .tab.active{color:var(--txt); border-bottom-color:var(--accent)} .tab .count{color:var(--txt3); font-weight:400}
+  .body{flex:1; display:grid; grid-template-columns:280px 1fr; min-height:0}
+  .files{border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--base)}
+  .fhd{padding:8px 12px; display:flex; gap:9px; align-items:center; border-bottom:1px solid var(--border)}
+  .chk{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--txt3)}
+  .chk.on{background:var(--accent);border-color:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+  .chk.part{border-color:var(--accent);position:relative} .chk.part::after{content:"";position:absolute;left:2px;right:2px;top:5px;height:2px;background:var(--accent);border-radius:1px}
+  .fhd .ttl{color:var(--txt3); text-transform:uppercase; font-size:10px; letter-spacing:.7px; font-weight:700}
+  .fhd .meta{margin-left:auto; color:var(--txt3); font-size:11px}
+  .file{display:flex; gap:9px; align-items:center; padding:7px 12px; border-left:2px solid transparent}
+  .file.sel{background:var(--raised); border-left:2px solid var(--accent)}
+  .file .path{flex:1; font-family:var(--mono); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .file .path .dir{color:var(--txt3)} .file .st{width:14px; text-align:center; font-family:var(--mono); font-weight:700}
+  .st.M{color:var(--modified)} .st.A{color:var(--added)} .st.D{color:var(--deleted)}
+  .diff{display:flex;flex-direction:column;min-width:0}
+  .dhd{padding:8px 14px; border-bottom:1px solid var(--border); display:flex; gap:9px; align-items:center}
+  .dhd .mw{width:22px; display:flex; justify-content:center}
+  .dhd .fp{font-family:var(--mono); font-size:12px} .dhd .fp .dir{color:var(--txt3)}
+  .dhd .pill{margin-left:auto; font-size:11px; color:var(--txt2); border:1px solid var(--border); border-radius:20px; padding:2px 9px}
+  .ds{flex:1; overflow:auto; font-family:var(--mono); font-size:12.5px; line-height:1.55}
+  .hunk{color:var(--accent); background:rgba(8,145,178,.08); padding:3px 0 3px 22px}
+  .ln{display:flex; white-space:pre} .ln .lc{width:22px;display:flex;align-items:center;justify-content:center}
+  .ln .gut{width:42px; text-align:right; padding-right:9px; color:var(--txt3)} .ln .sign{width:16px; text-align:center}
+  .ln .code{flex:1; padding-right:12px} .ln.ctx{color:var(--txt2)}
+  .ln.add{background:rgba(63,185,80,.16)} .ln.add .sign{color:#1a7f37} .ln.add .code{color:#04361a}
+  .ln.del{background:rgba(248,81,73,.14)} .ln.del .sign{color:#cf222e} .ln.del .code{color:#5a1410}
+  .lchk{width:13px;height:13px;border-radius:3px;border:1.4px solid var(--txt3)}
+  .ln.add .lchk{background:var(--accent);border-color:var(--accent)}
+  .tok-k{color:#cf222e} .tok-f{color:#8250df} .tok-c{color:var(--txt3); font-style:italic}
+</style>
+</head>
+<body>
+  <p class="label">Empty states — brand-heavy, stable CTA object names</p>
+  <div class="row">
+    <!-- welcome / no project -->
+    <div>
+      <div class="label" style="opacity:.7">Welcome — no project yet</div>
+      <div class="estage">
+        <div class="ecard">
+          <svg class="mark" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="9" fill="#0B1623"/>
+            <path d="M5 22c4.5-8 17.5-8 22 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 25c3.3-5.5 12.7-5.5 16 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+            <path d="M11 27.5c2-3.3 8-3.3 10 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" opacity=".3"/>
+            <circle cx="16" cy="10" r="3.2" fill="#FFFFFF"/>
+          </svg>
+          <h1>Welcome to GitTide</h1>
+          <p>Group your repositories into projects. Create an empty one, or build it from a manifest that lists its repositories.</p>
+          <div class="cta">
+            <button class="btn primary" id="createProjectCta">New project</button>
+            <div class="ghostrow">
+              <button class="btn ghost" id="addExistingCta">Add existing repository</button>
+              <button class="btn ghost" id="cloneCta">Clone from URL…</button>
+              <button class="btn ghost" id="manifestProjectCta">Create from manifest…</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- project with no repos -->
+    <div>
+      <div class="label" style="opacity:.7">Project "Mobile App" — no repositories</div>
+      <div class="estage">
+        <div class="ecard">
+          <svg class="mark" viewBox="0 0 32 32" fill="none" style="filter:drop-shadow(0 8px 24px rgba(34,211,238,.25))">
+            <rect width="32" height="32" rx="9" fill="#0B1623"/>
+            <path d="M5 22c4.5-8 17.5-8 22 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 25c3.3-5.5 12.7-5.5 16 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+            <circle cx="16" cy="11" r="3" fill="#FFFFFF"/>
+          </svg>
+          <h1>No repositories yet</h1>
+          <p>Add a repository to <b>Mobile App</b> to start tracking changes.</p>
+          <div class="cta">
+            <button class="btn primary" id="addExistingCta2">Add existing repository</button>
+            <button class="btn secondary" id="cloneCta2">Clone from URL…</button>
+            <button class="btn ghost" id="initRepoCta">Initialize a new repository here</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="label">Light theme — same window, token swap (accent #0891B2, white HEAD→accent)</p>
+  <div class="winframe light">
+    <div class="win">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="mark" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="9" fill="#EEF3F8"/>
+            <path d="M6 21c4-7 16-7 20 0" stroke="#0891B2" stroke-width="2" stroke-linecap="round"/>
+            <path d="M9 24c3-5 11-5 14 0" stroke="#0891B2" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+            <circle cx="16" cy="11" r="3" fill="#0891B2"/>
+          </svg>
+          <div class="word">Git<b>Tide</b></div>
+        </div>
+        <div class="switcher"><div><span>Mobile App</span><small>3 repositories</small></div><span class="chev">▾</span></div>
+        <div class="reposcroll">
+          <div class="grouphead">Repositories</div>
+          <div class="repo sel"><span class="ic">◧</span><div><span>gittide</span><small>~/Documents/gittide</small></div></div>
+          <div class="repo"><span class="ic">◧</span><div><span>api-server</span><small>~/work/api-server</small></div></div>
+        </div>
+        <div class="addbtn">Add repository</div>
+      </aside>
+      <section class="main">
+        <div class="branchbar">
+          <button class="branchbtn"><span class="ic">⎇</span> main ▾</button>
+          <div class="sync"><button>↧ Fetch</button><button>⤓ Pull</button><button>↑ Push <span class="badge">2</span></button></div>
+        </div>
+        <div class="tabs"><div class="tab active">Changes <span class="count">4</span></div><div class="tab">History</div></div>
+        <div class="body">
+          <div class="files">
+            <div class="fhd"><span class="chk part"></span><span class="ttl">Changed files</span><span class="meta">2 / 4</span></div>
+            <div class="file sel"><span class="chk on">✓</span><span class="path"><span class="dir">core/src/</span>diffengine.cpp</span><span class="st M">M</span></div>
+            <div class="file"><span class="chk part"></span><span class="path"><span class="dir">ui/src/</span>diffview.cpp</span><span class="st M">M</span></div>
+            <div class="file"><span class="chk on">✓</span><span class="path"><span class="dir">core/.../</span>diff.hpp</span><span class="st A">A</span></div>
+            <div class="file"><span class="chk"></span><span class="path"><span class="dir">docs/</span>old-notes.md</span><span class="st D">D</span></div>
+          </div>
+          <div class="diff">
+            <div class="dhd"><span class="mw"><span class="chk part"></span></span><span class="fp"><span class="dir">core/src/</span>diffengine.cpp</span><span class="pill">+18 −6</span></div>
+            <div class="ds">
+              <div class="hunk">@@ -42,7 +42,9 @@ DiffResult DiffEngine::compute(...)</div>
+              <div class="ln ctx"><span class="lc"></span><span class="gut">42</span><span class="sign"></span><span class="code">    <span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; hunks = patch.hunks();</span></div>
+              <div class="ln del"><span class="lc"></span><span class="gut">44</span><span class="sign">−</span><span class="code">    result.lines.reserve(hunks.size());</span></div>
+              <div class="ln add"><span class="lc"><span class="lchk"></span></span><span class="gut">44</span><span class="sign">+</span><span class="code">    <span class="tok-c">// pre-size from the real line count</span></span></div>
+              <div class="ln add"><span class="lc"><span class="lchk"></span></span><span class="gut">45</span><span class="sign">+</span><span class="code">    result.lines.reserve(totalLines(hunks));</span></div>
+              <div class="ln ctx"><span class="lc"></span><span class="gut">46</span><span class="sign"></span><span class="code">    <span class="tok-k">for</span> (<span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; h : hunks)</span></div>
+              <div class="ln del"><span class="lc"></span><span class="gut">48</span><span class="sign">−</span><span class="code">        append(result, h);</span></div>
+              <div class="ln add"><span class="lc"><span class="lchk"></span></span><span class="gut">49</span><span class="sign">+</span><span class="code">        <span class="tok-k">if</span> (h.<span class="tok-f">valid</span>()) <span class="tok-f">append</span>(result, h);</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>
