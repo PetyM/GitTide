@@ -21,6 +21,7 @@ endif()
 
 option(GITGUI_BUILD_TESTS "Build tests" ON)
 option(GITGUI_BUILD_UI "Build the Qt UI and app" ON)
+option(GITGUI_BUILD_QML "Build the experimental QML app shell" ON)
 
 include(cmake/Dependencies.cmake)
 
