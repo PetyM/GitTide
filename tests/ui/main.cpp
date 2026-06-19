@@ -41,6 +41,7 @@
 #include "test_qml_shell.cpp"
 #include "test_changed_files_model.cpp"
 #include "test_diff_lines_model.cpp"
+#include "test_repo_view_model.cpp"
 
 #include <QApplication>
 #include <QtTest/QtTest>
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
     RUN(TestQmlShell);
     RUN(TestChangedFilesModel);
     RUN(TestDiffLinesModel);
+    RUN(TestRepoViewModel);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

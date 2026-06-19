@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <utility>
 
+#include <QPointer>
+
 #include "gittide/graphbuilder.hpp"
 #include "gittide/ui/metatypes.hpp"
 
@@ -40,7 +42,10 @@ QCoro::Task<void> RepoController::refreshStatus()
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->status();
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -53,7 +58,10 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget 
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->diff(target, qstringToPath(path));
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -133,7 +141,10 @@ QCoro::Task<void> RepoController::refreshBranches()
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto list = co_await m_repo->branches();
+    if (!self)
+        co_return;
     if (!list)
     {
         emit operationFailed(QString::fromStdString(list.error().message));
@@ -141,6 +152,8 @@ QCoro::Task<void> RepoController::refreshBranches()
     }
     emit branchesChanged(*list);
     auto h = co_await m_repo->head();
+    if (!self)
+        co_return;
     if (!h)
     {
         emit operationFailed(QString::fromStdString(h.error().message));
