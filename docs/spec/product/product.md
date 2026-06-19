@@ -92,11 +92,15 @@ context menu on a file or a line selection.
 ### History tab
 
 Read history as a commit graph, then inspect any commit's diff in the same panel.
-The list column splits in two: a **commit list** on top (graph · summary ·
-author · date; the graph column paints the branch/merge lanes, virtualized so a
-very large history scrolls smoothly), and below it the **changed-files list** of
-the selected commit (read-only, no checkboxes). Selecting one of those files
-shows its diff in the shared diff panel, read-only.
+The History tab is implemented in QML. The list column shows a virtualized
+**commit list** (graph lane column · initials avatar · summary · author · date)
+where each row's graph column paints branch/merge lanes in a multi-colour lane
+palette and marks the HEAD commit with a white dot. Selecting a row opens the
+three-part **commit detail** flow: (1) the **changed-files list** of that commit
+(read-only, no checkboxes) fills the detail pane; (2) picking a file shows its
+**diff** read-only (no per-line checkboxes); and (3) a **Checkout** button detaches
+HEAD at the selected commit. A 2px `accent` left border and a row-wide highlight
+mark the selected history row.
 
 ### Branches
 
