@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <utility>
 
+#include <QPointer>
+
 #include "gittide/graphbuilder.hpp"
 #include "gittide/ui/metatypes.hpp"
 
@@ -40,7 +42,10 @@ QCoro::Task<void> RepoController::refreshStatus()
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->status();
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -53,7 +58,10 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget 
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->diff(target, qstringToPath(path));
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -66,7 +74,10 @@ QCoro::Task<void> RepoController::stage(gittide::StageSelection sel)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->stage(sel);
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -79,7 +90,10 @@ QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->unstage(sel);
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -92,7 +106,10 @@ QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->discard(sel);
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -105,7 +122,10 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->commit(req);
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -120,7 +140,10 @@ QCoro::Task<void> RepoController::refreshHistory(unsigned limit)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto result = co_await m_repo->log(limit);
+    if (!self)
+        co_return;
     if (!result)
     {
         emit operationFailed(QString::fromStdString(result.error().message));
@@ -133,7 +156,10 @@ QCoro::Task<void> RepoController::refreshBranches()
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto list = co_await m_repo->branches();
+    if (!self)
+        co_return;
     if (!list)
     {
         emit operationFailed(QString::fromStdString(list.error().message));
@@ -141,6 +167,8 @@ QCoro::Task<void> RepoController::refreshBranches()
     }
     emit branchesChanged(*list);
     auto h = co_await m_repo->head();
+    if (!self)
+        co_return;
     if (!h)
     {
         emit operationFailed(QString::fromStdString(h.error().message));
@@ -153,7 +181,10 @@ QCoro::Task<void> RepoController::switchBranch(QString name)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->checkoutBranch(name);
+    if (!self)
+        co_return;
     if (!r)
     {
         emit operationFailed(QString::fromStdString(r.error().message));
@@ -168,7 +199,10 @@ QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bo
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->createBranch(name, fromOid);
+    if (!self)
+        co_return;
     if (!r)
     {
         emit operationFailed(QString::fromStdString(r.error().message));
@@ -177,6 +211,8 @@ QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bo
     if (checkout)
     {
         auto sw = co_await m_repo->checkoutBranch(name);
+        if (!self)
+            co_return;
         if (!sw)
         {
             emit operationFailed(QString::fromStdString(sw.error().message));
@@ -193,7 +229,10 @@ QCoro::Task<void> RepoController::checkoutCommit(QString oid)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->checkoutCommit(oid);
+    if (!self)
+        co_return;
     if (!r)
     {
         emit operationFailed(QString::fromStdString(r.error().message));
@@ -208,7 +247,10 @@ QCoro::Task<void> RepoController::deleteBranch(QString name, bool force)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->deleteBranch(name, force);
+    if (!self)
+        co_return;
     if (!r)
     {
         const QString msg = QString::fromStdString(r.error().message);
@@ -225,7 +267,10 @@ QCoro::Task<void> RepoController::renameBranch(QString oldName, QString newName)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->renameBranch(oldName, newName, /*force=*/false);
+    if (!self)
+        co_return;
     if (!r)
     {
         emit operationFailed(QString::fromStdString(r.error().message));
@@ -244,7 +289,10 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
         emit operationFailed(QStringLiteral("Nothing selected to commit"));
         co_return;
     }
+    QPointer<RepoController> self = this;
     auto reset = co_await m_repo->resetIndexToHead();
+    if (!self)
+        co_return;
     if (!reset)
     {
         emit operationFailed(QString::fromStdString(reset.error().message));
@@ -253,6 +301,8 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
     for (const auto& sel : selections)
     {
         auto s = co_await m_repo->stage(sel);
+        if (!self)
+            co_return;
         if (!s)
         {
             emit operationFailed(QString::fromStdString(s.error().message));
@@ -261,6 +311,8 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
         }
     }
     auto oid = co_await m_repo->commit(req);
+    if (!self)
+        co_return;
     if (!oid)
     {
         emit operationFailed(QString::fromStdString(oid.error().message));
@@ -276,7 +328,10 @@ QCoro::Task<void> RepoController::refreshCommitFiles(QString oid)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto files = co_await m_repo->commitFiles(oid);
+    if (!self)
+        co_return;
     if (!files)
     {
         emit operationFailed(QString::fromStdString(files.error().message));
@@ -289,7 +344,10 @@ QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto d = co_await m_repo->commitDiff(oid, qstringToPath(path));
+    if (!self)
+        co_return;
     if (!d)
     {
         emit operationFailed(QString::fromStdString(d.error().message));

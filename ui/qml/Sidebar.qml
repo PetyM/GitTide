@@ -40,6 +40,7 @@ Rectangle {
                 id: row
                 implicitHeight: 34
                 indentation: 16
+                onClicked: if (repoVm) repoVm.open(model.repoPath)
 
                 contentItem: RowLayout {
                     spacing: 8

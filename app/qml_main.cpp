@@ -9,6 +9,7 @@
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
+#include "gittide/ui/repoviewmodel.hpp"
 #include "gittide/ui/thememanager.hpp"
 
 using namespace gittide::ui;
@@ -46,8 +47,9 @@ int main(int argc, char** argv)
 
     QmlTheme qmlTheme(&theme);
 
+    RepoViewModel repoVm;
     QQmlApplicationEngine engine;
-    installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller);
+    installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return 1;

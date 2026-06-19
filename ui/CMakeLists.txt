@@ -26,6 +26,12 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/diffview.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/changesview.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changesview.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/changedfilesmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changedfilesmodel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/difflinesmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/difflinesmodel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/repoviewmodel.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/repoviewmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/branchbar.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/branchbar.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/historymodel.cpp

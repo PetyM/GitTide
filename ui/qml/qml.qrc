@@ -2,5 +2,9 @@
   <qresource prefix="/qml">
     <file>Main.qml</file>
     <file>Sidebar.qml</file>
+    <file>WorkingPane.qml</file>
+    <file>BranchBar.qml</file>
+    <file>ChangesPane.qml</file>
+    <file>DiffView.qml</file>
   </qresource>
 </RCC>
