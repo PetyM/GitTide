@@ -6,6 +6,7 @@
 
 #include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/repocontroller.hpp"
+#include "gittide/ui/historylistmodel.hpp"
 
 namespace gittide::ui {
 
@@ -15,11 +16,13 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_files(new ChangedFilesModel(this))
     , m_diff(new DiffLinesModel(this))
     , m_branches(new BranchListModel(this))
+    , m_history(new HistoryListModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
+    connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
@@ -60,6 +63,11 @@ BranchListModel* RepoViewModel::branches() const
     return m_branches;
 }
 
+HistoryListModel* RepoViewModel::history() const
+{
+    return m_history;
+}
+
 void RepoViewModel::open(const QString& path)
 {
     m_controller->open(path);
@@ -67,6 +75,7 @@ void RepoViewModel::open(const QString& path)
     emit changed();
     QCoro::connect(m_controller->refreshStatus(), this, [] {});
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
+    QCoro::connect(m_controller->refreshHistory(), this, [] {});
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -170,6 +179,21 @@ void RepoViewModel::renameBranch(const QString& oldName, const QString& newName)
     QCoro::connect(m_controller->renameBranch(oldName, newName), this, [] {});
 }
 
+void RepoViewModel::refreshHistory()
+{
+    QCoro::connect(m_controller->refreshHistory(), this, [] {});
+}
+
+void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
+{
+    m_lastLayout = layout;
+    // Only populate the model if we already know HEAD; otherwise onHead will
+    // re-apply once headChanged fires (race-fix: whichever signal arrives last
+    // leaves the model in the correct state with IsHeadRole true).
+    if (!m_headOid.isEmpty())
+        m_history->setLayout(layout, m_headOid);
+}
+
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
 {
     m_files->setFiles(files);
@@ -192,6 +216,13 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
 {
+    m_headOid = QString::fromStdString(head.oid);
+    // If history arrived before HEAD, re-apply layout now that we have the oid
+    // so IsHeadRole is correct. If history arrives after, onHistory will use
+    // the already-set m_headOid directly.
+    if (!m_lastLayout.rows.empty())
+        m_history->setLayout(m_lastLayout, m_headOid);
+
     QString label;
     if (head.unborn)
         label = QStringLiteral("(no commits)");

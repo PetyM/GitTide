@@ -8,9 +8,11 @@
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
+#include "gittide/graph.hpp"
 #include "gittide/ui/branchlistmodel.hpp"
 #include "gittide/ui/changedfilesmodel.hpp"
 #include "gittide/ui/difflinesmodel.hpp"
+#include "gittide/ui/historylistmodel.hpp"
 
 namespace gittide::ui {
 
@@ -32,6 +34,7 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::ChangedFilesModel* changedFiles READ changedFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* diffLines READ diffLines CONSTANT)
     Q_PROPERTY(gittide::ui::BranchListModel* branches READ branches CONSTANT)
+    Q_PROPERTY(gittide::ui::HistoryListModel* history READ history CONSTANT)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -42,7 +45,8 @@ public:
     int checkedCount() const;
     ChangedFilesModel* changedFiles() const;
     DiffLinesModel* diffLines() const;
-    BranchListModel* branches() const;
+    BranchListModel*    branches() const;
+    HistoryListModel*   history() const;
 
     Q_INVOKABLE void open(const QString& path);
     Q_INVOKABLE void selectFile(const QString& path);
@@ -56,6 +60,7 @@ public:
     Q_INVOKABLE void createBranch(const QString& name, const QString& fromOid, bool checkout);
     Q_INVOKABLE void deleteBranch(const QString& name, bool force);
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
+    Q_INVOKABLE void refreshHistory();
 
 signals:
     void changed();
@@ -77,6 +82,7 @@ private:
     void onDiff(const QString& path, const gittide::DiffResult& result);
     void onHead(const gittide::HeadState& head);
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
+    void onHistory(const gittide::GraphLayout& layout);
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
 
@@ -88,8 +94,11 @@ private:
     ChangedFilesModel* m_files      = nullptr;
     DiffLinesModel*    m_diff       = nullptr;
     BranchListModel*   m_branches   = nullptr;
+    HistoryListModel*  m_history    = nullptr;
 
     bool                       m_open = false;
+    QString                    m_headOid;
+    gittide::GraphLayout       m_lastLayout;
     QString                    m_branch;
     QString                    m_activeFile;
     std::map<QString, FileSel> m_sel;
