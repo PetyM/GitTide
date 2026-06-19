@@ -20,17 +20,9 @@ ApplicationWindow {
             Layout.preferredWidth: 272
         }
 
-        // Placeholder main pane — branch bar / tabs / diff arrive in later plans.
-        Rectangle {
+        WorkingPane {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: theme.surfaceBase
-            Label {
-                anchors.centerIn: parent
-                text: "Select a repository"
-                color: theme.textMuted
-                font.pixelSize: 13
-            }
         }
     }
 }
