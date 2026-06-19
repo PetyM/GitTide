@@ -13,6 +13,10 @@ namespace gittide::ui {
 
 void registerQmlTypes()
 {
+    static bool registered = false;
+    if (registered)
+        return;
+    registered = true;
     qmlRegisterType<GraphColumn>("GitTide", 1, 0, "GraphColumn");
 }
 
