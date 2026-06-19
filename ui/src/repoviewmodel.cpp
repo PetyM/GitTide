@@ -326,6 +326,9 @@ void RepoViewModel::selectCommit(const QString& oid)
 {
     m_selectedCommit = oid;
     m_activeCommitFile.clear();
+    // Clear both panes synchronously so the previous commit's files and diff
+    // never linger while the new commit's data loads asynchronously.
+    m_commitFiles->setFiles({});
     m_commitDiff->clear();
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
