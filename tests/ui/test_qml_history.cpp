@@ -2,6 +2,8 @@
 #include <QAbstractItemModel>
 #include <QQmlEngine>
 #include <QQmlComponent>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QSignalSpy>
 #include <QRandomGenerator>
 #include <memory>
@@ -15,6 +17,9 @@
 #include "gittide/ui/graphcolumn.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
+#include "gittide/ui/qmltheme.hpp"
+#include "gittide/ui/thememanager.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 
 using namespace gittide::ui;
 
@@ -204,6 +209,32 @@ private slots:
         std::unique_ptr<QObject> obj(comp.create());
         QVERIFY(obj != nullptr);
         QCOMPARE(obj->property("laneCount").toInt(), 2);
+    }
+
+    void history_list_binds_to_history_model()
+    {
+        const auto dir = qml_history_test::make_dirty_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* list = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("historyList"));
+        QVERIFY(list != nullptr);
+        QCOMPARE(list->property("model").value<QAbstractItemModel*>(), vm.history());
+
+        std::filesystem::remove_all(dir);
     }
 };
 
