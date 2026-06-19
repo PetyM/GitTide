@@ -40,10 +40,15 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/themestyle.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/thememanager.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/thememanager.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/qmltheme.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/qmltheme.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/qmlcontext.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/qmlcontext.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/qml/qml.qrc
   ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.qrc
 )
 set_target_properties(gittide_ui PROPERTIES AUTOMOC ON AUTORCC ON)
 target_include_directories(gittide_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(gittide_ui PUBLIC cxx_std_23)
 target_link_libraries(gittide_ui PUBLIC
-  gittide_core Qt6::Widgets Qt6::Concurrent Qt6::Svg QCoro6::Core)
+  gittide_core Qt6::Widgets Qt6::Concurrent Qt6::Svg Qt6::Qml Qt6::Quick Qt6::QuickControls2 QCoro6::Core)

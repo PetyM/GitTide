@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitTide — overlays v2</title>
+<style>
+  :root{
+    --base:#0B1623; --raised:#11202F; --overlay:#16293B;
+    --border:#1E3245; --txt:#C9D1D9; --txt2:#8B949E; --txt3:#6E7681;
+    --accent:#22D3EE; --accentHover:#4DDFF2; --head:#FFFFFF;
+    --added:#3FB950; --modified:#D29922; --deleted:#F85149;
+    --untracked:#6E7681; --conflict:#DB6D28;
+    /* graph lane palette (graph is the one place we use >1 hue) */
+    --lane0:#22D3EE; --lane1:#A371F7; --lane2:#3FB950; --lane3:#D29922; --lane4:#F778BA;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Noto Sans",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans); font-size:13px; color:var(--txt); background:var(--base);
+    background-image:radial-gradient(1200px 700px at 70% -10%, #13283b 0%, rgba(19,40,59,0) 60%);
+    -webkit-font-smoothing:antialiased; padding:28px; min-height:100vh}
+  h2.title{font-weight:700; font-size:16px; margin-bottom:4px}
+  .lead{color:var(--txt2); margin-bottom:22px}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start}
+  .label{color:var(--txt3); text-transform:uppercase; font-size:11px; letter-spacing:.7px; font-weight:600; margin-bottom:10px}
+  .stage{position:relative; background:rgba(11,22,35,.5); border:1px solid var(--border); border-radius:14px;
+    min-height:300px; padding:18px; overflow:hidden}
+
+  /* ───────── multi-color graph ───────── */
+  .graphstage{display:flex; gap:0; min-height:auto; padding:0; overflow:hidden}
+  .graphrows{flex:1}
+  .grow{height:50px; padding:0 14px 0 96px; display:flex; align-items:center; gap:10px; position:relative;
+    border-left:2px solid transparent}
+  .grow.sel{background:var(--raised); border-left:2px solid var(--accent)}
+  .grow .msg{flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .grow .who{color:var(--txt3); font-size:11px} .grow .oid{font-family:var(--mono);color:var(--txt3);font-size:11px}
+  .ggraph{position:absolute; left:0; top:0; z-index:1; pointer-events:none}
+
+  .branchbtn{display:inline-flex;align-items:center;gap:10px; padding:9px 14px; border-radius:8px;
+    background:linear-gradient(180deg, rgba(34,211,238,.16), rgba(34,211,238,.08));
+    border:1px solid rgba(34,211,238,.45); color:var(--txt); cursor:pointer; font-weight:700;
+    box-shadow:0 0 0 1px rgba(34,211,238,.08), 0 6px 18px rgba(34,211,238,.12)}
+  .branchbtn .ic{color:var(--accent)} .branchbtn .chev{color:var(--accent);font-weight:400}
+
+  /* popover menu */
+  .menu{position:absolute; width:300px; max-height:360px; overflow:auto; background:var(--overlay);
+    border:1px solid var(--border); border-radius:10px;
+    box-shadow:0 18px 48px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.3); padding:6px; z-index:5}
+  .menu .search{margin:4px 4px 8px; padding:7px 10px; background:var(--base); border:1px solid var(--border);
+    border-radius:6px; color:var(--txt3)}
+  .mhead{padding:8px 10px 4px; color:var(--txt3); text-transform:uppercase; font-size:10px; letter-spacing:.7px; font-weight:700}
+  .mi{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; cursor:pointer;
+    border-left:2px solid transparent; white-space:nowrap}
+  .mi:hover{background:rgba(34,211,238,.08)}
+  .mi.cur{border-left:2px solid var(--accent); background:rgba(34,211,238,.06)}
+  .mi .ic{color:var(--txt2); flex:0 0 auto} .mi.cur .ic{color:var(--accent)}
+  .mi .nm{flex:1; overflow:hidden; text-overflow:ellipsis}
+  .mi .check{color:var(--accent)} .mi .ahead{color:var(--txt3); font-size:11px; font-family:var(--mono)}
+  .mi.remote{color:var(--txt2)} .mi.remote .ic{color:var(--txt3)}
+  .mi .wt{font-size:10px; color:var(--txt3); border:1px solid var(--border); border-radius:5px; padding:1px 6px; font-family:var(--mono)}
+  .msep{height:1px; background:var(--border); margin:6px 6px; opacity:.7}
+  .mi.sentinel{color:var(--txt2)} .mi.sentinel .ic{color:var(--txt3)}
+
+  /* modal dialog */
+  .scrim{position:absolute; inset:0; background:rgba(4,9,15,.6); backdrop-filter:blur(2px);
+    display:flex; align-items:center; justify-content:center; z-index:6}
+  .dialog{width:368px; background:var(--raised); border:1px solid var(--border); border-radius:18px;
+    box-shadow:0 24px 70px rgba(0,0,0,.6); padding:22px; max-height:100%; overflow:auto}
+  .dialog h3{font-size:16px; font-weight:700; margin-bottom:4px}
+  .dialog p.hint{color:var(--txt2); font-size:12px; margin-bottom:16px}
+  .field{margin-bottom:14px}
+  .field label{display:block; color:var(--txt2); font-size:12px; margin-bottom:6px}
+  .field input{width:100%; background:var(--base); border:1px solid var(--border); border-radius:6px;
+    color:var(--txt); padding:9px 11px; font-family:var(--sans); font-size:13px}
+  .field input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(34,211,238,.35)}
+  /* ref picker control */
+  .refpick{width:100%; display:flex; align-items:center; gap:9px; background:var(--base); border:1px solid var(--border);
+    border-radius:6px; color:var(--txt); padding:9px 11px; cursor:pointer}
+  .refpick .ic{color:var(--accent)} .refpick .chev{margin-left:auto; color:var(--txt2)}
+  .refpick small{color:var(--txt3)}
+  .check{display:flex; align-items:center; gap:9px; color:var(--txt); margin-bottom:18px; cursor:pointer}
+  .check .box{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--accent);background:var(--accent);
+    display:flex;align-items:center;justify-content:center;color:#06202a;font-size:11px;font-weight:700}
+  .check .box.off{background:transparent}
+  .warnbar{display:flex; gap:9px; align-items:flex-start; background:rgba(210,153,34,.1); border:1px solid rgba(210,153,34,.4);
+    border-radius:8px; padding:10px 12px; margin-bottom:16px; color:#e8c879; font-size:12px}
+  .actions{display:flex; gap:10px; justify-content:flex-end}
+  .btn{padding:9px 16px; border-radius:6px; font-weight:600; cursor:pointer; border:1px solid transparent}
+  .btn.secondary{background:transparent; border-color:var(--border); color:var(--txt)}
+  .btn.secondary:hover{background:var(--base)}
+  .btn.primary{background:linear-gradient(180deg,var(--accentHover),var(--accent)); color:#06202a; border:0;
+    box-shadow:0 4px 14px rgba(34,211,238,.25)}
+  .btn.danger{background:var(--deleted); color:#2a0606; border:0}
+  .btn.danger:hover{filter:brightness(1.08)}
+  .armhint{color:var(--txt3); font-size:11px; margin-right:auto; align-self:center}
+
+  .progress{height:8px; border-radius:6px; background:var(--base); border:1px solid var(--border);
+    overflow:hidden; margin:14px 0 8px}
+  .progress > i{display:block; height:100%; width:62%;
+    background:linear-gradient(90deg,var(--accent),var(--accentHover)); border-radius:6px}
+  .pr2{color:var(--txt3); font-size:12px; font-family:var(--mono)}
+</style>
+</head>
+<body>
+  <h2 class="title">Overlays v2 + multi-color graph</h2>
+  <p class="lead">Graph lane palette · branch dropdown grouped Local / Worktrees / Remote · base-ref picker · delete without typing.</p>
+
+  <!-- multi-color graph -->
+  <div class="label">Commit graph — multi-color lanes (HEAD stays white)</div>
+  <div class="stage graphstage" style="max-width:620px; margin-bottom:26px">
+    <div style="position:relative; width:100%">
+      <svg class="ggraph" width="96" height="300" viewBox="0 0 96 300">
+        <line x1="20" y1="6" x2="20" y2="294" stroke="var(--lane0)" stroke-width="2"/>
+        <path d="M20,175 C44,167 44,150 44,128 L44,70 C44,46 32,34 20,26" fill="none" stroke="var(--lane1)" stroke-width="2"/>
+        <path d="M44,128 C60,122 66,112 66,96 L66,80" fill="none" stroke="var(--lane2)" stroke-width="2"/>
+        <circle cx="20" cy="26"  r="6" fill="#FFFFFF"/>
+        <circle cx="20" cy="76"  r="5" fill="#0B1623" stroke="var(--lane0)" stroke-width="2.5"/>
+        <circle cx="66" cy="80"  r="5" fill="#0B1623" stroke="var(--lane2)" stroke-width="2.5"/>
+        <circle cx="44" cy="128" r="5" fill="#0B1623" stroke="var(--lane1)" stroke-width="2.5"/>
+        <circle cx="44" cy="175" r="5" fill="#0B1623" stroke="var(--lane1)" stroke-width="2.5"/>
+        <circle cx="20" cy="225" r="5" fill="#0B1623" stroke="var(--lane0)" stroke-width="2.5"/>
+        <circle cx="20" cy="275" r="5" fill="#0B1623" stroke="var(--lane0)" stroke-width="2.5"/>
+      </svg>
+      <div class="graphrows">
+        <div class="grow sel"><span class="msg">Merge 'feat/diff-colors' + 'feat/avatars'</span><span class="who">MP · 2h</span><span class="oid">8f7f5d8</span></div>
+        <div class="grow"><span class="msg">feat(ui): gravatar in commit list</span><span class="who">MP · 4h</span><span class="oid">7386da6</span></div>
+        <div class="grow"><span class="msg">feat(ui): avatar fetch + cache</span><span class="who">JK · 6h</span><span class="oid">a1b2c3d</span></div>
+        <div class="grow"><span class="msg">feat(ui): colored diff backgrounds</span><span class="who">JK · 1d</span><span class="oid">f028f4f</span></div>
+        <div class="grow"><span class="msg">feat(core): diff line classification</span><span class="who">JK · 1d</span><span class="oid">80fb496</span></div>
+        <div class="grow"><span class="msg">refactor: extract DiffEngine</span><span class="who">MP · 2d</span><span class="oid">15a5696</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- branch dropdown grouped -->
+    <div>
+      <div class="label">Branch dropdown — Local / Worktrees / Remote</div>
+      <div class="stage" style="min-height:430px">
+        <button class="branchbtn"><span class="ic">⎇</span> main <span class="chev">▾</span></button>
+        <div class="menu" style="left:18px; top:62px">
+          <div class="search">Filter branches…</div>
+          <div class="mhead">Local</div>
+          <div class="mi cur"><span class="ic">⎇</span><span class="nm">main</span><span class="check">✓</span></div>
+          <div class="mi"><span class="ic">⎇</span><span class="nm">feat/diff-colors</span><span class="ahead">↑3</span></div>
+          <div class="mi"><span class="ic">⎇</span><span class="nm">fix/windows-paths</span><span class="ahead">↓1</span></div>
+          <div class="mhead">Worktrees</div>
+          <div class="mi"><span class="ic">⧉</span><span class="nm">feat/big-feature</span><span class="wt">~/wt/big</span></div>
+          <div class="mhead">Remote · origin</div>
+          <div class="mi remote"><span class="ic">☁</span><span class="nm">origin/release-1.2</span></div>
+          <div class="mi remote"><span class="ic">☁</span><span class="nm">origin/hotfix-payments</span></div>
+          <div class="msep"></div>
+          <div class="mi sentinel"><span class="ic">＋</span><span class="nm">New branch…</span></div>
+          <div class="mi sentinel"><span class="ic">✎</span><span class="nm">Rename current…</span></div>
+          <div class="mi sentinel"><span class="ic">🗑</span><span class="nm">Delete…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- new branch with base picker -->
+    <div>
+      <div class="label">New-branch dialog — with "Create from" picker</div>
+      <div class="stage" style="min-height:430px">
+        <div class="scrim">
+          <div class="dialog">
+            <h3>New branch</h3>
+            <p class="hint">Create a new branch in <b>gittide</b>.</p>
+            <div class="field">
+              <label>Branch name</label>
+              <input value="feat/inline-staging">
+            </div>
+            <div class="field">
+              <label>Create from</label>
+              <div class="refpick"><span class="ic">⎇</span><span>main</span><small>· current branch</small><span class="chev">▾</span></div>
+            </div>
+            <div class="check"><span class="box">✓</span> Switch to the new branch</div>
+            <div class="actions">
+              <button class="btn secondary">Cancel</button>
+              <button class="btn primary">Create branch</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- delete (no typing) -->
+  <div style="margin-top:26px; max-width:520px">
+    <div class="label">Delete branch — double-confirm, no typing</div>
+    <div class="stage" style="min-height:300px">
+      <div class="scrim">
+        <div class="dialog">
+          <h3>Delete branch</h3>
+          <p class="hint">Delete <b>feat/diff-colors</b>?</p>
+          <div class="warnbar"><span>⚠</span><span>Not fully merged into <b>main</b> — unmerged commits will be lost.</span></div>
+          <div class="check"><span class="box off"></span> Don't ask for confirmation again</div>
+          <div class="actions">
+            <span class="armhint">Click again to confirm</span>
+            <button class="btn secondary">Cancel</button>
+            <button class="btn danger">Delete branch</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- clone (full width row, roomy) -->
+  <div style="margin-top:26px">
+    <div class="label">Clone progress modal — padded, full width</div>
+    <div class="stage" style="min-height:240px; display:flex; align-items:center; justify-content:center">
+      <div class="dialog" style="width:480px; max-width:100%">
+        <h3>Cloning repository</h3>
+        <p class="hint" style="margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">github.com/acme/mobile-app → ~/work/mobile-app</p>
+        <div class="progress"><i></i></div>
+        <div class="pr2" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Receiving objects: 62% (4 210 / 6 790), 18.4 MiB | 6.2 MiB/s</div>
+        <div class="actions" style="margin-top:16px">
+          <button class="btn secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

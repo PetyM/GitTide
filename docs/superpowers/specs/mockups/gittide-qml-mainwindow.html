@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitTide — main window v4</title>
+<style>
+  :root{
+    --base:#0B1623; --raised:#11202F; --overlay:#16293B;
+    --border:#1E3245; --txt:#C9D1D9; --txt2:#8B949E; --txt3:#6E7681;
+    --accent:#22D3EE; --accentHover:#4DDFF2; --head:#FFFFFF;
+    --added:#3FB950; --modified:#D29922; --deleted:#F85149;
+    --untracked:#6E7681; --conflict:#DB6D28;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI","Noto Sans",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans); font-size:13px; color:var(--txt); background:var(--base);
+    background-image:radial-gradient(1200px 700px at 70% -10%, #13283b 0%, rgba(19,40,59,0) 60%);
+    -webkit-font-smoothing:antialiased; overflow:hidden}
+  .win{display:grid; grid-template-columns:272px 1fr; height:100vh}
+
+  .sidebar{background:linear-gradient(180deg,#12222f 0%, #0e1c29 100%);
+    border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0}
+  .brand{display:flex; align-items:center; gap:10px; padding:16px 16px 12px}
+  .brand .mark{width:26px;height:26px;flex:0 0 auto}
+  .brand .word{font-weight:700; font-size:16px; letter-spacing:.2px}
+  .brand .word b{color:var(--accent)}
+
+  .switcher{margin:4px 12px 12px; padding:9px 12px; border:1px solid var(--border);
+    border-radius:6px; background:var(--raised); display:flex; align-items:center; justify-content:space-between;
+    color:var(--txt); cursor:pointer}
+  .switcher:hover{border-color:#2a4a64}
+  .switcher .cap{display:flex;flex-direction:column;line-height:1.25}
+  .switcher .cap small{color:var(--txt3); font-size:11px}
+  .switcher .chev{color:var(--txt2)}
+
+  .reposcroll{flex:1 1 auto; overflow:auto; padding:0 8px}
+  .grouphead{padding:10px 8px 6px; color:var(--txt3); text-transform:uppercase; font-size:11px;
+    letter-spacing:.7px; font-weight:600}
+
+  .repo{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px;
+    color:var(--txt); cursor:pointer; position:relative; border-left:2px solid transparent}
+  .repo .tw{width:12px;flex:0 0 auto;color:var(--txt3);font-size:10px;text-align:center}
+  .repo .ic{color:var(--txt2); flex:0 0 auto; font-size:15px}
+  .repo:hover{background:rgba(34,211,238,.06)}
+  .repo.sel{background:var(--raised); border-left:2px solid var(--accent)}
+  .repo.sel .ic{color:var(--accent)}
+  .repo .nm{flex:1; min-width:0}
+  .repo .nm small{display:block;color:var(--txt3);font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .repo.missing{color:var(--txt3)}
+  .repo .warn{margin-left:auto;color:var(--modified)}
+  .reposep{height:1px; background:var(--border); opacity:.5; margin:6px 12px}
+
+  /* nested submodule subtrees — each level indents + draws its own guide rail */
+  .subtree{position:relative; margin:2px 0 2px 19px; padding-left:13px}
+  .subtree::before{content:""; position:absolute; left:0; top:2px; bottom:10px; width:1px; background:var(--border)}
+  .sub{display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px;
+    color:var(--txt); cursor:pointer; position:relative; border-left:2px solid transparent}
+  .sub:hover{background:rgba(34,211,238,.06)}
+  .sub::before{content:""; position:absolute; left:-13px; top:50%; width:11px; height:1px; background:var(--border)}
+  .sub .tw{width:12px;flex:0 0 auto;color:var(--txt3);font-size:10px;text-align:center}
+  .sub .ic{color:var(--accent); opacity:.7; flex:0 0 auto; font-size:14px}
+  .sub .nm{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .sub .oid{font-family:var(--mono); font-size:11px; color:var(--txt3)}
+  .sub .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .sub .dot.dirty{background:var(--modified)} .sub .dot.clean{background:var(--added);opacity:.55}
+
+  .addrepo{padding:6px 8px 10px}
+  .addbtn{width:100%; display:flex;align-items:center;justify-content:center; gap:8px;
+    padding:9px; border:1px dashed var(--border); border-radius:10px; background:transparent;
+    color:var(--txt2); cursor:pointer; font-weight:600}
+  .addbtn:hover{border-color:var(--accent); color:var(--accent); background:rgba(34,211,238,.05)}
+  .railtoggle{border-top:1px solid var(--border); padding:10px 16px; color:var(--txt2);
+    display:flex; align-items:center; gap:8px; cursor:pointer}
+  .railtoggle:hover{color:var(--txt)}
+
+  .main{display:flex; flex-direction:column; min-width:0; min-height:0}
+  .branchbar{display:flex; align-items:center; gap:14px; padding:12px 16px;
+    border-bottom:1px solid var(--border); background:rgba(17,32,47,.55)}
+  .branchbtn{display:flex;align-items:center;gap:10px; padding:9px 14px; border-radius:8px;
+    background:linear-gradient(180deg, rgba(34,211,238,.16), rgba(34,211,238,.08));
+    border:1px solid rgba(34,211,238,.45); color:var(--txt); cursor:pointer; font-weight:700;
+    box-shadow:0 0 0 1px rgba(34,211,238,.08), 0 6px 18px rgba(34,211,238,.12)}
+  .branchbtn:hover{border-color:var(--accent)}
+  .branchbtn .ic{color:var(--accent); font-size:15px}
+  .branchbtn .lbl{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
+  .branchbtn .lbl small{font-weight:400;color:var(--txt3);font-size:11px}
+  .branchbtn .chev{color:var(--accent);font-weight:400; margin-left:2px}
+  .bb-spacer{flex:1}
+  .sync{display:flex; border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--raised)}
+  .sync button{display:flex;align-items:center;gap:7px; padding:8px 14px; border:0; background:transparent;
+    color:var(--txt); cursor:pointer; font-weight:600; border-right:1px solid var(--border)}
+  .sync button:last-child{border-right:0}
+  .sync button:hover{background:rgba(34,211,238,.08)}
+  .sync .badge{display:inline-flex;align-items:center;justify-content:center; min-width:18px;height:18px;
+    padding:0 5px; border-radius:9px; background:var(--accent); color:#06202a; font-size:11px; font-weight:700}
+  .sync .ic{color:var(--txt2)} .sync button:hover .ic{color:var(--accent)}
+
+  .tabs{display:flex; gap:4px; padding:0 16px; border-bottom:1px solid var(--border)}
+  .tab{padding:11px 4px; margin-right:18px; color:var(--txt2); cursor:pointer; font-weight:600;
+    border-bottom:2px solid transparent; margin-bottom:-1px}
+  .tab.active{color:var(--txt); border-bottom-color:var(--accent)}
+  .tab .count{color:var(--txt3); font-weight:400; margin-left:6px}
+
+  .body{flex:1 1 auto; min-height:0}
+  .changesBody{display:grid; grid-template-columns:320px 1fr}
+  .historyBody{display:grid; grid-template-columns:316px 248px 1fr}
+
+  /* shared checkbox + avatar */
+  .chk{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--txt3); flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center; color:var(--base); font-size:10px; font-weight:700}
+  .chk.on{background:var(--accent); border-color:var(--accent)}
+  .chk.part{border-color:var(--accent)} .chk.part::after{content:"";width:7px;height:2px;background:var(--accent);border-radius:1px}
+  .avatar{border-radius:50%; flex:0 0 auto; display:flex;align-items:center;justify-content:center;
+    color:#06121b; font-weight:700; font-size:12px}
+
+  .files{border-right:1px solid var(--border); display:flex; flex-direction:column; min-height:0; background:rgba(11,22,35,.4)}
+  .files .hd{padding:9px 14px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border)}
+  .files .hd .chk{margin:0}
+  .files .hd .ttl{color:var(--txt3); font-size:11px; text-transform:uppercase; letter-spacing:.7px; font-weight:600}
+  .files .hd .meta{margin-left:auto; color:var(--txt3); font-size:11px}
+  .filelist{flex:1; overflow:auto}
+  .file{display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; border-left:2px solid transparent}
+  .file:hover{background:rgba(34,211,238,.05)}
+  .file.sel{background:var(--raised); border-left:2px solid var(--accent)}
+  .file .path{flex:1; font-family:var(--mono); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .file .path .dir{color:var(--txt3)}
+  .file .st{width:16px;text-align:center; font-family:var(--mono); font-weight:700; font-size:12px}
+  .st.M{color:var(--modified)} .st.A{color:var(--added)} .st.D{color:var(--deleted)} .st.U{color:var(--untracked)}
+
+  .commitbox{border-top:1px solid var(--border); padding:12px 14px; background:var(--raised)}
+  .summaryrow{display:flex; gap:10px; align-items:flex-start}
+  .summaryrow .avatar{width:30px;height:30px; margin-top:1px}
+  .commitfields{flex:1; min-width:0}
+  .commitfields input,.commitfields textarea{width:100%; background:var(--base); border:1px solid var(--border);
+    border-radius:6px; color:var(--txt); padding:8px 10px; font-family:var(--sans); font-size:13px; resize:none}
+  .commitfields textarea{margin-top:8px; height:52px; color:var(--txt2)}
+  .commitbtn{margin-top:10px; width:100%; padding:9px; border:0; border-radius:6px; cursor:pointer;
+    background:linear-gradient(180deg,var(--accentHover),var(--accent)); color:#06202a; font-weight:700;
+    box-shadow:0 4px 14px rgba(34,211,238,.25)}
+  .commitbtn:hover{filter:brightness(1.05)}
+
+  /* commit graph list (history left pane) */
+  .histlist{position:relative; overflow:auto; border-right:1px solid var(--border)}
+  /* graph sits ON TOP of the row backgrounds (transparent fill), so a selected
+     row's highlight shows through behind the lanes — selection spans the whole row */
+  .graph{position:absolute; left:0; top:0; z-index:1; pointer-events:none}
+  .crow{height:54px; padding:0 14px 0 58px; display:flex; align-items:center; gap:10px;
+    cursor:pointer; border-left:2px solid transparent; overflow:hidden}
+  .crow:hover{background:rgba(34,211,238,.05)}
+  .crow.sel{background:var(--raised); border-left:2px solid var(--accent)}
+  .crow .avatar{width:26px;height:26px}
+  .crow .cmeta{flex:1 1 auto; min-width:0; line-height:1.3}
+  .crow .cmeta .msg{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600}
+  .crow .cmeta .sub{color:var(--txt3); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .crow .oid{font-family:var(--mono); font-size:11px; color:var(--txt3); flex:0 0 auto; white-space:nowrap}
+  .headtag{font-size:10px; font-weight:700; color:var(--head); border:1px solid rgba(255,255,255,.4);
+    border-radius:5px; padding:1px 6px; letter-spacing:.4px; flex:0 0 auto; white-space:nowrap}
+
+  .diff{display:flex; flex-direction:column; min-height:0; min-width:0}
+  .diff .hd{padding:9px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px}
+  .diff .hd .masterwrap{width:24px; display:flex; justify-content:center}
+  .diff .hd .fp{font-family:var(--mono); font-size:12px; color:var(--txt)}
+  .diff .hd .fp .dir{color:var(--txt3)}
+  .diff .hd .pill{margin-left:auto; font-size:11px; color:var(--txt2); border:1px solid var(--border); border-radius:20px; padding:3px 10px}
+  .diffscroll{flex:1; overflow:auto; font-family:var(--mono); font-size:12.5px; line-height:1.55}
+  .hunk{color:var(--accent); background:rgba(34,211,238,.06); padding:4px 0 4px 24px}
+  .ln{display:flex; align-items:stretch; white-space:pre}
+  .ln .lc{width:24px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; opacity:.85}
+  .ln .gut{width:46px; flex:0 0 auto; text-align:right; padding-right:10px; color:var(--txt3); user-select:none}
+  .ln .sign{width:18px;flex:0 0 auto;text-align:center; user-select:none}
+  .ln .code{flex:1; padding-right:14px}
+  .ln.ctx{color:var(--txt2)}
+  .ln.add{background:rgba(63,185,80,.12)} .ln.add .sign{color:var(--added)} .ln.add .code{color:#b9f0c2}
+  .ln.del{background:rgba(248,81,73,.12)} .ln.del .sign{color:var(--deleted)} .ln.del .code{color:#ffc4c1}
+  .ln .lchk{width:14px;height:14px;border-radius:3px;border:1.4px solid var(--txt3)}
+  .ln.add .lchk{background:var(--accent);border-color:var(--accent)}
+  .tok-k{color:#ff7b72} .tok-s{color:#a5d6ff} .tok-f{color:#d2a8ff} .tok-c{color:var(--txt3); font-style:italic}
+
+  .hide{display:none !important}
+</style>
+</head>
+<body>
+<div class="win">
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="9" fill="#0B1623"/>
+        <path d="M6 21c4-7 16-7 20 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9 24c3-5 11-5 14 0" stroke="#22D3EE" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+        <circle cx="16" cy="11" r="3" fill="#FFFFFF"/>
+      </svg>
+      <div class="word">Git<b>Tide</b></div>
+    </div>
+
+    <div class="switcher">
+      <div class="cap"><span>Mobile App</span><small>3 repositories</small></div>
+      <span class="chev">▾</span>
+    </div>
+
+    <div class="reposcroll">
+      <div class="grouphead">Repositories</div>
+
+      <div class="repo sel">
+        <span class="tw">▾</span><span class="ic">◧</span>
+        <div class="nm"><span>gittide</span><small>~/Documents/gittide</small></div>
+      </div>
+      <!-- level 1 -->
+      <div class="subtree">
+        <div class="sub">
+          <span class="tw">▾</span><span class="ic">❖</span>
+          <div class="nm"><span>libgit2</span></div>
+          <span class="oid">a3f1c08</span><span class="dot clean"></span>
+        </div>
+        <!-- level 2 -->
+        <div class="subtree">
+          <div class="sub">
+            <span class="tw">▾</span><span class="ic">❖</span>
+            <div class="nm"><span>pcre2</span></div>
+            <span class="oid">5c1d3a9</span><span class="dot clean"></span>
+          </div>
+          <!-- level 3 -->
+          <div class="subtree">
+            <div class="sub">
+              <span class="tw"></span><span class="ic">❖</span>
+              <div class="nm"><span>sljit</span></div>
+              <span class="oid">9f02e74</span><span class="dot dirty"></span>
+            </div>
+          </div>
+          <div class="sub">
+            <span class="tw"></span><span class="ic">❖</span>
+            <div class="nm"><span>http-parser</span></div>
+            <span class="oid">b1182cd</span><span class="dot clean"></span>
+          </div>
+        </div>
+      </div>
+      <!-- another level-1 submodule -->
+      <div class="subtree">
+        <div class="sub">
+          <span class="tw">▸</span><span class="ic">❖</span>
+          <div class="nm"><span>qcoro</span></div>
+          <span class="oid">7e2d9b1</span><span class="dot dirty"></span>
+        </div>
+      </div>
+
+      <div class="reposep"></div>
+      <div class="repo">
+        <span class="tw">▸</span><span class="ic">◧</span>
+        <div class="nm"><span>api-server</span><small>~/work/api-server</small></div>
+      </div>
+
+      <div class="reposep"></div>
+      <div class="repo missing">
+        <span class="tw"></span><span class="ic">◧</span>
+        <div class="nm"><span>legacy-tool</span><small>~/old/legacy-tool</small></div>
+        <span class="warn">⚠</span>
+      </div>
+    </div>
+
+    <div class="addrepo"><button class="addbtn">Add repository</button></div>
+    <div class="railtoggle">⟨ Collapse sidebar</div>
+  </aside>
+
+  <section class="main">
+    <div class="branchbar">
+      <button class="branchbtn">
+        <span class="ic">⎇</span>
+        <span class="lbl"><span>main</span><small>Current branch</small></span>
+        <span class="chev">▾</span>
+      </button>
+      <div class="bb-spacer"></div>
+      <div class="sync">
+        <button><span class="ic">↧</span> Fetch</button>
+        <button><span class="ic">⤓</span> Pull</button>
+        <button><span class="ic">↑</span> Push <span class="badge">2</span></button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" id="tabChanges" onclick="showTab('changes')">Changes <span class="count">4</span></div>
+      <div class="tab" id="tabHistory" onclick="showTab('history')">History</div>
+    </div>
+
+    <!-- ============ CHANGES ============ -->
+    <div class="body changesBody" id="changesBody">
+      <div class="files">
+        <div class="hd">
+          <span class="chk part" title="2 of 4 selected"></span>
+          <span class="ttl">Changed files</span>
+          <span class="meta">2 / 4</span>
+        </div>
+        <div class="filelist">
+          <div class="file sel"><span class="chk on">✓</span><span class="path"><span class="dir">core/src/</span>diffengine.cpp</span><span class="st M">M</span></div>
+          <div class="file"><span class="chk part"></span><span class="path"><span class="dir">ui/src/</span>diffview.cpp</span><span class="st M">M</span></div>
+          <div class="file"><span class="chk on">✓</span><span class="path"><span class="dir">core/include/gittide/</span>diff.hpp</span><span class="st A">A</span></div>
+          <div class="file"><span class="chk"></span><span class="path"><span class="dir">docs/</span>old-notes.md</span><span class="st D">D</span></div>
+        </div>
+        <div class="commitbox">
+          <div class="summaryrow">
+            <span class="avatar" style="background:linear-gradient(135deg,#22D3EE,#3FB950)">MP</span>
+            <div class="commitfields">
+              <input value="Summary (required)" style="color:var(--txt3)">
+              <textarea>Description</textarea>
+            </div>
+          </div>
+          <button class="commitbtn">Commit 2 files to main</button>
+        </div>
+      </div>
+
+      <div class="diff">
+        <div class="hd">
+          <span class="masterwrap"><span class="chk part" title="select all lines"></span></span>
+          <span class="fp"><span class="dir">core/src/</span>diffengine.cpp</span>
+          <span class="pill">+18 −6</span>
+        </div>
+        <div class="diffscroll">
+          <div class="hunk">@@ -42,7 +42,9 @@ DiffResult DiffEngine::compute(...)</div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">42</span><span class="sign"></span><span class="code">    <span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; hunks = patch.hunks();</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">43</span><span class="sign"></span><span class="code">    DiffResult result;</span></div>
+          <div class="ln del"><span class="lc"></span><span class="gut">44</span><span class="sign">−</span><span class="code">    result.lines.reserve(hunks.size());</span></div>
+          <div class="ln add"><span class="lc"><span class="chk on" style="width:14px;height:14px">✓</span></span><span class="gut">44</span><span class="sign">+</span><span class="code">    <span class="tok-c">// pre-size from the real line count</span></span></div>
+          <div class="ln add"><span class="lc"><span class="chk on" style="width:14px;height:14px">✓</span></span><span class="gut">45</span><span class="sign">+</span><span class="code">    result.lines.reserve(totalLines(hunks));</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">46</span><span class="sign"></span><span class="code">    <span class="tok-k">for</span> (<span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; h : hunks)</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">47</span><span class="sign"></span><span class="code">    {</span></div>
+          <div class="ln del"><span class="lc"></span><span class="gut">48</span><span class="sign">−</span><span class="code">        append(result, h);</span></div>
+          <div class="ln add"><span class="lc"><span class="chk" style="width:14px;height:14px"></span></span><span class="gut">49</span><span class="sign">+</span><span class="code">        <span class="tok-k">if</span> (h.<span class="tok-f">valid</span>())</span></div>
+          <div class="ln add"><span class="lc"><span class="chk" style="width:14px;height:14px"></span></span><span class="gut">50</span><span class="sign">+</span><span class="code">            <span class="tok-f">append</span>(result, h);</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">51</span><span class="sign"></span><span class="code">    }</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ HISTORY ============ -->
+    <div class="body historyBody hide" id="historyBody">
+      <!-- commit graph + list -->
+      <div class="histlist">
+        <svg class="graph" width="58" height="328" viewBox="0 0 58 328">
+          <!-- main lane (lane0 = cyan) -->
+          <line x1="18" y1="6" x2="18" y2="322" stroke="#22D3EE" stroke-width="2"/>
+          <!-- feature lane (lane1 = violet): branches at c4 (y243), merges into c0 (y27) -->
+          <path d="M18,243 C40,235 40,220 40,200 L40,70 C40,45 30,35 18,27"
+                fill="none" stroke="#A371F7" stroke-width="2"/>
+          <!-- nodes -->
+          <circle cx="18" cy="27"  r="6" fill="#FFFFFF"/>
+          <circle cx="18" cy="81"  r="5" fill="#0B1623" stroke="#22D3EE" stroke-width="2.5"/>
+          <circle cx="40" cy="135" r="5" fill="#0B1623" stroke="#A371F7" stroke-width="2.5"/>
+          <circle cx="40" cy="189" r="5" fill="#0B1623" stroke="#A371F7" stroke-width="2.5"/>
+          <circle cx="18" cy="243" r="5" fill="#0B1623" stroke="#22D3EE" stroke-width="2.5"/>
+          <circle cx="18" cy="297" r="5" fill="#0B1623" stroke="#22D3EE" stroke-width="2.5"/>
+        </svg>
+
+        <div class="crow sel">
+          <span class="avatar" style="background:linear-gradient(135deg,#22D3EE,#3FB950)">MP</span>
+          <div class="cmeta"><div class="msg">Merge branch 'feat/diff-colors'</div><div class="sub">Michal Peterka · 2 hours ago</div></div>
+          <span class="headtag">HEAD</span>
+          <span class="oid">8f7f5d8</span>
+        </div>
+        <div class="crow">
+          <span class="avatar" style="background:linear-gradient(135deg,#22D3EE,#3FB950)">MP</span>
+          <div class="cmeta"><div class="msg">fix(ui): unify UTF-8 path↔QString conversion</div><div class="sub">Michal Peterka · 5 hours ago</div></div>
+          <span class="oid">7386da6</span>
+        </div>
+        <div class="crow">
+          <span class="avatar" style="background:linear-gradient(135deg,#D29922,#F85149)">JK</span>
+          <div class="cmeta"><div class="msg">feat(ui): colored diff line backgrounds</div><div class="sub">Jana K. · yesterday</div></div>
+          <span class="oid">f028f4f</span>
+        </div>
+        <div class="crow">
+          <span class="avatar" style="background:linear-gradient(135deg,#D29922,#F85149)">JK</span>
+          <div class="cmeta"><div class="msg">feat(core): diff line classification</div><div class="sub">Jana K. · yesterday</div></div>
+          <span class="oid">80fb496</span>
+        </div>
+        <div class="crow">
+          <span class="avatar" style="background:linear-gradient(135deg,#22D3EE,#3FB950)">MP</span>
+          <div class="cmeta"><div class="msg">refactor: extract DiffEngine from GitRepo</div><div class="sub">Michal Peterka · 2 days ago</div></div>
+          <span class="oid">15a5696</span>
+        </div>
+        <div class="crow">
+          <span class="avatar" style="background:linear-gradient(135deg,#6E7681,#8B949E)">AB</span>
+          <div class="cmeta"><div class="msg">chore: bump libgit2 to 1.8.1</div><div class="sub">Auto Bot · 3 days ago</div></div>
+          <span class="oid">c9d10ab</span>
+        </div>
+      </div>
+
+      <!-- read-only changed files of the selected commit -->
+      <div class="files">
+        <div class="hd"><span class="ttl">Files changed</span><span class="meta">3</span></div>
+        <div class="filelist">
+          <div class="file sel"><span class="path"><span class="dir">core/src/</span>diffengine.cpp</span><span class="st M">M</span></div>
+          <div class="file"><span class="path"><span class="dir">core/include/gittide/</span>diff.hpp</span><span class="st A">A</span></div>
+          <div class="file"><span class="path"><span class="dir">ui/src/</span>diffview.cpp</span><span class="st M">M</span></div>
+        </div>
+      </div>
+
+      <!-- read-only diff: NO master checkbox, NO per-line checkboxes -->
+      <div class="diff">
+        <div class="hd">
+          <span class="fp"><span class="dir">core/src/</span>diffengine.cpp</span>
+          <span class="pill">+18 −6</span>
+        </div>
+        <div class="diffscroll">
+          <div class="hunk">@@ -42,7 +42,9 @@ DiffResult DiffEngine::compute(...)</div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">42</span><span class="sign"></span><span class="code">    <span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; hunks = patch.hunks();</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">43</span><span class="sign"></span><span class="code">    DiffResult result;</span></div>
+          <div class="ln del"><span class="lc"></span><span class="gut">44</span><span class="sign">−</span><span class="code">    result.lines.reserve(hunks.size());</span></div>
+          <div class="ln add"><span class="lc"></span><span class="gut">44</span><span class="sign">+</span><span class="code">    <span class="tok-c">// pre-size from the real line count</span></span></div>
+          <div class="ln add"><span class="lc"></span><span class="gut">45</span><span class="sign">+</span><span class="code">    result.lines.reserve(totalLines(hunks));</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">46</span><span class="sign"></span><span class="code">    <span class="tok-k">for</span> (<span class="tok-k">const</span> <span class="tok-k">auto</span>&amp; h : hunks)</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">47</span><span class="sign"></span><span class="code">    {</span></div>
+          <div class="ln del"><span class="lc"></span><span class="gut">48</span><span class="sign">−</span><span class="code">        append(result, h);</span></div>
+          <div class="ln add"><span class="lc"></span><span class="gut">49</span><span class="sign">+</span><span class="code">        <span class="tok-k">if</span> (h.<span class="tok-f">valid</span>())</span></div>
+          <div class="ln add"><span class="lc"></span><span class="gut">50</span><span class="sign">+</span><span class="code">            <span class="tok-f">append</span>(result, h);</span></div>
+          <div class="ln ctx"><span class="lc"></span><span class="gut">51</span><span class="sign"></span><span class="code">    }</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  function showTab(which){
+    var ch = document.getElementById('changesBody'), hi = document.getElementById('historyBody');
+    var tc = document.getElementById('tabChanges'), th = document.getElementById('tabHistory');
+    var changes = which === 'changes';
+    ch.classList.toggle('hide', !changes);
+    hi.classList.toggle('hide', changes);
+    tc.classList.toggle('active', changes);
+    th.classList.toggle('active', !changes);
+  }
+</script>
+</body>
+</html>
