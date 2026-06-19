@@ -40,6 +40,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/historymodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/historylistmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/historylistmodel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/graphcolumn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/graphcolumn.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/graphdelegate.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/graphdelegate.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/historyview.cpp
