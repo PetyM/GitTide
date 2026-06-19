@@ -58,6 +58,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_shell.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 
@@ -68,7 +69,7 @@ if(GITGUI_BUILD_UI)
   set_target_properties(gittide_ui_tests PROPERTIES AUTOMOC ON)
   target_include_directories(gittide_ui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ui ${libgit2_SOURCE_DIR}/include)
   target_link_libraries(gittide_ui_tests PRIVATE
-    gittide_ui Qt6::Widgets Qt6::Test Qt6::Concurrent QCoro6::Core libgit2package)
+    gittide_ui Qt6::Widgets Qt6::Test Qt6::Concurrent Qt6::Qml Qt6::Quick QCoro6::Core libgit2package)
   add_test(NAME gittide_ui_tests COMMAND gittide_ui_tests)
   set_tests_properties(gittide_ui_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()

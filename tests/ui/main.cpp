@@ -38,6 +38,7 @@
 #include "test_theme_style.cpp"
 #include "test_window_manager.cpp"
 #include "test_qml_theme.cpp"
+#include "test_qml_shell.cpp"
 
 #include <QApplication>
 #include <QtTest/QtTest>
@@ -57,6 +58,8 @@ int main(int argc, char** argv)
     // Hold one process-wide libgit2 reference for the whole run. The per-test repo
     // helpers each call git_libgit2_init()/git_libgit2_shutdown(); this anchor keeps
     // the refcount from hitting zero (and tearing down global state) between tests.
+    Q_INIT_RESOURCE(icons);
+    Q_INIT_RESOURCE(qml);
     git_libgit2_init();
     // Ignore the host's system/global/XDG git config so CI's Windows runner (which
     // sets core.autocrlf=true globally) cannot inject the CRLF filter into these
@@ -87,6 +90,7 @@ int main(int argc, char** argv)
     RUN(TestThemeStyle);
     RUN(TestThemeManager);
     RUN(TestQmlTheme);
+    RUN(TestQmlShell);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down
