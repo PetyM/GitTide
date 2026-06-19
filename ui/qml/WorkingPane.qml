@@ -48,15 +48,9 @@ ColumnLayout {
             objectName: "changesTabBody"
         }
 
-        // Index 1: History — placeholder (later plan).
-        Item {
+        // Index 1: History — commit list + graph + read-only commit detail.
+        HistoryPane {
             objectName: "historyTabBody"
-            Label {
-                anchors.centerIn: parent
-                text: "History — coming soon"
-                color: theme.textMuted
-                font.pixelSize: 13
-            }
         }
     }
 }

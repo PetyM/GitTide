@@ -15,5 +15,8 @@
     <file>DeleteBranchDialog.qml</file>
     <file>ChangesPane.qml</file>
     <file>DiffView.qml</file>
+    <file>Avatar.qml</file>
+    <file>HistoryPane.qml</file>
+    <file>CommitDetail.qml</file>
   </qresource>
 </RCC>

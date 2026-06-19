@@ -142,6 +142,10 @@ letter (A / M / D / U / C).
   CTA object names are stable (`createProjectCta`, `addExistingCta`,
   `initRepoCta`, `cloneCta`) so tests keep finding them.
 
+### QML History view
+
+The History tab is implemented in QML (Plan 4 — History Graph). The commit list is a virtualized `ListView`; each row owns a `GraphColumn` (`QQuickPaintedItem`, registered as `GitTide 1.0/GraphColumn`) that paints one `GraphRow`'s lane geometry — pass-through verticals, incoming line, outgoing edges, and the commit dot. Lanes are coloured by `laneColors[lane % laneColors.length]` (the multi-hue `theme.laneColors` list; the only sanctioned multi-colour exception). The HEAD commit's dot is drawn in `theme.head` (white) regardless of lane colour. When a history row is selected, a 2px `accent` `Rectangle` at `x = 0` spans its full height (covering the graph cell), and the row background fills with `surfaceOverlay` — both sit behind the `GraphColumn`'s transparent background so the lane lines remain visible. Avatars use initials on an `accent`-tinted disc (gravatar deferred — `CommitNode` carries no email). The right-hand detail pane (`CommitDetail`) is a read-only view: files in the selected commit, then the diff when a file is picked; it also hosts a secondary **Checkout** button that detaches HEAD at the selected commit.
+
 ## Accessibility
 
 - Body-text contrast ≥ 4.5:1 against its surface (tokens above pass on both

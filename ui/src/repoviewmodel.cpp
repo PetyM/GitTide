@@ -6,6 +6,7 @@
 
 #include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/repocontroller.hpp"
+#include "gittide/ui/historylistmodel.hpp"
 
 namespace gittide::ui {
 
@@ -15,11 +16,17 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_files(new ChangedFilesModel(this))
     , m_diff(new DiffLinesModel(this))
     , m_branches(new BranchListModel(this))
+    , m_history(new HistoryListModel(this))
+    , m_commitFiles(new ChangedFilesModel(this))
+    , m_commitDiff(new DiffLinesModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
+    connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
+    connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
+    connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
@@ -60,13 +67,23 @@ BranchListModel* RepoViewModel::branches() const
     return m_branches;
 }
 
+HistoryListModel* RepoViewModel::history() const
+{
+    return m_history;
+}
+
 void RepoViewModel::open(const QString& path)
 {
+    m_headOid.clear();
+    m_lastLayout     = {};
+    m_headArrived    = false;
+    m_historyArrived = false;
     m_controller->open(path);
     m_open = true;
     emit changed();
     QCoro::connect(m_controller->refreshStatus(), this, [] {});
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
+    QCoro::connect(m_controller->refreshHistory(), this, [] {});
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -170,6 +187,27 @@ void RepoViewModel::renameBranch(const QString& oldName, const QString& newName)
     QCoro::connect(m_controller->renameBranch(oldName, newName), this, [] {});
 }
 
+void RepoViewModel::refreshHistory()
+{
+    QCoro::connect(m_controller->refreshHistory(), this, [] {});
+}
+
+void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
+{
+    m_lastLayout     = layout;
+    m_historyArrived = true;
+    applyHistoryIfReady();
+}
+
+void RepoViewModel::applyHistoryIfReady()
+{
+    // Apply only once both signals for this open() have landed; whichever arrives
+    // last triggers the single setLayout. Works for empty/unborn repos too
+    // (empty layout + empty oid → model reset to zero rows).
+    if (m_headArrived && m_historyArrived)
+        m_history->setLayout(m_lastLayout, m_headOid);
+}
+
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
 {
     m_files->setFiles(files);
@@ -192,6 +230,10 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
 {
+    m_headOid     = QString::fromStdString(head.oid);
+    m_headArrived = true;
+    applyHistoryIfReady();
+
     QString label;
     if (head.unborn)
         label = QStringLiteral("(no commits)");
@@ -258,6 +300,67 @@ void RepoViewModel::recomputeActiveFileState()
     if (row >= 0)
         m_files->setCheckState(row, state);
     emit checkedChanged();
+}
+
+ChangedFilesModel* RepoViewModel::commitFiles() const
+{
+    return m_commitFiles;
+}
+
+DiffLinesModel* RepoViewModel::commitDiff() const
+{
+    return m_commitDiff;
+}
+
+QString RepoViewModel::selectedCommit() const
+{
+    return m_selectedCommit;
+}
+
+QString RepoViewModel::activeCommitFile() const
+{
+    return m_activeCommitFile;
+}
+
+void RepoViewModel::selectCommit(const QString& oid)
+{
+    m_selectedCommit = oid;
+    m_activeCommitFile.clear();
+    // Clear both panes synchronously so the previous commit's files and diff
+    // never linger while the new commit's data loads asynchronously.
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    QCoro::connect(m_controller->refreshCommitFiles(oid), this, [] {});
+}
+
+void RepoViewModel::selectCommitFile(const QString& path)
+{
+    m_activeCommitFile = path;
+    emit activeCommitFileChanged();
+    QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
+}
+
+void RepoViewModel::checkoutCommit(const QString& oid)
+{
+    QCoro::connect(m_controller->checkoutCommit(oid), this, [] {});
+}
+
+void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files)
+{
+    if (oid != m_selectedCommit)
+        return;
+    m_commitFiles->setFiles(files);
+}
+
+void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result)
+{
+    if (oid != m_selectedCommit || path != m_activeCommitFile)
+        return;
+    // Read-only: no checked lines, not whole-file-checked. The QML detail view
+    // hides the per-line checkbox column.
+    m_commitDiff->setDiff(result, {}, false);
 }
 
 } // namespace gittide::ui

@@ -1,7 +1,9 @@
 #include "gittide/ui/qmlcontext.hpp"
 
 #include <QQmlContext>
+#include <QtQml>
 
+#include "gittide/ui/graphcolumn.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmltheme.hpp"
 #include "gittide/ui/repolistmodel.hpp"
@@ -9,8 +11,18 @@
 
 namespace gittide::ui {
 
+void registerQmlTypes()
+{
+    static bool registered = false;
+    if (registered)
+        return;
+    registered = true;
+    qmlRegisterType<GraphColumn>("GitTide", 1, 0, "GraphColumn");
+}
+
 void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoModel, ProjectController* projectController, RepoViewModel* repoVm)
 {
+    registerQmlTypes();
     ctx->setContextProperty(QStringLiteral("theme"), theme);
     ctx->setContextProperty(QStringLiteral("repoModel"), repoModel);
     ctx->setContextProperty(QStringLiteral("projectController"), projectController);
