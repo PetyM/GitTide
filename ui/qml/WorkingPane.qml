@@ -43,8 +43,10 @@ ColumnLayout {
         Layout.fillHeight: true
         currentIndex: tabs.currentIndex
 
-        // Index 0: Changes — filled in by Task 5/6 (ChangesPane).
-        Item { objectName: "changesTabBody" }
+        // Index 0: Changes — ChangesPane (diff column filled in by Task 6).
+        ChangesPane {
+            objectName: "changesTabBody"
+        }
 
         // Index 1: History — placeholder (later plan).
         Item {

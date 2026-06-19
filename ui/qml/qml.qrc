@@ -4,5 +4,6 @@
     <file>Sidebar.qml</file>
     <file>WorkingPane.qml</file>
     <file>BranchBar.qml</file>
+    <file>ChangesPane.qml</file>
   </qresource>
 </RCC>
