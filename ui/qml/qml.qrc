@@ -2,6 +2,11 @@
   <qresource prefix="/qml">
     <file>Main.qml</file>
     <file>Sidebar.qml</file>
+    <file>EmptyState.qml</file>
+    <file>InitRepoDialog.qml</file>
+    <file>CloneRepoDialog.qml</file>
+    <file>CloneProgressDialog.qml</file>
+    <file>NewProjectDialog.qml</file>
     <file>WorkingPane.qml</file>
     <file>BranchBar.qml</file>
     <file>BranchDropdown.qml</file>
