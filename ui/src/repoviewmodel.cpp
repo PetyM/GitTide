@@ -70,6 +70,10 @@ HistoryListModel* RepoViewModel::history() const
 
 void RepoViewModel::open(const QString& path)
 {
+    m_headOid.clear();
+    m_lastLayout     = {};
+    m_headArrived    = false;
+    m_historyArrived = false;
     m_controller->open(path);
     m_open = true;
     emit changed();
@@ -186,12 +190,18 @@ void RepoViewModel::refreshHistory()
 
 void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
 {
-    m_lastLayout = layout;
-    // Only populate the model if we already know HEAD; otherwise onHead will
-    // re-apply once headChanged fires (race-fix: whichever signal arrives last
-    // leaves the model in the correct state with IsHeadRole true).
-    if (!m_headOid.isEmpty())
-        m_history->setLayout(layout, m_headOid);
+    m_lastLayout     = layout;
+    m_historyArrived = true;
+    applyHistoryIfReady();
+}
+
+void RepoViewModel::applyHistoryIfReady()
+{
+    // Apply only once both signals for this open() have landed; whichever arrives
+    // last triggers the single setLayout. Works for empty/unborn repos too
+    // (empty layout + empty oid → model reset to zero rows).
+    if (m_headArrived && m_historyArrived)
+        m_history->setLayout(m_lastLayout, m_headOid);
 }
 
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
@@ -216,12 +226,9 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
 {
-    m_headOid = QString::fromStdString(head.oid);
-    // If history arrived before HEAD, re-apply layout now that we have the oid
-    // so IsHeadRole is correct. If history arrives after, onHistory will use
-    // the already-set m_headOid directly.
-    if (!m_lastLayout.rows.empty())
-        m_history->setLayout(m_lastLayout, m_headOid);
+    m_headOid     = QString::fromStdString(head.oid);
+    m_headArrived = true;
+    applyHistoryIfReady();
 
     QString label;
     if (head.unborn)

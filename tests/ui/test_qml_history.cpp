@@ -56,6 +56,22 @@ inline std::filesystem::path make_dirty_repo()
     git_libgit2_shutdown();
     return dir;
 }
+inline std::filesystem::path make_empty_repo()
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path() / ("gittide-qhe-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    return dir;
+}
 } // namespace qml_history_test
 
 namespace {
@@ -131,6 +147,38 @@ private slots:
         QCOMPARE(vm.history()->data(top, HistoryListModel::IsHeadRole).toBool(), true);
 
         std::filesystem::remove_all(dir);
+    }
+
+    void history_model_is_empty_for_unborn_repo()
+    {
+        const auto dir = qml_history_test::make_empty_repo();
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+        QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
+        std::filesystem::remove_all(dir);
+    }
+
+    void history_model_refreshes_on_reopen()
+    {
+        const auto repoA = qml_history_test::make_dirty_repo(); // 1 commit
+        const auto repoB = qml_history_test::make_empty_repo(); // 0 commits
+        RepoViewModel vm;
+        {
+            QSignalSpy s(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(repoA.generic_string()));
+            QVERIFY(s.wait(3000));
+        }
+        QVERIFY(vm.history()->rowCount(QModelIndex()) >= 1);
+        {
+            QSignalSpy s(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(repoB.generic_string()));
+            QVERIFY(s.wait(3000));
+        }
+        QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
+        std::filesystem::remove_all(repoA);
+        std::filesystem::remove_all(repoB);
     }
 
     void graph_column_unpacks_row_and_sizes_to_lane_count()

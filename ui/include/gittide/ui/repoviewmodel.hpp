@@ -83,6 +83,7 @@ private:
     void onHead(const gittide::HeadState& head);
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
     void onHistory(const gittide::GraphLayout& layout);
+    void applyHistoryIfReady();
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
 
@@ -97,8 +98,15 @@ private:
     HistoryListModel*  m_history    = nullptr;
 
     bool                       m_open = false;
+    // History population is reconciled from two async signals (historyReady and
+    // headChanged) that can arrive in either order. We cache both and apply once
+    // both have landed for the current open(), so IsHeadRole is always correct
+    // and an unborn/empty repo still resets the model. The flags distinguish
+    // "not yet received" from "received but empty" (an unborn HEAD has an empty oid).
     QString                    m_headOid;
     gittide::GraphLayout       m_lastLayout;
+    bool                       m_headArrived    = false;
+    bool                       m_historyArrived = false;
     QString                    m_branch;
     QString                    m_activeFile;
     std::map<QString, FileSel> m_sel;
