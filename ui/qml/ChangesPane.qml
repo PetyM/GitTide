@@ -171,8 +171,8 @@ RowLayout {
         color: theme.border
     }
 
-    // ---- Diff column placeholder (filled in Task 6) ----
-    Item {
+    // ---- Diff column ----
+    DiffView {
         objectName: "diffColumn"
         Layout.fillWidth: true
         Layout.fillHeight: true

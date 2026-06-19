@@ -154,6 +154,35 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void diff_list_binds_to_diff_lines_model()
+    {
+        const auto dir = qml_shell_test::make_dirty_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
+        vm.selectFile(QStringLiteral("a.txt"));
+        QVERIFY(diffSpy.wait(3000));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* diff = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("diffList"));
+        QVERIFY(diff != nullptr);
+        QCOMPARE(diff->property("model").value<QAbstractItemModel*>(), vm.diffLines());
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_qml_shell.moc"
