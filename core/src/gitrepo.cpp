@@ -8,7 +8,10 @@
 #include <git2/reset.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
+#include <git2/worktree.h>
+#include <map>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -39,6 +42,41 @@ gittide::StatusFlag mapStatus(unsigned int s)
     if (s & GIT_STATUS_WT_DELETED)
         f |= StatusFlag::WtDeleted;
     return f;
+}
+
+// Maps each local branch checked out in a *linked* worktree to that worktree's
+// path. Branches not held by any linked worktree are absent from the map.
+std::map<std::string, std::string> worktreeBranchPaths(git_repository* repo)
+{
+    std::map<std::string, std::string> out;
+    git_strarray names = {};
+    if (git_worktree_list(&names, repo) != 0)
+        return out;
+    for (std::size_t i = 0; i < names.count; ++i)
+    {
+        git_worktree* wt = nullptr;
+        if (git_worktree_lookup(&wt, repo, names.strings[i]) != 0)
+            continue;
+        std::unique_ptr<git_worktree, decltype(&git_worktree_free)> wt_guard(wt, git_worktree_free);
+        git_repository* wt_repo = nullptr;
+        if (git_repository_open_from_worktree(&wt_repo, wt) != 0)
+            continue;
+        std::unique_ptr<git_repository, decltype(&git_repository_free)> repo_guard(wt_repo, git_repository_free);
+        git_reference* head = nullptr;
+        if (git_repository_head(&head, wt_repo) == 0 && head)
+        {
+            std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+            if (git_reference_is_branch(head) == 1)
+            {
+                const char* sh = git_reference_shorthand(head);
+                const char* p  = git_worktree_path(wt);
+                if (sh && p)
+                    out[sh] = p;
+            }
+        }
+    }
+    git_strarray_dispose(&names);
+    return out;
 }
 
 int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
@@ -497,6 +535,7 @@ Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
 {
     std::vector<BranchInfo> result;
+    const std::map<std::string, std::string> wtPaths = worktreeBranchPaths(m_repo);
 
     // Enumerate one branch scope (local or remote-tracking), appending to result.
     auto collect = [&](git_branch_t scope, BranchKind kind) -> Expected<void> {
@@ -528,6 +567,8 @@ Expected<std::vector<BranchInfo>> GitRepo::branches() const
                         info.upstream = up_name;
                     git_reference_free(up);
                 }
+                if (const auto wtIt = wtPaths.find(info.name); wtIt != wtPaths.end())
+                    info.worktreePath = wtIt->second;
             }
             result.push_back(std::move(info));
         }

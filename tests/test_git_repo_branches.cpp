@@ -73,6 +73,49 @@ TEST_CASE("branches lists remote-tracking refs and local upstream", "[branches]"
     REQUIRE_FALSE(remote_it->isHead);
 }
 
+TEST_CASE("branches marks a branch checked out in a linked worktree", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+
+    git_repository* raw = nullptr;
+    REQUIRE(git_repository_open(&raw, tmp.path().generic_string().c_str()) == 0);
+
+    // A worktree needs its own branch ref. Create "wt" at HEAD, then add a
+    // linked worktree checked out to it.
+    git_oid head_oid;
+    REQUIRE(git_reference_name_to_id(&head_oid, raw, "HEAD") == 0);
+    git_commit* head_commit = nullptr;
+    REQUIRE(git_commit_lookup(&head_commit, raw, &head_oid) == 0);
+    git_reference* wt_branch = nullptr;
+    REQUIRE(git_branch_create(&wt_branch, raw, "wt", head_commit, 0) == 0);
+
+    const auto  wt_path = tmp.path().parent_path() / (tmp.path().filename().string() + "-wt");
+    git_worktree* wt = nullptr;
+    git_worktree_add_options opts = GIT_WORKTREE_ADD_OPTIONS_INIT;
+    opts.ref = wt_branch;
+    REQUIRE(git_worktree_add(&wt, raw, "wt", wt_path.generic_string().c_str(), &opts) == 0);
+    git_worktree_free(wt);
+    git_reference_free(wt_branch);
+    git_commit_free(head_commit);
+    git_repository_free(raw);
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto list = repo->branches();
+    REQUIRE(list.has_value());
+
+    const auto it = std::find_if(list->begin(), list->end(),
+                                 [](const auto& b) { return b.name == "wt"; });
+    REQUIRE(it != list->end());
+    REQUIRE(it->kind == gittide::BranchKind::Local);
+    REQUIRE_FALSE(it->worktreePath.empty());
+    REQUIRE_FALSE(it->isHead); // the main repo's HEAD is the default branch, not "wt"
+
+    std::filesystem::remove_all(wt_path);
+}
+
 TEST_CASE("createBranch from HEAD makes a listable branch", "[branches]")
 {
     gittide::test::TempRepo tmp;
