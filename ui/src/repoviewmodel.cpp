@@ -339,6 +339,11 @@ void RepoViewModel::selectCommitFile(const QString& path)
     QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
 }
 
+void RepoViewModel::checkoutCommit(const QString& oid)
+{
+    QCoro::connect(m_controller->checkoutCommit(oid), this, [] {});
+}
+
 void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files)
 {
     if (oid != m_selectedCommit)

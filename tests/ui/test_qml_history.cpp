@@ -264,6 +264,25 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void checkout_commit_detaches_head_at_that_commit()
+    {
+        const auto dir = qml_history_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+
+        const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
+        QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
+        vm.checkoutCommit(oid);
+        QVERIFY(branchSpy.wait(3000));
+        // Detached HEAD label is "detached @ <short>".
+        QVERIFY(vm.currentBranch().startsWith(QStringLiteral("detached @ ")));
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_qml_history.moc"

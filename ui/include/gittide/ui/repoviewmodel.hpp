@@ -66,6 +66,7 @@ public:
 
     Q_INVOKABLE void selectCommit(const QString& oid);
     Q_INVOKABLE void selectCommitFile(const QString& path);
+    Q_INVOKABLE void checkoutCommit(const QString& oid);
 
     Q_INVOKABLE void switchBranch(const QString& name);
     Q_INVOKABLE void createBranch(const QString& name, const QString& fromOid, bool checkout);
