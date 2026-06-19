@@ -207,6 +207,62 @@ private slots:
         std::filesystem::remove_all(destDir);
     }
 
+    void startClone_file_url_emits_repoAdded()
+    {
+        // Source repo with one commit (so the clone has content to transfer).
+        auto srcDir = std::filesystem::temp_directory_path() /
+                      ("gittide-pc-sc-src-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::create_directories(srcDir);
+        git_repository* srcRaw = nullptr;
+        git_repository_init(&srcRaw, srcDir.generic_string().c_str(), 0);
+        git_config* cfg = nullptr;
+        git_repository_config(&cfg, srcRaw);
+        git_config_set_string(cfg, "user.name", "T");
+        git_config_set_string(cfg, "user.email", "t@e.x");
+        git_config_free(cfg);
+        {
+            std::ofstream(srcDir / "README") << "hello\n";
+        }
+        git_index* idx = nullptr;
+        git_repository_index(&idx, srcRaw);
+        git_index_add_bypath(idx, "README");
+        git_index_write(idx);
+        git_oid treeOid;
+        git_index_write_tree(&treeOid, idx);
+        git_tree* tree = nullptr;
+        git_tree_lookup(&tree, srcRaw, &treeOid);
+        git_signature* sig = nullptr;
+        git_signature_now(&sig, "T", "t@e.x");
+        git_oid cOid;
+        git_commit_create_v(&cOid, srcRaw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+        git_signature_free(sig);
+        git_tree_free(tree);
+        git_index_free(idx);
+        git_repository_free(srcRaw);
+
+        auto destDir = std::filesystem::temp_directory_path() /
+                       ("gittide-pc-sc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::remove_all(destDir);
+
+        ProjectStore store;
+        auto& p = store.createProject("proj");
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(p.id));
+
+        const auto        srcGeneric = srcDir.generic_string();
+        const std::string srcUrl     = (srcGeneric.starts_with('/') ? "file://" : "file:///") + srcGeneric;
+
+        // startClone is fire-and-forget: it must kick the coroutine itself, so the
+        // signal arrives without the caller awaiting a Task.
+        QSignalSpy added(&controller, &ProjectController::repoAdded);
+        controller.startClone(QString::fromStdString(srcUrl), QString::fromStdString(destDir.generic_string()));
+        QVERIFY(added.wait(5000));
+        QVERIFY(std::filesystem::exists(destDir / ".git"));
+
+        std::filesystem::remove_all(srcDir);
+        std::filesystem::remove_all(destDir);
+    }
+
     void cloneRepo_invalid_url_emits_repoAddFailed()
     {
         ProjectStore store;
