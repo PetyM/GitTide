@@ -201,7 +201,10 @@ void RepoViewModel::onLineToggled(int hunkIndex, int lineIndex, bool checked)
     if (checked)
     {
         if (std::find(lines.begin(), lines.end(), lineIndex) == lines.end())
+        {
             lines.push_back(lineIndex);
+            std::sort(lines.begin(), lines.end());
+        }
     }
     else
     {
