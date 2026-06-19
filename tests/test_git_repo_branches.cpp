@@ -2,6 +2,18 @@
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <algorithm>
+#include <filesystem>
+
+#include <git2.h>
+
+TEST_CASE("BranchInfo defaults to a local branch with no upstream/worktree", "[branches]")
+{
+    gittide::BranchInfo b{};
+    REQUIRE(b.kind == gittide::BranchKind::Local);
+    REQUIRE(b.upstream.empty());
+    REQUIRE(b.worktreePath.empty());
+    REQUIRE_FALSE(b.isHead);
+}
 
 using gittide::GitRepo;
 

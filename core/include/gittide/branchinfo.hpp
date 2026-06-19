@@ -3,11 +3,21 @@
 
 namespace gittide {
 
-// Describes a single local branch.
+// Distinguishes how a branch reference is held in the repository.
+enum class BranchKind
+{
+    Local,          // A local branch (refs/heads/*).
+    RemoteTracking, // A remote-tracking branch (refs/remotes/*), e.g. "origin/main".
+};
+
+// Describes a single branch reference.
 struct BranchInfo
 {
-    std::string name;       // Short branch name (e.g. "main")
-    bool        isHead = false; // True when this branch is the current HEAD
+    std::string name;                    // Short name: "main" or "origin/main".
+    bool        isHead = false;          // True when this branch is the current HEAD (local only).
+    BranchKind  kind   = BranchKind::Local; // Local vs remote-tracking.
+    std::string upstream;                // A local branch's upstream short name, else empty.
+    std::string worktreePath;            // Path of the linked worktree holding this local branch, else empty.
 };
 
 // Describes the current HEAD state of the repository.
