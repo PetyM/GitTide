@@ -71,6 +71,10 @@ private:
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
 
+    // Applies a whole-file check to one row without emitting checkedChanged;
+    // returns true if the row was valid. Callers coalesce the emit.
+    bool applyFileChecked(int row, bool checked);
+
     RepoController*    m_controller = nullptr;
     ChangedFilesModel* m_files      = nullptr;
     DiffLinesModel*    m_diff       = nullptr;
@@ -78,7 +82,6 @@ private:
     bool                       m_open = false;
     QString                    m_branch;
     QString                    m_activeFile;
-    gittide::DiffResult        m_activeDiff;
     std::map<QString, FileSel> m_sel;
 };
 

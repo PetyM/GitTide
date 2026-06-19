@@ -54,6 +54,46 @@ inline std::filesystem::path make_dirty_repo()
     return dir;
 }
 
+// Self-contained repo whose worktree adds two new lines to a one-line committed
+// file, so the diff carries two independently-checkable added lines.
+inline std::filesystem::path make_multiline_repo()
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path() / ("gittide-rvm-ml-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+    {
+        std::ofstream(dir / "a.txt") << "L1\n";
+    }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "a.txt");
+    git_index_write(idx);
+    git_oid tree_oid;
+    git_index_write_tree(&tree_oid, idx);
+    git_tree* tree = nullptr;
+    git_tree_lookup(&tree, raw, &tree_oid);
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
+    git_oid commit_oid;
+    git_commit_create_v(&commit_oid, raw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+    git_signature_free(sig);
+    git_tree_free(tree);
+    git_index_free(idx);
+    git_repository_free(raw);
+    {
+        std::ofstream(dir / "a.txt") << "L1\nL2\nL3\n";
+    }
+    git_libgit2_shutdown();
+    return dir;
+}
+
 } // namespace repo_view_model_test
 
 class TestRepoViewModel : public QObject
@@ -112,6 +152,55 @@ private slots:
 
         // commitSelection refreshes status after committing → worktree clean.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    // Unchecking one of two added lines must drive the file to Partial and stage
+    // only the still-checked line: after a partial commit the file stays dirty
+    // because the unstaged line remains uncommitted in the worktree.
+    void partial_line_staging_commits_only_checked_lines()
+    {
+        using Check = gittide::ui::ChangedFilesModel;
+        const auto dir = repo_view_model_test::make_multiline_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
+
+        QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
+        vm.selectFile(QStringLiteral("a.txt"));
+        QVERIFY(diffSpy.wait(3000));
+
+        // Locate the two checkable (added) rows in the flattened diff model.
+        QList<int> checkable;
+        for (int i = 0; i < vm.diffLines()->rowCount(QModelIndex()); ++i)
+        {
+            const QModelIndex idx = vm.diffLines()->index(i, 0);
+            if (idx.data(gittide::ui::DiffLinesModel::CheckableRole).toBool())
+                checkable.append(i);
+        }
+        QCOMPARE(checkable.size(), 2);
+
+        // File starts whole-checked → every added line is checked.
+        QCOMPARE(vm.changedFiles()->checkState(0), Check::Checked);
+
+        // Uncheck the second added line → file becomes Partial, still counted.
+        QSignalSpy checkedSpy(&vm, &RepoViewModel::checkedChanged);
+        vm.setLineChecked(checkable.at(1), false);
+        QVERIFY(checkedSpy.count() >= 1);
+        QCOMPARE(vm.changedFiles()->checkState(0), Check::Partial);
+        QCOMPARE(vm.checkedCount(), 1);
+
+        // Commit the partial selection; status refresh follows.
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("partial"), QString());
+        QVERIFY(committedSpy.wait(3000));
+
+        // One line was left unstaged → the file is still dirty after the commit.
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         std::filesystem::remove_all(dir);
     }

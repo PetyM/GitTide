@@ -145,7 +145,6 @@ void DiffLinesModel::setLineChecked(int row, bool checked)
 
 void DiffLinesModel::setAllChecked(bool checked)
 {
-    bool any = false;
     for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
     {
         Row& r = m_rows[static_cast<std::size_t>(i)];
@@ -154,10 +153,8 @@ void DiffLinesModel::setAllChecked(bool checked)
             r.checked             = checked;
             const QModelIndex idx = index(i, 0);
             emit dataChanged(idx, idx, {CheckedRole});
-            any = true;
         }
     }
-    Q_UNUSED(any);
 }
 
 int DiffLinesModel::checkableCount() const

@@ -43,7 +43,7 @@ ColumnLayout {
         Layout.fillHeight: true
         currentIndex: tabs.currentIndex
 
-        // Index 0: Changes — ChangesPane (diff column filled in by Task 6).
+        // Index 0: Changes — ChangesPane (file list + colored diff with per-line staging).
         ChangesPane {
             objectName: "changesTabBody"
         }
