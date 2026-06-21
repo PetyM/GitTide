@@ -183,6 +183,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::checkoutBranch(QString name)
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::checkoutRemoteBranch(QString remoteShorthand)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = remoteShorthand.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.checkoutRemoteBranch(n);
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::checkoutCommit(QString oid)
 {
     auto impl = m_impl;

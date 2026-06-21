@@ -84,6 +84,7 @@ public:
     Q_INVOKABLE void checkoutCommit(const QString& oid);
 
     Q_INVOKABLE void switchBranch(const QString& name);
+    Q_INVOKABLE void checkoutRemoteBranch(const QString& remoteShorthand);
     Q_INVOKABLE void createBranch(const QString& name, const QString& fromOid, bool checkout);
     Q_INVOKABLE void deleteBranch(const QString& name, bool force);
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);

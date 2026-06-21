@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <QSignalSpy>
 
+#include "gittide/gitrepo.hpp"
 #include "gittide/ui/historylistmodel.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
 #include "support/temprepo.hpp"
@@ -14,6 +15,7 @@ private slots:
     void aheadBehindMapToProperties();
     void pullRebaseRoundTrips();
     void detachedHeadCannotPublish();
+    void checkoutRemoteBranchCreatesTrackingLocal();
 };
 
 void TestQmlSync::aheadBehindMapToProperties()
@@ -89,6 +91,41 @@ void TestQmlSync::detachedHeadCannotPublish()
     QVERIFY(failSpy.at(0).at(0).toString().contains(QStringLiteral("detached")));
     // onBranch must still be false.
     QVERIFY(!vm.onBranch());
+}
+
+void TestQmlSync::checkoutRemoteBranchCreatesTrackingLocal()
+{
+    using namespace gittide::test;
+
+    // Source repo with master + a remote-only "feature" branch, pushed to a bare.
+    TempRepo src;
+    src.setIdentity("Test", "test@example.com");
+    src.writeFile("a.txt", "one");
+    src.commitAll("c1");
+    auto bare = src.addBareRemote("origin");
+    src.pushBranch("origin", "master");
+    auto srcRepo = gittide::GitRepo::open(src.path());
+    QVERIFY(srcRepo.has_value());
+    QVERIFY(srcRepo->createBranch("feature", "").has_value());
+    src.pushBranch("origin", "feature");
+
+    // A fresh clone has refs/remotes/origin/feature but no local "feature".
+    TempRepo clone;
+    clone.cloneFrom(bare);
+
+    RepoViewModel vm;
+    vm.open(QString::fromStdString(clone.path().generic_string()));
+    QTRY_VERIFY_WITH_TIMEOUT(vm.onBranch(), 5000);
+
+    QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
+    vm.checkoutRemoteBranch(QStringLiteral("origin/feature"));
+
+    // The DWIM checkout creates a local "feature" tracking origin/feature.
+    QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 5000);
+    QVERIFY(vm.onBranch());
+    QTRY_VERIFY_WITH_TIMEOUT(vm.hasUpstream(), 5000);
+    QCOMPARE(vm.aheadCount(), 0);
+    QCOMPARE(vm.behindCount(), 0);
 }
 
 #include "test_qml_sync.moc"

@@ -128,6 +128,14 @@ public:
     // Returns an error if the branch does not exist or the stash-pop conflicts.
     Expected<void> checkoutBranch(std::string name);
 
+    // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
+    // GitHub Desktop: if a local branch of the trailing name already exists it is
+    // simply switched to; otherwise a local branch is created from the remote ref,
+    // its upstream set to that remote ref, and HEAD switched onto it.
+    // remoteShorthand is "<remote>/<branch>" (branch may contain '/').
+    // Returns an error if the remote-tracking ref does not exist.
+    Expected<void> checkoutRemoteBranch(std::string remoteShorthand);
+
     // Detach HEAD at the commit identified by the 40-char hex oid.
     // If the working tree is dirty the changes are auto-stashed and re-applied
     // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.

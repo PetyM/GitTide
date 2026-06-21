@@ -50,6 +50,7 @@ public:
     QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
     QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid);
     QCoro::Task<gittide::Expected<void>> checkoutBranch(QString name);
+    QCoro::Task<gittide::Expected<void>> checkoutRemoteBranch(QString remoteShorthand);
     QCoro::Task<gittide::Expected<void>> checkoutCommit(QString oid);
     QCoro::Task<gittide::Expected<void>> deleteBranch(QString name, bool force);
     QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);

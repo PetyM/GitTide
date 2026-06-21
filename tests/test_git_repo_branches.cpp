@@ -197,3 +197,74 @@ TEST_CASE("renameBranch renames and rejects invalid names", "[branches]")
 
     REQUIRE_FALSE(repo->renameBranch("new", "bad~name", false).has_value());
 }
+
+TEST_CASE("checkoutRemoteBranch creates a tracking local branch and switches to it", "[branches]")
+{
+    // Source repo with master + a feature branch, pushed to a bare remote.
+    gittide::test::TempRepo src;
+    src.writeFile("a.txt", "x\n");
+    src.commitAll("init");
+    auto bare = src.addBareRemote("origin");
+    src.pushBranch("origin", "master");
+
+    auto srcRepo = GitRepo::open(src.path());
+    REQUIRE(srcRepo.has_value());
+    REQUIRE(srcRepo->createBranch("feature", "").has_value());
+    src.pushBranch("origin", "feature");
+
+    // A fresh clone has refs/remotes/origin/feature but no local "feature".
+    gittide::test::TempRepo clone;
+    clone.cloneFrom(bare);
+    auto repo = GitRepo::open(clone.path());
+    REQUIRE(repo.has_value());
+    REQUIRE_FALSE(has(*repo->branches(), "feature")); // remote-only before checkout
+
+    REQUIRE(repo->checkoutRemoteBranch("origin/feature").has_value());
+
+    auto list = repo->branches();
+    REQUIRE(list.has_value());
+    const auto local = std::find_if(list->begin(), list->end(), [](const auto& b) {
+        return b.kind == gittide::BranchKind::Local && b.name == "feature";
+    });
+    REQUIRE(local != list->end());
+    REQUIRE(local->isHead);                       // switched onto it
+    REQUIRE(local->upstream == "origin/feature"); // tracking the remote ref
+    REQUIRE(repo->head()->branch == "feature");
+}
+
+TEST_CASE("checkoutRemoteBranch switches to an existing local branch", "[branches]")
+{
+    gittide::test::TempRepo src;
+    src.writeFile("a.txt", "x\n");
+    src.commitAll("init");
+    auto bare = src.addBareRemote("origin");
+    src.pushBranch("origin", "master");
+
+    auto srcRepo = GitRepo::open(src.path());
+    REQUIRE(srcRepo.has_value());
+    REQUIRE(srcRepo->createBranch("feature", "").has_value());
+    src.pushBranch("origin", "feature");
+
+    gittide::test::TempRepo clone;
+    clone.cloneFrom(bare);
+    auto repo = GitRepo::open(clone.path());
+    REQUIRE(repo.has_value());
+
+    // First call creates+checks out local "feature".
+    REQUIRE(repo->checkoutRemoteBranch("origin/feature").has_value());
+    // Go back to master, then re-checkout the remote ref: must reuse the
+    // existing local branch, not error on a duplicate create.
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    REQUIRE(repo->checkoutRemoteBranch("origin/feature").has_value());
+    REQUIRE(repo->head()->branch == "feature");
+}
+
+TEST_CASE("checkoutRemoteBranch fails for an unknown remote ref", "[branches]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("init");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE_FALSE(repo->checkoutRemoteBranch("origin/nope").has_value());
+}

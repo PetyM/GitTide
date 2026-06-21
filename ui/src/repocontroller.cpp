@@ -212,6 +212,26 @@ QCoro::Task<void> RepoController::switchBranch(QString name)
     co_await refreshBranches();
 }
 
+QCoro::Task<void> RepoController::checkoutRemoteBranch(QString remoteShorthand)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->checkoutRemoteBranch(remoteShorthand);
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshHistory();
+    co_await refreshBranches();
+    // The new local branch tracks the remote ref, so ahead/behind is meaningful.
+    co_await refreshSyncStatus();
+}
+
 QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bool checkout)
 {
     if (!m_repo)

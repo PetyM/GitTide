@@ -44,6 +44,7 @@ public slots:
     QCoro::Task<void> refreshBranches();
     QCoro::Task<void> createBranch(QString name, QString fromOid, bool checkout);
     QCoro::Task<void> switchBranch(QString name);
+    QCoro::Task<void> checkoutRemoteBranch(QString remoteShorthand);
     QCoro::Task<void> checkoutCommit(QString oid);
     QCoro::Task<void> deleteBranch(QString name, bool force);
     QCoro::Task<void> renameBranch(QString oldName, QString newName);

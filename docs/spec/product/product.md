@@ -133,6 +133,13 @@ merge and conflict-resolution UI are separate later wishes.
   work "follows" the user. If re-applying conflicts, it stops, keeps the stash,
   and reports — it never clobbers uncommitted work silently. (This uses git's
   stash internally; it is *not* the user-facing stash feature.)
+- **Check out a remote branch.** The dropdown's **Remote** section lists
+  remote-tracking refs (e.g. `origin/feature`). Picking one is DWIM, à la GitHub
+  Desktop: if a local branch of the same trailing name already exists it is simply
+  switched to; otherwise GitTide creates a local branch from the remote ref, sets
+  its upstream to that ref (so ahead/behind and pull/push resolve immediately),
+  and switches onto it — through the same safe-by-default stash path as a local
+  switch.
 - **Create.** From the branch bar (new branch from current `HEAD`) or from a
   commit's context menu in the History graph ("New branch from here"), optionally
   switching to it.

@@ -182,6 +182,11 @@ void RepoViewModel::switchBranch(const QString& name)
     QCoro::connect(m_controller->switchBranch(name), this, [] {});
 }
 
+void RepoViewModel::checkoutRemoteBranch(const QString& remoteShorthand)
+{
+    QCoro::connect(m_controller->checkoutRemoteBranch(remoteShorthand), this, [] {});
+}
+
 void RepoViewModel::createBranch(const QString& name, const QString& fromOid, bool checkout)
 {
     QCoro::connect(m_controller->createBranch(name, fromOid, checkout), this, [] {});

@@ -3,8 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // Grouped, filterable branch switcher. Sections are Local / Worktrees / Remote
-// (model "section" role). Clicking a local/worktree row switches to it; remote
-// rows are display-only (dimmed). Sentinel rows below a divider raise actions.
+// (model "section" role). Clicking a local/worktree row switches to it; clicking
+// a remote row checks it out (DWIM: create a tracking local branch or switch to
+// an existing one). Sentinel rows below a divider raise actions.
 Popup {
     id: dropdown
     objectName: "branchDropdown"
@@ -83,16 +84,22 @@ Popup {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: 34
-                color: hover.hovered && !model.remote ? theme.surfaceRaised : "transparent"
-                opacity: model.remote ? 0.55 : 1.0
+                color: hover.hovered ? theme.surfaceRaised : "transparent"
+                // Remote-only rows stay slightly dimmed to read as "not yet local",
+                // but are actionable: clicking checks the remote branch out (DWIM —
+                // create a tracking local branch, or switch if one already exists).
+                opacity: model.remote ? 0.8 : 1.0
 
                 HoverHandler { id: hover }
                 MouseArea {
                     anchors.fill: parent
-                    enabled: !model.remote
                     onClicked: {
-                        if (repoVm)
-                            repoVm.switchBranch(model.branchName)
+                        if (repoVm) {
+                            if (model.remote)
+                                repoVm.checkoutRemoteBranch(model.branchName)
+                            else
+                                repoVm.switchBranch(model.branchName)
+                        }
                         dropdown.close()
                     }
                 }

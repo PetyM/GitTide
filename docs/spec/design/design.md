@@ -135,9 +135,12 @@ letter (A / M / D / U / C).
   reads as `surface.raised` with a `border` outline and a branch icon + the branch
   name in `text.primary`; a detached `HEAD` shows `detached @ <short-oid>` (mono
   OID) with a distinct icon — state paired with a cue, never colour alone. Its
-  dropdown is a menu on `surface.overlay`: local branches with the current one
-  marked by an `accent` left border + check icon; a separator; then sentinel rows
-  ("New branch…", "Rename current…", "Delete…") in `text.secondary`.
+  dropdown is a menu on `surface.overlay`, grouped Local / Worktrees / Remote: the
+  current branch is marked by an `accent` left border + check icon; remote-tracking
+  rows carry a `☁` glyph and sit slightly dimmed (they are *not yet local*) yet are
+  fully clickable — picking one checks the remote branch out (DWIM); a separator;
+  then sentinel rows ("New branch…", "Rename current…", "Delete…") in
+  `text.secondary`.
 - **Branch dialogs.** New-branch / rename / delete-confirm follow the dialog
   pattern: `surface.raised` card, radius 18, `border` outline, 2px `accent` focus
   rings. New-branch = name input + a "switch to it" checkbox; an invalid name

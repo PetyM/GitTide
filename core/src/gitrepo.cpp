@@ -825,6 +825,57 @@ Expected<void> GitRepo::checkoutBranch(std::string name)
     return safeSwitch(oid, std::string("refs/heads/") + name);
 }
 
+Expected<void> GitRepo::checkoutRemoteBranch(std::string remoteShorthand)
+{
+    // Derive the local branch name by stripping the leading "<remote>/" segment.
+    // Remote names cannot contain '/', so the first slash is the boundary; the
+    // branch portion may itself contain slashes (e.g. "origin/feature/foo").
+    const auto slash = remoteShorthand.find('/');
+    if (slash == std::string::npos || slash + 1 >= remoteShorthand.size())
+        return std::unexpected(GitError{-1, "not a remote-tracking branch: " + remoteShorthand});
+    const std::string localName = remoteShorthand.substr(slash + 1);
+
+    // DWIM: an existing local branch of that name is simply switched to.
+    git_reference* existing = nullptr;
+    if (git_branch_lookup(&existing, m_repo, localName.c_str(), GIT_BRANCH_LOCAL) == 0)
+    {
+        git_reference_free(existing);
+        return checkoutBranch(localName);
+    }
+
+    // Resolve the remote-tracking ref to its commit.
+    git_reference* remoteRef = nullptr;
+    int rc = git_branch_lookup(&remoteRef, m_repo, remoteShorthand.c_str(), GIT_BRANCH_REMOTE);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> remote_guard(remoteRef, git_reference_free);
+
+    git_oid oid;
+    rc = git_reference_name_to_id(&oid, m_repo, git_reference_name(remoteRef));
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_commit* target = nullptr;
+    rc = git_commit_lookup(&target, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> target_guard(target, git_commit_free);
+
+    // Create the local branch and set its upstream to the remote-tracking ref so
+    // ahead/behind and pull/push resolve without extra configuration.
+    git_reference* localRef = nullptr;
+    rc = git_branch_create(&localRef, m_repo, localName.c_str(), target, /*force=*/0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> local_guard(localRef, git_reference_free);
+
+    rc = git_branch_set_upstream(localRef, remoteShorthand.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    return safeSwitch(oid, std::string("refs/heads/") + localName);
+}
+
 Expected<void> GitRepo::checkoutCommit(std::string oid)
 {
     git_oid target;
