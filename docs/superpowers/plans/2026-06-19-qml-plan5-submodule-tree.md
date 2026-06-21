@@ -1041,13 +1041,46 @@ git commit -m "docs(spec): QML submodule tree in sidebar (Plan 5 outcome + spec)
 
 ## Outcome
 
-_(Fill in during Task 6.)_
-
-- Implemented: …
-- Spec updated: …
-- Code: …
-- Commits: …
-- Carry-forward minors: …
+- **Implemented:** Recursive submodule rendering in the QML sidebar repo tree.
+  Core gained `SubmoduleStatus` / `SubmoduleNode` and `GitRepo::submoduleTree()`
+  (depth-first, opening each initialised submodule as its own repo; pinned short
+  OID from `git_submodule_head_id`, status from `git_submodule_status`). The flat
+  depth-1 `submodules()` was retired. `RepoListModel` became an arbitrary-depth
+  `QAbstractItemModel` over a `unique_ptr<Node>` tree with new roles
+  (`isSubmodule`, `shortOid`, `status`). `Sidebar.qml`'s delegate branches on
+  `isSubmodule` for glyph (`❖` accent @0.7 vs `◧`), mono OID, status dot
+  (`stateModified` dirty / `stateAdded` @0.55 clean), per-level guide rail +
+  elbow, expand-by-default, and a divider between top-level repos.
+- **Spec updated:** `docs/spec/design/design.md` (Repo tree rows — submodule
+  glyph/OID/dot/rail/divider + sanctioned git-state token reuse);
+  `docs/spec/product/product.md` (arbitrary-depth submodules with at-a-glance
+  pinned-commit + clean/dirty/uninitialised state; submodule rows informational,
+  open/checkout deferred).
+- **Code:** `core/include/gittide/submodule.hpp` (new), `core/.../gitrepo.{hpp,cpp}`,
+  `ui/.../repolistmodel.{hpp,cpp}`, `ui/qml/Sidebar.qml`,
+  `tests/support/temprepo.{hpp,cpp}`, `tests/test_temp_repo.cpp`,
+  `tests/test_git_repo_submodules.cpp` (new), `tests/ui/test_repo_list_model.cpp`,
+  `tests/ui/test_qml_shell.cpp`, `tests/CMakeLists.txt`.
+- **Commits:** `4a68795` TempRepo helpers; `115c939` core `submoduleTree()`;
+  `34b6a4b` `RepoListModel` tree + drop core `submodules()`; `61958f5` sidebar
+  delegate; `f464fd7` top-level repo divider.
+- **Carry-forward minors:**
+  - QML status int magic numbers `0/1/2` mirror `SubmoduleStatus` order
+    (`Clean/Dirty/Uninitialized`) — kept as ints across the role boundary.
+  - Rail/elbow `x` geometry (`depth * indentation - 8`) approximated from the
+    mockup; verified to load clean headless + offscreen, but the exact rail offset
+    was **not** pixel-verified by a human — nudge `- 8` if it sits wrong on a real
+    display.
+  - **Deviation from plan Task 3 CMake step:** the UI test sources list is
+    `HEADER_FILE_ONLY` (slot files `#include`d into `ui/main.cpp`), so adding
+    `support/temprepo.cpp` there would not compile/link it. Instead it was added
+    as a real compiled source in `add_executable(gittide_ui_tests …)` and
+    `${CMAKE_CURRENT_SOURCE_DIR}` (tests/) was added to that target's include dirs.
+  - **Test-runner note:** Catch2 cases are registered individually via
+    `catch_discover_tests`; `ctest -R gittide_core_tests` matches nothing — run
+    the binary directly (`./build/tests/gittide_core_tests "[submodules]"`).
+  - Deferred (per design §7): async tree build, submodule open/checkout actions,
+    HEAD-vs-pin distinction beyond the binary dirty flag.
 
 ---
 
