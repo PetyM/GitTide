@@ -252,6 +252,46 @@ private slots:
         QCOMPARE(addCta->property("visible").toBool(), false);
     }
 
+    // The sidebar exposes a project switcher bound to the project model, with
+    // its face reflecting the active project's name.
+    void project_switcher_is_bound_and_shows_active_project()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        gittide::ProjectStore store;
+        auto& a = store.createProject("Work");
+        store.createProject("Play");
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(a.id));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        // The switcher is present and visible (a project is active).
+        QObject* switcher = root->findChild<QObject*>(QStringLiteral("projectSwitcher"));
+        QVERIFY(switcher != nullptr);
+        QCOMPARE(switcher->property("visible").toBool(), true);
+
+        // projectModel is wired to the controller's project model and lists both.
+        auto* pm = engine.rootContext()->contextProperty("projectModel").value<QAbstractItemModel*>();
+        QVERIFY(pm != nullptr);
+        QCOMPARE(pm->rowCount(), 2);
+
+        // The menu and its New/Delete actions exist.
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("projectMenu")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("newProjectItem")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("deleteProjectItem")) != nullptr);
+
+        // The controller surfaces the active project's name for the face.
+        QCOMPARE(controller.activeProjectName(), QStringLiteral("Work"));
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;

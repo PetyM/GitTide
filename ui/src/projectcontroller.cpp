@@ -20,6 +20,17 @@ ProjectController::ProjectController(gittide::ProjectStore* store, std::filesyst
 {
 }
 
+QString ProjectController::activeProjectName() const
+{
+    const std::string id = m_activeId.toStdString();
+    for (const auto& p : m_store->projects())
+    {
+        if (p.id == id)
+            return QString::fromStdString(p.name);
+    }
+    return {};
+}
+
 const std::vector<gittide::RepoRef>& ProjectController::activeRepos() const
 {
     static const std::vector<gittide::RepoRef> kEmpty;

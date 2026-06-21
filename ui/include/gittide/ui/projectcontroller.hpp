@@ -23,6 +23,9 @@ class ProjectController : public QObject
     /// branded empty state on `activeProjectId.length` to choose between the
     /// "Create project" call-to-action and the add-repo actions.
     Q_PROPERTY(QString activeProjectId READ activeProjectId NOTIFY activeProjectChanged)
+    /// Display name of the active project, or empty when none is active. The
+    /// sidebar switcher shows this on its face.
+    Q_PROPERTY(QString activeProjectName READ activeProjectName NOTIFY activeProjectChanged)
 public:
     explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr);
 
@@ -38,6 +41,7 @@ public:
     {
         return m_activeId;
     }
+    QString activeProjectName() const;
     const std::vector<gittide::RepoRef>& activeRepos() const;
 
 public slots:

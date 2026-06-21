@@ -29,6 +29,9 @@ class RepoViewModel : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool repoOpen READ repoOpen NOTIFY changed)
+    /// Path of the open repository (empty when none). The sidebar marks the row
+    /// whose repoPath matches this as the active repo.
+    Q_PROPERTY(QString repoPath READ repoPath NOTIFY changed)
     Q_PROPERTY(QString currentBranch READ currentBranch NOTIFY branchChanged)
     Q_PROPERTY(QString activeFile READ activeFile NOTIFY activeFileChanged)
     Q_PROPERTY(int checkedCount READ checkedCount NOTIFY checkedChanged)
@@ -52,6 +55,7 @@ public:
     explicit RepoViewModel(QObject* parent = nullptr);
 
     bool repoOpen() const;
+    QString repoPath() const;
     QString currentBranch() const;
     QString activeFile() const;
     int checkedCount() const;
@@ -72,6 +76,10 @@ public:
     bool onBranch() const { return !m_headBranch.isEmpty(); }
 
     Q_INVOKABLE void open(const QString& path);
+    /// Reset to the no-repo state: clears the file/diff/branch/history models and
+    /// all selection/sync state so the working pane falls back to the empty state.
+    /// Used when switching to a project that has no repository to show.
+    Q_INVOKABLE void close();
     Q_INVOKABLE void selectFile(const QString& path);
     Q_INVOKABLE void setFileChecked(int row, bool checked);
     Q_INVOKABLE void setAllFilesChecked(bool checked);

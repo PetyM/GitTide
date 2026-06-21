@@ -35,12 +35,23 @@ private slots:
         QCOMPARE(model.data(model.index(1, 0), RepoListModel::PathRole).toString(), QStringLiteral("/no/such/path/gittide-test"));
     }
 
-    void empty_alias_falls_back_to_path()
+    void empty_alias_falls_back_to_directory_basename()
     {
         std::vector<RepoRef> repos{RepoRef{.path = "/home/u/api-server", .alias = ""}};
         RepoListModel model;
         model.setRepos(repos);
-        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("/home/u/api-server"));
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("api-server"));
+    }
+
+    void trailing_slash_path_still_yields_basename()
+    {
+        // Persisted paths can carry a trailing separator (libgit2 workdir, some
+        // folder pickers). The display name must remain the directory's name,
+        // never a blank string.
+        std::vector<RepoRef> repos{RepoRef{.path = "/home/u/api-server/", .alias = ""}};
+        RepoListModel model;
+        model.setRepos(repos);
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("api-server"));
     }
 
     void tree_model_parent_of_top_level_item_is_invalid()

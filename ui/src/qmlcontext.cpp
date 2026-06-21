@@ -6,6 +6,7 @@
 #include "gittide/ui/graphcolumn.hpp"
 #include "gittide/ui/logging.hpp"
 #include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/projectlistmodel.hpp"
 #include "gittide/ui/qmltheme.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
@@ -28,6 +29,7 @@ void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoMod
     ctx->setContextProperty(QStringLiteral("theme"), theme);
     ctx->setContextProperty(QStringLiteral("repoModel"), repoModel);
     ctx->setContextProperty(QStringLiteral("projectController"), projectController);
+    ctx->setContextProperty(QStringLiteral("projectModel"), projectController ? projectController->projects() : nullptr);
     ctx->setContextProperty(QStringLiteral("repoVm"), repoVm);
     ctx->setContextProperty(QStringLiteral("log"), log ? log : new QmlLog(ctx));
 }

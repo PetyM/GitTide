@@ -24,6 +24,7 @@ ApplicationWindow {
             onCloneRequested: cloneRepoDialog.openDialog()
             onInitRequested: initRepoDialog.openDialog()
             onNewProjectRequested: newProjectDialog.openDialog()
+            onDeleteProjectRequested: deleteProjectDialog.open()
         }
 
         WorkingPane {
@@ -81,6 +82,42 @@ ApplicationWindow {
     NewProjectDialog { id: newProjectDialog }
     CredentialDialog { id: credentialDialog }
 
+    // ---- Delete-project confirmation ----
+    Dialog {
+        id: deleteProjectDialog
+        objectName: "deleteProjectDialog"
+        modal: true
+        title: "Delete project"
+        anchors.centerIn: parent
+        width: 400
+        padding: 20
+        background: OverlayCard {}
+
+        contentItem: Label {
+            text: (projectController && projectController.activeProjectName.length > 0)
+                  ? ("Remove the project “" + projectController.activeProjectName
+                     + "”? The repositories stay on disk — only this grouping is removed.")
+                  : "Remove this project?"
+            color: theme.textPrimary
+            wrapMode: Text.WordWrap
+            font.pixelSize: 13
+        }
+
+        footer: RowLayout {
+            spacing: 8
+            Layout.margins: 16
+            Item { Layout.fillWidth: true }
+            Button { text: "Cancel"; onClicked: deleteProjectDialog.reject() }
+            Button {
+                objectName: "deleteProjectConfirm"
+                text: "Delete"
+                onClicked: deleteProjectDialog.accept()
+            }
+        }
+
+        onAccepted: if (projectController) projectController.removeProject()
+    }
+
     // Folder picker for "add existing repository".
     FolderDialog {
         id: addExistingFolder
@@ -91,9 +128,13 @@ ApplicationWindow {
 
     // ---- Auto-open a repository so the main area shows working state ----
     function openFirstRepo() {
-        if (repoVm && projectController && projectController.activeProjectId.length > 0
+        if (!repoVm)
+            return
+        if (projectController && projectController.activeProjectId.length > 0
                 && repoModel && repoModel.rowCount() > 0)
             repoVm.open(repoModel.firstRepoPath())
+        else
+            repoVm.close() // empty/!active project ⇒ clear stale repo view
     }
     Component.onCompleted: openFirstRepo()
 

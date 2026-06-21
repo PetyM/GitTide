@@ -203,7 +203,8 @@ state: its pinned short commit OID and a clean / dirty / uninitialised indicator
 The parent repo shows a submodule as a single changed entry (a pointer move), not
 its recursed internals.
 
-Submodule rows are currently **informational** — there is no open-as-repo or
-checkout action on them yet (deferred). The intent remains that selecting a
-submodule opens it as a first-class repo, reusing the same Changes / History
-machinery.
+Selecting an initialised submodule **opens it as a first-class repo**: its
+working directory is a real git repo, so it becomes the active repo and reuses
+the same Changes / History machinery (and lights up in the tree like any other
+active repo). An uninitialised submodule has nothing on disk and is not openable.
+Checkout actions on the parent's submodule pointer remain deferred.

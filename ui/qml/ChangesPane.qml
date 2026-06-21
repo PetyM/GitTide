@@ -2,15 +2,26 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-RowLayout {
+// Resizable two-pane layout: drag the handle to trade width between the
+// file/commit column and the diff. The diff keeps a generous minimum so it
+// never gets squeezed away.
+SplitView {
     id: changesPane
     objectName: "changesPane"
-    spacing: 0
+    orientation: Qt.Horizontal
 
-    // ---- Files + commit column (fixed width) ----
+    handle: Rectangle {
+        implicitWidth: 3
+        // HoverHandler (rather than the SplitView attached props) keeps the
+        // highlight binding clear of SplitView's handle init-order warning.
+        color: handleHover.hovered ? theme.accent : theme.border
+        HoverHandler { id: handleHover }
+    }
+
+    // ---- Files + commit column (resizable) ----
     ColumnLayout {
-        Layout.preferredWidth: 320
-        Layout.fillHeight: true
+        SplitView.preferredWidth: 300
+        SplitView.minimumWidth: 240
         spacing: 0
 
         // Header with tri-state master checkbox + count
@@ -85,10 +96,12 @@ RowLayout {
                     }
                     Label {
                         Layout.fillWidth: true
+                        // StyledText (unlike RichText) honours elide, so a long
+                        // path truncates instead of overrunning the status letter.
                         elide: Text.ElideMiddle
                         font.family: "monospace"
                         font.pixelSize: 12
-                        textFormat: Text.RichText
+                        textFormat: Text.StyledText
                         text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
                               + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                     }
@@ -164,18 +177,11 @@ RowLayout {
         }
     }
 
-    // Hairline divider
-    Rectangle {
-        Layout.fillHeight: true
-        Layout.preferredWidth: 1
-        color: theme.border
-    }
-
-    // ---- Diff column ----
+    // ---- Diff column (takes the remaining width) ----
     DiffView {
         objectName: "diffColumn"
-        Layout.fillWidth: true
-        Layout.fillHeight: true
+        SplitView.fillWidth: true
+        SplitView.minimumWidth: 360
     }
 
     // Clear the commit fields once a commit succeeds.

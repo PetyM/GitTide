@@ -45,9 +45,16 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
         std::error_code ec;
         const bool present = std::filesystem::exists(p, ec) && !ec;
 
-        auto root         = std::make_unique<Node>();
-        root->displayName = r.alias.empty() ? QString::fromStdString(r.path) : QString::fromStdString(r.alias);
-        root->path        = QString::fromStdString(r.path);
+        // Display name: an explicit alias wins; otherwise the directory's own
+        // name. A path may carry a trailing separator (e.g. "/home/u/api/"),
+        // which leaves path::filename() empty — fall back to the parent's name
+        // so the row never renders blank.
+        std::filesystem::path base = p.has_filename() ? p.filename() : p.parent_path().filename();
+        auto root                  = std::make_unique<Node>();
+        root->displayName          = !r.alias.empty()           ? QString::fromStdString(r.alias)
+                                     : !base.generic_string().empty() ? QString::fromStdString(base.generic_string())
+                                                                       : QString::fromStdString(r.path);
+        root->path                 = QString::fromStdString(r.path);
         root->isSubmodule = false;
         root->missing     = !present;
 

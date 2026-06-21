@@ -61,6 +61,54 @@ private slots:
         QCOMPARE(spy.count(), 0);
     }
 
+    void activeProjectName_tracks_active_project()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects().push_back(Project{.id = "id-b", .name = "Play"});
+
+        ProjectController controller(&store);
+        QCOMPARE(controller.activeProjectName(), QString()); // none active yet
+
+        controller.activate(QStringLiteral("id-b"));
+        QCOMPARE(controller.activeProjectName(), QStringLiteral("Play"));
+
+        controller.activate(QStringLiteral("id-a"));
+        QCOMPARE(controller.activeProjectName(), QStringLiteral("Work"));
+    }
+
+    void removeProject_activates_next_and_updates_name()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects().push_back(Project{.id = "id-b", .name = "Play"});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::projectRemoved);
+        controller.removeProject();
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(store.projects().size(), std::size_t(1));
+        // The surviving project becomes active.
+        QCOMPARE(controller.activeProjectName(), QStringLiteral("Play"));
+    }
+
+    void removeProject_last_one_leaves_no_active()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Solo"});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.removeProject();
+
+        QCOMPARE(store.projects().size(), std::size_t(0));
+        QCOMPARE(controller.activeProjectId(), QString());
+        QCOMPARE(controller.activeProjectName(), QString());
+    }
+
     void createProject_appends_project_and_emits()
     {
         ProjectStore store;

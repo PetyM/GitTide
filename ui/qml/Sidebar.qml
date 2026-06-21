@@ -13,6 +13,7 @@ Rectangle {
     signal cloneRequested()
     signal initRequested()
     signal newProjectRequested()
+    signal deleteProjectRequested()
 
     ColumnLayout {
         anchors.fill: parent
@@ -62,6 +63,70 @@ Rectangle {
             }
         }
 
+        // ---- Project switcher (combo with inline New/Delete items) ----
+        Button {
+            id: projectSwitcher
+            objectName: "projectSwitcher"
+            visible: projectController !== null
+            Layout.fillWidth: true
+            Layout.leftMargin: 16
+            Layout.rightMargin: 16
+            Layout.bottomMargin: 6
+            flat: true
+            contentItem: RowLayout {
+                spacing: 8
+                Label {
+                    text: (projectController && projectController.activeProjectName.length > 0)
+                          ? projectController.activeProjectName : "No project"
+                    color: theme.textPrimary
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: "▾"
+                    color: theme.textSecondary
+                    font.pixelSize: 12
+                }
+            }
+            background: Rectangle {
+                radius: 8
+                color: projectSwitcher.hovered ? theme.surfaceOverlay : theme.surfaceBase
+                border.color: theme.border
+                border.width: 1
+            }
+            onClicked: projectMenu.popup()
+        }
+
+        Menu {
+            id: projectMenu
+            objectName: "projectMenu"
+            // One item per project, kept in sync with the model, then a
+            // separator and the New/Delete actions.
+            Instantiator {
+                model: projectModel
+                delegate: MenuItem {
+                    text: model.display
+                    onTriggered: if (projectController) projectController.activate(model.projectId)
+                }
+                onObjectAdded: (index, object) => projectMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => projectMenu.removeItem(object)
+            }
+            MenuSeparator {}
+            MenuItem {
+                objectName: "newProjectItem"
+                text: "New project…"
+                onTriggered: sidebar.newProjectRequested()
+            }
+            MenuItem {
+                objectName: "deleteProjectItem"
+                text: "Delete current project…"
+                enabled: projectController && projectController.activeProjectId.length > 0
+                onTriggered: sidebar.deleteProjectRequested()
+            }
+        }
+
         // ---- Repo tree ----
         TreeView {
             id: repoTree
@@ -72,21 +137,44 @@ Rectangle {
             clip: true
             model: repoModel
 
-            // Expand every node as rows arrive so nested submodules show by default.
-            onModelChanged: expandRecursively()
+            // TreeView sizes its column to content by default, which leaves the
+            // row (and its active-repo highlight) only as wide as the text. Force
+            // the single column to span the full view width instead.
+            columnWidthProvider: function (column) { return width }
+            onWidthChanged: forceLayout()
+
+            // Expand every node so nested submodules show by default. Deferred via
+            // Qt.callLater: calling expandRecursively() synchronously on model
+            // reset runs before the view has built its rows, so it no-ops.
+            onModelChanged: Qt.callLater(expandRecursively)
             Connections {
                 target: repoModel
-                function onModelReset() { repoTree.expandRecursively() }
+                function onModelReset() { Qt.callLater(repoTree.expandRecursively) }
             }
 
             delegate: TreeViewDelegate {
                 id: row
-                implicitHeight: 34
+                implicitHeight: 30
                 indentation: 16
-                onClicked: if (repoVm && !model.isSubmodule) repoVm.open(model.repoPath)
+                // Selecting a repo — or an initialised submodule — opens it as a
+                // first-class repo and reveals any nested children. An
+                // uninitialised submodule has no repo on disk, so it does nothing.
+                onClicked: {
+                    if (!repoVm || row.uninit)
+                        return
+                    repoVm.open(model.repoPath)
+                    if (row.hasChildren)
+                        repoTree.expand(row.row)
+                }
 
                 readonly property bool isSub: model.isSubmodule === true
                 readonly property bool uninit: isSub && model.status === 2
+                // The repository currently open in the working pane — the row the
+                // user is acting on. Matched by path so it tracks auto-open too,
+                // not just click-selection; a submodule opened as a repo lights up
+                // the same way.
+                readonly property bool activeRepo: repoVm && repoVm.repoOpen
+                                                   && model.repoPath === repoVm.repoPath
 
                 contentItem: RowLayout {
                     spacing: 8
@@ -94,17 +182,18 @@ Rectangle {
                     // Glyph: repository (◧) vs submodule (❖, accent @0.7).
                     Label {
                         text: row.isSub ? "❖" : "◧"
-                        color: row.isSub ? theme.accent : (row.current ? theme.accent : theme.textSecondary)
+                        color: (row.isSub || row.activeRepo) ? theme.accent : theme.textSecondary
                         opacity: row.isSub ? 0.7 : 1.0
                         font.pixelSize: row.isSub ? 14 : 15
                     }
 
                     Label {
-                        text: row.isSub
-                              ? model.display
-                              : (model.repoPath ? model.repoPath.toString().split("/").pop() : "")
+                        // The model already resolves the display name (alias or
+                        // directory basename) for both repos and submodules.
+                        text: model.display
                         color: (model.missing || row.uninit) ? theme.textMuted : theme.textPrimary
                         font.pixelSize: 13
+                        font.weight: row.activeRepo ? Font.DemiBold : Font.Normal
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -137,7 +226,8 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    color: row.current ? theme.surfaceBase : "transparent"
+                    color: row.activeRepo ? theme.surfaceBase
+                         : row.hovered ? theme.surfaceOverlay : "transparent"
                     radius: 10
                     // Divider above each top-level repo after the first.
                     Rectangle {
@@ -150,9 +240,9 @@ Rectangle {
                         color: theme.border
                         opacity: 0.5
                     }
-                    // Selection accent border (repos) at x=0.
+                    // Active-repo accent border (repos) at x=0.
                     Rectangle {
-                        visible: row.current && !row.isSub
+                        visible: row.activeRepo
                         width: 2
                         height: parent.height
                         color: theme.accent
@@ -216,7 +306,6 @@ Rectangle {
         MenuItem { text: "Add existing repository…"; onTriggered: sidebar.addExistingRequested() }
         MenuItem { text: "Initialize new repository…"; onTriggered: sidebar.initRequested() }
         MenuItem { text: "Clone repository…"; onTriggered: sidebar.cloneRequested() }
-        MenuItem { text: "New project…"; onTriggered: sidebar.newProjectRequested() }
     }
 
     // ---- Remove-repo context menu ----

@@ -42,27 +42,43 @@ Item {
             id: tabs
             objectName: "changesTabBar"
             Layout.fillWidth: true
-            background: Rectangle { color: theme.surfaceRaised }
-            TabButton {
-                text: "Changes"
+            spacing: 0
+            background: Rectangle {
+                color: theme.surfaceRaised
+                // Baseline the active-tab underline rides on.
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 1
+                    color: theme.border
+                }
+            }
+
+            // Flat tab: active = text.primary (demibold) over a 2px accent
+            // underline; inactive = text.secondary; hover tints the row.
+            component MainTab: TabButton {
+                id: tabBtn
+                implicitHeight: 36
                 contentItem: Label {
-                    text: parent.text
-                    color: parent.checked ? theme.textPrimary : theme.textMuted
+                    text: tabBtn.text
+                    color: tabBtn.checked ? theme.textPrimary : theme.textSecondary
+                    font.pixelSize: 13
+                    font.weight: tabBtn.checked ? Font.DemiBold : Font.Normal
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                background: Rectangle { color: "transparent" }
-            }
-            TabButton {
-                text: "History"
-                contentItem: Label {
-                    text: parent.text
-                    color: parent.checked ? theme.textPrimary : theme.textMuted
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+                background: Rectangle {
+                    color: (tabBtn.hovered && !tabBtn.checked) ? theme.surfaceOverlay : "transparent"
+                    Rectangle {
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                        height: 2
+                        color: theme.accent
+                        visible: tabBtn.checked
+                    }
                 }
-                background: Rectangle { color: "transparent" }
             }
+
+            MainTab { text: "Changes" }
+            MainTab { text: "History" }
         }
 
         StackLayout {

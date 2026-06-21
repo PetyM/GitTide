@@ -9,6 +9,7 @@
 #include <git2.h>
 
 #include "gittide/ui/repoviewmodel.hpp"
+#include "support/temprepo.hpp"
 
 using gittide::ui::RepoViewModel;
 
@@ -114,6 +115,60 @@ private slots:
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
         QVERIFY(branchSpy.wait(3000));
         QVERIFY(!vm.currentBranch().isEmpty());
+
+        std::filesystem::remove_all(dir);
+    }
+
+    // A submodule's working directory is a real git repo; selecting it in the
+    // tree opens it as a first-class repo (its own Changes/History).
+    void open_submodule_workdir_as_first_class_repo()
+    {
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("child");
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("parent");
+        parent.addSubmodule("libchild", child.path());
+        parent.commitAll("add submodule");
+
+        const auto subWorkdir = parent.path() / "libchild";
+
+        RepoViewModel vm;
+        QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
+        vm.open(QString::fromStdString(subWorkdir.generic_string()));
+        QVERIFY(branchSpy.wait(3000));
+
+        QVERIFY(vm.repoOpen());
+        QCOMPARE(vm.repoPath(), QString::fromStdString(subWorkdir.generic_string()));
+        QVERIFY(!vm.currentBranch().isEmpty());
+    }
+
+    void close_clears_repo_state()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
+        QVERIFY(vm.repoOpen());
+        QCOMPARE(vm.repoPath(), QString::fromStdString(dir.generic_string()));
+
+        // Switching to a project with no repo must wipe the working view.
+        QSignalSpy changedSpy(&vm, &RepoViewModel::changed);
+        vm.close();
+
+        QVERIFY(!vm.repoOpen());
+        QVERIFY(changedSpy.count() >= 1);
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
+        QCOMPARE(vm.diffLines()->rowCount(QModelIndex()), 0);
+        QVERIFY(vm.currentBranch().isEmpty());
+        QVERIFY(vm.activeFile().isEmpty());
+        QVERIFY(vm.repoPath().isEmpty());   // active-repo affordance clears
+        QCOMPARE(vm.pullRebase(), false);   // session state reset
+        QCOMPARE(vm.syncing(), false);
 
         std::filesystem::remove_all(dir);
     }

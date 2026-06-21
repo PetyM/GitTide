@@ -45,6 +45,11 @@ bool RepoViewModel::repoOpen() const
     return m_open;
 }
 
+QString RepoViewModel::repoPath() const
+{
+    return m_open ? m_controller->path() : QString();
+}
+
 QString RepoViewModel::currentBranch() const
 {
     return m_branch;
@@ -94,6 +99,40 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
     QCoro::connect(m_controller->loadPullStrategy(), this, [] {});
     QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
+}
+
+void RepoViewModel::close()
+{
+    m_open = false;
+    m_files->setFiles({});
+    m_sel.clear();
+    m_activeFile.clear();
+    m_diff->clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    m_selectedCommit.clear();
+    m_activeCommitFile.clear();
+    m_branches->setBranches({});
+    m_history->setLayout({}, {});
+    m_branch.clear();
+    m_headBranch.clear();
+    m_headOid.clear();
+    m_lastLayout     = {};
+    m_headArrived    = false;
+    m_historyArrived = false;
+    m_sync           = {};
+    m_syncing        = false;
+    m_pullRebase     = false;
+    m_pendingOp      = PendingOp::None;
+    m_sessionCred    = {};
+    emit changed();
+    emit pullRebaseChanged();
+    emit branchChanged();
+    emit activeFileChanged();
+    emit checkedChanged();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    emit syncStatusChanged();
 }
 
 void RepoViewModel::selectFile(const QString& path)
