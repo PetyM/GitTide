@@ -28,6 +28,7 @@ and it links out to them.
 | [GitHub-Desktop-style UI refactor](github-desktop-ui-refactor.md) | 2026-06-17 | `done` | product, design, engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Logging — categories with per-category and global levels](logging.md) | 2026-06-21 | `done` | engineering, product |
+| [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 
 <!-- Add a row per wish. When a wish reaches `done` or `dropped`, keep it here
 for the record (or move done ones to a "Shipped" section below once there are
