@@ -4,6 +4,8 @@
 #include <git2.h>
 #include <random>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "gittide/pathutil.hpp"
 
@@ -104,6 +106,65 @@ void TempRepo::setIdentity(std::string_view name, std::string_view email)
     check(git_config_set_string(cfg, "user.name", std::string(name).c_str()), "set user.name failed");
     check(git_config_set_string(cfg, "user.email", std::string(email).c_str()), "set user.email failed");
     git_config_free(cfg);
+}
+
+void TempRepo::addSubmodule(std::string_view name, const std::filesystem::path& childRepoPath)
+{
+    // libgit2 clones local paths via a file:// URL.
+    const std::string url     = "file://" + childRepoPath.generic_string();
+    const std::string subName = std::string(name);
+
+    git_submodule* sm = nullptr;
+    check(git_submodule_add_setup(&sm, m_repo, url.c_str(), subName.c_str(), /*use_gitlink=*/1),
+          "git_submodule_add_setup failed");
+
+    git_repository* subRepo = nullptr;
+    check(git_submodule_clone(&subRepo, sm, nullptr), "git_submodule_clone failed");
+    git_repository_free(subRepo);
+
+    check(git_submodule_add_finalize(sm), "git_submodule_add_finalize failed");
+    git_submodule_free(sm);
+}
+
+namespace {
+// Clone+checkout uninitialised submodules of `repo`, then recurse into each.
+void updateRecursive(git_repository* repo)
+{
+    struct Payload
+    {
+        std::vector<std::string> names;
+    } payload;
+
+    git_submodule_foreach(
+        repo,
+        [](git_submodule* /*sm*/, const char* name, void* pl) -> int
+        {
+            static_cast<Payload*>(pl)->names.emplace_back(name);
+            return 0;
+        },
+        &payload);
+
+    for (const auto& n : payload.names)
+    {
+        git_submodule* sm = nullptr;
+        if (git_submodule_lookup(&sm, repo, n.c_str()) != 0)
+            continue;
+        git_submodule_update_options opts = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+        git_submodule_update(sm, /*init=*/1, &opts); // best-effort
+        git_repository* sub = nullptr;
+        if (git_submodule_open(&sub, sm) == 0)
+        {
+            updateRecursive(sub);
+            git_repository_free(sub);
+        }
+        git_submodule_free(sm);
+    }
+}
+} // namespace
+
+void TempRepo::updateSubmodulesRecursive()
+{
+    updateRecursive(m_repo);
 }
 
 } // namespace gittide::test
