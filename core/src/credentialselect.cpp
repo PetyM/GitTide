@@ -2,6 +2,8 @@
 
 #include <git2.h>
 
+#include "gittide/log.hpp"
+
 namespace gittide {
 
 namespace {
@@ -21,9 +23,16 @@ bool isSshUrl(std::string_view url)
 CredentialKind chooseCredential(std::string_view url, unsigned allowedTypes, const Credentials& cred)
 {
     if (isSshUrl(url) && cred.sshUseAgent && (allowedTypes & GIT_CREDENTIAL_SSH_KEY))
+    {
+        logf(LogLevel::Debug, logcat::AUTH, "selecting ssh-agent credential (allowed types {:#x})", allowedTypes);
         return CredentialKind::SshAgent;
+    }
     if ((allowedTypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) && !cred.username.empty() && !cred.password.empty())
+    {
+        logf(LogLevel::Debug, logcat::AUTH, "selecting https userpass credential for user '{}'", cred.username);
         return CredentialKind::UserPass;
+    }
+    logf(LogLevel::Warning, logcat::AUTH, "no usable credential for remote (allowed types {:#x})", allowedTypes);
     return CredentialKind::None;
 }
 

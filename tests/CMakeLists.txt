@@ -3,6 +3,7 @@ add_executable(gittide_core_tests
   test_libgit2.cpp
   test_path_util.cpp
   test_git_error.cpp
+  test_log.cpp
   test_temp_repo.cpp
   test_git_repo.cpp
   test_diff_engine.cpp
@@ -56,6 +57,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_lines_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_view_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_list_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_logging.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

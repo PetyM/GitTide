@@ -6,6 +6,7 @@
 #include <QPointer>
 
 #include "gittide/graphbuilder.hpp"
+#include "gittide/log.hpp"
 #include "gittide/ui/metatypes.hpp"
 
 namespace {
@@ -47,6 +48,7 @@ void RepoController::open(const QString& path)
     {
         m_repo.reset();
         m_path.clear();
+        logf(LogLevel::Warning, logcat::UI, "open repo '{}' failed: {}", path.toStdString(), result.error().message);
         emit repoFailed(path, QString::fromStdString(result.error().message));
         return;
     }
@@ -415,12 +417,14 @@ QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
         co_return;
     QPointer<RepoController> self = this;
     emit syncBusyChanged(true);
+    logf(LogLevel::Info, logcat::ASYNC, "fetch from 'origin' started");
     auto r = co_await m_repo->fetch(QStringLiteral("origin"), cred);
     if (!self)
         co_return;
     emit syncBusyChanged(false);
     if (!r)
     {
+        logf(LogLevel::Warning, logcat::ASYNC, "fetch failed: {}", r.error().message);
         if (isAuthError(r.error()))
             emit authFailed(QString());
         else

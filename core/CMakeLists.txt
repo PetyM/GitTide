@@ -1,6 +1,7 @@
 add_library(gittide_core STATIC)
 target_sources(gittide_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/libgit2context.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/pathutil.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/giterror.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/gitrepo.cpp

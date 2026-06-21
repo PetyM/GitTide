@@ -92,6 +92,28 @@ an entry with a newer one if it changes.
   repo-wide reformat. *Why:* a shared standard, with opportunistic migration to
   avoid big-bang churn. → [`code-style`](spec/engineering/code-style.md)
 
+- **D26 — Logging is a hand-rolled Qt-free core facade bridged onto Qt categories.**
+  `core/` logs through a tiny `gittide::logf` facade over a `LogBackend` (two
+  `std::function`s, `std` types only); `app` installs a backend that routes onto
+  Qt's `QLoggingCategory` so one taxonomy + rule set spans `core`/`ui`/`app`, and
+  QML logs through the same path via a `log` context property. *Rejected:* a
+  third-party logger (spdlog/fmt — a new dependency for what a ~40-line facade +
+  Qt's existing category system already cover); Qt logging directly in `core`
+  (breaks invariant #1, no Qt in core); a core-only logger that `ui`/`app` ignore
+  (two control surfaces, the GUI bypasses category/level rules). *Note:* the level
+  enum is `LogLevel::Error` (PascalCase, matching the codebase's `enum class`
+  convention) rather than `ERROR`, which also dodges the `<windows.h>` `ERROR`
+  macro; and the `LogBackend` emit member is named `write`, not `emit`, because Qt
+  defines `emit` as a macro. → [`engineering`](spec/engineering/engineering.md)
+- **D27 — First-cut logging control is env-var only; sinks are console + a rotating
+  file.** Verbosity is set through Qt's `QT_LOGGING_RULES` / `qtlogging.ini`
+  (global and per-category); records go to stderr and to a size-rotated
+  `gittide.log` under the app data dir. *Rejected (deferred, not refused):* a
+  persisted setting + in-app verbosity toggle (product-facing, but more surface
+  than the first cut needs) and structured/JSON logging, log shipping, and a log
+  viewer UI (later wishes). *Why:* the cheapest path that makes the app observable
+  and bug reports attachable. → [`engineering`](spec/engineering/engineering.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

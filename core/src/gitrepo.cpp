@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "gittide/diffengine.hpp"
+#include "gittide/log.hpp"
 #include "gittide/pathutil.hpp"
 #include "gittide/sync.hpp"
 
@@ -149,7 +150,12 @@ Expected<GitRepo> GitRepo::open(const std::filesystem::path& path)
     git_repository* repo = nullptr;
     int rc               = git_repository_open(&repo, toGitPath(path).c_str());
     if (rc < 0)
-        return std::unexpected(lastGitError(rc));
+    {
+        const GitError err = lastGitError(rc);
+        logf(LogLevel::Warning, logcat::GIT, "open '{}' failed ({}): {}", toGitPath(path), err.code, err.message);
+        return std::unexpected(err);
+    }
+    logf(LogLevel::Debug, logcat::GIT, "opened repository '{}'", toGitPath(path));
     return GitRepo(repo);
 }
 

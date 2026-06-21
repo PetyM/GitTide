@@ -29,6 +29,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/qmltheme.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/qmlcontext.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/qmlcontext.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/logging.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/logging.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/qml/qml.qrc
   ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.qrc
 )

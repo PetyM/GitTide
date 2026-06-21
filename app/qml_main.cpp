@@ -5,7 +5,9 @@
 #include <QStandardPaths>
 
 #include "gittide/libgit2context.hpp"
+#include "gittide/log.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/logging.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
@@ -22,6 +24,13 @@ int main(int argc, char** argv)
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("gittide"));
     QGuiApplication::setOrganizationName(QStringLiteral("gittide"));
+
+    // Wire diagnostics first: bridge core's Qt-free log facade onto Qt's category
+    // machinery and start logging to the console + a rotating file. Verbosity is
+    // controlled via QT_LOGGING_RULES (e.g. "gittide.git.debug=true").
+    const QString logDir = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).filePath(QStringLiteral("logs"));
+    gittide::ui::installLogging(logDir);
+    gittide::logf(gittide::LogLevel::Info, gittide::logcat::APP, "GitTide starting; logs at {}", logDir.toStdString());
 
     const gittide::LibGit2Context git_ctx;
 

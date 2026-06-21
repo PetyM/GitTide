@@ -33,6 +33,7 @@
 #include "test_diff_lines_model.cpp"
 #include "test_repo_view_model.cpp"
 #include "test_branch_list_model.cpp"
+#include "test_logging.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -79,6 +80,7 @@ int main(int argc, char** argv)
     RUN(TestDiffLinesModel);
     RUN(TestRepoViewModel);
     RUN(TestBranchListModel);
+    RUN(TestLogging);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

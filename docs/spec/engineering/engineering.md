@@ -173,6 +173,45 @@ the place that touches the index. This shapes two flows.
   so the UI renders both through one widget. Per-symbol contracts live in the
   `gitrepo.hpp` Doxygen.
 
+## Logging & diagnostics
+
+GitTide is observable across every layer through one categorised, level-controlled
+logging facility. It is the *diagnostic* channel that runs alongside the
+error-as-value channel (invariant #4): an `Error`-level log usually accompanies a
+returned `GitError`, it does not replace it.
+
+- **The core/no-Qt boundary is a tiny Qt-free facade.** `core/` logs through
+  `gittide::logf(level, category, fmt, …)` (in
+  [`core/include/gittide/log.hpp`](../../../core/include/gittide/log.hpp)) — a
+  `std::format`-based call that depends on nothing but the standard library, so
+  invariant #1 holds. It routes through a process-wide `LogBackend` (two
+  `std::function`s in `std` types — a `write` sink and a cheap `enabled` gate)
+  installed once at startup. With no backend, logging is a silent no-op. (D26.)
+- **The app bridges that facade onto Qt.** At composition time `app` calls
+  `gittide::ui::installLogging()`
+  ([`ui/src/logging.cpp`](../../../ui/src/logging.cpp)), which wires core's
+  `LogBackend` to Qt's `QLoggingCategory` machinery: core records route to the
+  matching category and the `enabled` gate consults it, so one set of Qt rules
+  governs **all** layers. `ui`/`app` C++ logs directly with `qCDebug`/`qCWarning`
+  on those categories; QML logs through the `log` context property (a `QmlLog`)
+  so GUI diagnostics use the same categories + levels, never a stray
+  `console.log`.
+- **Categories** are one coherent taxonomy, defined once as `gittide::logcat`
+  constants and namespaced `gittide.*`: `git` (libgit2 ops), `repo` (repo/project
+  persistence), `async` (worker/refresh cascade), `auth` (credentials), `ui`
+  (view-models/QML), `app` (startup/composition).
+- **Levels** are `Trace`/`Debug`/`Info`/`Warning`/`Error`, mapped onto Qt's
+  `QtMsgType` at the bridge (Trace+Debug → Debug, Error → Critical).
+- **Control is global + per-category, via Qt's rules** —
+  `QT_LOGGING_RULES="gittide.git.debug=true"` (or a `qtlogging.ini`) raises one
+  area while the rest stay quiet. A persisted setting + an in-app toggle is a
+  later wish; this cut is the env-var path. (D27.)
+- **Sinks: console + a rotating file.** A `qInstallMessageHandler` writes every
+  record to stderr and to `gittide.log` (rolled to `gittide.log.1` past a size
+  cap) under the app data dir, so a user can attach it to a bug report. (D27.)
+- **Paths in logs** honour the path rule — log the `toGitPath()` UTF-8 form, never
+  `std::u8string`/`.string()`.
+
 ## Code style
 
 Naming, formatting, and the mandatory C++/Qt rules live in

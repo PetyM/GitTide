@@ -27,6 +27,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 8 — Branch management](2026-06-18-plan8-branch-management.md) | 2026-06-18 | done | product · engineering · design |
 | [Plan 9a — Core commit-selection + history diff](2026-06-18-plan9a-core-commit-selection-history-diff.md) | 2026-06-18 | done | engineering · core |
 | [Plan 9b — GitHub-Desktop UI refactor](2026-06-18-plan9b-ui-github-desktop-refactor.md) | 2026-06-18 | done | product · design · engineering |
+| [Plan 10 — Logging facility](2026-06-21-plan10-logging.md) | 2026-06-21 | done | engineering |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises
