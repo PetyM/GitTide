@@ -221,6 +221,35 @@ Rectangle {
             implicitWidth: 20
             implicitHeight: 20
         }
+
+        // Pull-strategy toggle
+        Button {
+            text: "⋯"
+            enabled: repoVm !== null
+            contentItem: Label {
+                text: parent.text
+                color: theme.textPrimary
+                font.pixelSize: 12
+                horizontalAlignment: Text.AlignHCenter
+            }
+            background: Rectangle {
+                radius: 6
+                color: parent.hovered ? theme.surfaceOverlay : "transparent"
+                border.color: theme.border
+                border.width: 1
+            }
+            onClicked: pullMenu.open()
+
+            Menu {
+                id: pullMenu
+                MenuItem {
+                    text: "Pull: rebase"
+                    checkable: true
+                    checked: repoVm && repoVm.pullRebase
+                    onToggled: if (repoVm) repoVm.setPullRebase(checked)
+                }
+            }
+        }
     }
 
     NewBranchDialog { id: newBranchDialog }

@@ -25,4 +25,11 @@ ApplicationWindow {
             Layout.fillHeight: true
         }
     }
+
+    CredentialDialog { id: credentialDialog }
+
+    Connections {
+        target: repoVm
+        function onAuthRequired() { credentialDialog.open() }
+    }
 }
