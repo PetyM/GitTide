@@ -1200,7 +1200,10 @@ Expected<void> GitRepo::pull(Credentials cred, ProgressCallback cb)
     }
     rc = git_rebase_finish(rebase, nullptr);
     if (rc < 0)
+    {
+        git_rebase_abort(rebase);
         return std::unexpected(lastGitError(rc));
+    }
     return {};
 }
 
