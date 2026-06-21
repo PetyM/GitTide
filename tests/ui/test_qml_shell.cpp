@@ -4,6 +4,7 @@
 #include <QAbstractItemModel>
 #include <QSignalSpy>
 
+#include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
 #include "gittide/ui/repolistmodel.hpp"
@@ -183,6 +184,72 @@ private slots:
         QCOMPARE(diff->property("model").value<QAbstractItemModel*>(), vm.diffLines());
 
         std::filesystem::remove_all(dir);
+    }
+
+    // The branded empty state lives in the main working area (not the sidebar)
+    // and is shown whenever no repository is open. With an active project it
+    // offers the add-repo actions.
+    void empty_state_is_in_main_area_when_no_repo_open()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        gittide::ProjectStore store;
+        auto& p = store.createProject("proj");
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(p.id));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QObject* empty = root->findChild<QObject*>(QStringLiteral("emptyState"));
+        QVERIFY(empty != nullptr);
+        QCOMPARE(empty->property("visible").toBool(), true);
+
+        QObject* repoView = root->findChild<QObject*>(QStringLiteral("repoView"));
+        QVERIFY(repoView != nullptr);
+        QCOMPARE(repoView->property("visible").toBool(), false);
+
+        // The empty state must be a descendant of the main working pane.
+        QObject* workingPane = root->findChild<QObject*>(QStringLiteral("workingPane"));
+        QVERIFY(workingPane != nullptr);
+        QVERIFY(workingPane->findChild<QObject*>(QStringLiteral("emptyState")) != nullptr);
+
+        // An active project ⇒ the add-repo actions are offered.
+        QObject* addCta = root->findChild<QObject*>(QStringLiteral("addExistingCta"));
+        QVERIFY(addCta != nullptr);
+        QCOMPARE(addCta->property("visible").toBool(), true);
+    }
+
+    // With no project at all, the empty state offers only "Create project".
+    void empty_state_offers_create_project_when_none_active()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        gittide::ProjectStore store; // no projects
+        ProjectController controller(&store);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QObject* createCta = root->findChild<QObject*>(QStringLiteral("createProjectCta"));
+        QVERIFY(createCta != nullptr);
+        QCOMPARE(createCta->property("visible").toBool(), true);
+
+        QObject* addCta = root->findChild<QObject*>(QStringLiteral("addExistingCta"));
+        QVERIFY(addCta != nullptr);
+        QCOMPARE(addCta->property("visible").toBool(), false);
     }
 
     void shell_loads_with_a_submodule_bearing_repo_model()

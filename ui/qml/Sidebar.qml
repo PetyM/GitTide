@@ -1,26 +1,18 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
-import QtQuick.Dialogs
 
 Rectangle {
     id: sidebar
     objectName: "sidebar"
     color: theme.surfaceRaised
 
-    // Reactive top-level repo count, to toggle the empty state.
-    property int topLevelCount: 0
-    function recountRepos() {
-        topLevelCount = repoModel ? repoModel.rowCount() : 0
-    }
-    Component.onCompleted: recountRepos()
-    Connections {
-        target: repoModel
-        function onModelReset() { sidebar.recountRepos() }
-        function onRowsInserted() { sidebar.recountRepos() }
-        function onRowsRemoved() { sidebar.recountRepos() }
-        function onLayoutChanged() { sidebar.recountRepos() }
-    }
+    // Add-repo requests bubble up to the host (Main), which owns the dialogs so
+    // they centre on the window rather than this narrow rail.
+    signal addExistingRequested()
+    signal cloneRequested()
+    signal initRequested()
+    signal newProjectRequested()
 
     ColumnLayout {
         anchors.fill: parent
@@ -70,17 +62,6 @@ Rectangle {
             }
         }
 
-        // ---- Empty state (no repos) ----
-        EmptyState {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: sidebar.topLevelCount === 0
-            onAddExistingRequested: addExistingFolder.open()
-            onCloneRequested: cloneRepoDialog.openDialog()
-            onInitRequested: initRepoDialog.openDialog()
-            onNewProjectRequested: newProjectDialog.openDialog()
-        }
-
         // ---- Repo tree ----
         TreeView {
             id: repoTree
@@ -89,7 +70,6 @@ Rectangle {
             Layout.fillHeight: true
             Layout.margins: 8
             clip: true
-            visible: sidebar.topLevelCount > 0
             model: repoModel
 
             // Expand every node as rows arrive so nested submodules show by default.
@@ -233,10 +213,10 @@ Rectangle {
     Menu {
         id: addRepoMenu
         objectName: "addRepoMenu"
-        MenuItem { text: "Add existing repository…"; onTriggered: addExistingFolder.open() }
-        MenuItem { text: "Initialize new repository…"; onTriggered: initRepoDialog.openDialog() }
-        MenuItem { text: "Clone repository…"; onTriggered: cloneRepoDialog.openDialog() }
-        MenuItem { text: "New project…"; onTriggered: newProjectDialog.openDialog() }
+        MenuItem { text: "Add existing repository…"; onTriggered: sidebar.addExistingRequested() }
+        MenuItem { text: "Initialize new repository…"; onTriggered: sidebar.initRequested() }
+        MenuItem { text: "Clone repository…"; onTriggered: sidebar.cloneRequested() }
+        MenuItem { text: "New project…"; onTriggered: sidebar.newProjectRequested() }
     }
 
     // ---- Remove-repo context menu ----
@@ -250,21 +230,4 @@ Rectangle {
                              projectController.removeRepo(repoContextMenu.repoPath)
         }
     }
-
-    // ---- Folder picker for "add existing" ----
-    FolderDialog {
-        id: addExistingFolder
-        title: "Choose a repository folder"
-        onAccepted: if (projectController)
-                        projectController.addExistingRepo(selectedFolder.toString().replace(/^file:\/\//, ""))
-    }
-
-    // ---- Dialogs ----
-    InitRepoDialog { id: initRepoDialog }
-    CloneRepoDialog {
-        id: cloneRepoDialog
-        onCloneStarted: cloneProgressDialog.openDialog()
-    }
-    CloneProgressDialog { id: cloneProgressDialog }
-    NewProjectDialog { id: newProjectDialog }
 }

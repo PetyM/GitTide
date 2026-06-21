@@ -60,6 +60,7 @@ void ProjectController::activate(const QString& projectId)
             m_store->setActiveProject(id);
             m_repoModel->setRepos(p.repos);
             m_activeId = projectId;
+            emit activeProjectChanged();
             emit projectActivated(projectId);
             return;
         }
@@ -218,6 +219,7 @@ void ProjectController::removeProject()
     else
     {
         m_repoModel->setRepos({});
+        emit activeProjectChanged();
     }
     saveStore();
     emit projectRemoved(removedId);

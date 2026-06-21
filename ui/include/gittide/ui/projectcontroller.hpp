@@ -19,6 +19,10 @@ class RepoListModel;
 class ProjectController : public QObject
 {
     Q_OBJECT
+    /// Id of the active project, or empty when none is active. QML gates the
+    /// branded empty state on `activeProjectId.length` to choose between the
+    /// "Create project" call-to-action and the add-repo actions.
+    Q_PROPERTY(QString activeProjectId READ activeProjectId NOTIFY activeProjectChanged)
 public:
     explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr);
 
@@ -52,6 +56,7 @@ public slots:
     void removeProject();
 
 signals:
+    void activeProjectChanged();
     void projectActivated(const QString& projectId);
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);

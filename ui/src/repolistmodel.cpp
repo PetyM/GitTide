@@ -28,6 +28,13 @@ void RepoListModel::appendSubmodules(Node& parent, const std::vector<gittide::Su
     }
 }
 
+QString RepoListModel::firstRepoPath() const
+{
+    if (m_roots.empty())
+        return {};
+    return m_roots.front()->path;
+}
+
 void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
 {
     beginResetModel();

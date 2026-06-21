@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: window
@@ -16,20 +17,98 @@ ApplicationWindow {
         spacing: 0
 
         Sidebar {
+            id: sidebar
             Layout.fillHeight: true
             Layout.preferredWidth: 272
+            onAddExistingRequested: addExistingFolder.open()
+            onCloneRequested: cloneRepoDialog.openDialog()
+            onInitRequested: initRepoDialog.openDialog()
+            onNewProjectRequested: newProjectDialog.openDialog()
         }
 
         WorkingPane {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            onAddExistingRequested: addExistingFolder.open()
+            onCloneRequested: cloneRepoDialog.openDialog()
+            onInitRequested: initRepoDialog.openDialog()
+            onNewProjectRequested: newProjectDialog.openDialog()
         }
     }
 
+    // ---- Transient error banner (floats over the top of the content) ----
+    Rectangle {
+        id: errorBanner
+        objectName: "errorBanner"
+        property string message: ""
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 12
+        width: Math.min(parent.width - 48, bannerLabel.implicitWidth + 32)
+        height: 36
+        radius: 10
+        visible: message.length > 0
+        color: theme.surfaceOverlay
+        border.color: theme.stateDeleted
+        border.width: 1
+        z: 100
+
+        Label {
+            id: bannerLabel
+            anchors.centerIn: parent
+            text: errorBanner.message
+            color: theme.textPrimary
+            font.pixelSize: 12
+        }
+
+        Timer {
+            id: bannerTimer
+            interval: 5000
+            onTriggered: errorBanner.message = ""
+        }
+        onMessageChanged: if (message.length > 0) bannerTimer.restart()
+
+        function show(msg) { message = msg }
+    }
+
+    // ---- Dialogs (window-scoped so they centre on the whole window) ----
+    InitRepoDialog { id: initRepoDialog }
+    CloneRepoDialog {
+        id: cloneRepoDialog
+        onCloneStarted: cloneProgressDialog.openDialog()
+    }
+    CloneProgressDialog { id: cloneProgressDialog }
+    NewProjectDialog { id: newProjectDialog }
     CredentialDialog { id: credentialDialog }
+
+    // Folder picker for "add existing repository".
+    FolderDialog {
+        id: addExistingFolder
+        title: "Choose a repository folder"
+        onAccepted: if (projectController)
+                        projectController.addExistingRepo(selectedFolder.toString().replace(/^file:\/\//, ""))
+    }
+
+    // ---- Auto-open a repository so the main area shows working state ----
+    function openFirstRepo() {
+        if (repoVm && projectController && projectController.activeProjectId.length > 0
+                && repoModel && repoModel.rowCount() > 0)
+            repoVm.open(repoModel.firstRepoPath())
+    }
+    Component.onCompleted: openFirstRepo()
+
+    Connections {
+        target: projectController
+        enabled: projectController !== null
+        function onRepoAdded(path) { if (repoVm) repoVm.open(path) }
+        function onActiveProjectChanged() { window.openFirstRepo() }
+        function onRepoAddFailed(message) { errorBanner.show(message) }
+    }
 
     Connections {
         target: repoVm
+        enabled: repoVm !== null
         function onAuthRequired() { credentialDialog.openDialog() }
+        function onOperationFailed(message) { errorBanner.show(message) }
     }
 }

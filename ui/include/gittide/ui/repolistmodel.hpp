@@ -33,6 +33,11 @@ public:
 
     void setRepos(const std::vector<gittide::RepoRef>& repos);
 
+    /// Path of the first top-level repository, or an empty string when the
+    /// active project has no repositories. Used to auto-open a repo so the
+    /// main area shows working state rather than the empty page.
+    Q_INVOKABLE QString firstRepoPath() const;
+
 private:
     struct Node
     {
