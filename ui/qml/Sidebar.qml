@@ -131,6 +131,17 @@ Rectangle {
                 background: Rectangle {
                     color: row.current ? theme.surfaceBase : "transparent"
                     radius: 10
+                    // Divider above each top-level repo after the first.
+                    Rectangle {
+                        visible: !row.isSub && row.row > 0
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: 4
+                        height: 1
+                        color: theme.border
+                        opacity: 0.5
+                    }
                     // Selection accent border (repos) at x=0.
                     Rectangle {
                         visible: row.current && !row.isSub
