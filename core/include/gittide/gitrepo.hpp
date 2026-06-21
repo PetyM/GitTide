@@ -10,6 +10,7 @@
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/submodule.hpp"
+#include "gittide/sync.hpp"
 
 struct git_repository;
 struct git_oid;
@@ -83,6 +84,11 @@ public:
 
     // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
     Expected<HeadState> head() const;
+
+    // Ahead/behind of the current branch versus its upstream remote-tracking
+    // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
+    // or HEAD is unborn/detached. See SyncStatus.
+    Expected<SyncStatus> syncStatus() const;
 
     // Create a new local branch pointing at fromOid (40-char hex SHA).
     // Pass an empty fromOid to branch from current HEAD.

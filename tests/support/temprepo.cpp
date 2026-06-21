@@ -167,4 +167,52 @@ void TempRepo::updateSubmodulesRecursive()
     updateRecursive(m_repo);
 }
 
+std::filesystem::path TempRepo::addBareRemote(std::string_view name)
+{
+    std::filesystem::path bare = m_dir.parent_path() / (std::string(name) + ".git");
+    git_repository* bare_repo  = nullptr;
+    check(git_repository_init(&bare_repo, toGitPath(bare).c_str(), /*is_bare=*/1), "git_repository_init (bare) failed");
+    git_repository_free(bare_repo);
+
+    std::string url    = "file://" + bare.generic_string();
+    git_remote* remote = nullptr;
+    check(git_remote_create(&remote, m_repo, std::string(name).c_str(), url.c_str()), "git_remote_create failed");
+    git_remote_free(remote);
+    return bare;
+}
+
+void TempRepo::pushBranch(std::string_view remote, std::string_view branch)
+{
+    git_remote* r = nullptr;
+    check(git_remote_lookup(&r, m_repo, std::string(remote).c_str()), "git_remote_lookup failed");
+
+    std::string ref     = "refs/heads/" + std::string(branch);
+    std::string refspec = ref + ":" + ref;
+    char* specs[]       = {refspec.data()};
+    git_strarray arr    = {specs, 1};
+
+    git_push_options opts = GIT_PUSH_OPTIONS_INIT;
+    check(git_remote_push(r, &arr, &opts), "git_remote_push failed");
+    git_remote_free(r);
+
+    // Set upstream so syncStatus has an upstream to compare against.
+    git_reference* branch_ref = nullptr;
+    check(git_branch_lookup(&branch_ref, m_repo, std::string(branch).c_str(), GIT_BRANCH_LOCAL),
+          "git_branch_lookup failed");
+    std::string upstream = std::string(remote) + "/" + std::string(branch);
+    check(git_branch_set_upstream(branch_ref, upstream.c_str()), "git_branch_set_upstream failed");
+    git_reference_free(branch_ref);
+}
+
+void TempRepo::resetBranchTo(std::string_view branch, std::string_view oidHex)
+{
+    git_oid oid;
+    check(git_oid_fromstr(&oid, std::string(oidHex).c_str()), "git_oid_fromstr failed");
+    git_object* obj = nullptr;
+    check(git_object_lookup(&obj, m_repo, &oid, GIT_OBJECT_COMMIT), "git_object_lookup failed");
+    check(git_reset(m_repo, obj, GIT_RESET_HARD, nullptr), "git_reset failed");
+    git_object_free(obj);
+    (void)branch; // branch identity resolved via HEAD; parameter reserved for future use
+}
+
 } // namespace gittide::test

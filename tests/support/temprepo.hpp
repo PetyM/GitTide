@@ -40,6 +40,17 @@ public:
     // submodules a non-recursive clone left bare become real working trees.
     void updateSubmodulesRecursive();
 
+    // Create a bare repo at <tmp>/<name>.git and register it as remote `name`
+    // (file:// url). Returns the bare repo path.
+    std::filesystem::path addBareRemote(std::string_view name);
+
+    // Push refs/heads/<branch> to the remote (no auth) and set the branch's
+    // upstream to <remote>/<branch>.
+    void pushBranch(std::string_view remote, std::string_view branch);
+
+    // Move the branch ref to oidHex and hard-reset the working tree to it.
+    void resetBranchTo(std::string_view branch, std::string_view oidHex);
+
 private:
     LibGit2Context m_ctx;
     std::filesystem::path m_dir;

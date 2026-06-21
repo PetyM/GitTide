@@ -953,4 +953,51 @@ Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem:
     return DiffEngine::parse(diff_guard.get());
 }
 
+Expected<SyncStatus> GitRepo::syncStatus() const
+{
+    SyncStatus out;
+
+    git_reference* head = nullptr;
+    int rc = git_repository_head(&head, m_repo);
+    if (rc == GIT_EUNBORNBRANCH || rc == GIT_ENOTFOUND)
+        return out; // unborn => no upstream
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+
+    if (git_reference_is_branch(head) != 1)
+        return out; // detached HEAD => no upstream
+
+    git_reference* upstream = nullptr;
+    rc = git_branch_upstream(&upstream, head);
+    if (rc == GIT_ENOTFOUND)
+        return out; // no upstream configured
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> up_guard(upstream, git_reference_free);
+
+    const git_oid* localOid    = git_reference_target(head);
+    const git_oid* upstreamOid = git_reference_target(upstream);
+    if (!localOid || !upstreamOid)
+        return out;
+
+    size_t ahead = 0, behind = 0;
+    rc = git_graph_ahead_behind(&ahead, &behind, m_repo, localOid, upstreamOid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    out.hasUpstream  = true;
+    out.ahead        = static_cast<int>(ahead);
+    out.behind       = static_cast<int>(behind);
+    const char* up   = git_reference_shorthand(upstream);
+    out.upstreamName = up ? up : "";
+
+    git_buf remote_buf = GIT_BUF_INIT;
+    if (git_branch_remote_name(&remote_buf, m_repo, git_reference_name(upstream)) == 0)
+        out.remoteName = std::string(remote_buf.ptr, remote_buf.size);
+    git_buf_dispose(&remote_buf);
+
+    return out;
+}
+
 } // namespace gittide
