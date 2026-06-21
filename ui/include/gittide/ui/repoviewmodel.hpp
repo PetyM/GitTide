@@ -46,6 +46,7 @@ class RepoViewModel : public QObject
     Q_PROPERTY(QString upstreamName READ upstreamName NOTIFY syncStatusChanged)
     Q_PROPERTY(bool syncing READ syncing NOTIFY syncingChanged)
     Q_PROPERTY(bool pullRebase READ pullRebase NOTIFY pullRebaseChanged)
+    Q_PROPERTY(bool onBranch READ onBranch NOTIFY branchChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -68,6 +69,7 @@ public:
     QString upstreamName() const { return QString::fromStdString(m_sync.upstreamName); }
     bool syncing() const { return m_syncing; }
     bool pullRebase() const { return m_pullRebase; }
+    bool onBranch() const { return !m_headBranch.isEmpty(); }
 
     Q_INVOKABLE void open(const QString& path);
     Q_INVOKABLE void selectFile(const QString& path);
@@ -157,6 +159,7 @@ private:
     bool                       m_headArrived    = false;
     bool                       m_historyArrived = false;
     QString                    m_branch;
+    QString                    m_headBranch;  ///< Real ref name; empty when detached or unborn.
     QString                    m_activeFile;
     std::map<QString, FileSel> m_sel;
 };

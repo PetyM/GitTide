@@ -244,6 +244,9 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
     m_headArrived = true;
     applyHistoryIfReady();
 
+    // Always update the real branch ref name (empty when detached or unborn).
+    const QString newHeadBranch = head.branch.empty() ? QString() : QString::fromStdString(head.branch);
+
     QString label;
     if (head.unborn)
         label = QStringLiteral("(no commits)");
@@ -252,9 +255,13 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
     else if (!head.branch.empty())
         label = QString::fromStdString(head.branch);
 
-    if (label.isEmpty() || label == m_branch)
+    const bool headBranchChanged = (newHeadBranch != m_headBranch);
+    const bool labelChanged      = (!label.isEmpty() && label != m_branch);
+    if (!headBranchChanged && !labelChanged)
         return;
-    m_branch = label;
+    m_headBranch = newHeadBranch;
+    if (labelChanged)
+        m_branch = label;
     emit branchChanged();
 }
 
@@ -387,14 +394,24 @@ void RepoViewModel::pull()
 
 void RepoViewModel::push()
 {
+    if (m_headBranch.isEmpty())
+    {
+        emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
+        return;
+    }
     m_pendingOp = PendingOp::Push;
-    QCoro::connect(m_controller->push(m_branch, /*setUpstream=*/false, m_sessionCred), this, [] {});
+    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/false, m_sessionCred), this, [] {});
 }
 
 void RepoViewModel::publishBranch()
 {
+    if (m_headBranch.isEmpty())
+    {
+        emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
+        return;
+    }
     m_pendingOp = PendingOp::Publish;
-    QCoro::connect(m_controller->push(m_branch, /*setUpstream=*/true, m_sessionCred), this, [] {});
+    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/true, m_sessionCred), this, [] {});
 }
 
 void RepoViewModel::submitCredentials(const QString& username, const QString& token)

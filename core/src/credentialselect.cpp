@@ -8,7 +8,7 @@ namespace {
 // SSH-style: explicit scheme, or scp-like "user@host:path" with no "://".
 bool isSshUrl(std::string_view url)
 {
-    if (url.rfind("ssh://", 0) == 0)
+    if (url.starts_with("ssh://"))
         return true;
     if (url.find("://") != std::string_view::npos)
         return false; // some other explicit scheme (https/git/file)

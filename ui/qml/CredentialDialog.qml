@@ -43,5 +43,5 @@ Dialog {
         }
     }
 
-    onAccepted: repoVm.submitCredentials(userField.text, tokenField.text)
+    onAccepted: if (repoVm) repoVm.submitCredentials(userField.text, tokenField.text)
 }

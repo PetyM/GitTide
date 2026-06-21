@@ -194,9 +194,9 @@ Rectangle {
             }
         }
 
-        // Publish — shown only when the branch has no upstream
+        // Publish — shown only when on a real branch with no upstream
         Button {
-            visible: repoVm && !repoVm.hasUpstream
+            visible: repoVm && !repoVm.hasUpstream && repoVm.onBranch
             text: "Publish branch"
             enabled: repoVm && !repoVm.syncing
             contentItem: Label {

@@ -103,7 +103,10 @@ int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
 int credentialTrampoline(git_credential** out, const char* url, const char* username_from_url,
                          unsigned int allowed_types, void* payload)
 {
-    const auto& cred = *static_cast<CbPayload*>(payload)->cred;
+    auto* pl = static_cast<CbPayload*>(payload);
+    if (!pl->cred)
+        return GIT_EAUTH;
+    const auto& cred = *pl->cred;
     switch (gittide::chooseCredential(url ? url : "", allowed_types, cred))
     {
     case gittide::CredentialKind::SshAgent:
@@ -1170,7 +1173,7 @@ Expected<void> GitRepo::pull(Credentials cred, ProgressCallback cb)
         git_index* idx = nullptr;
         if (git_repository_index(&idx, m_repo) == 0)
         {
-            bool conflicts = git_index_has_conflicts(idx) == 1;
+            bool conflicts = git_index_has_conflicts(idx) > 0;
             git_index_free(idx);
             if (conflicts)
             {
