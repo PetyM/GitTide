@@ -40,6 +40,7 @@
 #include "test_qml_theme.cpp"
 #include "test_qml_shell.cpp"
 #include "test_qml_history.cpp"
+#include "test_qml_sync.cpp"
 #include "test_changed_files_model.cpp"
 #include "test_diff_lines_model.cpp"
 #include "test_repo_view_model.cpp"
@@ -97,6 +98,7 @@ int main(int argc, char** argv)
     RUN(TestQmlTheme);
     RUN(TestQmlShell);
     RUN(TestQmlHistory);
+    RUN(TestQmlSync);
     RUN(TestChangedFilesModel);
     RUN(TestDiffLinesModel);
     RUN(TestRepoViewModel);

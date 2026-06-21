@@ -63,6 +63,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_shell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_history.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_sync.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_lines_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_view_model.cpp
