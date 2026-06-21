@@ -77,25 +77,26 @@ letter (A / M / D / U / C).
 
 ## Theming
 
-- **Base style: Fusion.** The app sets the Qt **Fusion** style
-  (`QApplication::setStyle("Fusion")`) — a flat, modern, cross-OS-consistent
-  native widget style. We do **not** hand-roll a full QSS skin; Fusion provides
-  the widget look, tokens provide the colour.
-- **`ThemeManager`** (`gittide::ui`) owns the active `Theme` (token table) and
-  resolves it into a Qt **`QPalette`** (the primary colour mechanism over
-  Fusion), applied via `qApp->setPalette(...)`. It also emits a **small accent
-  stylesheet** for the few cues `QPalette` can't express — selection's 2px
-  `accent` left border, the active-tab `accent` underline, the focus ring, and
-  the diff gutter's `state.*` colours — applied via `qApp->setStyleSheet(...)`.
+- **Pure Qt Quick/QML.** There is no QWidgets / Fusion / QSS / `QPalette` path —
+  the UI is QML and reads colour straight from theme tokens exposed as bindable
+  properties. Adding a theme = adding one token column, nothing else.
+- **`ThemeManager`** (`gittide::ui`) owns the active mode and resolves the active
+  `Theme` (token table). **`QmlTheme`** wraps it and republishes every token as a
+  bindable `Q_PROPERTY` (`QColor`s, `shadow`, `laneColors`, `iconSource`); a
+  `themeChanged` → `changed()` hop refreshes every QML binding on a live switch.
+  QML widgets bind `theme.<token>` directly — never a hard-coded hex.
+- **Mode + toggle.** Mode is `System | Dark | Light` (`QmlTheme.mode`, an int
+  mirroring `ThemeManager::Mode`; writable from QML). The sidebar header carries
+  a toggle button (`objectName: themeToggle`) that calls `theme.cycleMode()` to
+  rotate System → Dark → Light → System; its glyph reflects the mode
+  (☾ dark / ☀ light / ◐ system). The override is **session-only** — settings
+  persistence is deferred.
 - **OS-driven default:** read `QStyleHints::colorScheme()`; subscribe to
-  `colorSchemeChanged` and re-apply live. A manual override (dark / light /
-  system) may force the mode; default is `system`.
+  `colorSchemeChanged` and re-emit live while in `System` mode (the brand's
+  primary look is dark, so Unknown/Dark → dark). Default is `System`.
 - **Icon swap:** dark uses `gittide-icon.svg`, light uses
-  `gittide-icon-light.svg`. The app/window icon and empty-state art follow the
-  active theme.
-- **No literals:** widgets read colour from the palette / token-driven accent
-  stylesheet, never a hard-coded hex. Adding a theme = adding one token column,
-  nothing else.
+  `gittide-icon-light.svg`, surfaced as `theme.iconSource` (a `qrc:/…` URL) and
+  followed by the sidebar wordmark / empty-state art.
 
 ## Components
 
@@ -194,7 +195,9 @@ that only works in one theme.
 ## Wiring
 
 Token table and theme factories: `ui/src/theme.cpp` (`Theme`, `darkTheme()`,
-`lightTheme()`). Token → `QPalette` + accent-QSS generation:
-`ui/src/themestyle.cpp` (pure functions over `Theme`). Fusion style application +
-OS-scheme resolution + live re-apply + icon: `ui/src/thememanager.cpp`.
-Per-symbol contracts live in the headers under `ui/include/gittide/ui/`.
+`lightTheme()`). Mode ownership + OS-scheme resolution + live re-emit + icon
+selection: `ui/src/thememanager.cpp`. Tokens → bindable QML properties (+ the
+`mode`/`cycleMode` toggle API): `ui/src/qmltheme.cpp`. QML views bind
+`theme.<token>` via the `theme` context property installed in
+`ui/src/qmlcontext.cpp`. Per-symbol contracts live in the headers under
+`ui/include/gittide/ui/`.

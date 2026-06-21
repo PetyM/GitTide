@@ -8,7 +8,7 @@ staging, commits, and per-repo history with a commit graph. It runs on macOS,
 Windows, and Linux, and is built to never block the UI: repositories are worked
 in parallel and large diffs and histories render incrementally.
 
-Built with **C++23**, **Qt 6 Widgets**, and **libgit2**.
+Built with **C++23**, **Qt 6 Quick/QML**, and **libgit2**.
 
 ## AI-first development
 
@@ -28,8 +28,9 @@ wishlist/ (wanted)   →   spec/ (designed)   →   plans/ (built)
 **Prerequisites:**
 
 - A C++23 compiler and **CMake ≥ 3.28**.
-- **Qt 6** (Widgets, Test, Concurrent, Svg) — from a system install or
-  [`aqtinstall`](https://github.com/miurahr/aqtinstall), found via `find_package`.
+- **Qt 6** (Gui, Qml, Quick, QuickControls2, Test, Concurrent, Svg) — from a
+  system install or [`aqtinstall`](https://github.com/miurahr/aqtinstall), found
+  via `find_package`.
 - libgit2, QCoro, and Catch2 are fetched automatically by CMake (FetchContent);
   no manual install needed.
 

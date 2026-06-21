@@ -17,6 +17,7 @@ class QmlTheme : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool dark READ dark NOTIFY changed)
+    Q_PROPERTY(int mode READ mode WRITE setMode NOTIFY changed)
     Q_PROPERTY(QColor surfaceBase READ surfaceBase NOTIFY changed)
     Q_PROPERTY(QColor surfaceRaised READ surfaceRaised NOTIFY changed)
     Q_PROPERTY(QColor surfaceOverlay READ surfaceOverlay NOTIFY changed)
@@ -40,6 +41,14 @@ public:
     explicit QmlTheme(ThemeManager* manager, QObject* parent = nullptr);
 
     bool dark() const;
+
+    /// Active theme mode as an int mirroring ThemeManager::Mode
+    /// (0 = System, 1 = Dark, 2 = Light). Writable from QML so a toggle can
+    /// force a mode; cycleMode() rotates System → Dark → Light → System.
+    int mode() const;
+    void setMode(int mode);
+    Q_INVOKABLE void cycleMode();
+
     QColor surfaceBase() const;
     QColor surfaceRaised() const;
     QColor surfaceOverlay() const;

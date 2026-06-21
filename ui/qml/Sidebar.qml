@@ -40,6 +40,34 @@ Rectangle {
                 font.pixelSize: 16
                 font.weight: Font.Bold
             }
+
+            Item { Layout.fillWidth: true }
+
+            // Theme toggle: cycles System → Dark → Light. The glyph reflects the
+            // chosen mode (☾ dark / ☀ light / ◐ follow-system).
+            Button {
+                id: themeToggle
+                objectName: "themeToggle"
+                flat: true
+                implicitWidth: 28
+                implicitHeight: 28
+                ToolTip.visible: hovered
+                ToolTip.text: theme.mode === 1 ? "Theme: Dark (click for Light)"
+                            : theme.mode === 2 ? "Theme: Light (click for System)"
+                            : "Theme: System (click for Dark)"
+                contentItem: Label {
+                    text: theme.mode === 1 ? "☾" : theme.mode === 2 ? "☀" : "◐"
+                    color: theme.textSecondary
+                    font.pixelSize: 15
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: themeToggle.hovered ? theme.surfaceOverlay : "transparent"
+                }
+                onClicked: theme.cycleMode()
+            }
         }
 
         // ---- Empty state (no repos) ----

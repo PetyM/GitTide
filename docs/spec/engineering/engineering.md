@@ -17,12 +17,13 @@ and testable on its own.
 
 ```
 ┌─ app/  (Qt, process-wide) ───────────────────────────┐
-│  WindowManager owns N MainWindows; shared services    │
-│  (ProjectStore registry, libgit2 init) live once here │
-├─ ui/   (Qt Widgets + ViewModels, per window) ─────────┤
-│  MainWindow, ProjectSidebar, ChangesView, DiffView,   │
-│  HistoryView … and controllers: ProjectController,    │
-│  RepoController (Qt signals; never call libgit2)       │
+│  QQmlApplicationEngine loads Main.qml; shared services │
+│  (ProjectStore registry, libgit2 init) live once here  │
+├─ ui/   (Qt Quick/QML + ViewModels) ───────────────────┤
+│  Main.qml, Sidebar, WorkingPane, HistoryPane … bound   │
+│  to context props: ThemeManager/QmlTheme,              │
+│  ProjectController, RepoViewModel (Qt signals; never   │
+│  call libgit2). C++ models feed QML.                   │
 ├─ ui/   (async bridge) ────────────────────────────────┤
 │  AsyncRepo — QtConcurrent + QCoro over GitRepo         │
 ├─ core/ (pure C++23, no Qt) ───────────────────────────┤
@@ -34,13 +35,18 @@ and testable on its own.
   (RAII over one `git_repository`), `DiffEngine` (libgit2 diff → display model),
   `GraphBuilder` (commit walk → lane layout), `ProjectStore` (JSON project
   registry). Namespace `gittide`. Unit-tested with Catch2, no display needed.
-- **`ui/`** — Qt Widgets, ViewModels (`ProjectController`, `RepoController`,
-  the list/tree models), and the async bridge `AsyncRepo`. Namespace
-  `gittide::ui`. Controllers expose Qt signals/slots and own the translation
-  between core's `std` types and Qt's. Headless-testable with Qt Test.
-- **`app/`** — process-wide composition: `WindowManager` owns multiple
-  `MainWindow`s, the single `ProjectStore` registry, and one-time `libgit2`
-  init ([`app/main.cpp`](../../../app/main.cpp)).
+- **`ui/`** — **Qt Quick/QML** views, the C++ ViewModels/models they bind to
+  (`ProjectController`, `RepoViewModel`, `RepoListModel`, `ChangedFilesModel`,
+  `DiffLinesModel`, `BranchListModel`, `HistoryListModel`, the `GraphColumn`
+  `QQuickPaintedItem`, `ThemeManager`/`QmlTheme`), and the async bridge
+  `AsyncRepo`. Namespace `gittide::ui`. The static lib links **no QWidgets** —
+  only Qt Gui/Qml/Quick/QuickControls2. Controllers expose Qt signals/slots and
+  translate between core's `std` types and Qt's. Headless-testable with Qt Test.
+- **`app/`** — process-wide composition: a `QGuiApplication` +
+  `QQmlApplicationEngine` that wires the context properties and loads
+  `qrc:/qml/Main.qml`, plus the single `ProjectStore` registry and one-time
+  `libgit2` init ([`app/qml_main.cpp`](../../../app/qml_main.cpp)). A single
+  window today; multi-window/session restore is deferred.
 
 ### Where to find what
 
@@ -51,9 +57,10 @@ and testable on its own.
 | Commit graph lane layout | `core/src/graphbuilder.cpp` |
 | Project registry persistence (JSON) | `core/src/projectstore.cpp` |
 | Async / off-thread git | `ui/src/asyncrepo.cpp` |
-| Controllers (ViewModels) | `ui/src/projectcontroller.cpp`, `ui/src/repocontroller.cpp` |
-| Multi-window + session restore | `ui/src/windowmanager.cpp` |
-| Theming (tokens → QSS) | `ui/src/theme*.cpp` — see [`../design/design.md`](../design/design.md) |
+| Controllers (ViewModels) | `ui/src/projectcontroller.cpp`, `ui/src/repocontroller.cpp`, `ui/src/repoviewmodel.cpp` |
+| QML views | `ui/qml/*.qml` (loaded from `ui/qml/qml.qrc`) |
+| QML context wiring (context props + type registration) | `ui/src/qmlcontext.cpp` |
+| Theming (tokens → QML bindings) | `ui/src/theme.cpp`, `ui/src/thememanager.cpp`, `ui/src/qmltheme.cpp` — see [`../design/design.md`](../design/design.md) |
 
 ## Cross-cutting invariants
 

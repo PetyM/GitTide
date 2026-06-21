@@ -59,6 +59,37 @@ private slots:
         QVERIFY(!theme.property("dark").toBool());
         QCOMPARE(theme.property("accent").value<QColor>(), QColor("#0891B2"));
     }
+
+    // The QML toggle drives the mode through QmlTheme: a writable `mode` property
+    // (int mirroring ThemeManager::Mode) and a cycleMode() invokable.
+    void mode_property_round_trips_and_emits_changed()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::System);
+        QmlTheme theme(&mgr);
+        QSignalSpy spy(&theme, &QmlTheme::changed);
+
+        QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::System));
+        QVERIFY(theme.setProperty("mode", int(ThemeManager::Mode::Light)));
+
+        QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::Light));
+        QVERIFY(!theme.property("dark").toBool());
+        QCOMPARE(spy.count(), 1);
+    }
+
+    void cycle_mode_rotates_system_dark_light()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::System);
+        QmlTheme theme(&mgr);
+
+        QMetaObject::invokeMethod(&theme, "cycleMode");
+        QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::Dark));
+        QMetaObject::invokeMethod(&theme, "cycleMode");
+        QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::Light));
+        QMetaObject::invokeMethod(&theme, "cycleMode");
+        QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::System));
+    }
 };
 
 #include "test_qml_theme.moc"

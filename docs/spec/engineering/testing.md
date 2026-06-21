@@ -21,8 +21,10 @@ the tests are structured* and how to add one.
   lane layout, the project store) → Catch2, thoroughly, with no Qt. Partial-staging
   logic deliberately lives in Core so it stays Catch2-testable (see
   [`decisions.md`](../../decisions.md)).
-- **Controllers, models, session, window bookkeeping** → QtTest, headless.
-- **Widgets** → smoke tests (construction) plus signal/slot wiring.
+- **Controllers, models, ViewModels** → QtTest, headless (under `QGuiApplication`
+  + `QT_QPA_PLATFORM=offscreen`).
+- **QML views** → load `Main.qml` headless and assert bindings/object names
+  (`test_qml_shell.cpp` and friends); there is no QWidgets to smoke-construct.
 
 ## Core tests: Catch2 + `TempRepo`
 

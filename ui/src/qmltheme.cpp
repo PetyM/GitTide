@@ -19,6 +19,36 @@ bool QmlTheme::dark() const
     return theme().dark;
 }
 
+int QmlTheme::mode() const
+{
+    return static_cast<int>(m_manager->mode());
+}
+
+void QmlTheme::setMode(int mode)
+{
+    const auto m = static_cast<ThemeManager::Mode>(mode);
+    if (m == m_manager->mode())
+        return;
+    m_manager->setMode(m); // emits themeChanged → our changed()
+}
+
+void QmlTheme::cycleMode()
+{
+    // System → Dark → Light → System.
+    switch (m_manager->mode())
+    {
+    case ThemeManager::Mode::System:
+        setMode(static_cast<int>(ThemeManager::Mode::Dark));
+        break;
+    case ThemeManager::Mode::Dark:
+        setMode(static_cast<int>(ThemeManager::Mode::Light));
+        break;
+    case ThemeManager::Mode::Light:
+        setMode(static_cast<int>(ThemeManager::Mode::System));
+        break;
+    }
+}
+
 QColor QmlTheme::surfaceBase() const
 {
     return QColor(theme().surfaceBase);

@@ -40,9 +40,10 @@ structured (the `TempRepo` helper, the headless UI runner) and how to add one:
 ## Architecture in one breath
 
 `app → ui → core → libgit2`, dependencies downward only. `core/` is pure C++23
-(no Qt) — the git engine and JSON persistence; `ui/` is Qt Widgets + ViewModel
-controllers + the `AsyncRepo` bridge; `app/` is process-wide composition
-(`WindowManager`). Full detail: [`docs/spec/engineering/engineering.md`](docs/spec/engineering/engineering.md).
+(no Qt) — the git engine and JSON persistence; `ui/` is **Qt Quick/QML** views +
+C++ ViewModel controllers/models + the `AsyncRepo` bridge (no QWidgets); `app/`
+is process-wide composition (a `QQmlApplicationEngine` loading `Main.qml`). Full
+detail: [`docs/spec/engineering/engineering.md`](docs/spec/engineering/engineering.md).
 
 ## Invariants you must not break
 

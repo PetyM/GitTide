@@ -170,13 +170,13 @@ to one repo).
   safe-checkout (stash + re-apply if dirty) → the repo's status, history, and
   branch bar refresh together.
 
-## Multi-window
+## Windowing
 
-A process-wide `WindowManager` owns multiple windows over **shared** services
-(the project registry, the thread pool). The "active project" is **per-window**
-state, not a global — opening "in a new window" creates another window bound to a
-project. Optionally, opening a project that is already open can raise the existing
-window instead of creating a duplicate (a setting).
+The Qt Quick app runs as a **single window** today: one `QQmlApplicationEngine`
+loading `Main.qml`, over process-wide shared services (the project registry, the
+thread pool). Multi-window — multiple windows with **per-window** active-project
+state over the same shared registry, plus session restore — is a planned
+extension, not yet implemented in the QML shell.
 
 ## Data & persistence (what is stored, and where)
 

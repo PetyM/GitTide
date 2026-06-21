@@ -20,14 +20,7 @@ if(MSVC)
 endif()
 
 option(GITGUI_BUILD_TESTS "Build tests" ON)
-option(GITGUI_BUILD_UI "Build the Qt UI and app" ON)
-option(GITGUI_BUILD_QML "Build the experimental QML app shell" ON)
-
-# The QML app links gittide_ui, so it can only be built as part of the UI build.
-if(GITGUI_BUILD_QML AND NOT GITGUI_BUILD_UI)
-  message(WARNING "GITGUI_BUILD_QML requires GITGUI_BUILD_UI; disabling the QML app.")
-  set(GITGUI_BUILD_QML OFF CACHE BOOL "Build the experimental QML app shell" FORCE)
-endif()
+option(GITGUI_BUILD_UI "Build the Qt Quick/QML UI and app" ON)
 
 include(cmake/Dependencies.cmake)
 

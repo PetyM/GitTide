@@ -4,12 +4,12 @@
 
 #include "gittide/ui/theme.hpp"
 
-class QApplication;
-
 namespace gittide::ui {
 
 // Owns the active theme mode, resolves System mode against the OS color scheme,
-// applies the generated stylesheet app-wide, and exposes the matching icon.
+// and exposes the active token table plus the matching app icon. Pure model: the
+// QML layer (QmlTheme) reads currentTheme() and reacts to themeChanged() — there
+// is no QWidgets QPalette/stylesheet path anymore.
 class ThemeManager : public QObject
 {
     Q_OBJECT
@@ -30,15 +30,13 @@ public:
     }
     Theme currentTheme() const;
     QString iconResource() const;
-    void applyTo(QApplication* app);
 
 signals:
     void themeChanged();
 
 private:
     bool resolveDark() const; // System → QStyleHints::colorScheme; else forced
-    Mode m_mode         = Mode::System;
-    QApplication* m_app = nullptr;
+    Mode m_mode = Mode::System;
 };
 
 } // namespace gittide::ui
