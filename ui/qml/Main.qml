@@ -30,6 +30,6 @@ ApplicationWindow {
 
     Connections {
         target: repoVm
-        function onAuthRequired() { credentialDialog.open() }
+        function onAuthRequired() { credentialDialog.openDialog() }
     }
 }

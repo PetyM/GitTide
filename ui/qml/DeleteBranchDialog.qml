@@ -21,12 +21,7 @@ Dialog {
     // Branch a delete was just requested for; cleared once resolved.
     property string pendingName: ""
 
-    background: Rectangle {
-        color: theme.surfaceRaised
-        radius: 18
-        border.color: theme.border
-        border.width: 1
-    }
+    background: OverlayCard {}
 
     function deletableBranches() {
         if (!repoVm)

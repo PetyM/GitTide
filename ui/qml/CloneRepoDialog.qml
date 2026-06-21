@@ -17,12 +17,7 @@ Dialog {
     // Emitted when a clone is kicked off, so the host can show progress.
     signal cloneStarted()
 
-    background: Rectangle {
-        color: theme.surfaceRaised
-        radius: 18
-        border.color: theme.border
-        border.width: 1
-    }
+    background: OverlayCard {}
 
     function openDialog() {
         urlField.text = ""

@@ -32,6 +32,7 @@ class QmlTheme : public QObject
     Q_PROPERTY(QColor stateDeleted READ stateDeleted NOTIFY changed)
     Q_PROPERTY(QColor stateUntracked READ stateUntracked NOTIFY changed)
     Q_PROPERTY(QColor stateConflict READ stateConflict NOTIFY changed)
+    Q_PROPERTY(QColor shadow READ shadow NOTIFY changed)
     Q_PROPERTY(QVariantList laneColors READ laneColors CONSTANT)
     Q_PROPERTY(QString iconSource READ iconSource NOTIFY changed)
 
@@ -54,6 +55,7 @@ public:
     QColor stateDeleted() const;
     QColor stateUntracked() const;
     QColor stateConflict() const;
+    QColor shadow() const;
     QVariantList laneColors() const;
     QString iconSource() const;
 

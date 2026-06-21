@@ -12,6 +12,7 @@ struct Theme
     QString textPrimary, textSecondary, textMuted;
     QString accent, accentHover, head;
     QString stateAdded, stateModified, stateDeleted, stateUntracked, stateConflict;
+    QString shadow; // Translucent drop-shadow colour for overlay elevation (§9).
 };
 
 Theme darkTheme();

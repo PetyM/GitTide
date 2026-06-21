@@ -79,6 +79,10 @@ QColor QmlTheme::stateConflict() const
 {
     return QColor(theme().stateConflict);
 }
+QColor QmlTheme::shadow() const
+{
+    return QColor(theme().shadow);
+}
 
 QVariantList QmlTheme::laneColors() const
 {

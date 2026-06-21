@@ -26,6 +26,16 @@ private slots:
                  QStringLiteral("qrc:/icons/gittide-icon.svg"));
     }
 
+    void shadow_token_is_exposed_and_translucent()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        const QColor s = theme.property("shadow").value<QColor>();
+        QVERIFY(s.isValid());
+        QVERIFY(s.alpha() < 255);
+    }
+
     void lane_palette_is_five_hues_starting_cyan()
     {
         ThemeManager mgr;

@@ -19,5 +19,6 @@
     <file>HistoryPane.qml</file>
     <file>CommitDetail.qml</file>
     <file>CredentialDialog.qml</file>
+    <file>OverlayCard.qml</file>
   </qresource>
 </RCC>

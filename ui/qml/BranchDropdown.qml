@@ -28,11 +28,9 @@ Popup {
         filterField.forceActiveFocus()
     }
 
-    background: Rectangle {
+    background: OverlayCard {
         color: theme.surfaceOverlay
         radius: 10
-        border.color: theme.border
-        border.width: 1
     }
 
     contentItem: ColumnLayout {

@@ -21,6 +21,7 @@ Theme darkTheme()
         .stateDeleted   = QStringLiteral("#F85149"),
         .stateUntracked = QStringLiteral("#6E7681"),
         .stateConflict  = QStringLiteral("#DB6D28"),
+        .shadow         = QStringLiteral("#66000000"), // 40% black — deep on dark surfaces
     };
 }
 
@@ -43,6 +44,7 @@ Theme lightTheme()
         .stateDeleted   = QStringLiteral("#F85149"),
         .stateUntracked = QStringLiteral("#6E7681"),
         .stateConflict  = QStringLiteral("#DB6D28"),
+        .shadow         = QStringLiteral("#2E0B1623"), // ~18% of the dark brand ink
     };
 }
 

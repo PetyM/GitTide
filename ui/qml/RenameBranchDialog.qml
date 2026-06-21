@@ -14,12 +14,7 @@ Dialog {
 
     property string oldName: ""
 
-    background: Rectangle {
-        color: theme.surfaceRaised
-        radius: 18
-        border.color: theme.border
-        border.width: 1
-    }
+    background: OverlayCard {}
 
     function openDialog() {
         oldName = repoVm ? repoVm.currentBranch : ""

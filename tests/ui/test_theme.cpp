@@ -1,4 +1,5 @@
 #include <QtTest>
+#include <QColor>
 
 #include "gittide/ui/theme.hpp"
 
@@ -50,10 +51,22 @@ private slots:
                                        t.stateModified,
                                        t.stateDeleted,
                                        t.stateUntracked,
-                                       t.stateConflict})
+                                       t.stateConflict,
+                                       t.shadow})
             {
                 QVERIFY(!tok.isEmpty());
             }
+        }
+    }
+    void shadow_is_translucent_in_both_themes()
+    {
+        // Elevation token (design §9): a translucent shadow colour, so a card's
+        // drop shadow reads as depth, never a solid block.
+        for (const Theme& t : {darkTheme(), lightTheme()})
+        {
+            const QColor c(t.shadow);
+            QVERIFY(c.isValid());
+            QVERIFY(c.alpha() < 255);
         }
     }
 };

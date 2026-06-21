@@ -18,12 +18,7 @@ Dialog {
     property int total: 0
     property string errorText: ""
 
-    background: Rectangle {
-        color: theme.surfaceRaised
-        radius: 18
-        border.color: theme.border
-        border.width: 1
-    }
+    background: OverlayCard {}
 
     function openDialog() {
         received = 0
@@ -36,16 +31,38 @@ Dialog {
         spacing: 12
 
         ProgressBar {
+            id: bar
             Layout.fillWidth: true
             indeterminate: dialog.total <= 0
             from: 0
             to: Math.max(1, dialog.total)
             value: dialog.received
+
+            // Themed track + accent fill (the Basic style ships unstyled grey).
+            background: Rectangle {
+                implicitHeight: 6
+                radius: 3
+                color: theme.surfaceBase
+                border.color: theme.border
+                border.width: 1
+            }
+            contentItem: Item {
+                Rectangle {
+                    visible: !bar.indeterminate
+                    width: bar.visualPosition * parent.width
+                    height: parent.height
+                    radius: 3
+                    color: theme.accent
+                }
+            }
         }
         Label {
             text: dialog.errorText.length > 0
                   ? dialog.errorText
-                  : (dialog.total > 0 ? (dialog.received + " / " + dialog.total + " objects") : "Connecting…")
+                  : (dialog.total > 0
+                     ? (dialog.received + " / " + dialog.total + " objects ("
+                        + Math.round(100 * dialog.received / dialog.total) + "%)")
+                     : "Connecting…")
             color: dialog.errorText.length > 0 ? theme.stateDeleted : theme.textMuted
             font.pixelSize: 12
             Layout.fillWidth: true

@@ -14,12 +14,7 @@ Dialog {
     width: 380
     padding: 20
 
-    background: Rectangle {
-        color: theme.surfaceRaised
-        radius: 18
-        border.color: theme.border
-        border.width: 1
-    }
+    background: OverlayCard {}
 
     function openDialog() {
         nameField.text = ""

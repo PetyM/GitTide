@@ -27,6 +27,7 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 | `text.primary`   | `#C9D1D9` | `#0B1623` | Headings, primary content |
 | `text.secondary` | `#8B949E` | `#51606E` | Labels, secondary content |
 | `text.muted`     | `#6E7681` | `#8595A4` | Hints, disabled, captions |
+| `shadow`         | `#66000000` | `#2E0B1623` | Overlay drop-shadow (translucent) |
 
 ### Accent (brand)
 
@@ -141,14 +142,24 @@ letter (A / M / D / U / C).
   fully clickable — picking one checks the remote branch out (DWIM); a separator;
   then sentinel rows ("New branch…", "Rename current…", "Delete…") in
   `text.secondary`.
+- **Elevation.** Every overlay (dialogs + the branch dropdown) floats on a shared
+  `OverlayCard` background: a themed rounded card with a 1px `border` ring **and** a
+  translucent `shadow` drop shadow (rendered via `MultiEffect`), so popovers and
+  modals read as above the content, not painted flat onto it (design §9). The card
+  colour/radius default to a dialog (`surface.raised` / 18) and are overridden by
+  the dropdown (`surface.overlay` / 10).
 - **Branch dialogs.** New-branch / rename / delete-confirm follow the dialog
-  pattern: `surface.raised` card, radius 18, `border` outline, 2px `accent` focus
-  rings. New-branch = name input + a "switch to it" checkbox; an invalid name
-  disables the primary button and shows the reason in `text.secondary`.
+  pattern: `OverlayCard` (`surface.raised`, radius 18, `border` ring + shadow), 2px
+  `accent` focus rings. New-branch = name input + a "switch to it" checkbox; an
+  invalid name disables the primary button and shows the reason in `text.secondary`.
   Delete-confirm for an unmerged branch reveals a second-step "delete anyway (not
   fully merged)" action styled as a destructive secondary button.
-- **Clone progress modal.** `surface.raised` card, `accent` progress bar, Cancel
-  as a secondary button.
+- **Credential dialog.** HTTPS auth prompt follows the same `OverlayCard` pattern
+  with `accent`-focus-ring fields (username + masked token) and a primary "Sign in"
+  button disabled until both fields are filled.
+- **Clone progress modal.** `OverlayCard`, themed `accent` progress bar with a
+  percentage readout (`received / total objects (NN%)`), Cancel as a secondary
+  button.
 - **Empty-state cards.** Each empty page is a centered card (`surface.raised`,
   radius 18, max-width ~420px): brand icon, `22px` headline, `13px`
   `text.secondary` subtext, one primary CTA, secondary actions as ghost buttons.
