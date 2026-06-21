@@ -12,6 +12,7 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/sync.hpp"
 
 namespace gittide::ui {
 
@@ -52,6 +53,13 @@ public:
     QCoro::Task<gittide::Expected<void>> checkoutCommit(QString oid);
     QCoro::Task<gittide::Expected<void>> deleteBranch(QString name, bool force);
     QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);
+
+    QCoro::Task<gittide::Expected<gittide::SyncStatus>> syncStatus();
+    QCoro::Task<gittide::Expected<void>>                fetch(QString remote, gittide::Credentials cred);
+    QCoro::Task<gittide::Expected<void>>                pull(gittide::Credentials cred);
+    QCoro::Task<gittide::Expected<void>>                push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred);
+    QCoro::Task<gittide::Expected<gittide::PullStrategy>> pullStrategy();
+    QCoro::Task<gittide::Expected<void>>                setPullStrategy(gittide::PullStrategy strategy);
 
 private:
     struct Impl;

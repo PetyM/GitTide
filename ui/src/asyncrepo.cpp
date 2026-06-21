@@ -216,4 +216,70 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::renameBranch(QString oldName, QS
         });
 }
 
+QCoro::Task<gittide::Expected<gittide::SyncStatus>> AsyncRepo::syncStatus()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.syncStatus();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::fetch(QString remote, gittide::Credentials cred)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, remote = remote.toStdString(), cred = std::move(cred)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.fetch(remote, cred, [](unsigned, unsigned) { return true; });
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::pull(gittide::Credentials cred)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, cred = std::move(cred)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.pull(cred, [](unsigned, unsigned) { return true; });
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, remote = remote.toStdString(), branch = branch.toStdString(), setUpstream, cred = std::move(cred)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.push(remote, branch, setUpstream, cred, [](unsigned, unsigned) { return true; });
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::PullStrategy>> AsyncRepo::pullStrategy()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.pullStrategy();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::setPullStrategy(gittide::PullStrategy strategy)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, strategy]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.setPullStrategy(strategy);
+        });
+}
+
 } // namespace gittide::ui
