@@ -64,23 +64,65 @@ Rectangle {
             visible: sidebar.topLevelCount > 0
             model: repoModel
 
+            // Expand every node as rows arrive so nested submodules show by default.
+            onModelChanged: expandRecursively()
+            Connections {
+                target: repoModel
+                function onModelReset() { repoTree.expandRecursively() }
+            }
+
             delegate: TreeViewDelegate {
                 id: row
                 implicitHeight: 34
                 indentation: 16
-                onClicked: if (repoVm) repoVm.open(model.repoPath)
+                onClicked: if (repoVm && !model.isSubmodule) repoVm.open(model.repoPath)
+
+                readonly property bool isSub: model.isSubmodule === true
+                readonly property bool uninit: isSub && model.status === 2
 
                 contentItem: RowLayout {
                     spacing: 8
+
+                    // Glyph: repository (◧) vs submodule (❖, accent @0.7).
                     Label {
-                        text: model.repoPath ? model.repoPath.toString().split("/").pop() : ""
-                        color: model.missing ? theme.textMuted : theme.textPrimary
+                        text: row.isSub ? "❖" : "◧"
+                        color: row.isSub ? theme.accent : (row.current ? theme.accent : theme.textSecondary)
+                        opacity: row.isSub ? 0.7 : 1.0
+                        font.pixelSize: row.isSub ? 14 : 15
+                    }
+
+                    Label {
+                        text: row.isSub
+                              ? model.display
+                              : (model.repoPath ? model.repoPath.toString().split("/").pop() : "")
+                        color: (model.missing || row.uninit) ? theme.textMuted : theme.textPrimary
                         font.pixelSize: 13
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
+
+                    // Submodule: pinned short OID (mono) — hidden when uninitialised.
                     Label {
-                        visible: model.missing === true
+                        visible: row.isSub && !row.uninit
+                        text: model.shortOid
+                        color: theme.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: 11
+                    }
+
+                    // Submodule: status dot (dirty amber / clean green @0.55).
+                    Rectangle {
+                        visible: row.isSub && !row.uninit
+                        implicitWidth: 7
+                        implicitHeight: 7
+                        radius: 3.5
+                        color: model.status === 1 ? theme.stateModified : theme.stateAdded
+                        opacity: model.status === 1 ? 1.0 : 0.55
+                    }
+
+                    // Repository: missing-on-disk warning.
+                    Label {
+                        visible: !row.isSub && model.missing === true
                         text: "⚠"
                         color: theme.stateModified
                     }
@@ -89,18 +131,48 @@ Rectangle {
                 background: Rectangle {
                     color: row.current ? theme.surfaceBase : "transparent"
                     radius: 10
+                    // Divider above each top-level repo after the first.
                     Rectangle {
-                        visible: row.current
+                        visible: !row.isSub && row.row > 0
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: 4
+                        height: 1
+                        color: theme.border
+                        opacity: 0.5
+                    }
+                    // Selection accent border (repos) at x=0.
+                    Rectangle {
+                        visible: row.current && !row.isSub
                         width: 2
                         height: parent.height
                         color: theme.accent
                     }
+                    // Submodule guide rail + elbow connector.
+                    Rectangle {
+                        visible: row.isSub
+                        x: row.depth * row.indentation - 8
+                        width: 1
+                        height: parent.height
+                        color: theme.border
+                    }
+                    Rectangle {
+                        visible: row.isSub
+                        x: row.depth * row.indentation - 8
+                        y: parent.height / 2
+                        width: 7
+                        height: 1
+                        color: theme.border
+                    }
                 }
 
-                // Right-click → remove-from-project menu.
+                // Right-click → remove-from-project menu (top-level repos only).
                 TapHandler {
                     acceptedButtons: Qt.RightButton
                     onTapped: {
+                        if (row.isSub)
+                            return
                         repoContextMenu.repoPath = model.repoPath
                         repoContextMenu.popup()
                     }

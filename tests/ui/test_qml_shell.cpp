@@ -10,6 +10,7 @@
 #include "gittide/ui/repoviewmodel.hpp"
 #include "gittide/ui/thememanager.hpp"
 #include "gittide/projectstore.hpp"
+#include "support/temprepo.hpp"
 #include <git2.h>
 #include <QRandomGenerator>
 #include <filesystem>
@@ -182,6 +183,34 @@ private slots:
         QCOMPARE(diff->property("model").value<QAbstractItemModel*>(), vm.diffLines());
 
         std::filesystem::remove_all(dir);
+    }
+
+    void shell_loads_with_a_submodule_bearing_repo_model()
+    {
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("child");
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("parent");
+        parent.addSubmodule("libchild", child.path());
+        parent.commitAll("add submodule");
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+
+        RepoListModel model;
+        model.setRepos({gittide::RepoRef{.path = parent.path().generic_string(), .alias = "parent"}});
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &model, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+
+        const QModelIndex top = model.index(0, 0);
+        QCOMPARE(model.rowCount(top), 1);
+        QCOMPARE(model.data(model.index(0, 0, top), RepoListModel::IsSubmoduleRole).toBool(), true);
     }
 };
 

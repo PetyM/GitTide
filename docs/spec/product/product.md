@@ -174,7 +174,13 @@ writes, path encoding, corrupt-file recovery) are an engineering concern — see
 
 A submodule **is** a git repo at a working-directory path. GitTide discovers them
 live (never persisting them — git's state is the single source of truth) and
-shows them as children under their parent repo in the tree. Selecting a submodule
-opens it as a first-class repo, reusing the same Changes / History machinery. The
-parent repo shows a submodule as a single changed entry (a pointer move), not its
-recursed internals.
+shows them as children under their parent repo in the tree, recursively to
+arbitrary depth (expanded by default). Each submodule row carries at-a-glance
+state: its pinned short commit OID and a clean / dirty / uninitialised indicator.
+The parent repo shows a submodule as a single changed entry (a pointer move), not
+its recursed internals.
+
+Submodule rows are currently **informational** — there is no open-as-repo or
+checkout action on them yet (deferred). The intent remains that selecting a
+submodule opens it as a first-class repo, reusing the same Changes / History
+machinery.

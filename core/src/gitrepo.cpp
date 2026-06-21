@@ -505,30 +505,83 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
     return result;
 }
 
-Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
+namespace {
+// Bit set indicating the submodule's index/working tree differs from its pin.
+constexpr unsigned kSubmoduleDirtyMask =
+    GIT_SUBMODULE_STATUS_INDEX_ADDED | GIT_SUBMODULE_STATUS_INDEX_DELETED |
+    GIT_SUBMODULE_STATUS_INDEX_MODIFIED | GIT_SUBMODULE_STATUS_WD_INDEX_MODIFIED |
+    GIT_SUBMODULE_STATUS_WD_WD_MODIFIED | GIT_SUBMODULE_STATUS_WD_MODIFIED |
+    GIT_SUBMODULE_STATUS_WD_UNTRACKED | GIT_SUBMODULE_STATUS_WD_DELETED;
+
+SubmoduleStatus classifySubmodule(unsigned flags)
 {
-    std::vector<std::filesystem::path> result;
+    if (!(flags & GIT_SUBMODULE_STATUS_IN_WD))
+        return SubmoduleStatus::Uninitialized;
+    if (flags & kSubmoduleDirtyMask)
+        return SubmoduleStatus::Dirty;
+    return SubmoduleStatus::Clean;
+}
+} // namespace
+
+Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
+{
     const std::filesystem::path wd = workdir();
 
+    // Collect direct submodules (path/name/oid/status) inside the foreach, then
+    // descend afterwards — opening child repositories inside the callback is
+    // unsafe while libgit2 holds the submodule cache.
     struct Payload
     {
-        std::vector<std::filesystem::path>* out;
+        std::vector<SubmoduleNode>* out;
         const std::filesystem::path* wd;
+        git_repository* repo;
     };
-    Payload payload{&result, &wd};
+    std::vector<SubmoduleNode> result;
+    Payload payload{&result, &wd, m_repo};
 
-    auto cb = [](git_submodule* sm, const char* /*name*/, void* pl) -> int
+    auto cb = [](git_submodule* sm, const char* name, void* pl) -> int
     {
-        auto* p         = static_cast<Payload*>(pl);
-        const char* rel = git_submodule_path(sm);
-        if (rel)
-            p->out->push_back(*p->wd / fromGitPath(rel));
+        auto* p = static_cast<Payload*>(pl);
+
+        SubmoduleNode node;
+        node.name = name ? name : "";
+        if (const char* rel = git_submodule_path(sm))
+            node.path = *p->wd / fromGitPath(rel);
+
+        unsigned flags = 0;
+        if (git_submodule_status(&flags, p->repo, node.name.c_str(), GIT_SUBMODULE_IGNORE_UNSPECIFIED) == 0)
+            node.status = classifySubmodule(flags);
+
+        if (node.status != SubmoduleStatus::Uninitialized)
+        {
+            if (const git_oid* hid = git_submodule_head_id(sm))
+            {
+                char hex[GIT_OID_HEXSZ + 1];
+                git_oid_tostr(hex, sizeof(hex), hid);
+                node.shortOid.assign(hex, hex + 7);
+            }
+        }
+
+        p->out->push_back(std::move(node));
         return 0;
     };
 
     const int rc = git_submodule_foreach(m_repo, cb, &payload);
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
+
+    // Descend into each initialised submodule.
+    for (auto& node : result)
+    {
+        if (node.status == SubmoduleStatus::Uninitialized)
+            continue;
+        auto child = GitRepo::open(node.path);
+        if (!child)
+            continue; // a broken child degrades to no children, not a fatal error
+        if (auto sub = child->submoduleTree())
+            node.children = std::move(*sub);
+    }
+
     return result;
 }
 

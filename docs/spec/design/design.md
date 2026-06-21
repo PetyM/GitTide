@@ -106,7 +106,17 @@ letter (A / M / D / U / C).
   the "New project…" sentinel row is separated and shown in `text.secondary`.
 - **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
   `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
-  a warning icon, never red text alone. Radius 10 on hover highlight.
+  a warning icon, never red text alone. Radius 10 on hover highlight. Top-level
+  repositories are separated by a faint `border` divider above each repo after the
+  first. **Submodules** render recursively (arbitrary depth, expanded by default):
+  a `❖` glyph in `accent` (~0.7α) distinguishes them from a repository's `◧`; the
+  pinned short OID shows in mono `text.muted`; a status dot reuses the git-state
+  tokens — `state.modified` (dirty) or `state.added` @0.55α (clean) — paired with
+  the OID text, never colour alone; an uninitialised submodule is dimmed
+  (`text.muted`) with no OID or dot. Each level draws a `border` guide rail +
+  elbow connector. (Like the history graph's multi-colour lanes, the status dot is
+  a sanctioned reuse of git-state tokens for repository structure, not a new
+  palette.)
 - **Tabs** (`mainTabs`). The list column's Changes | History sub-tabs. Flat;
   active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
 - **Changed-files list** (`changedFilesList`). One row per changed file: a

@@ -9,6 +9,7 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/submodule.hpp"
 
 struct git_repository;
 struct git_oid;
@@ -88,8 +89,11 @@ public:
     // Does NOT switch HEAD — creation only.
     Expected<void> createBranch(std::string name, std::string fromOid);
 
-    // Returns absolute paths of direct submodules (from .gitmodules).
-    Expected<std::vector<std::filesystem::path>> submodules() const;
+    // Recursively enumerates submodules (depth-first), opening each initialised
+    // submodule as its own repository to descend. Each node carries the pinned
+    // short OID and a clean/dirty/uninitialised status; uninitialised nodes have
+    // no children. See SubmoduleStatus / SubmoduleNode.
+    Expected<std::vector<SubmoduleNode>> submoduleTree() const;
 
     // Switch HEAD to the named local branch. If the working tree is dirty the
     // changes are auto-stashed before the switch and re-applied afterwards.

@@ -5,7 +5,9 @@
 #include <vector>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/submodule.hpp"
 #include "gittide/ui/repolistmodel.hpp"
+#include "support/temprepo.hpp"
 
 using gittide::RepoRef;
 using gittide::ui::RepoListModel;
@@ -69,6 +71,41 @@ private slots:
 
         const QModelIndex parent = model.index(0, 0);
         QVERIFY(!model.index(0, 0, parent).isValid());
+    }
+
+    void submodule_rows_expose_recursive_children_and_new_roles()
+    {
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("child");
+
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("parent");
+        parent.addSubmodule("libchild", child.path());
+        parent.commitAll("add submodule");
+
+        std::vector<RepoRef> repos{
+            RepoRef{.path = parent.path().generic_string(), .alias = "parent"},
+        };
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos(repos);
+
+        QCOMPARE(model.rowCount(), 1);
+        const QModelIndex top = model.index(0, 0);
+        QCOMPARE(model.data(top, RepoListModel::IsSubmoduleRole).toBool(), false);
+        QCOMPARE(model.rowCount(top), 1); // one submodule child
+
+        const QModelIndex sub = model.index(0, 0, top);
+        QVERIFY(sub.isValid());
+        QCOMPARE(model.parent(sub), top);
+        QCOMPARE(model.data(sub, RepoListModel::IsSubmoduleRole).toBool(), true);
+        QCOMPARE(model.data(sub, Qt::DisplayRole).toString(), QStringLiteral("libchild"));
+        QCOMPARE(model.data(sub, RepoListModel::ShortOidRole).toString().size(), 7);
+        QCOMPARE(model.data(sub, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(gittide::SubmoduleStatus::Clean));
     }
 };
 

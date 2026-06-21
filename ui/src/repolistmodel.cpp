@@ -11,148 +11,131 @@ RepoListModel::RepoListModel(QObject* parent)
 {
 }
 
+void RepoListModel::appendSubmodules(Node& parent, const std::vector<gittide::SubmoduleNode>& subs)
+{
+    for (const auto& s : subs)
+    {
+        auto node         = std::make_unique<Node>();
+        node->displayName = QString::fromStdString(s.name);
+        node->path        = QString::fromStdString(s.path.generic_string());
+        node->isSubmodule = true;
+        node->missing     = s.status == gittide::SubmoduleStatus::Uninitialized;
+        node->shortOid    = QString::fromStdString(s.shortOid);
+        node->status      = s.status;
+        node->parent      = &parent;
+        appendSubmodules(*node, s.children);
+        parent.children.push_back(std::move(node));
+    }
+}
+
 void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
 {
     beginResetModel();
-    m_rows.clear();
-    m_rows.reserve(repos.size());
+    m_roots.clear();
     for (const auto& r : repos)
     {
         const std::filesystem::path p(r.path);
         std::error_code ec;
         const bool present = std::filesystem::exists(p, ec) && !ec;
-        Row row{
-            .alias   = QString::fromStdString(r.alias),
-            .path    = QString::fromStdString(r.path),
-            .missing = !present,
-        };
+
+        auto root         = std::make_unique<Node>();
+        root->displayName = r.alias.empty() ? QString::fromStdString(r.path) : QString::fromStdString(r.alias);
+        root->path        = QString::fromStdString(r.path);
+        root->isSubmodule = false;
+        root->missing     = !present;
+
         if (present)
         {
             auto repo = gittide::GitRepo::open(p);
             if (repo)
             {
-                auto subs = repo->submodules();
-                if (subs)
-                {
-                    for (const auto& subPath : *subs)
-                    {
-                        std::error_code sec;
-                        bool subPresent = std::filesystem::exists(subPath, sec) && !sec;
-                        row.children.push_back(SubRow{
-                            .path        = QString::fromStdString(subPath.generic_string()),
-                            .displayName = QString::fromStdString(subPath.filename().generic_string()),
-                            .missing     = !subPresent,
-                        });
-                    }
-                }
+                if (auto tree = repo->submoduleTree())
+                    appendSubmodules(*root, *tree);
             }
         }
-        m_rows.push_back(std::move(row));
+        m_roots.push_back(std::move(root));
     }
     endResetModel();
 }
 
+RepoListModel::Node* RepoListModel::nodeFor(const QModelIndex& index) const
+{
+    return index.isValid() ? static_cast<Node*>(index.internalPointer()) : nullptr;
+}
+
+int RepoListModel::rowOf(const Node* node) const
+{
+    const auto& siblings = node->parent ? node->parent->children : m_roots;
+    for (std::size_t i = 0; i < siblings.size(); ++i)
+        if (siblings[i].get() == node)
+            return static_cast<int>(i);
+    return 0;
+}
+
 QModelIndex RepoListModel::index(int row, int column, const QModelIndex& parent) const
 {
-    if (column != 0)
+    if (column != 0 || row < 0)
         return {};
-    if (!parent.isValid())
-    {
-        if (row < 0 || row >= static_cast<int>(m_rows.size()))
-            return {};
-        return createIndex(row, 0, nullptr);
-    }
-    // Child of a top-level item (submodule). Depth is max 1.
-    if (parent.internalPointer() != nullptr)
+    const Node* parentNode = nodeFor(parent);
+    const auto& siblings   = parentNode ? parentNode->children : m_roots;
+    if (row >= static_cast<int>(siblings.size()))
         return {};
-    const int pr = parent.row();
-    if (pr < 0 || pr >= static_cast<int>(m_rows.size()))
-        return {};
-    if (row < 0 || row >= static_cast<int>(m_rows[pr].children.size()))
-        return {};
-    return createIndex(row, 0, reinterpret_cast<void*>(quintptr(pr + 1)));
+    return createIndex(row, 0, siblings[row].get());
 }
 
 QModelIndex RepoListModel::parent(const QModelIndex& child) const
 {
-    if (!child.isValid())
+    const Node* node = nodeFor(child);
+    if (!node || !node->parent)
         return {};
-    const auto ptr = reinterpret_cast<quintptr>(child.internalPointer());
-    if (ptr == 0)
-        return {};
-    return createIndex(static_cast<int>(ptr - 1), 0, nullptr);
+    Node* p = node->parent;
+    return createIndex(rowOf(p), 0, p);
 }
 
 int RepoListModel::rowCount(const QModelIndex& parent) const
 {
-    if (!parent.isValid())
-        return static_cast<int>(m_rows.size());
-    if (parent.internalPointer() != nullptr)
-        return 0;
-    const int row = parent.row();
-    if (row < 0 || row >= static_cast<int>(m_rows.size()))
-        return 0;
-    return static_cast<int>(m_rows[row].children.size());
+    const Node* node     = nodeFor(parent);
+    const auto& siblings = node ? node->children : m_roots;
+    return static_cast<int>(siblings.size());
 }
 
-int RepoListModel::columnCount(const QModelIndex& parent) const
+int RepoListModel::columnCount(const QModelIndex&) const
 {
-    if (parent.isValid() && parent.internalPointer() != nullptr)
-        return 0;
     return 1;
 }
 
 QVariant RepoListModel::data(const QModelIndex& index, int role) const
 {
-    if (!index.isValid())
+    const Node* node = nodeFor(index);
+    if (!node)
         return {};
-    const auto ptr = reinterpret_cast<quintptr>(index.internalPointer());
-    if (ptr == 0)
+    switch (role)
     {
-        const auto row = static_cast<std::size_t>(index.row());
-        if (row >= m_rows.size())
-            return {};
-        const auto& r = m_rows[row];
-        switch (role)
-        {
-        case Qt::DisplayRole:
-            return r.alias.isEmpty() ? r.path : r.alias;
-        case PathRole:
-            return r.path;
-        case MissingRole:
-            return r.missing;
-        default:
-            return {};
-        }
-    }
-    else
-    {
-        const int pr = static_cast<int>(ptr - 1);
-        const int cr = index.row();
-        if (pr < 0 || pr >= static_cast<int>(m_rows.size()))
-            return {};
-        if (cr < 0 || cr >= static_cast<int>(m_rows[pr].children.size()))
-            return {};
-        const auto& sub = m_rows[pr].children[cr];
-        switch (role)
-        {
-        case Qt::DisplayRole:
-            return sub.displayName;
-        case PathRole:
-            return sub.path;
-        case MissingRole:
-            return sub.missing;
-        default:
-            return {};
-        }
+    case Qt::DisplayRole:
+        return node->displayName;
+    case PathRole:
+        return node->path;
+    case MissingRole:
+        return node->missing;
+    case IsSubmoduleRole:
+        return node->isSubmodule;
+    case ShortOidRole:
+        return node->shortOid;
+    case StatusRole:
+        return static_cast<int>(node->status);
+    default:
+        return {};
     }
 }
 
 QHash<int, QByteArray> RepoListModel::roleNames() const
 {
-    auto roles         = QAbstractItemModel::roleNames();
-    roles[PathRole]    = "repoPath";
-    roles[MissingRole] = "missing";
+    auto roles             = QAbstractItemModel::roleNames();
+    roles[PathRole]        = "repoPath";
+    roles[MissingRole]     = "missing";
+    roles[IsSubmoduleRole] = "isSubmodule";
+    roles[ShortOidRole]    = "shortOid";
+    roles[StatusRole]      = "status";
     return roles;
 }
 

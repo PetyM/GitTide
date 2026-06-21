@@ -32,6 +32,14 @@ public:
     // Write user.name / user.email into the repo's git config.
     void setIdentity(std::string_view name, std::string_view email);
 
+    // Add childRepoPath as a submodule at repo-relative path `name`, cloning it
+    // into the working tree (initialised). Does not commit; caller commits.
+    void addSubmodule(std::string_view name, const std::filesystem::path& childRepoPath);
+
+    // Clone+checkout every uninitialised submodule, depth-first, so nested
+    // submodules a non-recursive clone left bare become real working trees.
+    void updateSubmodulesRecursive();
+
 private:
     LibGit2Context m_ctx;
     std::filesystem::path m_dir;

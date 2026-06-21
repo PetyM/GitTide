@@ -18,6 +18,7 @@ add_executable(gittide_core_tests
   test_git_repo_branches.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
+  test_git_repo_submodules.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
 )
@@ -69,10 +70,11 @@ if(GITGUI_BUILD_UI)
 
   add_executable(gittide_ui_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/support/temprepo.cpp
     ${gittide_ui_test_sources}
   )
   set_target_properties(gittide_ui_tests PROPERTIES AUTOMOC ON)
-  target_include_directories(gittide_ui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ui ${libgit2_SOURCE_DIR}/include)
+  target_include_directories(gittide_ui_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/ui ${libgit2_SOURCE_DIR}/include)
   target_link_libraries(gittide_ui_tests PRIVATE
     gittide_ui Qt6::Widgets Qt6::Test Qt6::Concurrent Qt6::Qml Qt6::Quick QCoro6::Core libgit2package)
   add_test(NAME gittide_ui_tests COMMAND gittide_ui_tests)
