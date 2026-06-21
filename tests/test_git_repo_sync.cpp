@@ -72,3 +72,29 @@ TEST_CASE("fetch updates remote-tracking and reports behind", "[sync][fetch]")
     REQUIRE(st->behind == 1);
     REQUIRE(st->ahead == 0);
 }
+
+TEST_CASE("pullStrategy round-trips through git config", "[sync][strategy]")
+{
+    TempRepo repo;
+    repo.writeFile("a.txt", "one");
+    repo.setIdentity("Test", "test@example.com");
+    repo.commitAll("c1");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+
+    // Default (unset) => FastForwardOnly.
+    auto s0 = gr->pullStrategy();
+    REQUIRE(s0);
+    REQUIRE(*s0 == gittide::PullStrategy::FastForwardOnly);
+
+    REQUIRE(gr->setPullStrategy(gittide::PullStrategy::Rebase));
+    auto s1 = gr->pullStrategy();
+    REQUIRE(s1);
+    REQUIRE(*s1 == gittide::PullStrategy::Rebase);
+
+    REQUIRE(gr->setPullStrategy(gittide::PullStrategy::FastForwardOnly));
+    auto s2 = gr->pullStrategy();
+    REQUIRE(s2);
+    REQUIRE(*s2 == gittide::PullStrategy::FastForwardOnly);
+}

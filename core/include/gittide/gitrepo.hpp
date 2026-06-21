@@ -90,6 +90,11 @@ public:
     // or HEAD is unborn/detached. See SyncStatus.
     Expected<SyncStatus> syncStatus() const;
 
+    // Read/write the pull reconciliation strategy, persisted in git config
+    // (pull.rebase: true => Rebase, absent/false => FastForwardOnly).
+    Expected<PullStrategy> pullStrategy() const;
+    Expected<void>         setPullStrategy(PullStrategy strategy);
+
     // Fetch the named remote, updating remote-tracking refs. cred is supplied by
     // the caller (ssh-agent / https token); cb reports transfer progress. The
     // credential callback selects ssh-agent vs userpass by URL scheme.

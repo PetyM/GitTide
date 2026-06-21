@@ -4,6 +4,7 @@
 #include <git2/branch.h>
 #include <git2/checkout.h>
 #include <git2/commit.h>
+#include <git2/config.h>
 #include <git2/credential.h>
 #include <git2/graph.h>
 #include <git2/remote.h>
@@ -1026,6 +1027,37 @@ Expected<SyncStatus> GitRepo::syncStatus() const
     git_buf_dispose(&remote_buf);
 
     return out;
+}
+
+Expected<PullStrategy> GitRepo::pullStrategy() const
+{
+    git_config* cfg = nullptr;
+    int rc = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    int rebase = 0;
+    rc = git_config_get_bool(&rebase, cfg, "pull.rebase");
+    if (rc == GIT_ENOTFOUND)
+        return PullStrategy::FastForwardOnly;
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return rebase ? PullStrategy::Rebase : PullStrategy::FastForwardOnly;
+}
+
+Expected<void> GitRepo::setPullStrategy(PullStrategy strategy)
+{
+    git_config* cfg = nullptr;
+    int rc = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    rc = git_config_set_bool(cfg, "pull.rebase", strategy == PullStrategy::Rebase ? 1 : 0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
 }
 
 Expected<void> GitRepo::fetch(std::string remoteName, Credentials cred, ProgressCallback cb)
