@@ -182,3 +182,50 @@ TEST_CASE("pull rebase replays local commits onto upstream", "[sync][pull]")
     REQUIRE(st->behind == 0);
     REQUIRE(st->ahead == 1); // local-c2 replayed on top of remote-c2
 }
+
+TEST_CASE("push sends local commits to the remote and clears ahead", "[sync][push]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    auto bare = repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master"); // baseline + upstream
+
+    repo.writeFile("a.txt", "two");
+    repo.commitAll("c2");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    REQUIRE(gr->push("origin", "master", /*setUpstream=*/false, gittide::Credentials{},
+                     [](unsigned, unsigned) { return true; }));
+
+    auto st = gr->syncStatus();
+    REQUIRE(st);
+    REQUIRE(st->ahead == 0);
+}
+
+TEST_CASE("push with setUpstream publishes a branch with no upstream", "[sync][push]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    repo.addBareRemote("origin"); // remote exists, but no upstream set, nothing pushed
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+
+    auto before = gr->syncStatus();
+    REQUIRE(before);
+    REQUIRE_FALSE(before->hasUpstream);
+
+    REQUIRE(gr->push("origin", "master", /*setUpstream=*/true, gittide::Credentials{},
+                     [](unsigned, unsigned) { return true; }));
+
+    auto after = gr->syncStatus();
+    REQUIRE(after);
+    REQUIRE(after->hasUpstream);
+    REQUIRE(after->ahead == 0);
+    REQUIRE(after->behind == 0);
+}

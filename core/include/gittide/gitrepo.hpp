@@ -106,6 +106,12 @@ public:
     // on a branch with an upstream.
     Expected<void> pull(Credentials cred, ProgressCallback cb);
 
+    // Push refs/heads/<branch> to remoteName. When setUpstream is true, set the
+    // branch's upstream to <remoteName>/<branch> after a successful push
+    // ("publish"). cred supplied by the caller; cb reports progress.
+    Expected<void> push(std::string remoteName, std::string branch, bool setUpstream,
+                        Credentials cred, ProgressCallback cb);
+
     // Create a new local branch pointing at fromOid (40-char hex SHA).
     // Pass an empty fromOid to branch from current HEAD.
     // Does NOT switch HEAD — creation only.

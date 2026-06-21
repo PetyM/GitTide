@@ -1207,4 +1207,42 @@ Expected<void> GitRepo::pull(Credentials cred, ProgressCallback cb)
     return {};
 }
 
+Expected<void> GitRepo::push(std::string remoteName, std::string branch, bool setUpstream,
+                             Credentials cred, ProgressCallback cb)
+{
+    git_remote* raw = nullptr;
+    int rc = git_remote_lookup(&raw, m_repo, remoteName.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_remote, decltype(&git_remote_free)> remote(raw, git_remote_free);
+
+    std::string ref     = "refs/heads/" + branch;
+    std::string refspec = ref + ":" + ref;
+    char* specs[]       = {refspec.data()};
+    git_strarray arr    = {specs, 1};
+
+    CbPayload pl{&cb, &cred};
+    git_push_options opts      = GIT_PUSH_OPTIONS_INIT;
+    opts.callbacks.credentials = credentialTrampoline;
+    opts.callbacks.payload     = &pl;
+
+    rc = git_remote_push(remote.get(), &arr, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    if (setUpstream)
+    {
+        git_reference* branch_ref = nullptr;
+        rc = git_branch_lookup(&branch_ref, m_repo, branch.c_str(), GIT_BRANCH_LOCAL);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> br_guard(branch_ref, git_reference_free);
+        std::string upstream = remoteName + "/" + branch;
+        rc = git_branch_set_upstream(branch_ref, upstream.c_str());
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
 } // namespace gittide
