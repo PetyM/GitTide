@@ -10,6 +10,7 @@
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/submodule.hpp"
+#include "gittide/sync.hpp"
 
 struct git_repository;
 struct git_oid;
@@ -83,6 +84,33 @@ public:
 
     // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
     Expected<HeadState> head() const;
+
+    // Ahead/behind of the current branch versus its upstream remote-tracking
+    // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
+    // or HEAD is unborn/detached. See SyncStatus.
+    Expected<SyncStatus> syncStatus() const;
+
+    // Read/write the pull reconciliation strategy, persisted in git config
+    // (pull.rebase: true => Rebase, absent/false => FastForwardOnly).
+    Expected<PullStrategy> pullStrategy() const;
+    Expected<void>         setPullStrategy(PullStrategy strategy);
+
+    // Fetch the named remote, updating remote-tracking refs. cred is supplied by
+    // the caller (ssh-agent / https token); cb reports transfer progress. The
+    // credential callback selects ssh-agent vs userpass by URL scheme.
+    Expected<void> fetch(std::string remoteName, Credentials cred, ProgressCallback cb);
+
+    // Fetch the current branch's upstream remote, then reconcile per
+    // pullStrategy(): fast-forward (error if not fast-forwardable) or rebase
+    // local commits onto the upstream (abort + error on conflict). HEAD must be
+    // on a branch with an upstream.
+    Expected<void> pull(Credentials cred, ProgressCallback cb);
+
+    // Push refs/heads/<branch> to remoteName. When setUpstream is true, set the
+    // branch's upstream to <remoteName>/<branch> after a successful push
+    // ("publish"). cred supplied by the caller; cb reports progress.
+    Expected<void> push(std::string remoteName, std::string branch, bool setUpstream,
+                        Credentials cred, ProgressCallback cb);
 
     // Create a new local branch pointing at fromOid (40-char hex SHA).
     // Pass an empty fromOid to branch from current HEAD.

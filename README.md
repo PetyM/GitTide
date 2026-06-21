@@ -65,3 +65,10 @@ with `-DGITGUI_BUILD_TESTS=OFF`.
 
 The CI matrix (Linux / macOS / Windows) runs the same configure → build → test
 sequence — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Credits
+
+GitTide's interaction model is inspired by
+[**GitHub Desktop**](https://github.com/desktop/desktop) — its approachable,
+focused take on a graphical git client. GitTide is an independent project and is
+not affiliated with or endorsed by GitHub.

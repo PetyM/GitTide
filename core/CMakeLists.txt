@@ -4,6 +4,7 @@ target_sources(gittide_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/pathutil.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/giterror.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/gitrepo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/credentialselect.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/diffengine.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/projectstore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/graphbuilder.cpp

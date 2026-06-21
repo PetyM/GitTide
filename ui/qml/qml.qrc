@@ -18,5 +18,6 @@
     <file>Avatar.qml</file>
     <file>HistoryPane.qml</file>
     <file>CommitDetail.qml</file>
+    <file>CredentialDialog.qml</file>
   </qresource>
 </RCC>

@@ -39,8 +39,7 @@ parallel, and large histories/diffs render incrementally.
 
 **Not yet (post-MVP):**
 
-- Network operations beyond clone: push / pull / fetch, and bulk "fetch/pull
-  all" across a project.
+- Bulk network operations: "fetch-all / pull-all" across a project.
 - Branch **merge** and conflict-resolution UI. (Local branch *create / switch /
   delete / rename* is now designed — see [Branches](#branches).)
 - An aggregated project-wide timeline graph (all repos on one axis).
@@ -102,11 +101,28 @@ three-part **commit detail** flow: (1) the **changed-files list** of that commit
 HEAD at the selected commit. A 2px `accent` left border and a row-wide highlight
 mark the selected history row.
 
+### Syncing
+
+Sync a branch with its remote without leaving GitTide. The branch bar shows
+**ahead / behind** counts for the current branch's upstream. Four actions are
+available: **Fetch** (download new commits, update remote-tracking refs),
+**Pull** (fetch + reconcile), **Push** (upload local commits), and **Publish**
+(push + set upstream for a branch that has none). Pull strategy — fast-forward-only
+or rebase — is persisted in the repo's git config (`pull.rebase`) and toggled
+from the branch bar. A rebase that hits conflicts aborts with an error; conflict
+resolution is done via CLI for now. Authentication: SSH remotes use the system
+ssh-agent; HTTPS remotes accept a personal access token entered in a
+`CredentialDialog`. Tokens are kept in a session map (cleared on quit) — secure
+keychain storage is deferred.
+
+Remaining deferred: merge-strategy pull, rebase / merge conflict UI,
+SSH keyfile + passphrase, multi-remote management, fetch-all / pull-all.
+
 ### Branches
 
-Work with a repo's **local** branches without dropping to a terminal. Scope is
-deliberately local-only: no fetch/push, no tracking-branch setup, no merge —
-those are separate later wishes.
+Work with a repo's **local** branches without dropping to a terminal. Scope now
+covers local branches plus single-remote sync (see [Syncing](#syncing)); branch
+merge and conflict-resolution UI are separate later wishes.
 
 - **See.** A branch bar above the tabs names the current branch, or shows a
   `detached @ <short-oid>` state when `HEAD` is on a bare commit (paired with an

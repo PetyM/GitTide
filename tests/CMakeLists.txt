@@ -16,9 +16,11 @@ add_executable(gittide_core_tests
   test_git_repo_log.cpp
   test_git_repo_commit_diff.cpp
   test_git_repo_branches.cpp
+  test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
   test_git_repo_submodules.cpp
+  test_git_repo_sync.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
 )
@@ -61,6 +63,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_shell.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_history.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_sync.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_changed_files_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_diff_lines_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_view_model.cpp

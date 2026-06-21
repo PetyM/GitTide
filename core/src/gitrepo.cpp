@@ -1,10 +1,16 @@
 #include "gittide/gitrepo.hpp"
 
 #include <git2.h>
+#include <git2/annotated_commit.h>
 #include <git2/branch.h>
 #include <git2/checkout.h>
 #include <git2/commit.h>
+#include <git2/config.h>
+#include <git2/credential.h>
 #include <git2/graph.h>
+#include <git2/merge.h>
+#include <git2/rebase.h>
+#include <git2/remote.h>
 #include <git2/reset.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
@@ -17,6 +23,7 @@
 
 #include "gittide/diffengine.hpp"
 #include "gittide/pathutil.hpp"
+#include "gittide/sync.hpp"
 
 namespace {
 // True when the selection targets the whole file (no hunk chosen).
@@ -79,10 +86,37 @@ std::map<std::string, std::string> worktreeBranchPaths(git_repository* repo)
     return out;
 }
 
+// Shared payload passed to ALL libgit2 callbacks on a git_remote_callbacks.
+// libgit2 routes the same void* to both transfer_progress and credentials.
+struct CbPayload
+{
+    gittide::ProgressCallback* cb   = nullptr;
+    gittide::Credentials*      cred = nullptr;
+};
+
 int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
 {
-    auto* cb = static_cast<gittide::ProgressCallback*>(payload);
-    return (*cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
+    auto* pl = static_cast<CbPayload*>(payload);
+    return (*pl->cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
+}
+
+int credentialTrampoline(git_credential** out, const char* url, const char* username_from_url,
+                         unsigned int allowed_types, void* payload)
+{
+    auto* pl = static_cast<CbPayload*>(payload);
+    if (!pl->cred)
+        return GIT_EAUTH;
+    const auto& cred = *pl->cred;
+    switch (gittide::chooseCredential(url ? url : "", allowed_types, cred))
+    {
+    case gittide::CredentialKind::SshAgent:
+        return git_credential_ssh_key_from_agent(out, username_from_url ? username_from_url : "git");
+    case gittide::CredentialKind::UserPass:
+        return git_credential_userpass_plaintext_new(out, cred.username.c_str(), cred.password.c_str());
+    case gittide::CredentialKind::None:
+    default:
+        return GIT_EAUTH;
+    }
 }
 } // anonymous namespace
 
@@ -132,9 +166,10 @@ Expected<GitRepo> GitRepo::init(const std::filesystem::path& path)
 
 Expected<GitRepo> GitRepo::clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb)
 {
+    CbPayload pl{&cb, nullptr};
     git_clone_options opts                      = GIT_CLONE_OPTIONS_INIT;
     opts.fetch_opts.callbacks.transfer_progress = transferProgressTrampoline;
-    opts.fetch_opts.callbacks.payload           = &cb; // cb lives on the stack for the duration
+    opts.fetch_opts.callbacks.payload           = &pl;
 
     git_repository* repo = nullptr;
     int rc               = git_clone(&repo, url.c_str(), toGitPath(dest).c_str(), &opts);
@@ -951,6 +986,266 @@ Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem:
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
     return DiffEngine::parse(diff_guard.get());
+}
+
+Expected<SyncStatus> GitRepo::syncStatus() const
+{
+    SyncStatus out;
+
+    git_reference* head = nullptr;
+    int rc = git_repository_head(&head, m_repo);
+    if (rc == GIT_EUNBORNBRANCH || rc == GIT_ENOTFOUND)
+        return out; // unborn => no upstream
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+
+    if (git_reference_is_branch(head) != 1)
+        return out; // detached HEAD => no upstream
+
+    git_reference* upstream = nullptr;
+    rc = git_branch_upstream(&upstream, head);
+    if (rc == GIT_ENOTFOUND)
+        return out; // no upstream configured
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> up_guard(upstream, git_reference_free);
+
+    const git_oid* localOid    = git_reference_target(head);
+    const git_oid* upstreamOid = git_reference_target(upstream);
+    if (!localOid || !upstreamOid)
+        return out;
+
+    size_t ahead = 0, behind = 0;
+    rc = git_graph_ahead_behind(&ahead, &behind, m_repo, localOid, upstreamOid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    out.hasUpstream  = true;
+    out.ahead        = static_cast<int>(ahead);
+    out.behind       = static_cast<int>(behind);
+    const char* up   = git_reference_shorthand(upstream);
+    out.upstreamName = up ? up : "";
+
+    git_buf remote_buf = GIT_BUF_INIT;
+    if (git_branch_remote_name(&remote_buf, m_repo, git_reference_name(upstream)) == 0)
+        out.remoteName = std::string(remote_buf.ptr, remote_buf.size);
+    git_buf_dispose(&remote_buf);
+
+    return out;
+}
+
+Expected<PullStrategy> GitRepo::pullStrategy() const
+{
+    git_config* cfg = nullptr;
+    int rc = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    int rebase = 0;
+    rc = git_config_get_bool(&rebase, cfg, "pull.rebase");
+    if (rc == GIT_ENOTFOUND)
+        return PullStrategy::FastForwardOnly;
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return rebase ? PullStrategy::Rebase : PullStrategy::FastForwardOnly;
+}
+
+Expected<void> GitRepo::setPullStrategy(PullStrategy strategy)
+{
+    git_config* cfg = nullptr;
+    int rc = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    rc = git_config_set_bool(cfg, "pull.rebase", strategy == PullStrategy::Rebase ? 1 : 0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::fetch(std::string remoteName, Credentials cred, ProgressCallback cb)
+{
+    git_remote* raw = nullptr;
+    int rc          = git_remote_lookup(&raw, m_repo, remoteName.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_remote, decltype(&git_remote_free)> remote(raw, git_remote_free);
+
+    CbPayload pl{&cb, &cred};
+    git_fetch_options opts           = GIT_FETCH_OPTIONS_INIT;
+    opts.callbacks.transfer_progress = transferProgressTrampoline;
+    opts.callbacks.credentials       = credentialTrampoline;
+    opts.callbacks.payload           = &pl;
+
+    rc = git_remote_fetch(remote.get(), nullptr, &opts, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::pull(Credentials cred, ProgressCallback cb)
+{
+    // Resolve upstream + remote name from current branch.
+    auto st = syncStatus();
+    if (!st)
+        return std::unexpected(st.error());
+    if (!st->hasUpstream)
+        return std::unexpected(GitError{-1, "current branch has no upstream"});
+
+    auto fr = fetch(st->remoteName, cred, cb);
+    if (!fr)
+        return std::unexpected(fr.error());
+
+    // Recompute after fetch; the upstream ref now points at the fetched tip.
+    git_reference* head = nullptr;
+    int rc = git_repository_head(&head, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+
+    git_reference* upstream = nullptr;
+    rc = git_branch_upstream(&upstream, head);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> up_guard(upstream, git_reference_free);
+
+    git_annotated_commit* upstream_ac = nullptr;
+    rc = git_annotated_commit_from_ref(&upstream_ac, m_repo, upstream);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_annotated_commit, decltype(&git_annotated_commit_free)> ac_guard(upstream_ac, git_annotated_commit_free);
+
+    auto strat = pullStrategy();
+    if (!strat)
+        return std::unexpected(strat.error());
+
+    if (*strat == PullStrategy::FastForwardOnly)
+    {
+        git_merge_analysis_t analysis = GIT_MERGE_ANALYSIS_NONE;
+        git_merge_preference_t pref   = GIT_MERGE_PREFERENCE_NONE;
+        const git_annotated_commit* heads[] = {upstream_ac};
+        rc = git_merge_analysis(&analysis, &pref, m_repo, heads, 1);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        if (analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE)
+            return {};
+        if (!(analysis & GIT_MERGE_ANALYSIS_FASTFORWARD))
+            return std::unexpected(GitError{-1, "cannot fast-forward: branch has diverged"});
+
+        // Move HEAD's branch ref to the upstream OID and checkout.
+        const git_oid* target = git_annotated_commit_id(upstream_ac);
+        git_object* target_obj = nullptr;
+        rc = git_object_lookup(&target_obj, m_repo, target, GIT_OBJECT_COMMIT);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_object, decltype(&git_object_free)> obj_guard(target_obj, git_object_free);
+
+        git_checkout_options co = GIT_CHECKOUT_OPTIONS_INIT;
+        co.checkout_strategy    = GIT_CHECKOUT_SAFE;
+        rc = git_checkout_tree(m_repo, target_obj, &co);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        git_reference* new_ref = nullptr;
+        rc = git_reference_set_target(&new_ref, head, target, "pull: fast-forward");
+        if (new_ref)
+            git_reference_free(new_ref);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        return {};
+    }
+
+    // Rebase local commits onto the upstream.
+    git_rebase* rebase = nullptr;
+    git_rebase_options ropts = GIT_REBASE_OPTIONS_INIT;
+    rc = git_rebase_init(&rebase, m_repo, /*branch=*/nullptr, upstream_ac, /*onto=*/nullptr, &ropts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_rebase, decltype(&git_rebase_free)> rebase_guard(rebase, git_rebase_free);
+
+    git_rebase_operation* op = nullptr;
+    while ((rc = git_rebase_next(&op, rebase)) == 0)
+    {
+        git_index* idx = nullptr;
+        if (git_repository_index(&idx, m_repo) == 0)
+        {
+            bool conflicts = git_index_has_conflicts(idx) > 0;
+            git_index_free(idx);
+            if (conflicts)
+            {
+                git_rebase_abort(rebase);
+                return std::unexpected(GitError{-1, "pull rebase hit conflicts; resolve via CLI"});
+            }
+        }
+        git_oid commit_id;
+        git_signature* sig = nullptr;
+        if (git_signature_default(&sig, m_repo) < 0)
+        {
+            git_rebase_abort(rebase);
+            return std::unexpected(GitError{-1, "no committer identity (set user.name/user.email)"});
+        }
+        rc = git_rebase_commit(&commit_id, rebase, nullptr, sig, nullptr, nullptr);
+        git_signature_free(sig);
+        if (rc < 0 && rc != GIT_EAPPLIED)
+        {
+            git_rebase_abort(rebase);
+            return std::unexpected(lastGitError(rc));
+        }
+    }
+    if (rc != GIT_ITEROVER)
+    {
+        git_rebase_abort(rebase);
+        return std::unexpected(lastGitError(rc));
+    }
+    rc = git_rebase_finish(rebase, nullptr);
+    if (rc < 0)
+    {
+        git_rebase_abort(rebase);
+        return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
+Expected<void> GitRepo::push(std::string remoteName, std::string branch, bool setUpstream,
+                             Credentials cred, ProgressCallback cb)
+{
+    git_remote* raw = nullptr;
+    int rc = git_remote_lookup(&raw, m_repo, remoteName.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_remote, decltype(&git_remote_free)> remote(raw, git_remote_free);
+
+    std::string ref     = "refs/heads/" + branch;
+    std::string refspec = ref + ":" + ref;
+    char* specs[]       = {refspec.data()};
+    git_strarray arr    = {specs, 1};
+
+    CbPayload pl{&cb, &cred};
+    git_push_options opts      = GIT_PUSH_OPTIONS_INIT;
+    opts.callbacks.credentials = credentialTrampoline;
+    opts.callbacks.payload     = &pl;
+
+    rc = git_remote_push(remote.get(), &arr, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    if (setUpstream)
+    {
+        git_reference* branch_ref = nullptr;
+        rc = git_branch_lookup(&branch_ref, m_repo, branch.c_str(), GIT_BRANCH_LOCAL);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> br_guard(branch_ref, git_reference_free);
+        std::string upstream = remoteName + "/" + branch;
+        rc = git_branch_set_upstream(branch_ref, upstream.c_str());
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
 }
 
 } // namespace gittide

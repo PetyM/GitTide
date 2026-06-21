@@ -9,6 +9,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/sync.hpp"
 #include "gittide/ui/branchlistmodel.hpp"
 #include "gittide/ui/changedfilesmodel.hpp"
 #include "gittide/ui/difflinesmodel.hpp"
@@ -39,6 +40,13 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
+    Q_PROPERTY(int aheadCount READ aheadCount NOTIFY syncStatusChanged)
+    Q_PROPERTY(int behindCount READ behindCount NOTIFY syncStatusChanged)
+    Q_PROPERTY(bool hasUpstream READ hasUpstream NOTIFY syncStatusChanged)
+    Q_PROPERTY(QString upstreamName READ upstreamName NOTIFY syncStatusChanged)
+    Q_PROPERTY(bool syncing READ syncing NOTIFY syncingChanged)
+    Q_PROPERTY(bool pullRebase READ pullRebase NOTIFY pullRebaseChanged)
+    Q_PROPERTY(bool onBranch READ onBranch NOTIFY branchChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -55,6 +63,13 @@ public:
     DiffLinesModel* commitDiff() const;
     QString selectedCommit() const;
     QString activeCommitFile() const;
+    int aheadCount() const { return m_sync.ahead; }
+    int behindCount() const { return m_sync.behind; }
+    bool hasUpstream() const { return m_sync.hasUpstream; }
+    QString upstreamName() const { return QString::fromStdString(m_sync.upstreamName); }
+    bool syncing() const { return m_syncing; }
+    bool pullRebase() const { return m_pullRebase; }
+    bool onBranch() const { return !m_headBranch.isEmpty(); }
 
     Q_INVOKABLE void open(const QString& path);
     Q_INVOKABLE void selectFile(const QString& path);
@@ -74,6 +89,13 @@ public:
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
     Q_INVOKABLE void refreshHistory();
 
+    Q_INVOKABLE void fetch();
+    Q_INVOKABLE void pull();
+    Q_INVOKABLE void push();
+    Q_INVOKABLE void publishBranch();
+    Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
+    Q_INVOKABLE void setPullRebase(bool rebase);
+
 signals:
     void changed();
     void branchChanged();
@@ -84,6 +106,10 @@ signals:
     void branchDeleteUnmerged(const QString& name);
     void selectedCommitChanged();
     void activeCommitFileChanged();
+    void syncStatusChanged();
+    void syncingChanged();
+    void pullRebaseChanged();
+    void authRequired();
 
 private:
     struct FileSel
@@ -116,6 +142,11 @@ private:
     DiffLinesModel*    m_commitDiff  = nullptr;
 
     bool                       m_open = false;
+    gittide::SyncStatus        m_sync;
+    bool                       m_syncing    = false;
+    bool                       m_pullRebase = false;
+    gittide::Credentials       m_sessionCred;
+    enum class PendingOp { None, Fetch, Pull, Push, Publish } m_pendingOp = PendingOp::None;
     QString                    m_selectedCommit;
     QString                    m_activeCommitFile;
     // History population is reconciled from two async signals (historyReady and
@@ -128,6 +159,7 @@ private:
     bool                       m_headArrived    = false;
     bool                       m_historyArrived = false;
     QString                    m_branch;
+    QString                    m_headBranch;  ///< Real ref name; empty when detached or unborn.
     QString                    m_activeFile;
     std::map<QString, FileSel> m_sel;
 };

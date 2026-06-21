@@ -8,6 +8,20 @@
 #include "gittide/graphbuilder.hpp"
 #include "gittide/ui/metatypes.hpp"
 
+namespace {
+
+// libgit2 GIT_EAUTH == -16; compare numerically to avoid including git2 in ui/
+// (libgit2 is private to core). The message substrings are a best-effort
+// fallback for build configurations that may remap the code.
+bool isAuthError(const gittide::GitError& e)
+{
+    return e.code == -16
+        || e.message.find("authentication") != std::string::npos
+        || e.message.find("401") != std::string::npos;
+}
+
+} // namespace
+
 namespace gittide::ui {
 
 RepoController::RepoController(QObject* parent)
@@ -21,6 +35,9 @@ RepoController::RepoController(QObject* parent)
     qRegisterMetaType<gittide::BranchInfo>();
     qRegisterMetaType<std::vector<gittide::BranchInfo>>();
     qRegisterMetaType<gittide::HeadState>();
+    qRegisterMetaType<gittide::SyncStatus>();
+    qRegisterMetaType<gittide::PullStrategy>();
+    qRegisterMetaType<gittide::Credentials>();
 }
 
 void RepoController::open(const QString& path)
@@ -354,6 +371,112 @@ QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
         co_return;
     }
     emit commitDiffReady(oid, path, *d);
+}
+
+QCoro::Task<void> RepoController::refreshSyncStatus()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->syncStatus();
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    emit syncStatusChanged(*r);
+}
+
+QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    emit syncBusyChanged(true);
+    auto r = co_await m_repo->fetch(QStringLiteral("origin"), cred);
+    if (!self)
+        co_return;
+    emit syncBusyChanged(false);
+    if (!r)
+    {
+        if (isAuthError(r.error()))
+            emit authFailed(QString());
+        else
+            emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    co_await refreshBranches();
+    co_await refreshSyncStatus();
+}
+
+QCoro::Task<void> RepoController::pull(gittide::Credentials cred)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    emit syncBusyChanged(true);
+    auto r = co_await m_repo->pull(cred);
+    if (!self)
+        co_return;
+    emit syncBusyChanged(false);
+    if (!r)
+    {
+        if (isAuthError(r.error()))
+            emit authFailed(QString());
+        else
+            emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshHistory();
+    co_await refreshBranches();
+    co_await refreshSyncStatus();
+}
+
+QCoro::Task<void> RepoController::push(QString branch, bool setUpstream, gittide::Credentials cred)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    emit syncBusyChanged(true);
+    auto r = co_await m_repo->push(QStringLiteral("origin"), branch, setUpstream, cred);
+    if (!self)
+        co_return;
+    emit syncBusyChanged(false);
+    if (!r)
+    {
+        if (isAuthError(r.error()))
+            emit authFailed(QString());
+        else
+            emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    co_await refreshBranches();
+    co_await refreshSyncStatus();
+}
+
+QCoro::Task<void> RepoController::loadPullStrategy()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->pullStrategy();
+    if (!self || !r)
+        co_return;
+    emit pullStrategyChanged(*r);
+}
+
+QCoro::Task<void> RepoController::setPullStrategy(gittide::PullStrategy strategy)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->setPullStrategy(strategy);
+    if (!self || !r)
+        co_return;
+    emit pullStrategyChanged(strategy);
 }
 
 } // namespace gittide::ui

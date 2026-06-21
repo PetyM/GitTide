@@ -1923,3 +1923,25 @@ git commit -m "docs(spec): fetch/pull/push + ahead/behind syncing"
 - [ ] `qmllint` on all changed/new QML — only known context-prop notes.
 - [ ] Manual: `DISPLAY=:1 ./build/app/gittide_qml_app` — sync cluster renders; pull-strategy toggle works; auth dialog opens on an auth-required op. Real push/pull against a GitHub remote (SSH + HTTPS token) verified manually.
 - [ ] Merge to master following the established merge-commit convention.
+
+---
+
+## Outcome
+
+Feature delivered end-to-end across all layers (Tasks 1–12 merged to master).
+
+**Shipped:**
+- `core/`: `SyncStatus`, `PullStrategy`, `Credentials` types + `chooseCredential` helper; `GitRepo::syncStatus`, `fetch`, `pull`, `push`, `pullStrategy`, `setPullStrategy` over libgit2; credential trampoline (ssh-agent / HTTPS userpass, no UI block).
+- `ui/`: `AsyncRepo` wrappers for all six ops; `RepoController` orchestration with `syncBusyChanged`, `authFailed`, refresh cascade; `RepoViewModel` Q_PROPERTYs + `Q_INVOKABLE`s for QML; session token map with auth-retry.
+- `qml/`: sync cluster on `BranchBar` (ahead/behind counts, Fetch/Pull/Push/Publish buttons, busy spinner, pull-strategy toggle); `CredentialDialog` for HTTPS tokens; wired via `authRequired` signal.
+- Full Catch2 test suite for `[sync]` and `[cred]` tags; headless QML smoke test.
+
+**Deferred (not in scope of this plan):**
+- Secure/keychain token storage (session-only for now).
+- Merge-strategy pull (merge-commit) — fast-forward + rebase only.
+- Rebase / merge conflict UI — abort with error, resolve via CLI.
+- SSH keyfile + passphrase (ssh-agent only).
+- Multi-remote management.
+- Fetch-all / pull-all across a project.
+
+**Spec sections realised:** [product — Syncing](../../spec/product/product.md#syncing) · [engineering — Network operations & credentials](../../spec/engineering/engineering.md#network-operations--credentials).

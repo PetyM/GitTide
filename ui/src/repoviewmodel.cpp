@@ -30,6 +30,14 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
+    connect(m_controller, &RepoController::syncStatusChanged, this,
+            [this](gittide::SyncStatus s) { m_sync = s; emit syncStatusChanged(); });
+    connect(m_controller, &RepoController::syncBusyChanged, this,
+            [this](bool b) { m_syncing = b; emit syncingChanged(); });
+    connect(m_controller, &RepoController::pullStrategyChanged, this,
+            [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
+    connect(m_controller, &RepoController::authFailed, this,
+            [this](QString) { emit authRequired(); });
 }
 
 bool RepoViewModel::repoOpen() const
@@ -84,6 +92,8 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshStatus(), this, [] {});
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
+    QCoro::connect(m_controller->loadPullStrategy(), this, [] {});
+    QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -234,6 +244,9 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
     m_headArrived = true;
     applyHistoryIfReady();
 
+    // Always update the real branch ref name (empty when detached or unborn).
+    const QString newHeadBranch = head.branch.empty() ? QString() : QString::fromStdString(head.branch);
+
     QString label;
     if (head.unborn)
         label = QStringLiteral("(no commits)");
@@ -242,9 +255,13 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
     else if (!head.branch.empty())
         label = QString::fromStdString(head.branch);
 
-    if (label.isEmpty() || label == m_branch)
+    const bool headBranchChanged = (newHeadBranch != m_headBranch);
+    const bool labelChanged      = (!label.isEmpty() && label != m_branch);
+    if (!headBranchChanged && !labelChanged)
         return;
-    m_branch = label;
+    m_headBranch = newHeadBranch;
+    if (labelChanged)
+        m_branch = label;
     emit branchChanged();
 }
 
@@ -361,6 +378,62 @@ void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const 
     // Read-only: no checked lines, not whole-file-checked. The QML detail view
     // hides the per-line checkbox column.
     m_commitDiff->setDiff(result, {}, false);
+}
+
+void RepoViewModel::fetch()
+{
+    m_pendingOp = PendingOp::Fetch;
+    QCoro::connect(m_controller->fetch(m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::pull()
+{
+    m_pendingOp = PendingOp::Pull;
+    QCoro::connect(m_controller->pull(m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::push()
+{
+    if (m_headBranch.isEmpty())
+    {
+        emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
+        return;
+    }
+    m_pendingOp = PendingOp::Push;
+    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/false, m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::publishBranch()
+{
+    if (m_headBranch.isEmpty())
+    {
+        emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
+        return;
+    }
+    m_pendingOp = PendingOp::Publish;
+    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/true, m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::submitCredentials(const QString& username, const QString& token)
+{
+    m_sessionCred.username    = username.toStdString();
+    m_sessionCred.password    = token.toStdString();
+    m_sessionCred.sshUseAgent = true;
+    switch (m_pendingOp)
+    {
+    case PendingOp::Fetch:   fetch(); break;
+    case PendingOp::Pull:    pull(); break;
+    case PendingOp::Push:    push(); break;
+    case PendingOp::Publish: publishBranch(); break;
+    case PendingOp::None:    break;
+    }
+}
+
+void RepoViewModel::setPullRebase(bool rebase)
+{
+    QCoro::connect(m_controller->setPullStrategy(rebase ? gittide::PullStrategy::Rebase
+                                                        : gittide::PullStrategy::FastForwardOnly),
+                   this, [] {});
 }
 
 } // namespace gittide::ui

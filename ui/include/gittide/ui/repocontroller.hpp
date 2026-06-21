@@ -9,6 +9,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/sync.hpp"
 #include "gittide/ui/asyncrepo.hpp"
 
 namespace gittide::ui {
@@ -54,6 +55,13 @@ public slots:
     QCoro::Task<void> refreshCommitFiles(QString oid);
     QCoro::Task<void> refreshCommitDiff(QString oid, QString path);
 
+    QCoro::Task<void> refreshSyncStatus();
+    QCoro::Task<void> fetch(gittide::Credentials cred);
+    QCoro::Task<void> pull(gittide::Credentials cred);
+    QCoro::Task<void> push(QString branch, bool setUpstream, gittide::Credentials cred);
+    QCoro::Task<void> loadPullStrategy();
+    QCoro::Task<void> setPullStrategy(gittide::PullStrategy strategy);
+
 signals:
     void repoOpened(const QString& path);
     void repoFailed(const QString& path, const QString& message);
@@ -67,6 +75,11 @@ signals:
     void headChanged(gittide::HeadState);
     void commitFilesReady(QString oid, std::vector<gittide::FileStatus> files);
     void commitDiffReady(QString oid, QString path, gittide::DiffResult result);
+
+    void syncStatusChanged(gittide::SyncStatus status);
+    void pullStrategyChanged(gittide::PullStrategy strategy);
+    void syncBusyChanged(bool busy);
+    void authFailed(QString remoteUrl);
 
 private:
     std::optional<AsyncRepo> m_repo;

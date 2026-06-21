@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <string_view>
+#include <vector>
 
 #include "gittide/libgit2context.hpp"
 
@@ -40,10 +41,26 @@ public:
     // submodules a non-recursive clone left bare become real working trees.
     void updateSubmodulesRecursive();
 
+    // Create a bare repo at <tmp>/<name>.git and register it as remote `name`
+    // (file:// url). Returns the bare repo path.
+    std::filesystem::path addBareRemote(std::string_view name);
+
+    // Push refs/heads/<branch> to the remote (no auth) and set the branch's
+    // upstream to <remote>/<branch>.
+    void pushBranch(std::string_view remote, std::string_view branch);
+
+    // Move the branch ref to oidHex and hard-reset the working tree to it.
+    void resetBranchTo(std::string_view branch, std::string_view oidHex);
+
+    // Replace this TempRepo's repository with a clone of the bare repo at
+    // barePath (file://). Registers origin automatically (libgit2 clone does).
+    void cloneFrom(const std::filesystem::path& barePath);
+
 private:
     LibGit2Context m_ctx;
     std::filesystem::path m_dir;
     git_repository* m_repo = nullptr;
+    std::vector<std::filesystem::path> m_bareDirs; // extra dirs to remove on destruction
 };
 
 } // namespace gittide::test

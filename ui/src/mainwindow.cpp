@@ -237,6 +237,8 @@ MainWindow::MainWindow(gittide::ProjectStore* store, std::filesystem::path store
                 QCoro::connect(m_repoController->refreshStatus(), this, [] {});
                 QCoro::connect(m_repoController->refreshHistory(), this, [] {});
                 QCoro::connect(m_repoController->refreshBranches(), this, [] {});
+                QCoro::connect(m_repoController->loadPullStrategy(), this, [] {});
+                QCoro::connect(m_repoController->refreshSyncStatus(), this, [] {});
             });
     connect(m_repoController,
             &RepoController::historyReady,
