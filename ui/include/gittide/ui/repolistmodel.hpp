@@ -1,8 +1,10 @@
 #pragma once
 #include <QAbstractItemModel>
+#include <memory>
 #include <vector>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/submodule.hpp"
 
 namespace gittide::ui {
 
@@ -13,7 +15,10 @@ public:
     enum Roles
     {
         PathRole = Qt::UserRole + 1,
-        MissingRole
+        MissingRole,
+        IsSubmoduleRole,
+        ShortOidRole,
+        StatusRole,
     };
 
     explicit RepoListModel(QObject* parent = nullptr);
@@ -29,20 +34,26 @@ public:
     void setRepos(const std::vector<gittide::RepoRef>& repos);
 
 private:
-    struct SubRow
+    struct Node
     {
-        QString path;
-        QString displayName;
-        bool missing;
+        QString                            displayName;
+        QString                            path;
+        bool                               isSubmodule = false;
+        bool                               missing     = false;
+        QString                            shortOid;
+        gittide::SubmoduleStatus           status = gittide::SubmoduleStatus::Clean;
+        Node*                              parent = nullptr;
+        std::vector<std::unique_ptr<Node>> children;
     };
-    struct Row
-    {
-        QString alias;
-        QString path;
-        bool missing;
-        std::vector<SubRow> children;
-    };
-    std::vector<Row> m_rows;
+
+    // Build child Nodes from a submodule subtree, linking parent pointers.
+    void appendSubmodules(Node& parent, const std::vector<gittide::SubmoduleNode>& subs);
+    // The Node behind an index (nullptr → the invisible root / top-level list).
+    Node* nodeFor(const QModelIndex& index) const;
+    // Row of `node` within its sibling list.
+    int rowOf(const Node* node) const;
+
+    std::vector<std::unique_ptr<Node>> m_roots;
 };
 
 } // namespace gittide::ui

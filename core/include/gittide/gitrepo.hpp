@@ -89,9 +89,6 @@ public:
     // Does NOT switch HEAD — creation only.
     Expected<void> createBranch(std::string name, std::string fromOid);
 
-    // Returns absolute paths of direct submodules (from .gitmodules).
-    Expected<std::vector<std::filesystem::path>> submodules() const;
-
     // Recursively enumerates submodules (depth-first), opening each initialised
     // submodule as its own repository to descend. Each node carries the pinned
     // short OID and a clean/dirty/uninitialised status; uninitialised nodes have

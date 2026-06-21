@@ -505,33 +505,6 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
     return result;
 }
 
-Expected<std::vector<std::filesystem::path>> GitRepo::submodules() const
-{
-    std::vector<std::filesystem::path> result;
-    const std::filesystem::path wd = workdir();
-
-    struct Payload
-    {
-        std::vector<std::filesystem::path>* out;
-        const std::filesystem::path* wd;
-    };
-    Payload payload{&result, &wd};
-
-    auto cb = [](git_submodule* sm, const char* /*name*/, void* pl) -> int
-    {
-        auto* p         = static_cast<Payload*>(pl);
-        const char* rel = git_submodule_path(sm);
-        if (rel)
-            p->out->push_back(*p->wd / fromGitPath(rel));
-        return 0;
-    };
-
-    const int rc = git_submodule_foreach(m_repo, cb, &payload);
-    if (rc < 0)
-        return std::unexpected(lastGitError(rc));
-    return result;
-}
-
 namespace {
 // Bit set indicating the submodule's index/working tree differs from its pin.
 constexpr unsigned kSubmoduleDirtyMask =
