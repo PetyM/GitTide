@@ -30,6 +30,14 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
+    connect(m_controller, &RepoController::syncStatusChanged, this,
+            [this](gittide::SyncStatus s) { m_sync = s; emit syncStatusChanged(); });
+    connect(m_controller, &RepoController::syncBusyChanged, this,
+            [this](bool b) { m_syncing = b; emit syncingChanged(); });
+    connect(m_controller, &RepoController::pullStrategyChanged, this,
+            [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
+    connect(m_controller, &RepoController::authFailed, this,
+            [this](QString) { emit authRequired(); });
 }
 
 bool RepoViewModel::repoOpen() const
@@ -363,6 +371,52 @@ void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const 
     // Read-only: no checked lines, not whole-file-checked. The QML detail view
     // hides the per-line checkbox column.
     m_commitDiff->setDiff(result, {}, false);
+}
+
+void RepoViewModel::fetch()
+{
+    m_pendingOp = PendingOp::Fetch;
+    QCoro::connect(m_controller->fetch(m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::pull()
+{
+    m_pendingOp = PendingOp::Pull;
+    QCoro::connect(m_controller->pull(m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::push()
+{
+    m_pendingOp = PendingOp::Push;
+    QCoro::connect(m_controller->push(m_branch, /*setUpstream=*/false, m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::publishBranch()
+{
+    m_pendingOp = PendingOp::Publish;
+    QCoro::connect(m_controller->push(m_branch, /*setUpstream=*/true, m_sessionCred), this, [] {});
+}
+
+void RepoViewModel::submitCredentials(const QString& username, const QString& token)
+{
+    m_sessionCred.username    = username.toStdString();
+    m_sessionCred.password    = token.toStdString();
+    m_sessionCred.sshUseAgent = true;
+    switch (m_pendingOp)
+    {
+    case PendingOp::Fetch:   fetch(); break;
+    case PendingOp::Pull:    pull(); break;
+    case PendingOp::Push:    push(); break;
+    case PendingOp::Publish: publishBranch(); break;
+    case PendingOp::None:    break;
+    }
+}
+
+void RepoViewModel::setPullRebase(bool rebase)
+{
+    QCoro::connect(m_controller->setPullStrategy(rebase ? gittide::PullStrategy::Rebase
+                                                        : gittide::PullStrategy::FastForwardOnly),
+                   this, [] {});
 }
 
 } // namespace gittide::ui
