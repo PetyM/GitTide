@@ -84,6 +84,8 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshStatus(), this, [] {});
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
+    QCoro::connect(m_controller->loadPullStrategy(), this, [] {});
+    QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
 }
 
 void RepoViewModel::selectFile(const QString& path)
