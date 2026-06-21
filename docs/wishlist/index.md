@@ -16,6 +16,7 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
+| [Context menus — right-click actions on every entity](context-menus.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Keyboard controls — navigate and act without the mouse](keyboard-controls.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
