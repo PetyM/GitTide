@@ -98,3 +98,87 @@ TEST_CASE("pullStrategy round-trips through git config", "[sync][strategy]")
     REQUIRE(s2);
     REQUIRE(*s2 == gittide::PullStrategy::FastForwardOnly);
 }
+
+TEST_CASE("pull fast-forwards a behind branch", "[sync][pull]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    auto bare = repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master");
+
+    TempRepo other;
+    other.cloneFrom(bare);
+    other.setIdentity("Other", "o@example.com");
+    other.writeFile("b.txt", "two");
+    other.commitAll("c2");
+    other.pushBranch("origin", "master");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    REQUIRE(gr->setPullStrategy(gittide::PullStrategy::FastForwardOnly));
+    REQUIRE(gr->pull(gittide::Credentials{}, [](unsigned, unsigned) { return true; }));
+
+    auto st = gr->syncStatus();
+    REQUIRE(st);
+    REQUIRE(st->behind == 0);
+    REQUIRE(st->ahead == 0);
+}
+
+TEST_CASE("pull fast-forward fails on a diverged branch", "[sync][pull]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    auto bare = repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master");
+
+    TempRepo other;
+    other.cloneFrom(bare);
+    other.setIdentity("Other", "o@example.com");
+    other.writeFile("b.txt", "remote");
+    other.commitAll("remote-c2");
+    other.pushBranch("origin", "master");
+
+    // Local diverges with its own c2.
+    repo.writeFile("c.txt", "local");
+    repo.commitAll("local-c2");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    REQUIRE(gr->setPullStrategy(gittide::PullStrategy::FastForwardOnly));
+    auto r = gr->pull(gittide::Credentials{}, [](unsigned, unsigned) { return true; });
+    REQUIRE_FALSE(r); // cannot fast-forward
+}
+
+TEST_CASE("pull rebase replays local commits onto upstream", "[sync][pull]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    auto bare = repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master");
+
+    TempRepo other;
+    other.cloneFrom(bare);
+    other.setIdentity("Other", "o@example.com");
+    other.writeFile("b.txt", "remote");
+    other.commitAll("remote-c2");
+    other.pushBranch("origin", "master");
+
+    repo.writeFile("c.txt", "local");
+    repo.commitAll("local-c2");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    REQUIRE(gr->setPullStrategy(gittide::PullStrategy::Rebase));
+    REQUIRE(gr->pull(gittide::Credentials{}, [](unsigned, unsigned) { return true; }));
+
+    auto st = gr->syncStatus();
+    REQUIRE(st);
+    REQUIRE(st->behind == 0);
+    REQUIRE(st->ahead == 1); // local-c2 replayed on top of remote-c2
+}

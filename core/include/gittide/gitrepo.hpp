@@ -100,6 +100,12 @@ public:
     // credential callback selects ssh-agent vs userpass by URL scheme.
     Expected<void> fetch(std::string remoteName, Credentials cred, ProgressCallback cb);
 
+    // Fetch the current branch's upstream remote, then reconcile per
+    // pullStrategy(): fast-forward (error if not fast-forwardable) or rebase
+    // local commits onto the upstream (abort + error on conflict). HEAD must be
+    // on a branch with an upstream.
+    Expected<void> pull(Credentials cred, ProgressCallback cb);
+
     // Create a new local branch pointing at fromOid (40-char hex SHA).
     // Pass an empty fromOid to branch from current HEAD.
     // Does NOT switch HEAD — creation only.
