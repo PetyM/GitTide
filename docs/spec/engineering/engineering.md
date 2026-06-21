@@ -103,6 +103,19 @@ The UI thread never blocks; git work runs off it.
 - **Rendering** of graph/log/diff is lazy and virtualized — only visible rows
   render — so a very large history never stalls the UI.
 
+### Network operations & credentials
+
+Fetch, pull, and push run through the same `AsyncRepo` / `QtConcurrent::run`
+worker model as all other git ops — they never block the UI thread. Before each
+network call, the ViewModel supplies a `Credentials` POD (`sshUseAgent`,
+`username`, `password`) containing the auth material for that session. A pure
+`chooseCredential` helper (`core/src/credentialselect.cpp`, no Qt) inspects the
+remote URL and the libgit2 `allowed_types` bitmask to decide between ssh-agent
+and HTTPS userpass — it is unit-testable without a live remote. The libgit2
+credential callback (`credentialTrampoline`) delegates to this helper; it never
+blocks for a UI dialog. HTTPS tokens are stored in a session map on the
+ViewModel and discarded on quit — secure keychain persistence is deferred.
+
 ### Branch operations & the refresh cascade
 
 Branch enumeration and mutation (list / create / checkout / delete / rename, plus
