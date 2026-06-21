@@ -74,11 +74,11 @@ eventually push.
 
 **Graduated 2026-06-18.**
 
-- Designed in: [`spec/product` §Branches](../spec/product/product.md#branches)
+- Designed in: [`spec/product` §Branches](../../spec/product/product.md#branches)
   (branch bar + actions, safe-switch flow),
-  [`spec/engineering` §Branch operations](../spec/engineering/engineering.md#branch-operations--the-refresh-cascade)
+  [`spec/engineering` §Branch operations](../../spec/engineering/engineering.md#branch-operations--the-refresh-cascade)
   (core branch ops on `GitRepo`, safe-switch invariant, refresh cascade),
-  [`spec/design`](../spec/design/design.md#components) (branch bar + dialogs +
+  [`spec/design`](../../spec/design/design.md#components) (branch bar + dialogs +
   detached affordance).
-- Checkout-safety policy resolved as **stash-and-switch** → [D21](../decisions.md).
-- Realised by: [Plan 8 — Branch management](../plans/2026-06-18-plan8-branch-management.md).
+- Checkout-safety policy resolved as **stash-and-switch** → [D21](../../decisions.md).
+- Realised by: [Plan 8 — Branch management](../../plans/2026-06-18-plan8-branch-management.md).

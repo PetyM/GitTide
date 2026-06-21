@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-21 |
-| **Status** | `done` — designed in [`spec/engineering/engineering.md` §Logging & diagnostics](../spec/engineering/engineering.md#logging--diagnostics) · built in [`plans/2026-06-21-plan10-logging.md`](../plans/2026-06-21-plan10-logging.md) |
+| **Status** | `done` |
 | **Touches** | engineering (a logging facility across `core` / `ui` / `app`), product (a way to see/raise verbosity when something goes wrong) |
 
 ## What
@@ -44,7 +44,7 @@ rest. Per-category control is what keeps it usable as the app grows.
   interface/sink in `core` (a function pointer or `std::function` callback,
   category + level + message in `std` types), which `app` wires to Qt's logging at
   composition time. Decide this boundary first; it drives everything else. Log it
-  in [`decisions.md`](../decisions.md) if it rejects real alternatives (e.g.
+  in [`decisions.md`](../../decisions.md) if it rejects real alternatives (e.g.
   pulling in spdlog vs. a hand-rolled facade vs. Qt-only with a core shim).
 - **Don't reinvent if Qt suffices.** Qt's category logging already gives named
   categories and per-category rules via `QLoggingCategory::setFilterRules` /
@@ -71,6 +71,13 @@ rest. Per-category control is what keeps it usable as the app grows.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/engineering (a logging section) · plan: plans/<file>
--->
+**Graduated 2026-06-21.**
+
+- Designed in: [`spec/engineering` §Logging & diagnostics](../../spec/engineering/engineering.md#logging--diagnostics)
+  — the Qt-free `core` facade (`gittide::logf` over a `LogBackend`) bridged onto
+  Qt's `QLoggingCategory` at composition time, one taxonomy + one `QT_LOGGING_RULES`
+  set across `core`/`ui`/`app`, QML logging through a `log` context property.
+- The core/no-Qt boundary resolved as a hand-rolled facade bridged onto Qt
+  categories → [D26](../../decisions.md); env-var-only control with console +
+  rotating-file sinks → [D27](../../decisions.md).
+- Realised by: [Plan 10 — Logging facility](../../plans/2026-06-21-plan10-logging.md).

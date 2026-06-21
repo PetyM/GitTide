@@ -1067,7 +1067,7 @@ Test `tests/ui/test_main_window.cpp` (append).
   drift (code is ground truth).
 - [x] **Step 4:** Tick this plan's boxes, fill **Outcome** below, set this plan's
   `Status` to `done` here and in [`plans/index.md`](index.md); set the
-  [wish](../wishlist/branch-management.md) `Status` to `done`.
+  [wish](../wishlist/shipped/branch-management.md) `Status` to `done`.
 - [x] **Step 5: Commit.**
   `git commit -am "docs: close Plan 8 — branch management shipped"`
 

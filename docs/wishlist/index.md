@@ -16,7 +16,8 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
-| [Branch management — create / switch / delete](branch-management.md) | 2026-06-17 | `done` | product, engineering, design |
+| [Keyboard controls — navigate and act without the mouse](keyboard-controls.md) | 2026-06-21 | `idea` | product, design, engineering |
+| [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
 | [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Merge — with conflict resolution](merge.md) | 2026-06-17 | `idea` | product, engineering, design |
@@ -25,11 +26,18 @@ and it links out to them.
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `idea` | product, design, engineering |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
-| [GitHub-Desktop-style UI refactor](github-desktop-ui-refactor.md) | 2026-06-17 | `done` | product, design, engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [Logging — categories with per-category and global levels](logging.md) | 2026-06-21 | `done` | engineering, product |
-| [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 
-<!-- Add a row per wish. When a wish reaches `done` or `dropped`, keep it here
-for the record (or move done ones to a "Shipped" section below once there are
-enough to bother). -->
+<!-- Add a row per wish. When a wish reaches `done` or `dropped`, move it down
+to the Shipped section so the open list stays scannable. -->
+
+## Shipped
+
+Graduated wishes, kept for the record — each links out to its spec sections and
+plan from the bottom of its file.
+
+| Wish | Added | Shipped | Touches |
+|------|-------|---------|---------|
+| [Branch management — create / switch / delete](shipped/branch-management.md) | 2026-06-17 | 2026-06-18 | product, engineering, design |
+| [GitHub-Desktop-style UI refactor](shipped/github-desktop-ui-refactor.md) | 2026-06-17 | 2026-06-18 | product, design, engineering |
+| [Logging — categories with per-category and global levels](shipped/logging.md) | 2026-06-21 | 2026-06-21 | engineering, product |

@@ -788,7 +788,7 @@ void central_layout_has_no_dashboard_and_a_shared_diff()
 
 - [ ] **Step 5:** Tick this plan's boxes, fill **Outcome**, set `Status` to `done`
   here and in [`plans/index.md`](index.md); set the
-  [wish](../wishlist/github-desktop-ui-refactor.md) `Status` to `done` (and its
+  [wish](../wishlist/shipped/github-desktop-ui-refactor.md) `Status` to `done` (and its
   row in [`wishlist/index.md`](../wishlist/index.md)).
 
 - [ ] **Step 6: Commit.**

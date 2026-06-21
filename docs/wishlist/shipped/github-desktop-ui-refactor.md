@@ -38,7 +38,7 @@ a more obviously modern app.
 
 ## Notes
 
-- This contradicts several things in the current [product spec](../spec/product/product.md):
+- This contradicts several things in the current [product spec](../../spec/product/product.md):
   the **Changes tab** staging lists, the separate **History tab**, and the
   **Dashboard** are all described there. Graduating this wish means rewriting
   those sections (and likely the "Screens & navigation" overview).
@@ -50,7 +50,7 @@ a more obviously modern app.
   flow stays the same.
 - **QML vs QWidgets — the big fork.** This is a significant architectural choice
   that rejects a real alternative, so when it graduates it belongs in
-  [`decisions.md`](../decisions.md). Weigh against current invariants: Qt lives
+  [`decisions.md`](../../decisions.md). Weigh against current invariants: Qt lives
   only at the ViewModel boundary, `core/` is Qt-free. QML would change how the
   `ui/` layer and the `AsyncRepo` bridge are wired, and how tests
   (QtTest/headless) run. A non-Qt framework would be an even larger blast radius.
@@ -68,21 +68,21 @@ a more obviously modern app.
 
 Designed into the living spec (2026-06-18):
 
-- **Product** — [`product.md`](../spec/product/product.md): Screens & navigation
+- **Product** — [`product.md`](../../spec/product/product.md): Screens & navigation
   (collapsible Project sidebar + list column + shared diff panel), the rewritten
   **Changes** tab (default-checked checkboxes, no staging area, commit from the
   checked set, discard via context menu), the rewritten **History** tab (commit
   list + commit-files list feeding the shared read-only diff), Dashboard removed.
-- **Design** — [`design.md`](../spec/design/design.md): Fusion base style with a
+- **Design** — [`design.md`](../../spec/design/design.md): Fusion base style with a
   token-driven `QPalette` + accent stylesheet; `changedFilesList` and diff
   line-checkbox component contracts; sidebar collapse.
-- **Engineering** — [`engineering.md`](../spec/engineering/engineering.md):
+- **Engineering** — [`engineering.md`](../../spec/engineering/engineering.md):
   "Inline selection, commit, and the history diff" — stage-on-commit flow and the
   new core endpoints (reset index to `HEAD`; list a commit's files; diff a file in
   a commit).
-- **Decisions** — [`decisions.md`](../decisions.md): D22 (UI model), D23
+- **Decisions** — [`decisions.md`](../../decisions.md): D22 (UI model), D23
   (stage-on-commit), D24 (QWidgets reaffirmed + Fusion), D25 (palette over QSS).
 
 Toolkit: the QML fork was **rejected** — stays QWidgets (D24).
 
-Plan: see [`plans/`](../plans/index.md).
+Plan: see [`plans/`](../../plans/index.md).
