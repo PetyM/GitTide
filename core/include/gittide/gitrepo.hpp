@@ -90,6 +90,11 @@ public:
     // or HEAD is unborn/detached. See SyncStatus.
     Expected<SyncStatus> syncStatus() const;
 
+    // Fetch the named remote, updating remote-tracking refs. cred is supplied by
+    // the caller (ssh-agent / https token); cb reports transfer progress. The
+    // credential callback selects ssh-agent vs userpass by URL scheme.
+    Expected<void> fetch(std::string remoteName, Credentials cred, ProgressCallback cb);
+
     // Create a new local branch pointing at fromOid (40-char hex SHA).
     // Pass an empty fromOid to branch from current HEAD.
     // Does NOT switch HEAD — creation only.

@@ -47,6 +47,8 @@ TempRepo::~TempRepo()
         git_repository_free(m_repo);
     std::error_code ec;
     std::filesystem::remove_all(m_dir, ec);
+    for (const auto& bare : m_bareDirs)
+        std::filesystem::remove_all(bare, ec);
 }
 
 void TempRepo::writeFile(std::string_view rel_path, std::string_view contents)
@@ -169,7 +171,9 @@ void TempRepo::updateSubmodulesRecursive()
 
 std::filesystem::path TempRepo::addBareRemote(std::string_view name)
 {
-    std::filesystem::path bare = m_dir.parent_path() / (std::string(name) + ".git");
+    // Derive a unique bare-repo path from m_dir so multiple TempRepo instances
+    // running in the same process don't share a bare name (e.g. "/tmp/origin.git").
+    std::filesystem::path bare = m_dir.parent_path() / (m_dir.filename().string() + "_" + std::string(name) + ".git");
     git_repository* bare_repo  = nullptr;
     check(git_repository_init(&bare_repo, toGitPath(bare).c_str(), /*is_bare=*/1), "git_repository_init (bare) failed");
     git_repository_free(bare_repo);
@@ -178,6 +182,7 @@ std::filesystem::path TempRepo::addBareRemote(std::string_view name)
     git_remote* remote = nullptr;
     check(git_remote_create(&remote, m_repo, std::string(name).c_str(), url.c_str()), "git_remote_create failed");
     git_remote_free(remote);
+    m_bareDirs.push_back(bare);
     return bare;
 }
 
@@ -213,6 +218,18 @@ void TempRepo::resetBranchTo(std::string_view branch, std::string_view oidHex)
     check(git_reset(m_repo, obj, GIT_RESET_HARD, nullptr), "git_reset failed");
     git_object_free(obj);
     (void)branch; // branch identity resolved via HEAD; parameter reserved for future use
+}
+
+void TempRepo::cloneFrom(const std::filesystem::path& barePath)
+{
+    if (m_repo)
+    {
+        git_repository_free(m_repo);
+        m_repo = nullptr;
+    }
+    std::filesystem::remove_all(m_dir);
+    std::string url = "file://" + barePath.generic_string();
+    check(git_clone(&m_repo, url.c_str(), toGitPath(m_dir).c_str(), nullptr), "git_clone failed");
 }
 
 } // namespace gittide::test

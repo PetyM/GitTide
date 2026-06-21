@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <string_view>
+#include <vector>
 
 #include "gittide/libgit2context.hpp"
 
@@ -51,10 +52,15 @@ public:
     // Move the branch ref to oidHex and hard-reset the working tree to it.
     void resetBranchTo(std::string_view branch, std::string_view oidHex);
 
+    // Replace this TempRepo's repository with a clone of the bare repo at
+    // barePath (file://). Registers origin automatically (libgit2 clone does).
+    void cloneFrom(const std::filesystem::path& barePath);
+
 private:
     LibGit2Context m_ctx;
     std::filesystem::path m_dir;
     git_repository* m_repo = nullptr;
+    std::vector<std::filesystem::path> m_bareDirs; // extra dirs to remove on destruction
 };
 
 } // namespace gittide::test

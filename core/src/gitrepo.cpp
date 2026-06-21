@@ -4,7 +4,9 @@
 #include <git2/branch.h>
 #include <git2/checkout.h>
 #include <git2/commit.h>
+#include <git2/credential.h>
 #include <git2/graph.h>
+#include <git2/remote.h>
 #include <git2/reset.h>
 #include <git2/revwalk.h>
 #include <git2/stash.h>
@@ -17,6 +19,7 @@
 
 #include "gittide/diffengine.hpp"
 #include "gittide/pathutil.hpp"
+#include "gittide/sync.hpp"
 
 namespace {
 // True when the selection targets the whole file (no hunk chosen).
@@ -79,10 +82,34 @@ std::map<std::string, std::string> worktreeBranchPaths(git_repository* repo)
     return out;
 }
 
+// Shared payload passed to ALL libgit2 callbacks on a git_remote_callbacks.
+// libgit2 routes the same void* to both transfer_progress and credentials.
+struct CbPayload
+{
+    gittide::ProgressCallback* cb   = nullptr;
+    gittide::Credentials*      cred = nullptr;
+};
+
 int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
 {
-    auto* cb = static_cast<gittide::ProgressCallback*>(payload);
-    return (*cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
+    auto* pl = static_cast<CbPayload*>(payload);
+    return (*pl->cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
+}
+
+int credentialTrampoline(git_credential** out, const char* url, const char* username_from_url,
+                         unsigned int allowed_types, void* payload)
+{
+    const auto& cred = *static_cast<CbPayload*>(payload)->cred;
+    switch (gittide::chooseCredential(url ? url : "", allowed_types, cred))
+    {
+    case gittide::CredentialKind::SshAgent:
+        return git_credential_ssh_key_from_agent(out, username_from_url ? username_from_url : "git");
+    case gittide::CredentialKind::UserPass:
+        return git_credential_userpass_plaintext_new(out, cred.username.c_str(), cred.password.c_str());
+    case gittide::CredentialKind::None:
+    default:
+        return GIT_EAUTH;
+    }
 }
 } // anonymous namespace
 
@@ -132,9 +159,10 @@ Expected<GitRepo> GitRepo::init(const std::filesystem::path& path)
 
 Expected<GitRepo> GitRepo::clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb)
 {
+    CbPayload pl{&cb, nullptr};
     git_clone_options opts                      = GIT_CLONE_OPTIONS_INIT;
     opts.fetch_opts.callbacks.transfer_progress = transferProgressTrampoline;
-    opts.fetch_opts.callbacks.payload           = &cb; // cb lives on the stack for the duration
+    opts.fetch_opts.callbacks.payload           = &pl;
 
     git_repository* repo = nullptr;
     int rc               = git_clone(&repo, url.c_str(), toGitPath(dest).c_str(), &opts);
@@ -998,6 +1026,26 @@ Expected<SyncStatus> GitRepo::syncStatus() const
     git_buf_dispose(&remote_buf);
 
     return out;
+}
+
+Expected<void> GitRepo::fetch(std::string remoteName, Credentials cred, ProgressCallback cb)
+{
+    git_remote* raw = nullptr;
+    int rc          = git_remote_lookup(&raw, m_repo, remoteName.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_remote, decltype(&git_remote_free)> remote(raw, git_remote_free);
+
+    CbPayload pl{&cb, &cred};
+    git_fetch_options opts           = GIT_FETCH_OPTIONS_INIT;
+    opts.callbacks.transfer_progress = transferProgressTrampoline;
+    opts.callbacks.credentials       = credentialTrampoline;
+    opts.callbacks.payload           = &pl;
+
+    rc = git_remote_fetch(remote.get(), nullptr, &opts, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
 }
 
 } // namespace gittide
