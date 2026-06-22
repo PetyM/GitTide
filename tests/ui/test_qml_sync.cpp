@@ -1,9 +1,17 @@
 #include <QtTest>
 #include <QSignalSpy>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
 
 #include "gittide/gitrepo.hpp"
 #include "gittide/ui/historylistmodel.hpp"
+#include "gittide/ui/projectcontroller.hpp"
+#include "gittide/ui/qmlcontext.hpp"
+#include "gittide/ui/qmltheme.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
+#include "gittide/ui/thememanager.hpp"
+#include "gittide/projectstore.hpp"
 #include "support/temprepo.hpp"
 
 using namespace gittide::ui;
@@ -12,11 +20,36 @@ class TestQmlSync : public QObject
 {
     Q_OBJECT
 private slots:
+    void sidebar_exposes_fetchAll_button();
     void aheadBehindMapToProperties();
     void pullRebaseRoundTrips();
     void detachedHeadCannotPublish();
     void checkoutRemoteBranchCreatesTrackingLocal();
 };
+
+void TestQmlSync::sidebar_exposes_fetchAll_button()
+{
+    ThemeManager mgr;
+    mgr.setMode(ThemeManager::Mode::Dark);
+    QmlTheme theme(&mgr);
+    RepoListModel repoModel;
+
+    gittide::ProjectStore store;
+    auto& p = store.createProject("TestProject");
+    ProjectController controller(&store);
+    controller.activate(QString::fromStdString(p.id));
+
+    QQmlApplicationEngine engine;
+    installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+    engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+    QVERIFY(!engine.rootObjects().isEmpty());
+
+    QObject* root = engine.rootObjects().first();
+    QObject* btn  = root->findChild<QObject*>(QStringLiteral("fetchAllButton"));
+    QVERIFY(btn != nullptr);
+    // An active project and not fetching → button must be enabled.
+    QVERIFY(btn->property("enabled").toBool());
+}
 
 void TestQmlSync::aheadBehindMapToProperties()
 {
