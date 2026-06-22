@@ -38,47 +38,56 @@ Item {
             Layout.fillWidth: true
         }
 
-        TabBar {
-            id: tabs
-            objectName: "changesTabBar"
+        // Header band: a full-width raised strip with the compact Changes/History
+        // tabs tucked into its left edge (above the file column), so the toggle
+        // reads tightly rather than stretching the whole pane width.
+        Rectangle {
             Layout.fillWidth: true
-            spacing: 0
-            background: Rectangle {
-                color: theme.surfaceRaised
-                // Baseline the active-tab underline rides on.
-                Rectangle {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                    height: 1
-                    color: theme.border
-                }
+            implicitHeight: 37
+            color: theme.surfaceRaised
+
+            Rectangle { // baseline hairline spanning the full width
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 1
+                color: theme.border
             }
 
-            // Flat tab: active = text.primary (demibold) over a 2px accent
-            // underline; inactive = text.secondary; hover tints the row.
-            component MainTab: TabButton {
-                id: tabBtn
-                implicitHeight: 36
-                contentItem: Label {
-                    text: tabBtn.text
-                    color: tabBtn.checked ? theme.textPrimary : theme.textSecondary
-                    font.pixelSize: 13
-                    font.weight: tabBtn.checked ? Font.DemiBold : Font.Normal
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    color: (tabBtn.hovered && !tabBtn.checked) ? theme.surfaceOverlay : "transparent"
-                    Rectangle {
-                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                        height: 2
-                        color: theme.accent
-                        visible: tabBtn.checked
+            TabBar {
+                id: tabs
+                objectName: "changesTabBar"
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                spacing: 0
+                background: null
+
+                // Flat tab: active = text.primary (demibold) over a 2px accent
+                // underline; inactive = text.secondary; hover tints the row.
+                component MainTab: TabButton {
+                    id: tabBtn
+                    implicitHeight: 36
+                    implicitWidth: 96
+                    contentItem: Label {
+                        text: tabBtn.text
+                        color: tabBtn.checked ? theme.textPrimary : theme.textSecondary
+                        font.pixelSize: 13
+                        font.weight: tabBtn.checked ? Font.DemiBold : Font.Normal
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: (tabBtn.hovered && !tabBtn.checked) ? theme.surfaceOverlay : "transparent"
+                        Rectangle {
+                            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                            height: 2
+                            color: theme.accent
+                            visible: tabBtn.checked
+                        }
                     }
                 }
-            }
 
-            MainTab { text: "Changes" }
-            MainTab { text: "History" }
+                MainTab { text: "Changes" }
+                MainTab { text: "History" }
+            }
         }
 
         StackLayout {

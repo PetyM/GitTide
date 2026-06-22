@@ -20,5 +20,8 @@
     <file>CommitDetail.qml</file>
     <file>CredentialDialog.qml</file>
     <file>OverlayCard.qml</file>
+    <file>AppCheckBox.qml</file>
+    <file>AppMenu.qml</file>
+    <file>AppMenuItem.qml</file>
   </qresource>
 </RCC>

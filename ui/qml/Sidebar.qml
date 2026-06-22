@@ -48,9 +48,9 @@ Rectangle {
                 ToolTip.visible: hovered
                 ToolTip.text: "Fetch all repositories"
                 contentItem: Label {
-                    text: "↓↑"
+                    text: "⟳"
                     color: theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: 16
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -142,27 +142,30 @@ Rectangle {
             onClicked: projectMenu.popup()
         }
 
-        Menu {
+        AppMenu {
             id: projectMenu
             objectName: "projectMenu"
             // One item per project, kept in sync with the model, then a
             // separator and the New/Delete actions.
             Instantiator {
                 model: projectModel
-                delegate: MenuItem {
+                delegate: AppMenuItem {
                     text: model.display
                     onTriggered: if (projectController) projectController.activate(model.projectId)
                 }
                 onObjectAdded: (index, object) => projectMenu.insertItem(index, object)
                 onObjectRemoved: (index, object) => projectMenu.removeItem(object)
             }
-            MenuSeparator {}
-            MenuItem {
+            MenuSeparator {
+                padding: 6
+                contentItem: Rectangle { implicitHeight: 1; color: theme.border }
+            }
+            AppMenuItem {
                 objectName: "newProjectItem"
                 text: "New project…"
                 onTriggered: sidebar.newProjectRequested()
             }
-            MenuItem {
+            AppMenuItem {
                 objectName: "deleteProjectItem"
                 text: "Delete current project…"
                 enabled: projectController && projectController.activeProjectId.length > 0
@@ -199,15 +202,29 @@ Rectangle {
                 id: row
                 implicitHeight: 30
                 indentation: 16
+
+                // Themed expand/collapse chevron. Replacing the default indicator
+                // means we own its x (TreeViewDelegate only indents the built-in
+                // one); the base still wires tap-to-toggle and manages visibility
+                // (shown only when hasChildren).
+                indicator: Label {
+                    x: row.leftMargin + row.depth * row.indentation
+                    y: (row.height - height) / 2
+                    width: 16
+                    horizontalAlignment: Text.AlignHCenter
+                    text: row.expanded ? "▾" : "▸"
+                    color: theme.textSecondary
+                    font.pixelSize: 11
+                }
+
                 // Selecting a repo — or an initialised submodule — opens it as a
-                // first-class repo and reveals any nested children. An
-                // uninitialised submodule has no repo on disk, so it does nothing.
+                // first-class repo. Expansion is left to the chevron so a manual
+                // collapse sticks. An uninitialised submodule has no repo on disk,
+                // so it does nothing.
                 onClicked: {
                     if (!repoVm || row.uninit)
                         return
                     repoVm.open(model.repoPath)
-                    if (row.hasChildren)
-                        repoTree.expand(row.row)
                 }
 
                 readonly property bool isSub: model.isSubmodule === true
@@ -387,20 +404,20 @@ Rectangle {
     }
 
     // ---- Add repository menu ----
-    Menu {
+    AppMenu {
         id: addRepoMenu
         objectName: "addRepoMenu"
-        MenuItem { text: "Add existing repository…"; onTriggered: sidebar.addExistingRequested() }
-        MenuItem { text: "Initialize new repository…"; onTriggered: sidebar.initRequested() }
-        MenuItem { text: "Clone repository…"; onTriggered: sidebar.cloneRequested() }
+        AppMenuItem { text: "Add existing repository…"; onTriggered: sidebar.addExistingRequested() }
+        AppMenuItem { text: "Initialize new repository…"; onTriggered: sidebar.initRequested() }
+        AppMenuItem { text: "Clone repository…"; onTriggered: sidebar.cloneRequested() }
     }
 
     // ---- Remove-repo context menu ----
-    Menu {
+    AppMenu {
         id: repoContextMenu
         objectName: "repoContextMenu"
         property string repoPath: ""
-        MenuItem {
+        AppMenuItem {
             text: "Remove from project"
             onTriggered: if (projectController && repoContextMenu.repoPath.length > 0)
                              projectController.removeRepo(repoContextMenu.repoPath)

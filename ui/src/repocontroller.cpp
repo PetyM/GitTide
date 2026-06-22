@@ -140,6 +140,7 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
     emit committed(QString::fromStdString(*result));
     co_await refreshStatus();
     co_await refreshHistory();
+    co_await refreshSyncStatus(); // ahead count grew — refresh so Push reflects it
 }
 
 QCoro::Task<void> RepoController::refreshHistory(unsigned limit)
@@ -348,6 +349,7 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
     emit committed(QString::fromStdString(*oid));
     co_await refreshStatus();
     co_await refreshHistory();
+    co_await refreshSyncStatus(); // ahead count grew — refresh so Push reflects it
 }
 
 QCoro::Task<void> RepoController::refreshCommitFiles(QString oid)

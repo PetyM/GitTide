@@ -30,7 +30,7 @@ SplitView {
             Layout.margins: 12
             spacing: 10
 
-            CheckBox {
+            AppCheckBox {
                 objectName: "fileHeaderCheck"
                 tristate: true
                 // 0 Unchecked, 1 PartiallyChecked, 2 Checked — mirror file states.
@@ -88,7 +88,7 @@ SplitView {
                     anchors.rightMargin: 12
                     spacing: 8
 
-                    CheckBox {
+                    AppCheckBox {
                         checkState: model.checkState === 2 ? Qt.Checked
                                     : model.checkState === 1 ? Qt.PartiallyChecked
                                     : Qt.Unchecked
