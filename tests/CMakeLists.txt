@@ -50,6 +50,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp

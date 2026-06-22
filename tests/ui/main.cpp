@@ -17,6 +17,7 @@
 // executed — there will be no failure, no warning, just zero test runs for that class.
 
 #include "test_async_repo.cpp"
+#include "test_async_merge.cpp"
 #include "test_auth_error.cpp"
 #include "test_project_controller.cpp"
 #include "test_project_list_model.cpp"
@@ -71,6 +72,7 @@ int main(int argc, char** argv)
     RUN(TestRepoController);
     RUN(TestQCoroSmoke);
     RUN(TestAsyncRepo);
+    RUN(TestAsyncMerge);
     RUN(TestAuthError);
     RUN(TestTheme);
     RUN(TestThemeManager);

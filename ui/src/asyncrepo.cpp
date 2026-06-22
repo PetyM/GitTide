@@ -293,4 +293,92 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::setPullStrategy(gittide::PullStr
         });
 }
 
+QCoro::Task<gittide::Expected<gittide::MergeOutcome>> AsyncRepo::mergeBranch(QString name)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = name.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.mergeBranch(n);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::MergeState>> AsyncRepo::mergeState()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.mergeState();
+        });
+}
+
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMerge(gittide::CommitRequest req)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, req = std::move(req)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.commitMerge(req);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::abortMerge()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.abortMerge();
+        });
+}
+
+QCoro::Task<gittide::Expected<bool>> AsyncRepo::stashSave(QString message)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, msg = message.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashSave(msg);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stashPop()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashPop();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::deinitSubmodule(std::filesystem::path path)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, path = std::move(path)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.deinitSubmodule(path);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::reinitSubmodule(std::filesystem::path path)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, path = std::move(path)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.reinitSubmodule(path);
+        });
+}
+
 } // namespace gittide::ui
