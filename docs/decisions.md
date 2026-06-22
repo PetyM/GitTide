@@ -80,8 +80,16 @@ an entry with a newer one if it changes.
   source is impractical; pinned FetchContent tags are reproducible. →
   [`engineering`](spec/engineering/engineering.md)
 - **D13 — Network transports off this milestone (`USE_SSH`/`USE_HTTPS` OFF).**
-  *Why:* avoids the OpenSSL/mbedTLS dependency; local and `file://` paths suffice
-  for now. → [`engineering`](spec/engineering/engineering.md)
+  *Superseded by D28.* *Why (then):* avoids the OpenSSL/mbedTLS dependency; local
+  and `file://` paths sufficed. → [`engineering`](spec/engineering/engineering.md)
+- **D28 — Network transports on; HTTPS everywhere, SSH off on Windows for now.**
+  `USE_HTTPS=ON` uses the platform TLS backend (OpenSSL on Linux → `libssl-dev`,
+  SChannel on Windows, SecureTransport on macOS — only Linux needs a dev package).
+  `USE_SSH=ON` links libssh2 on Linux/macOS so the credential callback's
+  ssh-agent/key auth works; Windows has no system libssh2 and is left OFF.
+  *Deferred:* Windows SSH route (vcpkg libssh2 vs `USE_SSH=exec`). *Why:* real
+  remotes (https/ssh) are needed now; the userpass + ssh-agent credential paths
+  were already wired. → [`engineering`](spec/engineering/engineering.md)
 - **D14 — Paths via `generic_u8string()`, never `.string()`.** *Why:* `.string()`
   yields ANSI on Windows and corrupts non-ASCII names. → [`engineering`](spec/engineering/engineering.md)
 - **D15 — Classic `#include` headers, not C++ modules.** *Why:* Qt's `moc` does not

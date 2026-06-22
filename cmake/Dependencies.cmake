@@ -10,8 +10,20 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 # --- Core dependencies (always built) ---
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)   # libgit2's own tests
 set(BUILD_CLI OFF CACHE BOOL "" FORCE)
-set(USE_SSH OFF CACHE BOOL "" FORCE)
-set(USE_HTTPS OFF CACHE BOOL "" FORCE)      # no network ops in this milestone; avoids OpenSSL/mbedTLS dep
+# Network transports. USE_HTTPS=ON auto-selects the platform TLS backend
+# (OpenSSL on Linux, SChannel on Windows, SecureTransport on macOS); only Linux
+# needs an extra dev package (libssl-dev).
+set(USE_HTTPS ON CACHE BOOL "" FORCE)
+
+# USE_SSH=ON links libssh2 so the credential callback's ssh-agent / key auth
+# works (libssh2-1-dev on Linux, `brew install libssh2` on macOS). Windows has no
+# system libssh2 and is left OFF for now — Windows SSH (vcpkg vs USE_SSH=exec) is
+# a deferred decision; see docs/decisions.md.
+if(WIN32)
+  set(USE_SSH OFF CACHE BOOL "" FORCE)
+else()
+  set(USE_SSH ON CACHE BOOL "" FORCE)
+endif()
 FetchContent_Declare(
   libgit2
   GIT_REPOSITORY https://github.com/libgit2/libgit2.git

@@ -33,6 +33,10 @@ wishlist/ (wanted)   →   spec/ (designed)   →   plans/ (built)
   via `find_package`.
 - libgit2, QCoro, and Catch2 are fetched automatically by CMake (FetchContent);
   no manual install needed.
+- **TLS + SSH dev libraries** for network transports — OpenSSL and libssh2.
+  On Debian/Ubuntu: `sudo apt install libssl-dev libssh2-1-dev`. On macOS they
+  ship with the platform (SecureTransport) / Homebrew `libssh2`; on Windows
+  HTTPS uses SChannel and SSH needs libssh2.
 
 ```bash
 # Configure

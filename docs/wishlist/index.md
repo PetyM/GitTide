@@ -16,6 +16,7 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
+| [Deployment — native installers (apt / brew / .exe)](deployment-packaging.md) | 2026-06-22 | `idea` | engineering, product |
 | [Context menus — right-click actions on every entity](context-menus.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Keyboard controls — navigate and act without the mouse](keyboard-controls.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |

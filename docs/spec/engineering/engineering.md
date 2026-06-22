@@ -229,7 +229,12 @@ test-layer exception). Principles first: KISS, DRY, SOLID, YAGNI.
   impractical). libgit2, QCoro, and Catch2 are fetched via **FetchContent**
   (pinned tags in [`cmake/Dependencies.cmake`](../../../cmake/Dependencies.cmake)).
   vcpkg is deliberately avoided. Network transports (`USE_SSH`/`USE_HTTPS`) are
-  off — clone/init use local and `file://` paths in this milestone.
+  **on** (D28): HTTPS uses the platform TLS backend (OpenSSL on Linux →
+  `libssl-dev`, SChannel on Windows, SecureTransport on macOS); SSH links libssh2
+  on Linux (`libssh2-1-dev`) and macOS (`brew install libssh2`) so the credential
+  callback's ssh-agent / key auth works. **Windows SSH is off for now** (no system
+  libssh2; vcpkg-vs-`exec` deferred). clone/fetch/push speak `https://`, `ssh://`,
+  scp-like `user@host:path`, and local/`file://` paths.
 - **Targets.** `gittide_core` (static lib), `gittide_ui` (static lib, AUTOMOC),
   `gittide_app` (executable), plus test targets below.
 - **Tests.** Catch2 for `core/` (`gittide_core_tests`, one ctest entry per case
