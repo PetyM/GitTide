@@ -65,6 +65,8 @@ void ProjectController::refreshRepoModel()
 
 void ProjectController::activate(const QString& projectId)
 {
+    if (m_fetchingAll)
+        return;
     const std::string id = projectId.toStdString();
     for (const auto& p : m_store->projects())
     {
@@ -205,7 +207,7 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 
 void ProjectController::removeRepo(const QString& path)
 {
-    if (m_activeId.isEmpty())
+    if (m_fetchingAll || m_activeId.isEmpty())
         return;
     auto result = m_store->removeRepo(m_activeId.toStdString(), path.toStdString());
     if (!result)
@@ -248,9 +250,8 @@ void ProjectController::fetchAll()
         return;
 
     m_repoModel->resetFetchStates();
-    m_fetchOk      = 0;
-    m_fetchFailed  = 0;
-    m_authPrompted = false;
+    m_fetchOk     = 0;
+    m_fetchFailed = 0;
     m_authFailedRows.clear();
 
     // Only fetch non-missing top-level repos. A missing repo is SKIPPED — left in
@@ -297,14 +298,7 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))
-        {
             m_authFailedRows.push_back(row);
-            if (!m_authPrompted)
-            {
-                m_authPrompted = true;
-                emit authRequired();
-            }
-        }
         m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
                                    QString::fromStdString(fr.error().message));
         m_fetchFailed++;
@@ -339,7 +333,6 @@ void ProjectController::submitFleetCredentials(const QString& username, const QS
 
     const std::vector<int> retry = std::move(m_authFailedRows);
     m_authFailedRows.clear();
-    m_authPrompted = false;
 
     // These rows were counted as failures in the initial run; we are re-attempting
     // them, so back them out — fetchOne re-counts each into ok or failed.
@@ -368,6 +361,8 @@ void ProjectController::finishOneFetch()
     m_fetchSummary = QStringLiteral("%1 fetched, %2 failed").arg(m_fetchOk).arg(m_fetchFailed);
     emit fetchingAllChanged();
     emit fleetFetchFinished(m_fetchOk, m_fetchFailed);
+    if (!m_authFailedRows.empty())
+        emit authRequired();
 }
 
 } // namespace gittide::ui

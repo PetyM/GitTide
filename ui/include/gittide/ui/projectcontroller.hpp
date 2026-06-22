@@ -106,7 +106,6 @@ private:
     int                  m_fetchPending = 0;
     int                  m_fetchOk      = 0;
     int                  m_fetchFailed  = 0;
-    bool                 m_authPrompted = false;       // emit authRequired at most once per run
     std::vector<int>     m_authFailedRows;             // rows that failed on auth (retried in submitFleetCredentials)
     gittide::Credentials m_sessionCred;
 

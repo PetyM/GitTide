@@ -399,6 +399,45 @@ private slots:
         QCOMPARE(finished.count(), 0);
     }
 
+    // Calling activate() while a fleet fetch is in flight must be a no-op: the
+    // active project must stay the same and the repo model must not be rebuilt.
+    // This is testable deterministically because fetchingAll is set to true
+    // synchronously by fetchAll() before any coroutine suspension point, so
+    // calling activate() in the same event-loop turn (before any QCoreApplication
+    // event processing) hits the guard reliably.
+    void activate_during_fetch_is_blocked()
+    {
+        using gittide::ui::RepoListModel;
+
+        const QString behindA = makeRepoBehindBy1();
+        const QString behindB = makeRepoBehindBy1();
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = behindA.toStdString()},
+                      RepoRef{.path = behindB.toStdString()}}});
+        store.projects().push_back(Project{.id = "p2", .name = "Other"});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("p1"));
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        // fetchingAll is set synchronously before the first co_await
+        QVERIFY(controller.fetchingAll());
+
+        // Attempt to switch project in the same event-loop turn — must be gated.
+        controller.activate(QStringLiteral("p2"));
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("p1")); // unchanged
+        QCOMPARE(controller.repos()->rowCount(), 2);                   // model not rebuilt
+
+        // Let the fetch run to completion.
+        QVERIFY(finished.wait(15000));
+        QVERIFY(!controller.fetchingAll());
+    }
+
 private:
     // Returns the path of a fresh working repo whose 'origin' is one commit ahead.
     // Kept alive by leaking the TempRepos into a member vector (cleaned in dtor).
