@@ -24,6 +24,7 @@ add_executable(gittide_core_tests
   test_git_repo_sync.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
+  support/git_config_isolation.cpp
 )
 # Tests use <git2.h> directly (test_libgit2.cpp, support/temprepo.cpp), so the
 # test target links libgit2 explicitly rather than relying on transitive exposure
