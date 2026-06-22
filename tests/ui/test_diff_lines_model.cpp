@@ -111,6 +111,83 @@ private slots:
         QCOMPARE(m.rowCount(QModelIndex()), 0);
         QCOMPARE(m.checkableCount(), 0);
     }
+
+    void block_row_inserted_over_consecutive_run()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/true);
+
+        // hunk + context + block + added + removed
+        QCOMPARE(m.rowCount(QModelIndex()), 5);
+
+        const int kind = roleKey(m, "lineKind");
+        QCOMPARE(m.data(m.index(2, 0), kind).toString(), QStringLiteral("block"));
+        QCOMPARE(m.data(m.index(3, 0), kind).toString(), QStringLiteral("added"));
+        QCOMPARE(m.data(m.index(4, 0), kind).toString(), QStringLiteral("removed"));
+
+        // The block row is not itself a checkable line.
+        const int checkable = roleKey(m, "checkable");
+        QCOMPARE(m.data(m.index(2, 0), checkable).toBool(), false);
+        QCOMPARE(m.checkableCount(), 2); // unchanged: only the two changed lines
+    }
+
+    void block_initial_state_checked_when_whole_checked()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/true);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Checked));
+    }
+
+    void block_initial_state_unchecked_when_none_checked()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, false, /*blocks=*/true);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Unchecked));
+    }
+
+    void block_initial_state_partial_when_some_checked()
+    {
+        DiffLinesModel m;
+        // Only lineIndex 1 (the "added" line) checked in hunk 0; "removed" (idx 2) not.
+        std::map<int, std::vector<int>> checked{{0, {1}}};
+        m.setDiff(oneHunkDiff(), checked, false, /*blocks=*/true);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::PartiallyChecked));
+    }
+
+    void no_block_row_when_blocks_disabled()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/false);
+        // Same as legacy flatten: hunk + 3 lines, no block row.
+        QCOMPARE(m.rowCount(QModelIndex()), 4);
+        const int kind = roleKey(m, "lineKind");
+        QCOMPARE(m.data(m.index(2, 0), kind).toString(), QStringLiteral("added"));
+    }
+
+    void no_block_row_for_lone_changed_line()
+    {
+        // hunk: context, added, context  -> the added line is a lone run.
+        gittide::DiffLine c1; c1.origin = gittide::DiffLineOrigin::Context;
+        c1.oldLineno = 1; c1.newLineno = 1; c1.text = "a";
+        gittide::DiffLine ad; ad.origin = gittide::DiffLineOrigin::Added;
+        ad.oldLineno = -1; ad.newLineno = 2; ad.text = "b";
+        gittide::DiffLine c2; c2.origin = gittide::DiffLineOrigin::Context;
+        c2.oldLineno = 2; c2.newLineno = 3; c2.text = "c";
+        gittide::DiffHunk h; h.oldStart = 1; h.oldLines = 2; h.newStart = 1; h.newLines = 3;
+        h.lines = {c1, ad, c2};
+        gittide::DiffResult r; r.hunks = {h};
+
+        DiffLinesModel m;
+        m.setDiff(r, {}, true, /*blocks=*/true);
+        // hunk + ctx + added + ctx, no block row.
+        QCOMPARE(m.rowCount(QModelIndex()), 4);
+        const int kind = roleKey(m, "lineKind");
+        for (int i = 0; i < m.rowCount(QModelIndex()); ++i)
+            QVERIFY(m.data(m.index(i, 0), kind).toString() != QStringLiteral("block"));
+    }
 };
 
 #include "test_diff_lines_model.moc"
