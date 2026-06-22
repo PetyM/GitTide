@@ -373,6 +373,19 @@ Rectangle {
         }
     }
 
+    // ---- Fleet credential prompt ----
+    // Opened once per fleet-fetch run when authRequired fires; on accept the
+    // controller retries all auth-failed rows with the supplied credentials.
+    Connections {
+        target: projectController
+        function onAuthRequired() { fleetCredentialDialog.openDialog() }
+    }
+
+    CredentialDialog {
+        id: fleetCredentialDialog
+        onAccepted: projectController.submitFleetCredentials(username, token)
+    }
+
     // ---- Add repository menu ----
     Menu {
         id: addRepoMenu

@@ -76,6 +76,9 @@ public slots:
     // Fetch every non-missing repo in the active project in parallel. No-op when
     // there is no active project, no repos, or a fetch is already running.
     Q_INVOKABLE void fetchAll();
+    // Store the credentials and re-fetch any repos that failed on auth. No-op
+    // when no auth failures are pending or a fetch is already running.
+    Q_INVOKABLE void submitFleetCredentials(const QString& username, const QString& token);
 
 signals:
     void activeProjectChanged();

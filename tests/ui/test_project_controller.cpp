@@ -386,6 +386,19 @@ private slots:
         QCOMPARE(finished.count(), 0);
     }
 
+    void submitFleetCredentials_with_no_pending_is_safe_noop()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.submitFleetCredentials(QStringLiteral("u"), QStringLiteral("t")); // nothing pending
+        QVERIFY(!controller.fetchingAll());
+        QCOMPARE(finished.count(), 0);
+    }
+
 private:
     // Returns the path of a fresh working repo whose 'origin' is one commit ahead.
     // Kept alive by leaking the TempRepos into a member vector (cleaned in dtor).

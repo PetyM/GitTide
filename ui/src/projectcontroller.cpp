@@ -328,6 +328,35 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     finishOneFetch();
 }
 
+void ProjectController::submitFleetCredentials(const QString& username, const QString& token)
+{
+    if (m_authFailedRows.empty() || m_fetchingAll)
+        return;
+
+    m_sessionCred.username    = username.toStdString();
+    m_sessionCred.password    = token.toStdString();
+    m_sessionCred.sshUseAgent = true;
+
+    const std::vector<int> retry = std::move(m_authFailedRows);
+    m_authFailedRows.clear();
+    m_authPrompted = false;
+
+    // These rows were counted as failures in the initial run; we are re-attempting
+    // them, so back them out — fetchOne re-counts each into ok or failed.
+    m_fetchFailed -= static_cast<int>(retry.size());
+
+    const auto& repos = activeRepos();
+    m_fetchPending    = static_cast<int>(retry.size());
+    m_fetchingAll     = true;
+    emit fetchingAllChanged();
+
+    for (int row : retry)
+    {
+        if (row >= 0 && row < static_cast<int>(repos.size()))
+            QCoro::connect(fetchOne(row, repos[row]), this, [] {});
+    }
+}
+
 void ProjectController::finishOneFetch()
 {
     // fetchOne resumes on the UI thread after each co_await, so this runs
