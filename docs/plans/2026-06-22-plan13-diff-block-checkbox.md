@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-22 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/product.md` §Changes tab](../spec/product/product.md) |
 | **Depends on** | Plan 9b — QML Changes/diff (DiffView.qml, DiffLinesModel) |
 
@@ -670,13 +670,23 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" -- ui/qml/
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
 > - Shipped: tri-state block checkbox over every 2+ run of consecutive changed
->   lines in the editable Changes diff; one click stages/unstages the run.
-> - Spec: realises [`spec/product/product.md` §Changes tab](../spec/product/product.md).
-> - Code: `ui/src/difflinesmodel.cpp` (block rows, `setBlockChecked`,
->   `blockState` role), `ui/src/repoviewmodel.cpp` (`setBlockChecked` +
->   `blocks=true`), `ui/qml/DiffView.qml` (block delegate); tests in
->   `tests/ui/test_diff_lines_model.cpp`. No `core/` change; history diff
->   unaffected (`blocks=false`).
+>   lines in the editable Changes diff; one click stages/unstages the run, and
+>   toggling individual lines keeps the block box in sync (checked / partial /
+>   unchecked). Lone single-line changes get none; read-only history is
+>   unaffected.
+> - Spec updated: [`spec/product/product.md` §Changes tab](../spec/product/product.md)
+>   now describes the block checkbox.
+> - Code: `ui/src/difflinesmodel.cpp` + `difflinesmodel.hpp` — `"block"` row
+>   kind, `blockState` role, `setDiff(..., blocks)` flag, `setBlockChecked`,
+>   `computeBlockState`/`refreshBlock`, per-line→block sync in `setLineChecked`;
+>   `ui/src/repoviewmodel.cpp` — `Q_INVOKABLE setBlockChecked` + `blocks=true`
+>   at the editable diff (line 304; `commitDiff` stays `false`);
+>   `ui/qml/DiffView.qml` — bare tristate `AppCheckBox` for block rows.
+> - Tests: 11 new model slots in `tests/ui/test_diff_lines_model.cpp` (structure,
+>   initial tri-state, toggle emit-counts, reverse sync, `dataChanged` roles).
+>   No `core/` change. QML delegate verified by build + offscreen smoke (no
+>   delegate unit test, per codebase convention).
+> - Commits: `897186c` (model rows) · `9e70a9c` (toggle + wiring) · `74c67b4`
+>   (QML + enable). Final whole-branch review: ready to merge, no Critical/
+>   Important findings.
