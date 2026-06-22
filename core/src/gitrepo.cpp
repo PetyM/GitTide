@@ -462,6 +462,93 @@ Expected<std::string> GitRepo::commit(const CommitRequest& req)
     return std::string(buf);
 }
 
+Expected<std::string> GitRepo::commitMerge(CommitRequest req)
+{
+    git_index* index = nullptr;
+    int rc           = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+
+    if (git_index_has_conflicts(index))
+        return std::unexpected(GitError{-1, "cannot commit: unresolved conflicts remain"});
+
+    git_oid tree_oid;
+    rc = git_index_write_tree(&tree_oid, index);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_tree* tree = nullptr;
+    rc             = git_tree_lookup(&tree, m_repo, &tree_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+
+    // Parents: current HEAD, then every MERGE_HEAD.
+    std::vector<git_commit*> parents;
+    auto free_parents = [&]() { for (auto* p : parents) git_commit_free(p); };
+
+    git_oid head_oid;
+    rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_commit* head_commit = nullptr;
+    rc                       = git_commit_lookup(&head_commit, m_repo, &head_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    parents.push_back(head_commit);
+
+    struct CbData
+    {
+        GitRepo* self;
+        std::vector<git_commit*>* parents;
+        int rc;
+    };
+    CbData cb{this, &parents, 0};
+    git_repository_mergehead_foreach(
+        m_repo,
+        [](const git_oid* oid, void* payload) -> int {
+            auto* d = static_cast<CbData*>(payload);
+            git_commit* c = nullptr;
+            int r         = git_commit_lookup(&c, d->self->m_repo, oid);
+            if (r < 0)
+            {
+                d->rc = r;
+                return r;
+            }
+            d->parents->push_back(c);
+            return 0;
+        },
+        &cb);
+    if (cb.rc < 0)
+    {
+        free_parents();
+        return std::unexpected(lastGitError(cb.rc));
+    }
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    if (!sig)
+    {
+        free_parents();
+        return std::unexpected(GitError{-1, "no signature for merge commit"});
+    }
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    git_oid commit_oid;
+    rc = git_commit_create(&commit_oid, m_repo, "HEAD", sig, sig, nullptr, req.message.c_str(), tree,
+                           parents.size(), const_cast<git_commit* const*>(parents.data()));
+    free_parents();
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_repository_state_cleanup(m_repo); // clears MERGE_HEAD / MERGE_MSG
+
+    char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(hex, sizeof(hex), &commit_oid);
+    return std::string(hex);
+}
+
 Expected<void> GitRepo::resetIndexToHead()
 {
     // Unborn HEAD: there is no commit to reset to, so clearing the index is the

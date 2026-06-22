@@ -64,6 +64,12 @@ public:
     // (user.name/user.email). Returns the new commit's hex oid.
     Expected<std::string> commit(const CommitRequest& req);
 
+    // Create the merge commit from the current index (parents HEAD + MERGE_HEAD),
+    // then clear merge state. Errors if unresolved conflict entries remain.
+    // req.message typically defaults at the UI layer to "Merge branch '<x>' into <current>".
+    // Returns the commit's hex oid.
+    Expected<std::string> commitMerge(CommitRequest req);
+
     // Revert worktree changes for the selection (whole file or hunk/lines).
     Expected<void> discard(const StageSelection& sel);
 

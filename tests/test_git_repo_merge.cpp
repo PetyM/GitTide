@@ -132,3 +132,38 @@ TEST_CASE("mergeBranch leaves conflict markers + entries on a real conflict", "[
     REQUIRE(body.find("<<<<<<<") != std::string::npos);
     REQUIRE(body.find(">>>>>>>") != std::string::npos);
 }
+
+TEST_CASE("commitMerge creates a 2-parent commit and clears merge state", "[merge]")
+{
+    gittide::test::TempRepo tmp;
+    auto repo = conflictingRepo(tmp);
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->mergeBranch("feature")->conflicted);
+
+    // Resolve: write a merged file and stage it (clears the conflict entry).
+    tmp.writeFile("a.txt", "resolved\n");
+    REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    auto oid = repo->commitMerge(gittide::CommitRequest{"Merge branch 'feature' into master"});
+    REQUIRE(oid.has_value());
+
+    auto ms = repo->mergeState();
+    REQUIRE(ms.has_value());
+    REQUIRE_FALSE(ms->inProgress);          // state cleared
+
+    auto hist = repo->log();
+    REQUIRE(hist.has_value());
+    // The newest commit is the merge commit (its first line matches the message).
+    REQUIRE(hist->front().summary == "Merge branch 'feature' into master");
+}
+
+TEST_CASE("commitMerge refuses while conflicts remain", "[merge]")
+{
+    gittide::test::TempRepo tmp;
+    auto repo = conflictingRepo(tmp);
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->mergeBranch("feature")->conflicted);
+
+    auto oid = repo->commitMerge(gittide::CommitRequest{"premature"});
+    REQUIRE_FALSE(oid.has_value());          // still conflicted → error
+}
