@@ -22,6 +22,7 @@ add_executable(gittide_core_tests
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
   test_git_repo_submodules.cpp
+  test_git_repo_submodule_merge.cpp
   test_git_repo_sync.cpp
   test_graph_builder.cpp
   support/temprepo.cpp

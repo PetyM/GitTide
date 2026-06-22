@@ -731,6 +731,51 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
     return result;
 }
 
+Expected<void> GitRepo::deinitSubmodule(std::filesystem::path path)
+{
+    // Verify it is actually a submodule (gives a clear error otherwise).
+    git_submodule* sm = nullptr;
+    int rc            = git_submodule_lookup(&sm, m_repo, toGitPath(path).c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_submodule_free(sm);
+
+    // Emulate `submodule deinit`: remove the working-tree contents but
+    // preserve the gitlink (.git file) so reinit can re-checkout rather than
+    // re-clone. The gitlink and the modules directory in the superproject's
+    // .git stay intact; only the checked-out source files are removed.
+    std::error_code ec;
+    const std::filesystem::path wd      = workdir() / path;
+    const std::filesystem::path gitlink = wd / ".git";
+    for (const auto& entry : std::filesystem::directory_iterator(wd, ec))
+    {
+        if (entry.path() == gitlink)
+            continue; // keep the gitlink so reinit can re-checkout
+        std::filesystem::remove_all(entry.path(), ec);
+        if (ec)
+            return std::unexpected(GitError{-1, "failed to clear submodule working dir: " + ec.message()});
+    }
+    if (ec)
+        return std::unexpected(GitError{-1, "failed to iterate submodule working dir: " + ec.message()});
+    return {};
+}
+
+Expected<void> GitRepo::reinitSubmodule(std::filesystem::path path)
+{
+    git_submodule* sm = nullptr;
+    int rc            = git_submodule_lookup(&sm, m_repo, toGitPath(path).c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_submodule, decltype(&git_submodule_free)> sm_guard(sm, git_submodule_free);
+
+    git_submodule_update_options opts        = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+    opts.checkout_opts.checkout_strategy     = GIT_CHECKOUT_FORCE;
+    rc                                       = git_submodule_update(sm, /*init=*/1, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
 {
     std::vector<BranchInfo> result;
