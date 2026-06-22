@@ -49,6 +49,8 @@ gittide::StatusFlag mapStatus(unsigned int s)
         f |= StatusFlag::WtModified;
     if (s & GIT_STATUS_WT_DELETED)
         f |= StatusFlag::WtDeleted;
+    if (s & GIT_STATUS_CONFLICTED)
+        f |= StatusFlag::Conflicted;
     return f;
 }
 
