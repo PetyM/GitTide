@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `idea` |
+| **Status** | `designed` (2026-06-22) |
 | **Touches** | product (merge action + conflict flow), engineering (core: merge + index conflict state on `GitRepo`), design (conflict resolution UI, merge-in-progress state) |
 
 ## What
@@ -59,7 +59,22 @@ conflict-resolution UI together as post-MVP; this is that.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (merge action + conflict flow), spec/engineering (core merge + index conflict model, merge-in-progress state) · plan: plans/<file>
-- Conflict-resolution UI fidelity (per-file ours/theirs vs 3-pane editor) rejects an alternative → log in decisions.md
--->
+## Graduated → designed (2026-06-22)
+
+Designed into the living spec:
+
+- **Product:** [`spec/product/product.md` § Merge](../spec/product/product.md#merge)
+  — merge action (branch dropdown + history context menu), outcomes, the
+  merge-in-progress state, inline conflict resolution, submodule deinit-and-retry.
+- **Engineering:**
+  [`spec/engineering/engineering.md` § Merge & conflict resolution](../spec/engineering/engineering.md#merge--conflict-resolution)
+  — core merge API, the merge-state-from-disk invariant, controller-side
+  auto-stash + reactive submodule deinit.
+- **Design:**
+  [`spec/design/design.md`](../spec/design/design.md) — `state.incoming` token,
+  the merge banner, and the inline conflict view.
+
+Decisions logged: **D29** (inline VS-Code-style conflict UI over coarse per-file
+or full 3-pane), **D30** (merge state derived from disk — the no-limbo
+guarantee), **D31** (controller-side auto-stash + reactive submodule
+deinit-and-retry). Plan: _pending_.

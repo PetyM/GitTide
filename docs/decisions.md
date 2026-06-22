@@ -40,6 +40,17 @@ an entry with a newer one if it changes.
   *Why:* fewer surfaces, an inline tick-what-to-commit model that's faster and
   more legible. The multi-repo **Project** sidebar (now collapsible) stays — it's
   the differentiator. → [`product`](spec/product/product.md)
+- **D29 — Conflict resolution is inline (VS Code style), not a 3-pane merge
+  editor.** A conflicted file opens in the existing shared diff panel with its
+  marker regions shown inline — *Current (ours)* / *Incoming (theirs)* tinted and
+  labelled, per-region Accept Current / Incoming / Both, plus free edit — and a
+  file is "resolved" when no markers remain (derived, no manual toggle). Merge is
+  started from both the branch dropdown and the History context menu. *Rejected:*
+  a coarse per-file ours/theirs-only picker (too blunt for real conflicts) and a
+  full 3-way Incoming|Result|Current editor (a large new multi-pane view for the
+  first cut — YAGNI; a later iteration). *Why:* reuses the diff machinery GitTide
+  already has, matches a UI users know, and keeps the first cut scoped. →
+  [`product`](spec/product/product.md), [`design`](spec/design/design.md)
 
 ## Engineering
 
@@ -90,6 +101,28 @@ an entry with a newer one if it changes.
   *Deferred:* Windows SSH route (vcpkg libssh2 vs `USE_SSH=exec`). *Why:* real
   remotes (https/ssh) are needed now; the userpass + ssh-agent credential paths
   were already wired. → [`engineering`](spec/engineering/engineering.md)
+- **D30 — Merge-in-progress state is derived from the repository, never held in
+  app memory.** `MergeState` (in-progress, merged ref, conflicted paths +
+  submodule subset) is re-read from disk (`MERGE_HEAD` + the index conflict
+  iterator) on every status refresh; the UI renders banner/conflicts/Abort purely
+  from it. *Rejected:* tracking "are we merging?" as a ViewModel boolean (the
+  approach that leaves clients like GitHub Desktop stuck in a merge they can't
+  describe or exit when app memory and the repo disagree). *Why:* disk is the one
+  source of truth, so a merge from the CLI or surviving a restart shows correctly
+  and **Abort is always reachable** — the no-limbo guarantee. →
+  [`engineering`](spec/engineering/engineering.md)
+- **D31 — Merge auto-stash + reactive submodule deinit live in the controller,
+  not core.** A dirty tree is auto-stashed before merge and popped after a clean
+  result (deferred past a conflicted merge until `commitMerge`; pop-conflict keeps
+  the stash, per D21). Submodule (gitlink) conflicts are handled **reactively**:
+  try a plain merge first, and only when pointers actually conflict offer
+  *deinit-and-retry* (abort → deinit the conflicted submodules → re-merge →
+  re-init+update to pinned commits). *Rejected:* core doing its own stashing
+  (mixes orchestration into the merge primitive); an upfront "always deinit
+  submodules before merge" toggle (penalises the common no-submodule-conflict case
+  and adds persisted config — the user preferred reactive). *Why:* keeps the core
+  `mergeBranch` primitive clean and avoids messy nested-repo conflicts only when
+  they'd actually occur. → [`engineering`](spec/engineering/engineering.md)
 - **D14 — Paths via `generic_u8string()`, never `.string()`.** *Why:* `.string()`
   yields ANSI on Windows and corrupts non-ASCII names. → [`engineering`](spec/engineering/engineering.md)
 - **D15 — Classic `#include` headers, not C++ modules.** *Why:* Qt's `moc` does not

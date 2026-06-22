@@ -41,8 +41,8 @@ parallel, and large histories/diffs render incrementally.
 
 - Bulk **pull**-all across a project. (Bulk **fetch**-all is now designed — see
   [Fleet fetch](#fleet-fetch).)
-- Branch **merge** and conflict-resolution UI. (Local branch *create / switch /
-  delete / rename* is now designed — see [Branches](#branches).)
+- Branch **merge** with conflict resolution is now designed — see
+  [Merge](#merge). (Rebase, merge strategies, and octopus merges stay deferred.)
 - An aggregated project-wide timeline graph (all repos on one axis).
 - Remove / rename of projects or repos and repo reordering.
 
@@ -179,6 +179,55 @@ The flow is per-repo: a successful switch/checkout refreshes that repo's status,
 history, and branch list together (the same cascade as switching project, scoped
 to one repo).
 
+### Merge
+
+Integrate one **local** branch into the current branch from inside GitTide —
+entirely local, no network. Scope is a single non-octopus merge: fast-forward
+when possible, otherwise a real merge commit; resolve conflicts inline; commit or
+abort. Merge strategies, rebase (see the separate rebase wish), and remote-branch
+merge are out of scope.
+
+- **Start.** *Merge into \<current\>* is offered two ways: as an item in the
+  branch dropdown (per local branch) and from a commit/branch-tip context menu in
+  the History graph. A dirty working tree is handled safe-by-default — GitTide
+  auto-stashes before the merge and re-applies afterwards, the same
+  never-clobber contract as checkout ([Branches](#branches)); a re-apply that
+  would land on conflicts is deferred until the merge is committed, and a
+  re-apply conflict stops and keeps the stash.
+- **Outcomes.** *Up-to-date* → nothing to do. *Fast-forward* → HEAD advances, no
+  merge commit. *Clean merge* → a merge commit is created automatically.
+  *Conflicts* → the repo enters a **merge-in-progress** state and the user
+  resolves (below).
+- **Merge-in-progress is a first-class, self-evident state.** Whenever the repo
+  is mid-merge a banner names the merge (*"Merging \<branch\> into \<current\>"*),
+  lists the conflicted files, and always offers **Abort** plus **Commit merge**
+  (enabled once nothing is unresolved). This state is read from the repository
+  itself on every refresh — not remembered in the app — so it is shown correctly
+  even after a restart or a merge begun from the CLI, and **Abort is always
+  reachable**. GitTide must never leave the user in a merge it cannot describe or
+  exit. **Abort** returns the repo to its exact pre-merge state.
+- **Inline conflict resolution.** A conflicted file opens in the shared diff
+  panel with its conflict regions shown inline (VS Code style): the *Current
+  (ours)* and *Incoming (theirs)* sides are tinted and labelled, and each region
+  carries **Accept Current / Accept Incoming / Accept Both** actions; the body
+  stays freely editable for a hand-merge. A file counts as **resolved** when no
+  conflict markers remain — detected from its content, not a manual "mark
+  resolved" toggle — which clears its badge and, once every file is clean, enables
+  Commit merge. The merge commit's message defaults to
+  `Merge branch '<x>' into <current>` and is editable.
+- **Submodule conflicts — deinit and retry.** A merge whose conflicts are in
+  submodule pointers (gitlinks) is offered a distinct escape in the banner:
+  **Deinit submodules & retry**. Accepting aborts the merge, de-initialises the
+  conflicted submodules (emptying their working dirs so the gitlinks merge as
+  plain pointer moves with no nested-repo mess), and re-runs the merge; the
+  affected submodules are re-initialised and updated to their pinned commits once
+  the merge concludes (commit or abort). This is reactive — a plain merge is
+  tried first, and the offer appears only when submodule pointers actually
+  conflict.
+- **Refresh cascade.** Starting, committing, aborting, or retrying a merge
+  refreshes status, diff, history, branches, and sync-status together — the same
+  cascade as a checkout.
+
 ## Key flows
 
 - **Switch project** → load its repos → redraw the repo tree. Only the active
@@ -195,6 +244,10 @@ to one repo).
 - **Switch branch** → pick a branch (or "New branch from here" on a commit) →
   safe-checkout (stash + re-apply if dirty) → the repo's status, history, and
   branch bar refresh together.
+- **Merge** → pick "Merge into \<current\>" (branch dropdown or history context
+  menu) → fast-forward / clean merge commit / or conflicts → resolve inline
+  (Accept Current/Incoming/Both, or edit) → Commit merge, or Abort to the
+  pre-merge state → status, history, and branches refresh together.
 
 ## Windowing
 

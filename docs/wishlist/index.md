@@ -23,7 +23,7 @@ and it links out to them.
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
 | [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [Merge — with conflict resolution](merge.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Merge — with conflict resolution](merge.md) | 2026-06-17 | `designed` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
