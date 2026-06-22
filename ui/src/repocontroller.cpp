@@ -748,10 +748,19 @@ void RepoController::writeWorkingFile(const QString& relPath, const QString& con
         return;
     const std::filesystem::path full = qstringToPath(m_path) / qstringToPath(relPath);
     std::ofstream ofs(full, std::ios::binary | std::ios::trunc);
-    if (!ofs.is_open())
+    if (!ofs)
+    {
+        emit operationFailed(tr("Could not open %1 for writing").arg(relPath));
         return;
+    }
     const QByteArray bytes = content.toUtf8();
     ofs.write(bytes.constData(), bytes.size());
+    ofs.flush();
+    if (!ofs)
+    {
+        emit operationFailed(tr("Failed to write %1").arg(relPath));
+        return;
+    }
 }
 
 std::string RepoController::currentBranchName()
