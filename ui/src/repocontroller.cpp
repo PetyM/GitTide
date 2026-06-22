@@ -7,21 +7,8 @@
 
 #include "gittide/graphbuilder.hpp"
 #include "gittide/log.hpp"
+#include "gittide/ui/autherror.hpp"
 #include "gittide/ui/metatypes.hpp"
-
-namespace {
-
-// libgit2 GIT_EAUTH == -16; compare numerically to avoid including git2 in ui/
-// (libgit2 is private to core). The message substrings are a best-effort
-// fallback for build configurations that may remap the code.
-bool isAuthError(const gittide::GitError& e)
-{
-    return e.code == -16
-        || e.message.find("authentication") != std::string::npos
-        || e.message.find("401") != std::string::npos;
-}
-
-} // namespace
 
 namespace gittide::ui {
 
