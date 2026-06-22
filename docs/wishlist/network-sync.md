@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `partly shipped` — per-repo fetch / pull / push + ahead/behind + credentials are **done** (Decision D28 turned transports on); fleet **fetch-all** is now **designed** (in spec). Remaining: fleet pull-all, keychain creds. |
+| **Status** | `partly shipped` — per-repo fetch / pull / push + ahead/behind + credentials **done** (Decision D28 turned transports on); fleet **fetch-all** **shipped** ([Plan 11](../plans/2026-06-22-plan11-fleet-fetch-all.md)). Remaining: fleet pull-all, OS-keychain creds. |
 | **Touches** | product (sync actions + remote state), engineering (core: remotes + transport on `GitRepo`, credentials, progress/cancel), design (sync UI, ahead/behind, auth prompts) |
 
 ## What

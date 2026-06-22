@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-22 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/product.md` §Syncing → Fleet fetch](../spec/product/product.md), [`spec/engineering/engineering.md` §Fleet fetch-all](../spec/engineering/engineering.md) |
 | **Depends on** | per-repo sync (shipped: `AsyncRepo::fetch`/`syncStatus`, `RepoController` auth flow), project/repo models |
 
@@ -80,7 +80,7 @@ reusing it.
   — true when `e.code == -16` (libgit2 `GIT_EAUTH`) or `e.message` contains
   `"authentication"` or `"401"`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/ui/test_auth_error.cpp`:
 
@@ -112,12 +112,12 @@ Register it (both edits):
 - `tests/ui/main.cpp` — add `#include "test_auth_error.cpp"` near the other
   includes and `RUN(TestAuthError);` in `main()`.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL to compile — `gittide/ui/autherror.hpp` does not exist yet.
 
-- [ ] **Step 3: Create the header and implementation**
+- [x] **Step 3: Create the header and implementation**
 
 `ui/include/gittide/ui/autherror.hpp`:
 
@@ -156,7 +156,7 @@ bool isAuthError(const gittide::GitError& e)
 Add `src/autherror.cpp` to the `ui` library source list in `ui/CMakeLists.txt`
 (next to `src/repocontroller.cpp`).
 
-- [ ] **Step 4: Replace the local copy in `repocontroller.cpp`**
+- [x] **Step 4: Replace the local copy in `repocontroller.cpp`**
 
 Delete the anonymous-namespace `isAuthError` (lines ~12–24, the `namespace { ...
 bool isAuthError(...) ... }` block) and add the include near the other ui
@@ -169,12 +169,12 @@ includes at the top of the file:
 The three existing call sites (`if (isAuthError(r.error()))`) now resolve to
 `gittide::ui::isAuthError` via the namespace — no call-site edits needed.
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "*"`
 Expected: PASS — `TestAuthError` runs 4 slots; `TestRepoController` still passes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/include/gittide/ui/autherror.hpp ui/src/autherror.cpp ui/src/repocontroller.cpp ui/CMakeLists.txt tests/ui/test_auth_error.cpp tests/CMakeLists.txt tests/ui/main.cpp
@@ -206,7 +206,7 @@ Add the transient per-repo state the sidebar renders during a fleet fetch.
   Each mutator emits `dataChanged` for the affected root index across the new
   roles. Out-of-range rows are a safe no-op.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/test_repo_list_model.cpp` (inside the existing test class):
 
@@ -249,13 +249,13 @@ void setFetchState_out_of_range_is_noop()
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL to compile — `FetchState`, `FetchStateRole`, `topLevelCount`,
 `setFetchState`, `setSyncCounts`, `resetFetchStates` are undefined.
 
-- [ ] **Step 3: Extend the header**
+- [x] **Step 3: Extend the header**
 
 In `ui/include/gittide/ui/repolistmodel.hpp`, add the enum and roles inside the
 `class RepoListModel`:
@@ -303,7 +303,7 @@ Add the fields to `struct Node` (after `status`):
         int        behind = 0;
 ```
 
-- [ ] **Step 4: Implement in the .cpp**
+- [x] **Step 4: Implement in the .cpp**
 
 In `ui/src/repolistmodel.cpp`, add `data()` cases (inside the `switch`):
 
@@ -372,12 +372,12 @@ void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind)
 }
 ```
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "fetchState_*" "setFetchState_*"`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/include/gittide/ui/repolistmodel.hpp ui/src/repolistmodel.cpp tests/ui/test_repo_list_model.cpp
@@ -411,7 +411,7 @@ controller's session credentials (default: ssh-agent on, empty userpass).
   - private `QCoro::Task<void> fetchOne(int row, gittide::RepoRef ref);`
   - private `void finishOneFetch(bool ok);` (counter + finalize)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add a fixture helper + slots to `tests/ui/test_project_controller.cpp`. Add these
 includes at the top of the file:
@@ -511,13 +511,13 @@ void fetchAll_no_active_project_is_noop()
 Add a `cleanup()` slot (or extend the existing one) so the temp repos are freed
 between slots: `void cleanup() { m_temps.clear(); }`.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL to compile — `fetchAll`, `fetchingAll`, `fetchSummary`,
 `fleetFetchFinished` are undefined.
 
-- [ ] **Step 3: Declare the API in the header**
+- [x] **Step 3: Declare the API in the header**
 
 In `ui/include/gittide/ui/projectcontroller.hpp`:
 
@@ -577,7 +577,7 @@ Add the private members and helpers:
     void              finishOneFetch();                // counter bookkeeping + finalize
 ```
 
-- [ ] **Step 4: Implement in the .cpp**
+- [x] **Step 4: Implement in the .cpp**
 
 In `ui/src/projectcontroller.cpp`, add includes:
 
@@ -698,13 +698,13 @@ void ProjectController::finishOneFetch()
 > success / failure paths. Missing repos are skipped before launch and counted in
 > neither — only *attempted* repos appear in the summary.
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "fetchAll_*"`
 Expected: PASS — both `fetchAll_*` slots green; existing `TestProjectController`
 slots still pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -727,7 +727,7 @@ Wire the entry point and the inline per-repo glyphs/badges in QML.
   `RepoListModel::FetchState` integer values: `Idle=0, Running=1, UpToDate=2,
   Updated=3, Failed=4`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/test_qml_sync.cpp` a slot that loads the shell and asserts the
 fetch-all button exists and is bound to `fetchingAll`. Follow the existing file's
@@ -753,12 +753,12 @@ void sidebar_exposes_fetchAll_button()
 > rather than re-creating the engine. The exact QML URL must match how other
 > slots in this file load `Main.qml`.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "sidebar_exposes_fetchAll_button"`
 Expected: FAIL — no child named `fetchAllButton`.
 
-- [ ] **Step 3: Add the header action + summary**
+- [x] **Step 3: Add the header action + summary**
 
 In `ui/qml/Sidebar.qml`, inside the top header `RowLayout` (the one holding
 `themeToggle`, near the top of the file), add a fetch-all button + spinner. Use
@@ -793,7 +793,7 @@ Label {
 > Use the muted-text token already used elsewhere in this file (grep the file for
 > `theme.` to find the exact property name; do not introduce a hex literal).
 
-- [ ] **Step 4: Add per-repo glyph + behind badge in the repo delegate**
+- [x] **Step 4: Add per-repo glyph + behind badge in the repo delegate**
 
 In the repo-row delegate (where `repoPath`, `missing` etc. are already bound),
 add a status indicator driven by the `fetchState` role and a behind badge driven
@@ -830,19 +830,19 @@ Label {
 > `required property` declaration instead of `model.x` — follow whatever the file
 > already does). Use real theme token names found in the file.
 
-- [ ] **Step 5: Run tests to verify green**
+- [x] **Step 5: Run tests to verify green**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "sidebar_exposes_fetchAll_button"`
 Expected: PASS.
 
-- [ ] **Step 6: Manual check**
+- [x] **Step 6: Manual check**
 
 Build and run the app (`README.md` §Build & test). Open a project with ≥2 repos
 that have an `origin`, click **Fetch all**: rows show a spinner, then ✓ / ↓N /
 glyph; the header shows the summary. (Real remotes require network — verify
 against repos you can reach.)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add ui/qml/Sidebar.qml tests/ui/test_qml_sync.cpp
@@ -869,7 +869,7 @@ machinery.
     — stores the token in the session credentials and re-fetches the rows that
     previously failed on auth. No-op when no rows are pending auth.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/test_project_controller.cpp`:
 
@@ -893,12 +893,12 @@ void submitFleetCredentials_with_no_pending_is_safe_noop()
 > Global constraints). This slot covers the no-op plumbing; the prompt→retry path
 > is verified manually in Step 5.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL to compile — `submitFleetCredentials` is undefined.
 
-- [ ] **Step 3: Declare + implement**
+- [x] **Step 3: Declare + implement**
 
 Header (`public slots:` / `Q_INVOKABLE`):
 
@@ -944,7 +944,7 @@ void ProjectController::submitFleetCredentials(const QString& username, const QS
 > also rejected. `m_fetchOk` accumulates across the initial run and retries, so
 > the summary reflects the full fleet.
 
-- [ ] **Step 4: Wire the QML prompt**
+- [x] **Step 4: Wire the QML prompt**
 
 In `ui/qml/Sidebar.qml`, connect the controller's `authRequired` to the existing
 `CredentialDialog` (the same component the per-repo BranchBar flow uses — grep
@@ -966,13 +966,13 @@ CredentialDialog {
 > Reuse the existing `CredentialDialog` API (property/signal names) exactly as the
 > per-repo flow uses it; do not add a second dialog component.
 
-- [ ] **Step 5: Manual check**
+- [x] **Step 5: Manual check**
 
 Run the app against a private HTTPS remote with no cached token. **Fetch all**:
 that repo lands `Failed`, the credential dialog opens once; entering a valid token
 re-fetches it (and any other auth-failed repos) to ✓ / ↓N.
 
-- [ ] **Step 6: Run tests + commit**
+- [x] **Step 6: Run tests + commit**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests "*"`
 Expected: PASS (full suite).
@@ -986,13 +986,24 @@ git commit -m "feat(ui): prompt-once-on-demand credentials for fleet fetch-all"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`:
->
-> - Shipped: project-wide fetch-all (parallel, inline sidebar status, refreshed
->   behind badges, aggregate summary, prompt-once credentials).
-> - Spec updated: `spec/product/product.md` §Syncing → Fleet fetch;
->   `spec/engineering/engineering.md` §Fleet fetch-all (already authored).
-> - Code: `ProjectController::fetchAll`/`fetchOne`, `RepoListModel` fetch-state
->   roles, `gittide::ui::isAuthError`, `Sidebar.qml`.
-> - Wishlist: move/keep `network-sync.md` note — fleet fetch-all done; fleet
->   pull-all still deferred.
+Done 2026-06-22. All five tasks shipped; full suite green (102/102).
+
+- **Shipped:** project-wide fetch-all — parallel fan-out (one fresh `AsyncRepo`
+  per non-missing top-level repo), inline per-repo sidebar status (spinner →
+  ✓ / ↓N / failed), refreshed *behind* badges, aggregate header summary, and
+  prompt-once-on-demand credentials retried across the auth-failed repos. Fetch
+  only — no working-tree changes.
+- **Code:** `gittide::ui::isAuthError` (shared, tested helper);
+  `RepoListModel` fetch-state roles + `FetchState` enum + `resetFetchStates` /
+  `setFetchState` / `setSyncCounts` / `topLevelCount`;
+  `ProjectController::fetchAll` / `fetchOne` / `finishOneFetch` /
+  `submitFleetCredentials` with `fetchingAll` / `fetchSummary` properties;
+  `Sidebar.qml` fetch-all action + per-repo glyphs + fleet `CredentialDialog`.
+- **Spec:** `spec/product/product.md` §Syncing → Fleet fetch and
+  `spec/engineering/engineering.md` §Fleet fetch-all (authored ahead of build).
+- **Commits:** `e75cbcc` (Task 1) · `e86f59e` (Task 2) · `dc4ea41` (Task 3) ·
+  `0654774` (Task 4) · `7aaf89b` (Task 5), plus follow-up fixes `9409e14`
+  (fetch-error tooltip, elided summary) and `49620f4` (prompt at run-end, gate
+  model rebuild during fetch).
+- **Wishlist:** `network-sync.md` updated — fleet fetch-all shipped; fleet
+  **pull-all** and OS-keychain credentials still deferred.
