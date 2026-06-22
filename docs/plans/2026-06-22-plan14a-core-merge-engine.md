@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-22 |
-| **Status** | `planned` |
+| **Status** | `done` (2026-06-22) |
 | **Spec** | [`spec/engineering` §Merge & conflict resolution](../spec/engineering/engineering.md#merge--conflict-resolution) · [`spec/product` §Merge](../spec/product/product.md#merge) · [D29](../decisions.md) · [D30](../decisions.md) · [D31](../decisions.md) |
 | **Depends on** | Plan 3a (status/diff/stage/commit), Plan 5a (log), Plan 8 (branches: `safeSwitch`, stash internals) |
 
@@ -76,7 +76,7 @@ letter and sort it on top. Add the flag and report it from `status()`.
 Conflicted = 1 << 6, // index has conflict stages (mid-merge)
 ```
 
-- [ ] **Step 1: Write the failing test.** A merge that conflicts leaves a
+- [x] **Step 1: Write the failing test.** A merge that conflicts leaves a
   conflicted index entry; `status()` must flag it. (Uses `mergeBranch` from Task 3
   — write the test now; it will fail to compile until Task 3, so for THIS task
   assert the simpler property that the flag exists and `hasFlag` composes.)
@@ -129,11 +129,11 @@ TEST_CASE("Conflicted flag composes and is distinct", "[merge]")
 > libgit2/git default. Confirm by reading `tests/support/temprepo.hpp`; use the
 > actual name in `checkoutBranch(...)`. If it is `master`, substitute throughout.
 
-- [ ] **Step 2: Run — expect FAIL** (`StatusFlag::Conflicted` undeclared,
+- [x] **Step 2: Run — expect FAIL** (`StatusFlag::Conflicted` undeclared,
   `merge.hpp` missing — create `merge.hpp` as a stub in Task 2; for now add only
   the flag so this case compiles). Run: `ctest --test-dir build -R 'merge' --output-on-failure`
 
-- [ ] **Step 3: Add the flag** to `filestatus.hpp`, and map it in `status()`.
+- [x] **Step 3: Add the flag** to `filestatus.hpp`, and map it in `status()`.
   In `GitRepo::status()`, where each entry's `git_status_t` is translated, add:
 
 ```cpp
@@ -144,10 +144,10 @@ if (s & GIT_STATUS_CONFLICTED)
   (Place it alongside the existing `GIT_STATUS_WT_*` / `GIT_STATUS_INDEX_*`
   mappings. `GIT_STATUS_CONFLICTED` is in `<git2/status.h>`, already pulled in.)
 
-- [ ] **Step 4: Run — expect PASS** (the compose test). Build the full core suite
+- [x] **Step 4: Run — expect PASS** (the compose test). Build the full core suite
   green. Add `test_git_repo_merge.cpp` to `gittide_core_tests`, reconfigure.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): add StatusFlag::Conflicted, report it from status()"`
 
 ---
@@ -209,7 +209,7 @@ struct MergeState
 Expected<MergeState> mergeState() const;
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 TEST_CASE("mergeState reports not-in-progress for a clean repo", "[merge]")
@@ -228,9 +228,9 @@ TEST_CASE("mergeState reports not-in-progress for a clean repo", "[merge]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement.** Helper to read the conflicted paths via the index
+- [x] **Step 3: Implement.** Helper to read the conflicted paths via the index
   conflict iterator, flagging gitlink entries; `mergedRef` parsed from `MERGE_MSG`.
 
 ```cpp
@@ -301,9 +301,9 @@ Expected<MergeState> GitRepo::mergeState() const
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.** Full core suite green.
+- [x] **Step 4: Run — expect PASS.** Full core suite green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): merge.hpp model + mergeState() derived from disk"`
 
 ---
@@ -332,7 +332,7 @@ Expected<MergeOutcome> mergeBranch(std::string name);
 ```
 **Consumes:** `createBranch`/`checkoutBranch` (Plan 8) in tests.
 
-- [ ] **Step 1: Write the failing tests** (fast-forward, clean merge, conflict).
+- [x] **Step 1: Write the failing tests** (fast-forward, clean merge, conflict).
 
 ```cpp
 TEST_CASE("mergeBranch fast-forwards when HEAD is an ancestor", "[merge]")
@@ -384,9 +384,9 @@ TEST_CASE("mergeBranch leaves conflict markers + entries on a real conflict", "[
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 ```cpp
 Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
@@ -478,9 +478,9 @@ Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
 > it. We deliberately do **not** auto-commit inside `mergeBranch`, so FF, clean,
 > and conflicting merges share one resolution path (commitMerge) in the UI.
 
-- [ ] **Step 4: Run — expect PASS** (all three cases). Full core suite green.
+- [x] **Step 4: Run — expect PASS** (all three cases). Full core suite green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): mergeBranch — analyse + perform FF/clean/conflicting merge"`
 
 ---
@@ -504,7 +504,7 @@ Create the merge commit from the current index (parents: `HEAD` + each
 Expected<std::string> commitMerge(CommitRequest req);
 ```
 
-- [ ] **Step 1: Write the failing test.** Resolve the conflict (overwrite the file
+- [x] **Step 1: Write the failing test.** Resolve the conflict (overwrite the file
   + stage), then commitMerge yields a two-parent commit and clears state.
 
 ```cpp
@@ -544,9 +544,9 @@ TEST_CASE("commitMerge refuses while conflicts remain", "[merge]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 ```cpp
 Expected<std::string> GitRepo::commitMerge(CommitRequest req)
@@ -625,9 +625,9 @@ Expected<std::string> GitRepo::commitMerge(CommitRequest req)
 > `git_repository_mergehead_foreach` takes a C callback; `m_repo` is private, so
 > the lambda captures nothing and reaches it through the `CbData::self` pointer.
 
-- [ ] **Step 4: Run — expect PASS** (both cases). Full core suite green.
+- [x] **Step 4: Run — expect PASS** (both cases). Full core suite green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): commitMerge — 2-parent merge commit + state cleanup"`
 
 ---
@@ -651,7 +651,7 @@ worktree.
 Expected<void> abortMerge();
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 TEST_CASE("abortMerge restores the pre-merge state", "[merge]")
@@ -674,9 +674,9 @@ TEST_CASE("abortMerge restores the pre-merge state", "[merge]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 ```cpp
 Expected<void> GitRepo::abortMerge()
@@ -702,9 +702,9 @@ Expected<void> GitRepo::abortMerge()
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.** Full core suite green.
+- [x] **Step 4: Run — expect PASS.** Full core suite green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): abortMerge — reset --hard HEAD + state cleanup"`
 
 ---
@@ -733,7 +733,7 @@ Expected<bool> stashSave(std::string message);
 Expected<void> stashPop();
 ```
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 TEST_CASE("stashSave then stashPop round-trips a dirty worktree", "[merge]")
@@ -772,9 +772,9 @@ TEST_CASE("stashSave returns false on a clean worktree", "[merge]")
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement** (mirror `safeSwitch`'s stash block).
+- [x] **Step 3: Implement** (mirror `safeSwitch`'s stash block).
 
 ```cpp
 Expected<bool> GitRepo::stashSave(std::string message)
@@ -810,9 +810,9 @@ Expected<void> GitRepo::stashPop()
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS** (both cases). Full core suite green.
+- [x] **Step 4: Run — expect PASS** (both cases). Full core suite green.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): stashSave/stashPop primitives for deferred merge auto-stash"`
 
 ---
@@ -844,7 +844,7 @@ Expected<void> deinitSubmodule(std::filesystem::path path);
 Expected<void> reinitSubmodule(std::filesystem::path path);
 ```
 
-- [ ] **Step 1: Write the failing test.** Build a superproject with one submodule
+- [x] **Step 1: Write the failing test.** Build a superproject with one submodule
   (clone a local `file://` temp repo as the submodule), then deinit empties its
   working dir and reinit restores its content.
 
@@ -895,9 +895,9 @@ TEST_CASE("deinit empties a submodule working dir; reinit restores it", "[submod
 > building a fixture; `submodule add` is not part of this plan's product surface.
 > Write it once here; it depends only on `<git2.h>` (the test target links libgit2).
 
-- [ ] **Step 2: Run — expect FAIL** (undeclared).
+- [x] **Step 2: Run — expect FAIL** (undeclared).
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
 
 ```cpp
 Expected<void> GitRepo::deinitSubmodule(std::filesystem::path path)
@@ -936,34 +936,61 @@ Expected<void> GitRepo::reinitSubmodule(std::filesystem::path path)
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.** Full core suite green. Add the new test to
+- [x] **Step 4: Run — expect PASS.** Full core suite green. Add the new test to
   `gittide_core_tests`.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(core): submodule deinit/reinit for reactive merge retry"`
 
 ---
 
 ## Task 8: Close-out
 
-- [ ] **Step 1:** Build + full core suite green; no new warnings.
+- [x] **Step 1:** Build + full core suite green; no new warnings.
   Run: `cmake --build build --parallel && ctest --test-dir build --output-on-failure`
-- [ ] **Step 2:** Confirm Doxygen comments on every new `gitrepo.hpp` method and on
+- [x] **Step 2:** Confirm Doxygen comments on every new `gitrepo.hpp` method and on
   the `merge.hpp` types. Confirm the engineering spec §Merge & conflict resolution
   matches the shipped API; fix any drift (code is ground truth).
-- [ ] **Step 3:** Tick this plan's boxes, fill **Outcome**, set `Status` to `done`
+- [x] **Step 3:** Tick this plan's boxes, fill **Outcome**, set `Status` to `done`
   here and add the row to [`plans/index.md`](index.md).
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
   `git commit -am "docs: close Plan 14a — core merge engine"`
 
 ---
 
 ## Outcome
 
-> Fill in when the plan reaches `done`. Expected: `GitRepo::{mergeBranch,
-> mergeState, commitMerge, abortMerge, stashSave, stashPop, deinitSubmodule,
-> reinitSubmodule}`, `StatusFlag::Conflicted`, and `core/include/gittide/merge.hpp`
-> (`MergeAnalysis` / `MergeOutcome` / `MergeState`). Spec: engineering §Merge &
-> conflict resolution. Code: `core/include/gittide/{merge.hpp,filestatus.hpp,
-> gitrepo.hpp}`, `core/src/gitrepo.cpp`; tests `tests/test_git_repo_merge.cpp`,
-> `tests/test_git_repo_submodule_merge.cpp`.
+Shipped. The pure-git merge primitives now live on `GitRepo`, all returning
+`Expected<T>` and (per D30) deriving merge state from the repository on every
+call — no in-memory merge flag:
+
+- `mergeBranch(name)` — analyse (`git_merge_analysis`) then perform: up-to-date
+  no-op, fast-forward (move HEAD ref + checkout, no merge commit), or normal merge
+  with `GIT_CHECKOUT_ALLOW_CONFLICTS` that writes `<<<<<<< / ======= / >>>>>>>`
+  markers into the worktree and leaves conflict entries on conflict.
+- `mergeState()` — fresh-from-disk `MergeState` (in-progress via
+  `git_repository_state == MERGE`, `mergedRef` parsed from `MERGE_MSG`,
+  `conflictedPaths` from the index conflict iterator, with the gitlink subset in
+  `conflictedSubmodules` via `GIT_FILEMODE_COMMIT`).
+- `commitMerge(req)` — N-parent merge commit (HEAD + every `MERGE_HEAD` via
+  `git_repository_mergehead_foreach`), then `git_repository_state_cleanup`;
+  refuses while conflict entries remain.
+- `abortMerge()` — `git_reset --hard` to HEAD + state cleanup.
+- `stashSave(msg)` / `stashPop()` — deferred-pop auto-stash primitives (D31),
+  controller-orchestrated; pop preserves the stash on conflict.
+- `deinitSubmodule(path)` / `reinitSubmodule(path)` — reactive submodule retry
+  (D31): deinit emulated by clearing the working tree while **preserving the
+  `.git` gitlink** (so reinit re-checks-out rather than re-clones); reinit is
+  `git_submodule_update(init=1)` with `GIT_CHECKOUT_FORCE`.
+- `StatusFlag::Conflicted` (`1 << 6`) mapped from `GIT_STATUS_CONFLICTED` in
+  `status()`; plain-`std` model in `core/include/gittide/merge.hpp`
+  (`MergeAnalysis` / `MergeOutcome` / `MergeState`).
+
+Spec: engineering §Merge & conflict resolution (verified matching; no drift).
+Code: `core/include/gittide/{merge.hpp,filestatus.hpp,gitrepo.hpp}`,
+`core/src/gitrepo.cpp`. Tests: `tests/test_git_repo_merge.cpp` (9 merge cases),
+`tests/test_git_repo_submodule_merge.cpp` (deinit/reinit round-trip). Full suite
+113/113 green. Commits `bc9a5c7`…`0507d35` (8 tasks; Tasks 3, 4, 7 each took one
+review-fix cycle — FF `new_ref` leak, signature-fallback leak, `error_code`
+hygiene). Next: Plan 14b (UI) builds the controller orchestration + inline view
+on these primitives.
