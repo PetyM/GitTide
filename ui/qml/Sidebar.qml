@@ -76,6 +76,7 @@ Rectangle {
                 text: projectController ? projectController.fetchSummary : ""
                 color: theme.textMuted
                 elide: Text.ElideRight
+                Layout.fillWidth: true
             }
 
             // Theme toggle: cycles System → Dark → Light. The glyph reflects the
@@ -293,7 +294,8 @@ Rectangle {
                         color: theme.stateDeleted
                         font.pixelSize: 11
                         ToolTip.text: model.fetchError
-                        ToolTip.visible: fetchFailedLabel.visible && hovered !== undefined ? hovered : false
+                        ToolTip.visible: fetchFailHover.hovered
+                        HoverHandler { id: fetchFailHover }
                     }
                 }
 
