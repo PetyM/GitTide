@@ -44,16 +44,74 @@ ColumnLayout {
         model: repoVm ? repoVm.diffLines : null
 
         delegate: Rectangle {
+            id: diffRow
             width: ListView.view.width
-            height: 20
-            color: model.lineKind === "added" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.12)
-                   : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r, theme.stateDeleted.g, theme.stateDeleted.b, 0.12)
-                   : model.lineKind === "hunk" ? theme.surfaceOverlay
-                   : "transparent"
+            // Conflict-start rows are taller to accommodate the action header.
+            height: model.lineKind === "conflict-start" ? 44 : 20
+            color: model.lineKind === "added"   ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.12)
+                 : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r,   theme.stateDeleted.g,   theme.stateDeleted.b,   0.12)
+                 : model.lineKind === "hunk"    ? theme.surfaceOverlay
+                 : model.lineKind === "ours"    ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.10)
+                 : model.lineKind === "theirs"  ? Qt.rgba(theme.stateIncoming.r,  theme.stateIncoming.g,  theme.stateIncoming.b,  0.10)
+                 : model.lineKind === "conflict-start" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.06)
+                 : model.lineKind === "conflict-sep"   ? theme.surfaceOverlay
+                 : model.lineKind === "conflict-end"   ? Qt.rgba(theme.stateIncoming.r, theme.stateIncoming.g, theme.stateIncoming.b, 0.06)
+                 : "transparent"
 
+            // Per-region action header rendered on "conflict-start" rows.
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 0
+                visible: model.lineKind === "conflict-start"
+
+                // Top line: marker text
+                Label {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 96
+                    font.family: "monospace"
+                    font.pixelSize: 12
+                    text: model.lineText
+                    color: theme.textMuted
+                    elide: Text.ElideRight
+                }
+
+                // Bottom line: Accept action buttons
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 96
+                    spacing: 6
+
+                    Button {
+                        objectName: "acceptCurrentButton"
+                        text: qsTr("Accept Current")
+                        flat: true
+                        font.pixelSize: 11
+                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 0)
+                    }
+                    Button {
+                        objectName: "acceptIncomingButton"
+                        text: qsTr("Accept Incoming")
+                        flat: true
+                        font.pixelSize: 11
+                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 1)
+                    }
+                    Button {
+                        objectName: "acceptBothButton"
+                        text: qsTr("Accept Both")
+                        flat: true
+                        font.pixelSize: 11
+                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 2)
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+            }
+
+            // Normal diff row content (hidden on conflict-start rows which use the
+            // ColumnLayout above).
             RowLayout {
                 anchors.fill: parent
                 spacing: 6
+                visible: model.lineKind !== "conflict-start"
 
                 // Per-line checkbox column (changed lines) + block checkbox (block rows)
                 Item {
@@ -100,17 +158,21 @@ ColumnLayout {
                            : theme.textMuted
                 }
 
-                // Code / hunk header text
+                // Code / hunk header / conflict marker text
                 Label {
                     Layout.fillWidth: true
                     font.family: "monospace"
                     font.pixelSize: 12
                     elide: Text.ElideRight
                     text: model.lineText
-                    color: model.lineKind === "hunk" ? theme.textMuted
-                           : model.lineKind === "added" ? theme.stateAdded
-                           : model.lineKind === "removed" ? theme.stateDeleted
-                           : theme.textPrimary
+                    color: model.lineKind === "hunk"         ? theme.textMuted
+                         : model.lineKind === "added"        ? theme.stateAdded
+                         : model.lineKind === "removed"      ? theme.stateDeleted
+                         : model.lineKind === "ours"         ? theme.stateAdded
+                         : model.lineKind === "theirs"       ? theme.stateIncoming
+                         : model.lineKind === "conflict-sep" ? theme.textMuted
+                         : model.lineKind === "conflict-end" ? theme.textMuted
+                         : theme.textPrimary
                 }
             }
         }

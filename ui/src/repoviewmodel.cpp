@@ -162,7 +162,41 @@ void RepoViewModel::selectFile(const QString& path)
 {
     m_activeFile = path;
     emit activeFileChanged();
+
+    // When the selected file is conflicted, load its raw marker-bearing content
+    // for inline resolution rather than computing a normal diff (D29).
+    const auto isConflicted = [&]() -> bool
+    {
+        for (const auto& cp : m_merge.conflictedPaths)
+        {
+            if (pathToQString(cp) == path)
+                return true;
+        }
+        return false;
+    };
+
+    if (!path.isEmpty() && isConflicted())
+    {
+        const QString raw = m_controller->readWorkingFile(path);
+        m_diff->setConflictContent(raw);
+        return;
+    }
+
     QCoro::connect(m_controller->refreshDiff(path, gittide::DiffTarget::WorktreeVsHead), this, [] {});
+}
+
+void RepoViewModel::acceptConflict(int region, int which)
+{
+    QString out;
+    switch (which)
+    {
+        case 0:  out = m_diff->acceptCurrent(region);  break;
+        case 1:  out = m_diff->acceptIncoming(region); break;
+        default: out = m_diff->acceptBoth(region);     break;
+    }
+    m_controller->writeWorkingFile(m_activeFile, out);
+    selectFile(m_activeFile);                          // re-loads content / diff
+    QCoro::connect(m_controller->refreshStatus(), this, [] {}); // re-derives MergeState (D30)
 }
 
 void RepoViewModel::setFileChecked(int row, bool checked)

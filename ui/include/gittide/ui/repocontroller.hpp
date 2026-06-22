@@ -83,6 +83,15 @@ public slots:
     /// Re-init is deferred to the eventual commitMerge or abortMerge.
     QCoro::Task<void> retryMergeDeinitSubmodules(QString name);
 
+    /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
+    /// the repository root). Returns an empty string if the file cannot be read.
+    /// Keeps filesystem access inside the controller; the VM must not touch the FS.
+    QString readWorkingFile(const QString& relPath) const;
+
+    /// Write @p content (UTF-8) to the working-tree file at @p relPath (relative
+    /// to the repository root). Synchronous and cheap; does not need a coroutine.
+    void writeWorkingFile(const QString& relPath, const QString& content);
+
 signals:
     void repoOpened(const QString& path);
     void repoFailed(const QString& path, const QString& message);

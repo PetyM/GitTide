@@ -90,6 +90,12 @@ Item {
             }
         }
 
+        // Merge-in-progress banner — collapses to height 0 when not in a merge.
+        MergeBanner {
+            Layout.fillWidth: true
+            repo: repoVm
+        }
+
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true

@@ -66,6 +66,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_difflinesmodel_conflict.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_banner.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

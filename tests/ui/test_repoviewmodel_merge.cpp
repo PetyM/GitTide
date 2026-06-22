@@ -132,6 +132,53 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    /// After acceptConflict(0, 0) (keep ours), the on-disk file must have no
+    /// conflict markers, and DiffLinesModel::isResolved() must return true.
+    void accept_resolves_conflict()
+    {
+        const auto dir = repo_view_model_merge_test::makeConflictRepo();
+        QVERIFY(!dir.empty());
+
+        RepoViewModel vm;
+        QSignalSpy openSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(openSpy.wait(3000));
+
+        // Start the conflicting merge and wait until conflicted.
+        QSignalSpy mergeSpy(&vm, &RepoViewModel::mergeStateChanged);
+        vm.startMerge(QStringLiteral("feature"));
+        QTRY_VERIFY_WITH_TIMEOUT(mergeSpy.count() >= 1, 5000);
+        QVERIFY(vm.property("mergeInProgress").toBool());
+        QCOMPARE(vm.property("conflictedCount").toInt(), 1);
+
+        // Select the conflicted file — this should load conflict content into diffLines.
+        QSignalSpy fileChangedSpy(&vm, &RepoViewModel::activeFileChanged);
+        vm.selectFile(QStringLiteral("a.txt"));
+        // Wait for the activeFile signal (selectFile sets it synchronously, but
+        // the conflict content load may also trigger it; either way we just check).
+        QTRY_VERIFY_WITH_TIMEOUT(fileChangedSpy.count() >= 1, 3000);
+
+        // The diff model should now be in conflict mode (isResolved() == false).
+        QVERIFY(!vm.diffLines()->isResolved());
+
+        // Accept "ours" side (which: 0) for region 0.
+        vm.acceptConflict(0, 0);
+
+        // The file on disk must no longer contain conflict markers.
+        const std::filesystem::path filePath = dir / "a.txt";
+        std::ifstream ifs(filePath);
+        QVERIFY(ifs.is_open());
+        const std::string diskContent((std::istreambuf_iterator<char>(ifs)),
+                                       std::istreambuf_iterator<char>());
+        QVERIFY2(!diskContent.contains("<<<<<<<"),
+                 "File still contains conflict markers after acceptConflict");
+
+        // After the re-select triggered by acceptConflict, the model must be resolved.
+        QVERIFY(vm.diffLines()->isResolved());
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repoviewmodel_merge.moc"

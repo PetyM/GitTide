@@ -109,6 +109,10 @@ QColor QmlTheme::stateConflict() const
 {
     return QColor(theme().stateConflict);
 }
+QColor QmlTheme::stateIncoming() const
+{
+    return QColor(theme().stateIncoming);
+}
 QColor QmlTheme::shadow() const
 {
     return QColor(theme().shadow);

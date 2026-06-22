@@ -23,5 +23,6 @@
     <file>AppCheckBox.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
+    <file>MergeBanner.qml</file>
   </qresource>
 </RCC>

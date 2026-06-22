@@ -128,6 +128,14 @@ public:
     Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
     Q_INVOKABLE void setPullRebase(bool rebase);
 
+    /// Accept one side of a single conflict region and write the resolved file.
+    /// @p region is the 0-based region index from DiffLinesModel::ConflictRegionRole.
+    /// @p which selects the resolution: 0 = ours (current), 1 = theirs (incoming),
+    /// 2 = both (ours then theirs). Writes the result via the controller (FS stays
+    /// in the controller; the VM never touches the filesystem directly), then
+    /// re-selects the file so the diff view and MergeState refresh (D30).
+    Q_INVOKABLE void acceptConflict(int region, int which);
+
     /// Begin merging @p name into the current branch. Stores the name for
     /// retryMergeDeinitSubmodules(). On conflict the VM will emit mergeStateChanged.
     Q_INVOKABLE void startMerge(const QString& name);

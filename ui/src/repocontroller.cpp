@@ -1,6 +1,7 @@
 #include "gittide/ui/repocontroller.hpp"
 
 #include <filesystem>
+#include <fstream>
 #include <utility>
 
 #include <QPointer>
@@ -726,6 +727,31 @@ QCoro::Task<void> RepoController::reinitPendingSubmodules()
             co_return;
     }
     m_pendingSubmoduleReinit.clear();
+}
+
+QString RepoController::readWorkingFile(const QString& relPath) const
+{
+    if (m_path.isEmpty())
+        return {};
+    const std::filesystem::path full = qstringToPath(m_path) / qstringToPath(relPath);
+    std::ifstream ifs(full, std::ios::binary);
+    if (!ifs.is_open())
+        return {};
+    const std::string bytes((std::istreambuf_iterator<char>(ifs)),
+                             std::istreambuf_iterator<char>());
+    return QString::fromUtf8(bytes.data(), static_cast<qsizetype>(bytes.size()));
+}
+
+void RepoController::writeWorkingFile(const QString& relPath, const QString& content)
+{
+    if (m_path.isEmpty())
+        return;
+    const std::filesystem::path full = qstringToPath(m_path) / qstringToPath(relPath);
+    std::ofstream ofs(full, std::ios::binary | std::ios::trunc);
+    if (!ofs.is_open())
+        return;
+    const QByteArray bytes = content.toUtf8();
+    ofs.write(bytes.constData(), bytes.size());
 }
 
 std::string RepoController::currentBranchName()
