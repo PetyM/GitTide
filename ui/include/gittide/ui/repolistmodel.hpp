@@ -12,6 +12,16 @@ class RepoListModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
+    enum class FetchState
+    {
+        Idle,
+        Running,
+        UpToDate,
+        Updated,
+        Failed,
+    };
+    Q_ENUM(FetchState)
+
     enum Roles
     {
         PathRole = Qt::UserRole + 1,
@@ -19,6 +29,10 @@ public:
         IsSubmoduleRole,
         ShortOidRole,
         StatusRole,
+        FetchStateRole,
+        FetchErrorRole,
+        AheadRole,
+        BehindRole,
     };
 
     explicit RepoListModel(QObject* parent = nullptr);
@@ -38,6 +52,11 @@ public:
     /// main area shows working state rather than the empty page.
     Q_INVOKABLE QString firstRepoPath() const;
 
+    int  topLevelCount() const;
+    void resetFetchStates();
+    void setFetchState(int rootRow, FetchState state, const QString& error = {});
+    void setSyncCounts(int rootRow, int ahead, int behind);
+
 private:
     struct Node
     {
@@ -47,6 +66,10 @@ private:
         bool                               missing     = false;
         QString                            shortOid;
         gittide::SubmoduleStatus           status = gittide::SubmoduleStatus::Clean;
+        FetchState                         fetchState = FetchState::Idle;
+        QString                            fetchError;
+        int                                ahead  = 0;
+        int                                behind = 0;
         Node*                              parent = nullptr;
         std::vector<std::unique_ptr<Node>> children;
     };
