@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/sync.hpp"
 
 namespace gittide::ui {
 
@@ -26,6 +27,11 @@ class ProjectController : public QObject
     /// Display name of the active project, or empty when none is active. The
     /// sidebar switcher shows this on its face.
     Q_PROPERTY(QString activeProjectName READ activeProjectName NOTIFY activeProjectChanged)
+    /// True while a project-wide fetch is in flight; QML disables the action and
+    /// shows a spinner on the project header.
+    Q_PROPERTY(bool fetchingAll READ fetchingAll NOTIFY fetchingAllChanged)
+    /// Human-readable result of the last fleet fetch, e.g. "12 fetched, 1 failed".
+    Q_PROPERTY(QString fetchSummary READ fetchSummary NOTIFY fetchingAllChanged)
 public:
     explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr);
 
@@ -44,6 +50,15 @@ public:
     QString activeProjectName() const;
     const std::vector<gittide::RepoRef>& activeRepos() const;
 
+    bool fetchingAll() const
+    {
+        return m_fetchingAll;
+    }
+    QString fetchSummary() const
+    {
+        return m_fetchSummary;
+    }
+
 public slots:
     // Activate the project with this id. Unknown id is a no-op (no signal).
     void activate(const QString& projectId);
@@ -58,6 +73,9 @@ public slots:
     void cancelClone();
     void removeRepo(const QString& path);
     void removeProject();
+    // Fetch every non-missing repo in the active project in parallel. No-op when
+    // there is no active project, no repos, or a fetch is already running.
+    Q_INVOKABLE void fetchAll();
 
 signals:
     void activeProjectChanged();
@@ -68,6 +86,9 @@ signals:
     void cloneProgress(int received, int total);
     void repoRemoved(const QString& path);
     void projectRemoved(const QString& id);
+    void fetchingAllChanged();
+    void fleetFetchFinished(int ok, int failed);
+    void authRequired();
 
 private:
     gittide::ProjectStore* m_store;
@@ -77,8 +98,19 @@ private:
     QString m_activeId;
     std::atomic<bool> m_cloneCancel{false};
 
+    bool                 m_fetchingAll = false;
+    QString              m_fetchSummary;
+    int                  m_fetchPending = 0;
+    int                  m_fetchOk      = 0;
+    int                  m_fetchFailed  = 0;
+    bool                 m_authPrompted = false;       // emit authRequired at most once per run
+    std::vector<int>     m_authFailedRows;             // rows that failed on auth (retried in submitFleetCredentials)
+    gittide::Credentials m_sessionCred;
+
     void saveStore() const;
     void refreshRepoModel();
+    QCoro::Task<void> fetchOne(int row, gittide::RepoRef ref);
+    void              finishOneFetch();                // counter bookkeeping + finalize
 };
 
 } // namespace gittide::ui
