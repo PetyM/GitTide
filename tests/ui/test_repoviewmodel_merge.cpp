@@ -1,0 +1,137 @@
+// tests/ui/test_repoviewmodel_merge.cpp
+// Tests for RepoViewModel's MergeState properties and merge invokables.
+#include <QtTest>
+#include <QSignalSpy>
+#include <QRandomGenerator>
+
+#include <filesystem>
+#include <fstream>
+
+#include <git2.h>
+
+#include "gittide/ui/repoviewmodel.hpp"
+
+using gittide::ui::RepoViewModel;
+
+namespace repo_view_model_merge_test {
+
+/// Build a repo where master and feature both diverged from a common base —
+/// merging feature into master will produce a conflict on a.txt.
+inline std::filesystem::path makeConflictRepo()
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path()
+               / ("gittide-vmm-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    auto makeCommit = [&](const char* ref, const char* content, const char* msg,
+                          git_oid* out_oid, git_commit* parent)
+    {
+        std::ofstream(dir / "a.txt") << content;
+        git_index* idx = nullptr;
+        git_repository_index(&idx, raw);
+        git_index_add_bypath(idx, "a.txt");
+        git_index_write(idx);
+        git_oid tree_oid;
+        git_index_write_tree(&tree_oid, idx);
+        git_tree* tree = nullptr;
+        git_tree_lookup(&tree, raw, &tree_oid);
+        git_signature* sig = nullptr;
+        git_signature_now(&sig, "T", "t@e.x");
+        if (parent)
+            git_commit_create_v(out_oid, raw, ref, sig, sig, nullptr, msg, tree, 1, parent);
+        else
+            git_commit_create_v(out_oid, raw, ref, sig, sig, nullptr, msg, tree, 0);
+        git_signature_free(sig);
+        git_tree_free(tree);
+        git_index_free(idx);
+    };
+
+    // 1. Base commit on HEAD (master)
+    git_oid base_oid;
+    makeCommit("HEAD", "base\n", "base", &base_oid, nullptr);
+
+    // 2. Create "feature" branch at base
+    git_commit* base_commit = nullptr;
+    git_commit_lookup(&base_commit, raw, &base_oid);
+    git_reference* feat_ref = nullptr;
+    git_branch_create(&feat_ref, raw, "feature", base_commit, 0);
+    git_reference_free(feat_ref);
+
+    // 3. Feature commit (diverging content)
+    git_oid feat_oid;
+    makeCommit("refs/heads/feature", "feature-side\n", "feat", &feat_oid, base_commit);
+    git_commit_free(base_commit);
+
+    // 4. Master commit (conflicting content — HEAD still on master)
+    git_commit* master_commit = nullptr;
+    git_reference_name_to_id(&base_oid, raw, "refs/heads/master");
+    git_commit_lookup(&master_commit, raw, &base_oid);
+    git_oid master_oid;
+    makeCommit("refs/heads/master", "master-side\n", "main", &master_oid, master_commit);
+    git_commit_free(master_commit);
+
+    git_repository_free(raw);
+    git_libgit2_shutdown();
+    return dir;
+}
+
+} // namespace repo_view_model_merge_test
+
+class TestRepoViewModelMerge : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    /// After startMerge triggers a conflicting merge the VM must report
+    /// mergeInProgress == true and conflictedCount == 1.
+    void startMerge_conflict_sets_mergeInProgress_and_conflictedCount()
+    {
+        const auto dir = repo_view_model_merge_test::makeConflictRepo();
+        QVERIFY(!dir.empty());
+
+        RepoViewModel vm;
+        QSignalSpy openSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(openSpy.wait(3000));
+
+        QSignalSpy mergeSpy(&vm, &RepoViewModel::mergeStateChanged);
+        vm.startMerge(QStringLiteral("feature"));
+
+        // Wait for the merge state signal from the controller
+        QTRY_VERIFY_WITH_TIMEOUT(mergeSpy.count() >= 1, 5000);
+
+        QVERIFY(vm.property("mergeInProgress").toBool());
+        QCOMPARE(vm.property("conflictedCount").toInt(), 1);
+        QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    /// Initial state (no merge in progress) must report mergeInProgress == false.
+    void initial_merge_state_is_not_in_progress()
+    {
+        const auto dir = repo_view_model_merge_test::makeConflictRepo();
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+
+        QCOMPARE(vm.property("mergeInProgress").toBool(), false);
+        QCOMPARE(vm.property("conflictedCount").toInt(), 0);
+        QCOMPARE(vm.property("mergedRef").toString(), QString());
+        QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
+
+        std::filesystem::remove_all(dir);
+    }
+};
+
+#include "test_repoviewmodel_merge.moc"

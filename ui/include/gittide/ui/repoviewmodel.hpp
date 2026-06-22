@@ -9,6 +9,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 #include "gittide/sync.hpp"
 #include "gittide/ui/branchlistmodel.hpp"
 #include "gittide/ui/changedfilesmodel.hpp"
@@ -56,6 +57,14 @@ class RepoViewModel : public QObject
     Q_PROPERTY(int syncTotal READ syncTotal NOTIFY syncProgressChanged)
     Q_PROPERTY(bool pullRebase READ pullRebase NOTIFY pullRebaseChanged)
     Q_PROPERTY(bool onBranch READ onBranch NOTIFY branchChanged)
+    /// True while a merge is in progress (conflict state or awaiting commit).
+    Q_PROPERTY(bool mergeInProgress READ mergeInProgress NOTIFY mergeStateChanged)
+    /// The ref name being merged into HEAD (e.g. "feature"); empty when none.
+    Q_PROPERTY(QString mergedRef READ mergedRef NOTIFY mergeStateChanged)
+    /// Number of files with merge conflicts that still need resolution.
+    Q_PROPERTY(int conflictedCount READ conflictedCount NOTIFY mergeStateChanged)
+    /// True when at least one conflicted file is a submodule (gitlink).
+    Q_PROPERTY(bool hasSubmoduleConflicts READ hasSubmoduleConflicts NOTIFY mergeStateChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -83,6 +92,10 @@ public:
     int syncTotal() const { return m_syncTotal; }
     bool pullRebase() const { return m_pullRebase; }
     bool onBranch() const { return !m_headBranch.isEmpty(); }
+    bool mergeInProgress() const { return m_merge.inProgress; }
+    QString mergedRef() const { return QString::fromStdString(m_merge.mergedRef); }
+    int conflictedCount() const { return int(m_merge.conflictedPaths.size()); }
+    bool hasSubmoduleConflicts() const { return !m_merge.conflictedSubmodules.empty(); }
 
     Q_INVOKABLE void open(const QString& path);
     /// Reset to the no-repo state: clears the file/diff/branch/history models and
@@ -115,6 +128,16 @@ public:
     Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
     Q_INVOKABLE void setPullRebase(bool rebase);
 
+    /// Begin merging @p name into the current branch. Stores the name for
+    /// retryMergeDeinitSubmodules(). On conflict the VM will emit mergeStateChanged.
+    Q_INVOKABLE void startMerge(const QString& name);
+    /// Commit the in-progress merge with the supplied @p message.
+    Q_INVOKABLE void commitMerge(const QString& message);
+    /// Abort the in-progress merge and restore the working tree to pre-merge state.
+    Q_INVOKABLE void abortMerge();
+    /// Deinit conflicting submodules then retry the merge started by startMerge().
+    Q_INVOKABLE void retryMergeDeinitSubmodules();
+
 signals:
     void changed();
     void branchChanged();
@@ -130,6 +153,9 @@ signals:
     void syncProgressChanged();
     void pullRebaseChanged();
     void authRequired();
+    /// Emitted whenever the MergeState changes (merge started, conflict resolved,
+    /// merge committed or aborted). All merge-related Q_PROPERTYs use this NOTIFY.
+    void mergeStateChanged();
 
 private:
     struct FileSel
@@ -162,6 +188,8 @@ private:
     DiffLinesModel*    m_commitDiff  = nullptr;
 
     bool                       m_open = false;
+    gittide::MergeState        m_merge;
+    QString                    m_mergeStartName;
     gittide::SyncStatus        m_sync;
     bool                       m_syncing    = false;
     int                        m_syncReceived = 0;

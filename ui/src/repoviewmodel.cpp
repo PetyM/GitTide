@@ -54,6 +54,10 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
     connect(m_controller, &RepoController::authFailed, this,
             [this](QString) { emit authRequired(); });
+    connect(m_controller, &RepoController::mergeStateChanged, this,
+            [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
+    connect(m_controller, &RepoController::mergeFinished, this,
+            [this](const QString&) { /* refresh driven by the controller cascade */ });
 }
 
 bool RepoViewModel::repoOpen() const
@@ -141,6 +145,8 @@ void RepoViewModel::close()
     m_pullRebase     = false;
     m_pendingOp      = PendingOp::None;
     m_sessionCred    = {};
+    m_merge          = {};
+    m_mergeStartName.clear();
     emit changed();
     emit pullRebaseChanged();
     emit branchChanged();
@@ -149,6 +155,7 @@ void RepoViewModel::close()
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
     emit syncStatusChanged();
+    emit mergeStateChanged();
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -500,6 +507,27 @@ void RepoViewModel::setPullRebase(bool rebase)
     QCoro::connect(m_controller->setPullStrategy(rebase ? gittide::PullStrategy::Rebase
                                                         : gittide::PullStrategy::FastForwardOnly),
                    this, [] {});
+}
+
+void RepoViewModel::startMerge(const QString& name)
+{
+    m_mergeStartName = name;
+    QCoro::connect(m_controller->merge(name), this, [] {});
+}
+
+void RepoViewModel::commitMerge(const QString& message)
+{
+    QCoro::connect(m_controller->commitMerge(gittide::CommitRequest{message.toStdString()}), this, [] {});
+}
+
+void RepoViewModel::abortMerge()
+{
+    QCoro::connect(m_controller->abortMerge(), this, [] {});
+}
+
+void RepoViewModel::retryMergeDeinitSubmodules()
+{
+    QCoro::connect(m_controller->retryMergeDeinitSubmodules(m_mergeStartName), this, [] {});
 }
 
 } // namespace gittide::ui

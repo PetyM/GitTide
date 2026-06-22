@@ -37,6 +37,7 @@
 #include "test_branch_list_model.cpp"
 #include "test_logging.cpp"
 #include "test_repocontroller_merge.cpp"
+#include "test_repoviewmodel_merge.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -87,6 +88,7 @@ int main(int argc, char** argv)
     RUN(TestBranchListModel);
     RUN(TestLogging);
     RUN(TestRepoControllerMerge);
+    RUN(TestRepoViewModelMerge);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down
