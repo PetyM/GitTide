@@ -186,3 +186,38 @@ TEST_CASE("abortMerge restores the pre-merge state", "[merge]")
     std::string body((std::istreambuf_iterator<char>(in)), {});
     REQUIRE(body == "main\n");                 // markers gone, our side restored
 }
+
+TEST_CASE("stashSave then stashPop round-trips a dirty worktree", "[merge]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c1");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    tmp.writeFile("a.txt", "dirty\n");
+    auto saved = repo->stashSave("gittide: test");
+    REQUIRE(saved.has_value());
+    REQUIRE(*saved);                              // it was dirty → stashed
+    REQUIRE(repo->status()->empty());             // clean after stash
+
+    REQUIRE(repo->stashPop().has_value());
+    std::ifstream in(tmp.path() / "a.txt");
+    std::string body((std::istreambuf_iterator<char>(in)), {});
+    REQUIRE(body == "dirty\n");                    // change restored
+}
+
+TEST_CASE("stashSave returns false on a clean worktree", "[merge]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c1");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto saved = repo->stashSave("gittide: test");
+    REQUIRE(saved.has_value());
+    REQUIRE_FALSE(*saved);                         // nothing to stash
+}

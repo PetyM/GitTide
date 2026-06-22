@@ -139,6 +139,14 @@ public:
     // Returns an error if the branch does not exist or the stash-pop conflicts.
     Expected<void> checkoutBranch(std::string name);
 
+    /// Stash the working tree (including untracked) if it is dirty. Returns true
+    /// if a stash was created, false if the tree was already clean (nothing stashed).
+    Expected<bool> stashSave(std::string message);
+
+    /// Pop the most-recent stash onto the working tree. Errors (and preserves the
+    /// stash) if the pop conflicts.
+    Expected<void> stashPop();
+
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
     /// writing conflict markers into the worktree on conflict. Caller handles a

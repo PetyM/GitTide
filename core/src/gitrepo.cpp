@@ -1060,6 +1060,45 @@ Expected<void> GitRepo::checkoutCommit(std::string oid)
     return safeSwitch(target, /*refToSet=*/"");
 }
 
+Expected<bool> GitRepo::stashSave(std::string message)
+{
+    auto st = status();
+    if (!st)
+        return std::unexpected(st.error());
+    if (st->empty())
+        return false; // clean — nothing stashed
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+    {
+        if (sig)
+        {
+            git_signature_free(sig);
+            sig = nullptr;
+        }
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    }
+    if (!sig)
+        return std::unexpected(GitError{-1, "could not build a signature for the stash"});
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    git_oid stash_oid;
+    int rc = git_stash_save(&stash_oid, m_repo, sig, message.c_str(), GIT_STASH_INCLUDE_UNTRACKED);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return true;
+}
+
+Expected<void> GitRepo::stashPop()
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_pop(m_repo, 0, &aopts);
+    if (rc < 0)
+        // Stash is intentionally preserved — the caller can inspect it.
+        return std::unexpected(GitError{rc, "Your changes conflict and are kept in the stash"});
+    return {};
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;
