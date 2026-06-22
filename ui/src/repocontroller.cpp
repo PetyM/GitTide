@@ -64,6 +64,8 @@ QCoro::Task<void> RepoController::refreshStatus()
     auto ms = co_await m_repo->mergeState();
     if (!self)
         co_return;
+    // Intentional silent skip: a missing MERGE_HEAD is the normal not-merging
+    // case and not an error worth surfacing. The next refresh re-reports truth.
     if (ms)
         emit mergeStateChanged(*ms);
 }
@@ -189,6 +191,7 @@ QCoro::Task<void> RepoController::refreshBranches()
         emit operationFailed(QString::fromStdString(h.error().message));
         co_return;
     }
+    m_lastHead = *h; // cache for currentBranchName()
     emit headChanged(*h);
 }
 
@@ -521,9 +524,12 @@ QCoro::Task<void> RepoController::merge(QString name)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
 
     // Auto-stash a dirty tree (D31). Remember whether we owe a pop.
     auto saved = co_await m_repo->stashSave("gittide: auto-stash before merge");
+    if (!self)
+        co_return;
     if (!saved)
     {
         emit operationFailed(QString::fromStdString(saved.error().message));
@@ -532,6 +538,8 @@ QCoro::Task<void> RepoController::merge(QString name)
     m_pendingStashPop = *saved;
 
     auto out = co_await m_repo->mergeBranch(name);
+    if (!self)
+        co_return;
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
@@ -543,11 +551,15 @@ QCoro::Task<void> RepoController::merge(QString name)
     if (out->analysis == MergeAnalysis::UpToDate)
     {
         co_await popPendingStash();
+        if (!self)
+            co_return;
         emit operationFailed(tr("Already up to date.")); // informational, non-fatal
     }
     else if (out->analysis == MergeAnalysis::FastForward)
     {
         co_await popPendingStash();
+        if (!self)
+            co_return;
         emit mergeFinished(QString::fromStdString(out->newOid));
     }
     else if (!out->conflicted) // clean normal merge → finish immediately
@@ -555,6 +567,8 @@ QCoro::Task<void> RepoController::merge(QString name)
         const std::string msg = "Merge branch '" + name.toStdString() + "' into "
                               + currentBranchName();
         auto oid = co_await m_repo->commitMerge(gittide::CommitRequest{msg});
+        if (!self)
+            co_return;
         if (!oid)
         {
             emit operationFailed(QString::fromStdString(oid.error().message));
@@ -562,7 +576,11 @@ QCoro::Task<void> RepoController::merge(QString name)
         else
         {
             co_await popPendingStash();
+            if (!self)
+                co_return;
             co_await reinitPendingSubmodules();
+            if (!self)
+                co_return;
             emit mergeFinished(QString::fromStdString(*oid));
         }
     }
@@ -575,8 +593,12 @@ QCoro::Task<void> RepoController::popPendingStash()
 {
     if (!m_pendingStashPop)
         co_return;
+    // Flip before the await so a double-call can never pop twice.
     m_pendingStashPop = false;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->stashPop();
+    if (!self)
+        co_return;
     if (!r)
         emit operationFailed(QString::fromStdString(r.error().message)); // stash preserved
 }
@@ -585,7 +607,10 @@ QCoro::Task<void> RepoController::commitMerge(gittide::CommitRequest req)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto oid = co_await m_repo->commitMerge(req);
+    if (!self)
+        co_return;
     if (!oid)
     {
         emit operationFailed(QString::fromStdString(oid.error().message));
@@ -593,7 +618,11 @@ QCoro::Task<void> RepoController::commitMerge(gittide::CommitRequest req)
         co_return;
     }
     co_await popPendingStash();         // deferred pop now safe
+    if (!self)
+        co_return;
     co_await reinitPendingSubmodules(); // restore any deinited submodules
+    if (!self)
+        co_return;
     emit mergeFinished(QString::fromStdString(*oid));
     co_await refreshAfterMerge();
 }
@@ -602,11 +631,24 @@ QCoro::Task<void> RepoController::abortMerge()
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto r = co_await m_repo->abortMerge();
+    if (!self)
+        co_return;
     if (!r)
+    {
+        // Abort failed: repo is still mid-merge/conflicted. Popping the stash
+        // onto a conflicted tree would corrupt it — re-report disk truth and bail.
         emit operationFailed(QString::fromStdString(r.error().message));
+        co_await refreshAfterMerge();
+        co_return;
+    }
     co_await popPendingStash();         // restore the user's pre-merge work
+    if (!self)
+        co_return;
     co_await reinitPendingSubmodules(); // if we had deinited any (Task 7)
+    if (!self)
+        co_return;
     co_await refreshAfterMerge();
 }
 
@@ -614,10 +656,14 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
 {
     if (!m_repo)
         co_return;
+    QPointer<RepoController> self = this;
     auto ms = co_await m_repo->mergeState();
+    if (!self)
+        co_return;
     if (!ms)
     {
         emit operationFailed(QString::fromStdString(ms.error().message));
+        co_await refreshAfterMerge(); // re-report disk truth, D30
         co_return;
     }
     // 1. Abort the conflicted merge
@@ -626,14 +672,24 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
         emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     // 2. Deinit the conflicted submodules, remembering them for re-init
     m_pendingSubmoduleReinit = ms->conflictedSubmodules;
     for (const auto& p : ms->conflictedSubmodules)
     {
         if (auto r = co_await m_repo->deinitSubmodule(p); !r)
             emit operationFailed(QString::fromStdString(r.error().message));
+        if (!self)
+            co_return;
     }
-    // 3. Re-run the merge; now the gitlinks merge as plain pointers.
+    // 3. After abort the working tree is clean; the user's original dirty work
+    // sits in the stash (m_pendingStashPop == true from the first merge). Pop it
+    // now so the inner merge() re-stashes it with a fresh m_pendingStashPop.
+    co_await popPendingStash();
+    if (!self)
+        co_return;
+    // 4. Re-run the merge; now the gitlinks merge as plain pointers.
     // re-init happens on the next commitMerge/abort via reinitPendingSubmodules()
     co_await merge(name);
 }
@@ -644,9 +700,16 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
 
 QCoro::Task<void> RepoController::refreshAfterMerge()
 {
+    QPointer<RepoController> self = this;
     co_await refreshStatus(); // also fetches mergeState and emits mergeStateChanged
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus();
 }
 
@@ -654,28 +717,25 @@ QCoro::Task<void> RepoController::reinitPendingSubmodules()
 {
     if (m_pendingSubmoduleReinit.empty())
         co_return;
+    QPointer<RepoController> self = this;
     for (const auto& p : m_pendingSubmoduleReinit)
     {
         if (auto r = co_await m_repo->reinitSubmodule(p); !r)
             emit operationFailed(QString::fromStdString(r.error().message));
+        if (!self)
+            co_return;
     }
     m_pendingSubmoduleReinit.clear();
 }
 
 std::string RepoController::currentBranchName()
 {
-    if (!m_repo)
-        return "HEAD";
-    // Use a synchronous peek via the already-queued head() is not possible here;
-    // we call the blocking (non-coroutine) GitRepo path is not accessible from
-    // AsyncRepo. Instead we use the last-known head from m_repo->head() but that
-    // returns a Task — avoid a nested co_await in a non-coroutine by falling back
-    // to "HEAD" as a safe sentinel. The merge commit message is informational only.
-    //
-    // In practice the caller (merge()) always runs after open() + refreshBranches()
-    // so the branch name is known at the git level; we just return a best-effort
-    // string here. A QCoro::waitFor() on the same thread is safe in tests (the
-    // event loop is running), but we keep it simple and synchronous.
+    // Use the last-known HEAD state cached by refreshBranches(). Returns the real
+    // short branch name when on a branch, or "HEAD" when detached or not yet known.
+    // In practice merge() is always called after open() + an initial refreshBranches(),
+    // so m_lastHead.branch is populated for the normal on-branch case.
+    if (!m_lastHead.detached && !m_lastHead.branch.empty())
+        return m_lastHead.branch;
     return "HEAD";
 }
 

@@ -138,6 +138,10 @@ private:
     // Orchestration bookkeeping (D31) — NOT merge-state; D30 governs that.
     bool m_pendingStashPop = false;
     std::vector<std::filesystem::path> m_pendingSubmoduleReinit;
+
+    // Last-known HEAD state, updated by refreshBranches() so currentBranchName()
+    // can return a real branch name without an extra async round-trip.
+    gittide::HeadState m_lastHead;
 };
 
 } // namespace gittide::ui
