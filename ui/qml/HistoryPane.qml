@@ -14,6 +14,10 @@ RowLayout {
         objectName: "commitContextMenu"
         property string rowBranchName: ""
 
+        // Shown only when the right-clicked commit is a local branch tip
+        // (rowBranchName is set by the MouseArea only when model.localBranchName
+        // is non-empty). Merging by an arbitrary commit's "containing branch" is
+        // ambiguous and out of scope.
         AppMenuItem {
             objectName: "mergeIntoItem"
             text: repoVm ? ("Merge into " + repoVm.currentBranch) : "Merge"
