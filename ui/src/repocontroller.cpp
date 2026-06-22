@@ -657,6 +657,16 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
 {
     if (!m_repo)
         co_return;
+    // I-2 fix: Guard against an empty name BEFORE aborting anything. An empty name
+    // means we cannot determine what to re-merge after the abort, which would leave
+    // the repo in a clean state with the merge silently destroyed. Surface the error
+    // instead so the user can resolve or abort manually.
+    if (name.isEmpty())
+    {
+        emit operationFailed(
+            tr("Cannot determine which branch to merge; resolve or abort this merge manually."));
+        co_return;
+    }
     QPointer<RepoController> self = this;
     auto ms = co_await m_repo->mergeState();
     if (!self)

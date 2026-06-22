@@ -135,6 +135,9 @@ private slots:
 
     /// After acceptConflict(0, 0) (keep ours), the on-disk file must have no
     /// conflict markers, and DiffLinesModel::isResolved() must return true.
+    /// Also verifies Bug I-1 fix: the active file must NOT be blanked by the
+    /// async refreshStatus that follows acceptConflict (previously onStatus()
+    /// always cleared m_activeFile, blanking the diff panel mid-resolution).
     void accept_resolves_conflict()
     {
         const auto dir = repo_view_model_merge_test::makeConflictRepo();
@@ -162,6 +165,9 @@ private slots:
         // The diff model should now be in conflict mode (isResolved() == false).
         QVERIFY(!vm.diffLines()->isResolved());
 
+        // Reset the spy so we can precisely detect the post-accept refresh cycle.
+        fileChangedSpy.clear();
+
         // Accept "ours" side (which: 0) for region 0.
         vm.acceptConflict(0, 0);
 
@@ -176,6 +182,23 @@ private slots:
 
         // After the re-select triggered by acceptConflict, the model must be resolved.
         QVERIFY(vm.diffLines()->isResolved());
+
+        // I-1 regression guard: spin the event loop long enough for the async
+        // refreshStatus (fired by acceptConflict) to complete and call onStatus.
+        // With the bug present, onStatus would clear m_activeFile → activeFile
+        // becomes empty and diffLines is cleared. With the fix, the active file
+        // stays set because a.txt is still in the refreshed status list.
+        // Allow a few status/active-file cycles and then check final state.
+        QTest::qWait(500); // let the async refresh settle
+        // Process any remaining queued events (controller signals, etc.)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 200);
+
+        QVERIFY2(!vm.property("activeFile").toString().isEmpty(),
+                 "activeFile was cleared by refreshStatus — I-1 regression: "
+                 "diff panel would blank mid-conflict-resolution");
+        QVERIFY2(vm.diffLines()->rowCount(QModelIndex()) > 0,
+                 "diffLines was cleared by refreshStatus — I-1 regression: "
+                 "diff panel would blank mid-conflict-resolution");
 
         std::filesystem::remove_all(dir);
     }

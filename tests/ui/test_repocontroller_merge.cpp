@@ -192,6 +192,69 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    /// I-2 regression guard: calling retryMergeDeinitSubmodules with an empty
+    /// name must NOT abort the in-progress merge — it must emit operationFailed
+    /// and leave the merge state intact (still inProgress). Without the guard,
+    /// the controller would abort the conflicted merge and then call merge(""),
+    /// destroying the user's work.
+    void retry_with_empty_name_does_not_abort_merge()
+    {
+        const auto dir = makeConflictRepo();
+        QVERIFY(!dir.empty());
+
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(controller.isOpen());
+
+        // Put the repo into a conflicted mid-merge state.
+        QCoro::waitFor(controller.merge(QStringLiteral("feature")));
+
+        QSignalSpy mergeStateSpy(&controller, &RepoController::mergeStateChanged);
+        QVERIFY(mergeStateSpy.count() >= 0); // may be 0 — we just need the baseline
+
+        // Confirm we are actually in a conflicted state before the retry.
+        QSignalSpy stateSpy2(&controller, &RepoController::mergeStateChanged);
+        QCoro::waitFor(controller.refreshStatus());
+        // Find the last emitted merge state to confirm inProgress.
+        gittide::MergeState stateBeforeRetry;
+        if (stateSpy2.count() > 0)
+            stateBeforeRetry = stateSpy2.last().at(0).value<gittide::MergeState>();
+        // If we didn't get a new signal, read from a fresh refresh.
+        if (!stateBeforeRetry.inProgress)
+        {
+            // Try once more with the combined spy.
+            QSignalSpy stateSpy3(&controller, &RepoController::mergeStateChanged);
+            QCoro::waitFor(controller.refreshStatus());
+            if (stateSpy3.count() > 0)
+                stateBeforeRetry = stateSpy3.last().at(0).value<gittide::MergeState>();
+        }
+        QVERIFY2(stateBeforeRetry.inProgress,
+                 "Precondition: merge must be inProgress before testing retry guard");
+
+        // Now call retry with an empty name — should fail fast without aborting.
+        QSignalSpy failedSpy(&controller, &RepoController::operationFailed);
+        QSignalSpy abortSpy(&controller, &RepoController::mergeStateChanged);
+
+        QCoro::waitFor(controller.retryMergeDeinitSubmodules(QString{}));
+
+        // operationFailed must have fired exactly once with a non-empty message.
+        QCOMPARE(failedSpy.count(), 1);
+        QVERIFY(!failedSpy.at(0).at(0).toString().isEmpty());
+
+        // The merge state must NOT have changed (no abort-then-fail happened).
+        // abortSpy should be empty — or if it fired, the state must still be inProgress.
+        bool mergeStillInProgress = stateBeforeRetry.inProgress;
+        if (abortSpy.count() > 0)
+        {
+            const auto lastAfter = abortSpy.last().at(0).value<gittide::MergeState>();
+            mergeStillInProgress = lastAfter.inProgress;
+        }
+        QVERIFY2(mergeStillInProgress,
+                 "retryMergeDeinitSubmodules with empty name aborted the merge — I-2 regression");
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repocontroller_merge.moc"

@@ -333,9 +333,28 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     m_sel.clear();
     for (const auto& f : files)
         m_sel[pathToQString(f.path)] = FileSel{ChangedFilesModel::Checked, {}};
-    m_activeFile.clear();
-    m_diff->clear();
-    emit activeFileChanged();
+
+    // I-1 fix: When a file is selected (e.g. mid-conflict resolution), preserve
+    // it if it still appears in the refreshed file list — clearing unconditionally
+    // blanks the diff panel after every acceptConflict(). Only clear when the
+    // previously active file is gone from the new list (deleted, staged, etc.).
+    const bool fileStillPresent = !m_activeFile.isEmpty()
+        && std::any_of(files.begin(), files.end(),
+                       [&](const gittide::FileStatus& f)
+                       { return pathToQString(f.path) == m_activeFile; });
+    if (fileStillPresent)
+    {
+        // Re-load content so the diff reflects the updated on-disk state (e.g.
+        // after one conflict region was resolved). selectFile is idempotent here.
+        selectFile(m_activeFile);
+    }
+    else
+    {
+        m_activeFile.clear();
+        m_diff->clear();
+        emit activeFileChanged();
+    }
+
     emit checkedChanged();
 }
 
@@ -574,7 +593,24 @@ void RepoViewModel::abortMerge()
 
 void RepoViewModel::retryMergeDeinitSubmodules()
 {
-    QCoro::connect(m_controller->retryMergeDeinitSubmodules(m_mergeStartName), this, [] {});
+    // I-2 fix: m_mergeStartName is only set when GitTide initiated the merge in
+    // this session. For merges started on the CLI or across restarts it is empty.
+    // Fall back to the disk-derived ref name from MERGE_MSG (D30) rather than
+    // passing an empty string — which would abort-then-fail destructively.
+    QString name = m_mergeStartName;
+    if (name.isEmpty())
+        name = mergedRef(); // parsed from MERGE_MSG, never fabricated in-memory
+
+    // If both are empty we cannot determine the target; do nothing. The controller
+    // has its own guard too, but we avoid even starting the operation here.
+    if (name.isEmpty())
+    {
+        emit operationFailed(
+            tr("Cannot determine which branch to merge; resolve or abort this merge manually."));
+        return;
+    }
+
+    QCoro::connect(m_controller->retryMergeDeinitSubmodules(name), this, [] {});
 }
 
 } // namespace gittide::ui
