@@ -167,3 +167,22 @@ TEST_CASE("commitMerge refuses while conflicts remain", "[merge]")
     auto oid = repo->commitMerge(gittide::CommitRequest{"premature"});
     REQUIRE_FALSE(oid.has_value());          // still conflicted → error
 }
+
+TEST_CASE("abortMerge restores the pre-merge state", "[merge]")
+{
+    gittide::test::TempRepo tmp;
+    auto repo = conflictingRepo(tmp);
+    REQUIRE(repo.has_value());
+    const std::string before = repo->head()->oid;
+    REQUIRE(repo->mergeBranch("feature")->conflicted);
+
+    REQUIRE(repo->abortMerge().has_value());
+
+    auto ms = repo->mergeState();
+    REQUIRE(ms.has_value());
+    REQUIRE_FALSE(ms->inProgress);
+    REQUIRE(repo->head()->oid == before);     // HEAD unchanged
+    std::ifstream in(tmp.path() / "a.txt");
+    std::string body((std::istreambuf_iterator<char>(in)), {});
+    REQUIRE(body == "main\n");                 // markers gone, our side restored
+}

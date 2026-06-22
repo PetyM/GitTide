@@ -146,6 +146,10 @@ public:
     /// See MergeOutcome.
     Expected<MergeOutcome> mergeBranch(std::string name);
 
+    /// Abort an in-progress merge: reset --hard to HEAD and clear MERGE_HEAD/MERGE_MSG,
+    /// returning the worktree to its pre-merge state.
+    Expected<void> abortMerge();
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,

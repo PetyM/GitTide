@@ -1195,6 +1195,28 @@ Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
     return out;
 }
 
+Expected<void> GitRepo::abortMerge()
+{
+    git_oid head_oid;
+    int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_commit* head = nullptr;
+    rc = git_commit_lookup(&head, m_repo, &head_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> head_guard(head, git_commit_free);
+
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy    = GIT_CHECKOUT_FORCE; // discard the half-merged worktree
+    rc = git_reset(m_repo, reinterpret_cast<const git_object*>(head), GIT_RESET_HARD, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_repository_state_cleanup(m_repo);
+    return {};
+}
+
 Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTree, git_tree** outParentTree) const
 {
     *outTree       = nullptr;
