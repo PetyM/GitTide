@@ -1072,9 +1072,10 @@ Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
         std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head_ref, git_reference_free);
         git_reference* new_ref = nullptr;
         rc = git_reference_set_target(&new_ref, head_ref, target, "merge: fast-forward");
+        if (new_ref)
+            git_reference_free(new_ref);
         if (rc < 0)
             return std::unexpected(lastGitError(rc));
-        git_reference_free(new_ref);
 
         char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
         git_oid_tostr(hex, sizeof(hex), target);

@@ -20,11 +20,11 @@ gittide::Expected<GitRepo> conflictingRepo(gittide::test::TempRepo& tmp)
     auto repo = GitRepo::open(tmp.path());
     if (!repo)
         return std::unexpected(repo.error());
-    (void)repo->createBranch("feature", "");
-    (void)repo->checkoutBranch("feature");
+    if (auto r = repo->createBranch("feature", ""); !r) return std::unexpected(r.error());
+    if (auto r = repo->checkoutBranch("feature"); !r) return std::unexpected(r.error());
     tmp.writeFile("a.txt", "feature\n");
     tmp.commitAll("feature edit");
-    (void)repo->checkoutBranch("master");
+    if (auto r = repo->checkoutBranch("master"); !r) return std::unexpected(r.error());
     tmp.writeFile("a.txt", "main\n");
     tmp.commitAll("main edit");
     return repo;
@@ -72,6 +72,9 @@ TEST_CASE("mergeBranch fast-forwards when HEAD is an ancestor", "[merge]")
     REQUIRE(out.has_value());
     REQUIRE(out->analysis == gittide::MergeAnalysis::FastForward);
     REQUIRE_FALSE(out->conflicted);
+    auto ms = repo->mergeState();
+    REQUIRE(ms.has_value());
+    REQUIRE_FALSE(ms->inProgress);
     // HEAD now sees the feature content.
     auto d = repo->diff(gittide::DiffTarget::WorktreeVsHead, "a.txt");
     REQUIRE(d.has_value());
