@@ -47,6 +47,8 @@ QVariant DiffLinesModel::data(const QModelIndex& index, int role) const
         return r.hunkIndex;
     case LineRole:
         return r.lineIndex;
+    case BlockStateRole:
+        return r.blockState;
     default:
         return {};
     }
@@ -63,10 +65,83 @@ QHash<int, QByteArray> DiffLinesModel::roleNames() const
         {CheckedRole, "lineChecked"},
         {HunkRole, "hunkIndex"},
         {LineRole, "lineIndex"},
+        {BlockStateRole, "blockState"},
     };
 }
 
-void DiffLinesModel::setDiff(const gittide::DiffResult& result, const std::map<int, std::vector<int>>& checkedLines, bool wholeChecked)
+DiffLinesModel::Row DiffLinesModel::makeLineRow(
+    const gittide::DiffLine& line, int hunkIndex, int lineIndex, bool wholeChecked,
+    const std::map<int, std::vector<int>>& checkedLines) const
+{
+    Row r;
+    r.oldNo     = line.oldLineno;
+    r.newNo     = line.newLineno;
+    r.text      = QString::fromStdString(line.text);
+    r.hunkIndex = hunkIndex;
+    r.lineIndex = lineIndex;
+    switch (line.origin)
+    {
+    case gittide::DiffLineOrigin::Added:
+        r.kind      = QStringLiteral("added");
+        r.checkable = true;
+        break;
+    case gittide::DiffLineOrigin::Removed:
+        r.kind      = QStringLiteral("removed");
+        r.checkable = true;
+        break;
+    case gittide::DiffLineOrigin::Context:
+    default:
+        r.kind      = QStringLiteral("context");
+        r.checkable = false;
+        break;
+    }
+    if (r.checkable)
+    {
+        if (wholeChecked)
+        {
+            r.checked = true;
+        }
+        else
+        {
+            const auto it = checkedLines.find(hunkIndex);
+            r.checked     = it != checkedLines.end() &&
+                        std::find(it->second.begin(), it->second.end(), lineIndex) != it->second.end();
+        }
+    }
+    return r;
+}
+
+int DiffLinesModel::computeBlockState(int blockRow)
+{
+    const Row& b = m_rows[static_cast<std::size_t>(blockRow)];
+    int total = 0, checked = 0;
+    for (int cr : b.coveredRows)
+    {
+        const Row& r = m_rows[static_cast<std::size_t>(cr)];
+        if (!r.checkable)
+            continue;
+        ++total;
+        if (r.checked)
+            ++checked;
+    }
+    const int state = checked == 0 ? int(Qt::Unchecked)
+                      : checked == total ? int(Qt::Checked)
+                                         : int(Qt::PartiallyChecked);
+    m_rows[static_cast<std::size_t>(blockRow)].blockState = state;
+    return state;
+}
+
+void DiffLinesModel::refreshBlock(int blockRow)
+{
+    computeBlockState(blockRow);
+    const QModelIndex idx = index(blockRow, 0);
+    emit dataChanged(idx, idx, {BlockStateRole});
+}
+
+void DiffLinesModel::setDiff(const gittide::DiffResult& result,
+                             const std::map<int, std::vector<int>>& checkedLines,
+                             bool wholeChecked,
+                             bool blocks)
 {
     beginResetModel();
     m_rows.clear();
@@ -80,44 +155,53 @@ void DiffLinesModel::setDiff(const gittide::DiffResult& result, const std::map<i
         header.hunkIndex = h;
         m_rows.push_back(std::move(header));
 
-        for (int l = 0; l < static_cast<int>(hunk.lines.size()); ++l)
+        auto isChanged = [&](int l)
         {
-            const gittide::DiffLine& line = hunk.lines[static_cast<std::size_t>(l)];
-            Row r;
-            r.oldNo     = line.oldLineno;
-            r.newNo     = line.newLineno;
-            r.text      = QString::fromStdString(line.text);
-            r.hunkIndex = h;
-            r.lineIndex = l;
-            switch (line.origin)
+            const auto o = hunk.lines[static_cast<std::size_t>(l)].origin;
+            return o == gittide::DiffLineOrigin::Added || o == gittide::DiffLineOrigin::Removed;
+        };
+
+        const int n = static_cast<int>(hunk.lines.size());
+        int       l = 0;
+        while (l < n)
+        {
+            if (blocks && isChanged(l))
             {
-            case gittide::DiffLineOrigin::Added:
-                r.kind      = QStringLiteral("added");
-                r.checkable = true;
-                break;
-            case gittide::DiffLineOrigin::Removed:
-                r.kind      = QStringLiteral("removed");
-                r.checkable = true;
-                break;
-            case gittide::DiffLineOrigin::Context:
-            default:
-                r.kind      = QStringLiteral("context");
-                r.checkable = false;
-                break;
+                int e = l;
+                while (e < n && isChanged(e))
+                    ++e;
+
+                int blockRow = -1;
+                if (e - l >= 2)
+                {
+                    blockRow      = static_cast<int>(m_rows.size());
+                    Row b;
+                    b.kind        = QStringLiteral("block");
+                    b.hunkIndex   = h;
+                    m_rows.push_back(std::move(b));
+                }
+
+                for (int k = l; k < e; ++k)
+                {
+                    Row r     = makeLineRow(hunk.lines[static_cast<std::size_t>(k)], h, k,
+                                            wholeChecked, checkedLines);
+                    r.blockRow = blockRow;
+                    m_rows.push_back(std::move(r));
+                    if (blockRow >= 0)
+                        m_rows[static_cast<std::size_t>(blockRow)].coveredRows.push_back(
+                            static_cast<int>(m_rows.size()) - 1);
+                }
+                if (blockRow >= 0)
+                    computeBlockState(blockRow); // no signal during model reset
+
+                l = e;
             }
-            if (r.checkable)
+            else
             {
-                if (wholeChecked)
-                {
-                    r.checked = true;
-                }
-                else
-                {
-                    const auto it = checkedLines.find(h);
-                    r.checked     = it != checkedLines.end() && std::find(it->second.begin(), it->second.end(), l) != it->second.end();
-                }
+                m_rows.push_back(makeLineRow(hunk.lines[static_cast<std::size_t>(l)], h, l,
+                                             wholeChecked, checkedLines));
+                ++l;
             }
-            m_rows.push_back(std::move(r));
         }
     }
     endResetModel();
@@ -141,6 +225,23 @@ void DiffLinesModel::setLineChecked(int row, bool checked)
     const QModelIndex idx = index(row, 0);
     emit dataChanged(idx, idx, {CheckedRole});
     emit lineToggled(r.hunkIndex, r.lineIndex, checked);
+    // Capture blockRow before refreshBlock() potentially reallocates or modifies rows.
+    const int blockRow = r.blockRow;
+    if (blockRow >= 0)
+        refreshBlock(blockRow);
+}
+
+void DiffLinesModel::setBlockChecked(int row, bool checked)
+{
+    if (row < 0 || row >= static_cast<int>(m_rows.size()))
+        return;
+    if (m_rows[static_cast<std::size_t>(row)].kind != QStringLiteral("block"))
+        return;
+    // Copy: setLineChecked() refreshes the block row mid-loop.
+    const std::vector<int> covered = m_rows[static_cast<std::size_t>(row)].coveredRows;
+    for (int cr : covered)
+        setLineChecked(cr, checked); // emits lineToggled per changed line, refreshes block
+    refreshBlock(row);               // ensure correct state even if nothing changed
 }
 
 void DiffLinesModel::setAllChecked(bool checked)
@@ -155,6 +256,9 @@ void DiffLinesModel::setAllChecked(bool checked)
             emit dataChanged(idx, idx, {CheckedRole});
         }
     }
+    for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
+        if (m_rows[static_cast<std::size_t>(i)].kind == QStringLiteral("block"))
+            refreshBlock(i);
 }
 
 int DiffLinesModel::checkableCount() const

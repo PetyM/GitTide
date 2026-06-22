@@ -94,6 +94,7 @@ public:
     Q_INVOKABLE void setAllFilesChecked(bool checked);
     Q_INVOKABLE void setLineChecked(int row, bool checked);
     Q_INVOKABLE void setAllLinesChecked(bool checked);
+    Q_INVOKABLE void setBlockChecked(int row, bool checked);
     Q_INVOKABLE void commit(const QString& summary, const QString& description);
 
     Q_INVOKABLE void selectCommit(const QString& oid);

@@ -55,7 +55,7 @@ ColumnLayout {
                 anchors.fill: parent
                 spacing: 6
 
-                // Per-line checkbox column (only for changed lines)
+                // Per-line checkbox column (changed lines) + block checkbox (block rows)
                 Item {
                     Layout.preferredWidth: 22
                     Layout.fillHeight: true
@@ -67,6 +67,14 @@ ColumnLayout {
                                      : model.lineKind === "removed" ? theme.stateDeleted
                                      : theme.accent
                         onClicked: if (repoVm) repoVm.setLineChecked(index, !model.lineChecked)
+                    }
+                    AppCheckBox {
+                        anchors.centerIn: parent
+                        objectName: "diffBlockCheck"
+                        visible: model.lineKind === "block"
+                        tristate: true
+                        checkState: model.blockState
+                        onClicked: if (repoVm) repoVm.setBlockChecked(index, model.blockState !== Qt.Checked)
                     }
                 }
 

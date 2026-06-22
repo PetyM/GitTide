@@ -193,6 +193,12 @@ void RepoViewModel::setLineChecked(int row, bool checked)
     m_diff->setLineChecked(row, checked);
 }
 
+void RepoViewModel::setBlockChecked(int row, bool checked)
+{
+    // Routes through DiffLinesModel; covered lines emit lineToggled() → onLineToggled().
+    m_diff->setBlockChecked(row, checked);
+}
+
 void RepoViewModel::setAllLinesChecked(bool checked)
 {
     if (m_activeFile.isEmpty())
@@ -295,7 +301,7 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
     if (path != m_activeFile)
         return;
     const FileSel& fs = m_sel[path];
-    m_diff->setDiff(result, fs.checkedLinesByHunk, fs.state == ChangedFilesModel::Checked);
+    m_diff->setDiff(result, fs.checkedLinesByHunk, fs.state == ChangedFilesModel::Checked, /*blocks=*/true);
 }
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
