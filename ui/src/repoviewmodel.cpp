@@ -193,6 +193,12 @@ void RepoViewModel::setLineChecked(int row, bool checked)
     m_diff->setLineChecked(row, checked);
 }
 
+void RepoViewModel::setBlockChecked(int row, bool checked)
+{
+    // Routes through DiffLinesModel; covered lines emit lineToggled() → onLineToggled().
+    m_diff->setBlockChecked(row, checked);
+}
+
 void RepoViewModel::setAllLinesChecked(bool checked)
 {
     if (m_activeFile.isEmpty())

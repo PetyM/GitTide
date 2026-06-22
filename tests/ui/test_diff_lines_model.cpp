@@ -188,6 +188,87 @@ private slots:
         for (int i = 0; i < m.rowCount(QModelIndex()); ++i)
             QVERIFY(m.data(m.index(i, 0), kind).toString() != QStringLiteral("block"));
     }
+
+    void toggling_block_off_unchecks_all_covered_and_emits_per_line()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/true); // block at row 2, lines 3,4
+        QCOMPARE(m.checkedCount(), 2);
+
+        QSignalSpy spy(&m, &DiffLinesModel::lineToggled);
+        m.setBlockChecked(2, false);
+
+        QCOMPARE(spy.count(), 2);          // one emit per covered changed line
+        QCOMPARE(m.checkedCount(), 0);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Unchecked));
+        for (int e = 0; e < spy.count(); ++e)
+            QCOMPARE(spy.at(e).at(2).toBool(), false);
+    }
+
+    void toggling_block_on_checks_all_covered()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, false, /*blocks=*/true);
+        QCOMPARE(m.checkedCount(), 0);
+
+        QSignalSpy spy(&m, &DiffLinesModel::lineToggled);
+        m.setBlockChecked(2, true);
+
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(m.checkedCount(), 2);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Checked));
+    }
+
+    void toggling_block_only_emits_for_changed_lines()
+    {
+        DiffLinesModel m;
+        std::map<int, std::vector<int>> checked{{0, {1}}}; // "added" already checked
+        m.setDiff(oneHunkDiff(), checked, false, /*blocks=*/true);
+
+        QSignalSpy spy(&m, &DiffLinesModel::lineToggled);
+        m.setBlockChecked(2, true); // only the "removed" line actually changes
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(1).toInt(), 2); // lineIndex 2 (the removed line within hunk)
+        QCOMPARE(spy.at(0).at(2).toBool(), true);
+    }
+
+    void unchecking_one_line_makes_block_partial()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/true);
+        const int blockState = roleKey(m, "blockState");
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Checked));
+
+        m.setLineChecked(3, false); // uncheck the "added" line
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::PartiallyChecked));
+
+        m.setLineChecked(4, false); // uncheck the "removed" line too
+        QCOMPARE(m.data(m.index(2, 0), blockState).toInt(), int(Qt::Unchecked));
+    }
+
+    void block_state_emits_datachanged_on_line_toggle()
+    {
+        DiffLinesModel m;
+        m.setDiff(oneHunkDiff(), {}, true, /*blocks=*/true);
+        const int blockState = roleKey(m, "blockState");
+
+        QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
+        m.setLineChecked(3, false);
+
+        // At least one dataChanged carried BlockStateRole for the block row (row 2).
+        bool sawBlock = false;
+        for (int i = 0; i < spy.count(); ++i)
+        {
+            const auto roles = spy.at(i).at(2).value<QList<int>>();
+            const auto tl    = spy.at(i).at(0).value<QModelIndex>();
+            if (tl.row() == 2 && roles.contains(blockState))
+                sawBlock = true;
+        }
+        QVERIFY(sawBlock);
+    }
 };
 
 #include "test_diff_lines_model.moc"

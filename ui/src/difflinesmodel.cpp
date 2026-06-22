@@ -225,6 +225,23 @@ void DiffLinesModel::setLineChecked(int row, bool checked)
     const QModelIndex idx = index(row, 0);
     emit dataChanged(idx, idx, {CheckedRole});
     emit lineToggled(r.hunkIndex, r.lineIndex, checked);
+    // Capture blockRow before refreshBlock() potentially reallocates or modifies rows.
+    const int blockRow = r.blockRow;
+    if (blockRow >= 0)
+        refreshBlock(blockRow);
+}
+
+void DiffLinesModel::setBlockChecked(int row, bool checked)
+{
+    if (row < 0 || row >= static_cast<int>(m_rows.size()))
+        return;
+    if (m_rows[static_cast<std::size_t>(row)].kind != QStringLiteral("block"))
+        return;
+    // Copy: setLineChecked() refreshes the block row mid-loop.
+    const std::vector<int> covered = m_rows[static_cast<std::size_t>(row)].coveredRows;
+    for (int cr : covered)
+        setLineChecked(cr, checked); // emits lineToggled per changed line, refreshes block
+    refreshBlock(row);               // ensure correct state even if nothing changed
 }
 
 void DiffLinesModel::setAllChecked(bool checked)
@@ -239,6 +256,9 @@ void DiffLinesModel::setAllChecked(bool checked)
             emit dataChanged(idx, idx, {CheckedRole});
         }
     }
+    for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
+        if (m_rows[static_cast<std::size_t>(i)].kind == QStringLiteral("block"))
+            refreshBlock(i);
 }
 
 int DiffLinesModel::checkableCount() const

@@ -48,6 +48,7 @@ public:
     void clear();
 
     Q_INVOKABLE void setLineChecked(int row, bool checked);
+    Q_INVOKABLE void setBlockChecked(int row, bool checked);
     void setAllChecked(bool checked);
 
     int checkableCount() const;
