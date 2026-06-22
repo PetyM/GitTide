@@ -79,7 +79,14 @@ Select changes and commit — **no separate staging area**. The list column show
 one list of changed files, each with a **checkbox**, defaulting to **checked**
 (GitHub-Desktop style). Selecting a file shows its diff in the shared panel;
 inside the diff, individual lines carry checkboxes too, so a file's checkbox is
-tri-state (all / none / some lines checked). The commit message box and Commit
+tri-state (all / none / some lines checked). Where two or more changed lines
+(added/removed, mixed origins allowed) sit consecutively with no context line
+between them, a single **block checkbox** appears on its own bare row above the
+run — a tri-state shortcut that checks or unchecks the whole change at once.
+Toggling it sets every line in the block; toggling individual lines underneath
+keeps the block box in sync (checked / unchecked / partial). Lone single-line
+changes get no block row. Block rows appear only in the editable Changes diff,
+never in read-only history. The commit message box and Commit
 button are pinned at the **bottom of the list** (enabled when a message is
 present and at least one change is checked).
 

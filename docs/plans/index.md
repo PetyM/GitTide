@@ -30,6 +30,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 10 — Logging facility](2026-06-21-plan10-logging.md) | 2026-06-21 | done | engineering |
 | [Plan 11 — Fleet fetch-all](2026-06-22-plan11-fleet-fetch-all.md) | 2026-06-22 | done | product · engineering |
 | [Plan 12 — UI polish + sync transfer progress](2026-06-22-plan12-ui-polish-sync-progress.md) | 2026-06-22 | done | design · engineering · product |
+| [Plan 13 — Diff block checkbox](2026-06-22-plan13-diff-block-checkbox.md) | 2026-06-22 | planned | product |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises
