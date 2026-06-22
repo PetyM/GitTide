@@ -11,6 +11,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
+#include "gittide/gitrepo.hpp" // ProgressCallback
 #include "gittide/graph.hpp"
 #include "gittide/sync.hpp"
 
@@ -56,9 +57,9 @@ public:
     QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);
 
     QCoro::Task<gittide::Expected<gittide::SyncStatus>> syncStatus();
-    QCoro::Task<gittide::Expected<void>>                fetch(QString remote, gittide::Credentials cred);
-    QCoro::Task<gittide::Expected<void>>                pull(gittide::Credentials cred);
-    QCoro::Task<gittide::Expected<void>>                push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred);
+    QCoro::Task<gittide::Expected<void>>                fetch(QString remote, gittide::Credentials cred, gittide::ProgressCallback onProgress);
+    QCoro::Task<gittide::Expected<void>>                pull(gittide::Credentials cred, gittide::ProgressCallback onProgress);
+    QCoro::Task<gittide::Expected<void>>                push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred, gittide::ProgressCallback onProgress);
     QCoro::Task<gittide::Expected<gittide::PullStrategy>> pullStrategy();
     QCoro::Task<gittide::Expected<void>>                setPullStrategy(gittide::PullStrategy strategy);
 

@@ -80,9 +80,17 @@ signals:
     void syncStatusChanged(gittide::SyncStatus status);
     void pullStrategyChanged(gittide::PullStrategy strategy);
     void syncBusyChanged(bool busy);
+    // Transfer progress for the in-flight fetch/pull/push: objects received of
+    // total. total == 0 means the count is not yet known (indeterminate).
+    void syncProgressChanged(unsigned received, unsigned total);
     void authFailed(QString remoteUrl);
 
 private:
+    // Builds a ProgressCallback that marshals worker-thread transfer counts onto
+    // this object's thread as syncProgressChanged. Safe if the controller dies
+    // mid-transfer: the queued call is dropped with the object.
+    gittide::ProgressCallback progressSink();
+
     std::optional<AsyncRepo> m_repo;
     QString m_path;
 };

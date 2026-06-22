@@ -400,6 +400,19 @@ QCoro::Task<void> RepoController::refreshSyncStatus()
     emit syncStatusChanged(*r);
 }
 
+gittide::ProgressCallback RepoController::progressSink()
+{
+    QPointer<RepoController> self = this;
+    return [self](unsigned received, unsigned total) -> bool
+    {
+        if (auto* p = self.data())
+            QMetaObject::invokeMethod(
+                p, [p, received, total] { emit p->syncProgressChanged(received, total); },
+                Qt::QueuedConnection);
+        return true;
+    };
+}
+
 QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
 {
     if (!m_repo)
@@ -407,7 +420,7 @@ QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
     QPointer<RepoController> self = this;
     emit syncBusyChanged(true);
     logf(LogLevel::Info, logcat::ASYNC, "fetch from 'origin' started");
-    auto r = co_await m_repo->fetch(QStringLiteral("origin"), cred);
+    auto r = co_await m_repo->fetch(QStringLiteral("origin"), cred, progressSink());
     if (!self)
         co_return;
     emit syncBusyChanged(false);
@@ -430,7 +443,7 @@ QCoro::Task<void> RepoController::pull(gittide::Credentials cred)
         co_return;
     QPointer<RepoController> self = this;
     emit syncBusyChanged(true);
-    auto r = co_await m_repo->pull(cred);
+    auto r = co_await m_repo->pull(cred, progressSink());
     if (!self)
         co_return;
     emit syncBusyChanged(false);
@@ -454,7 +467,7 @@ QCoro::Task<void> RepoController::push(QString branch, bool setUpstream, gittide
         co_return;
     QPointer<RepoController> self = this;
     emit syncBusyChanged(true);
-    auto r = co_await m_repo->push(QStringLiteral("origin"), branch, setUpstream, cred);
+    auto r = co_await m_repo->push(QStringLiteral("origin"), branch, setUpstream, cred, progressSink());
     if (!self)
         co_return;
     emit syncBusyChanged(false);

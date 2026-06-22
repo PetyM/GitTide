@@ -153,18 +153,47 @@ Rectangle {
             onClicked: if (repoVm) repoVm.publishBranch()
         }
 
-        // Busy feedback — sits right beside the sync buttons so an in-flight
-        // fetch/pull/push is obvious at the point of action, not in a far corner.
+        // Transfer progress — a real bar beside the sync buttons. Determinate once
+        // libgit2 reports object counts; an animated sweep before that (total 0).
         RowLayout {
-            spacing: 6
+            spacing: 8
             visible: repoVm && repoVm.syncing
-            BusyIndicator {
-                running: repoVm && repoVm.syncing
-                implicitWidth: 18
-                implicitHeight: 18
+            ProgressBar {
+                id: syncBar
+                Layout.preferredWidth: 120
+                from: 0
+                to: 1
+                indeterminate: repoVm && repoVm.syncProgress < 0
+                value: (repoVm && repoVm.syncProgress >= 0) ? repoVm.syncProgress : 0
+                background: Rectangle {
+                    implicitHeight: 6
+                    radius: 3
+                    color: theme.surfaceOverlay
+                }
+                contentItem: Item {
+                    implicitHeight: 6
+                    Rectangle {
+                        id: bar
+                        height: 6
+                        radius: 3
+                        color: theme.accent
+                        property real indetX: 0
+                        x: syncBar.indeterminate ? indetX : 0
+                        width: syncBar.indeterminate ? syncBar.width * 0.3
+                                                     : syncBar.visualPosition * syncBar.width
+                        SequentialAnimation on indetX {
+                            running: syncBar.indeterminate
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0; to: syncBar.width * 0.7; duration: 850; easing.type: Easing.InOutQuad }
+                            NumberAnimation { from: syncBar.width * 0.7; to: 0; duration: 850; easing.type: Easing.InOutQuad }
+                        }
+                    }
+                }
             }
             Label {
-                text: "Working…"
+                text: (repoVm && repoVm.syncTotal > 0)
+                      ? (repoVm.syncReceived + " / " + repoVm.syncTotal)
+                      : "Working…"
                 color: theme.textSecondary
                 font.pixelSize: 12
             }

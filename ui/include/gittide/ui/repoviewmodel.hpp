@@ -48,6 +48,12 @@ class RepoViewModel : public QObject
     Q_PROPERTY(bool hasUpstream READ hasUpstream NOTIFY syncStatusChanged)
     Q_PROPERTY(QString upstreamName READ upstreamName NOTIFY syncStatusChanged)
     Q_PROPERTY(bool syncing READ syncing NOTIFY syncingChanged)
+    // Transfer progress of the in-flight sync: fraction 0..1, or -1 when the
+    // total is not yet known (show an indeterminate bar). received/total feed a
+    // "received / total" caption.
+    Q_PROPERTY(qreal syncProgress READ syncProgress NOTIFY syncProgressChanged)
+    Q_PROPERTY(int syncReceived READ syncReceived NOTIFY syncProgressChanged)
+    Q_PROPERTY(int syncTotal READ syncTotal NOTIFY syncProgressChanged)
     Q_PROPERTY(bool pullRebase READ pullRebase NOTIFY pullRebaseChanged)
     Q_PROPERTY(bool onBranch READ onBranch NOTIFY branchChanged)
 
@@ -72,6 +78,9 @@ public:
     bool hasUpstream() const { return m_sync.hasUpstream; }
     QString upstreamName() const { return QString::fromStdString(m_sync.upstreamName); }
     bool syncing() const { return m_syncing; }
+    qreal syncProgress() const { return m_syncTotal > 0 ? qreal(m_syncReceived) / qreal(m_syncTotal) : -1.0; }
+    int syncReceived() const { return m_syncReceived; }
+    int syncTotal() const { return m_syncTotal; }
     bool pullRebase() const { return m_pullRebase; }
     bool onBranch() const { return !m_headBranch.isEmpty(); }
 
@@ -117,6 +126,7 @@ signals:
     void activeCommitFileChanged();
     void syncStatusChanged();
     void syncingChanged();
+    void syncProgressChanged();
     void pullRebaseChanged();
     void authRequired();
 
@@ -153,6 +163,8 @@ private:
     bool                       m_open = false;
     gittide::SyncStatus        m_sync;
     bool                       m_syncing    = false;
+    int                        m_syncReceived = 0;
+    int                        m_syncTotal    = 0;
     bool                       m_pullRebase = false;
     gittide::Credentials       m_sessionCred;
     enum class PendingOp { None, Fetch, Pull, Push, Publish } m_pendingOp = PendingOp::None;

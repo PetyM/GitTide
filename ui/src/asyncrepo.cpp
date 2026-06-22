@@ -238,36 +238,36 @@ QCoro::Task<gittide::Expected<gittide::SyncStatus>> AsyncRepo::syncStatus()
         });
 }
 
-QCoro::Task<gittide::Expected<void>> AsyncRepo::fetch(QString remote, gittide::Credentials cred)
+QCoro::Task<gittide::Expected<void>> AsyncRepo::fetch(QString remote, gittide::Credentials cred, gittide::ProgressCallback onProgress)
 {
     auto impl = m_impl;
     co_return co_await QtConcurrent::run(
-        [impl, remote = remote.toStdString(), cred = std::move(cred)]()
+        [impl, remote = remote.toStdString(), cred = std::move(cred), onProgress = std::move(onProgress)]()
         {
             std::scoped_lock lock(impl->mutex);
-            return impl->repo.fetch(remote, cred, [](unsigned, unsigned) { return true; });
+            return impl->repo.fetch(remote, cred, onProgress);
         });
 }
 
-QCoro::Task<gittide::Expected<void>> AsyncRepo::pull(gittide::Credentials cred)
+QCoro::Task<gittide::Expected<void>> AsyncRepo::pull(gittide::Credentials cred, gittide::ProgressCallback onProgress)
 {
     auto impl = m_impl;
     co_return co_await QtConcurrent::run(
-        [impl, cred = std::move(cred)]()
+        [impl, cred = std::move(cred), onProgress = std::move(onProgress)]()
         {
             std::scoped_lock lock(impl->mutex);
-            return impl->repo.pull(cred, [](unsigned, unsigned) { return true; });
+            return impl->repo.pull(cred, onProgress);
         });
 }
 
-QCoro::Task<gittide::Expected<void>> AsyncRepo::push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred)
+QCoro::Task<gittide::Expected<void>> AsyncRepo::push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred, gittide::ProgressCallback onProgress)
 {
     auto impl = m_impl;
     co_return co_await QtConcurrent::run(
-        [impl, remote = remote.toStdString(), branch = branch.toStdString(), setUpstream, cred = std::move(cred)]()
+        [impl, remote = remote.toStdString(), branch = branch.toStdString(), setUpstream, cred = std::move(cred), onProgress = std::move(onProgress)]()
         {
             std::scoped_lock lock(impl->mutex);
-            return impl->repo.push(remote, branch, setUpstream, cred, [](unsigned, unsigned) { return true; });
+            return impl->repo.push(remote, branch, setUpstream, cred, onProgress);
         });
 }
 

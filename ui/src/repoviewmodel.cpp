@@ -33,7 +33,23 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::syncStatusChanged, this,
             [this](gittide::SyncStatus s) { m_sync = s; emit syncStatusChanged(); });
     connect(m_controller, &RepoController::syncBusyChanged, this,
-            [this](bool b) { m_syncing = b; emit syncingChanged(); });
+            [this](bool b)
+            {
+                m_syncing = b;
+                // Clear stale counts at each transfer's start and end so the bar
+                // starts indeterminate and doesn't linger after completion.
+                m_syncReceived = 0;
+                m_syncTotal    = 0;
+                emit syncProgressChanged();
+                emit syncingChanged();
+            });
+    connect(m_controller, &RepoController::syncProgressChanged, this,
+            [this](unsigned received, unsigned total)
+            {
+                m_syncReceived = static_cast<int>(received);
+                m_syncTotal    = static_cast<int>(total);
+                emit syncProgressChanged();
+            });
     connect(m_controller, &RepoController::pullStrategyChanged, this,
             [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
     connect(m_controller, &RepoController::authFailed, this,

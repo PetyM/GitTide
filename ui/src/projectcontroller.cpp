@@ -294,7 +294,10 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     }
     AsyncRepo repo = std::move(*opened);
 
-    auto fr = co_await repo.fetch(QStringLiteral("origin"), m_sessionCred);
+    // Fleet fetch surfaces per-row state in the tree, not byte-level transfer
+    // progress, so a no-op progress callback is fine here.
+    auto fr = co_await repo.fetch(QStringLiteral("origin"), m_sessionCred,
+                                  [](unsigned, unsigned) { return true; });
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))
