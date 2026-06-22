@@ -1,5 +1,6 @@
 #include "gittide/gitrepo.hpp"
 
+#include <fstream>
 #include <git2.h>
 #include <git2/annotated_commit.h>
 #include <git2/branch.h>
@@ -714,6 +715,70 @@ Expected<HeadState> GitRepo::head() const
     {
         const char* sh = git_reference_shorthand(ref);
         st.branch      = sh ? sh : "";
+    }
+    return st;
+}
+
+namespace {
+// Parse the branch name out of a MERGE_MSG first line: "Merge branch 'feature/x'".
+std::string parseMergedRef(const std::filesystem::path& gitdir)
+{
+    std::ifstream in(gitdir / "MERGE_MSG");
+    if (!in) return {};
+    std::string line;
+    std::getline(in, line);
+    const auto a = line.find('\'');
+    if (a == std::string::npos) return {};
+    const auto b = line.find('\'', a + 1);
+    if (b == std::string::npos) return {};
+    return line.substr(a + 1, b - a - 1);
+}
+} // namespace
+
+Expected<MergeState> GitRepo::mergeState() const
+{
+    MergeState st;
+    st.inProgress = git_repository_state(m_repo) == GIT_REPOSITORY_STATE_MERGE;
+
+    git_index* index = nullptr;
+    int rc           = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+
+    if (git_index_has_conflicts(index))
+    {
+        git_index_conflict_iterator* it = nullptr;
+        rc = git_index_conflict_iterator_new(&it, index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index_conflict_iterator,
+                        decltype(&git_index_conflict_iterator_free)>
+            it_guard(it, git_index_conflict_iterator_free);
+
+        const git_index_entry *ancestor = nullptr, *our = nullptr, *their = nullptr;
+        while (git_index_conflict_next(&ancestor, &our, &their, it) == 0)
+        {
+            const git_index_entry* e = our ? our : (their ? their : ancestor);
+            if (!e || !e->path)
+                continue;
+            std::filesystem::path p = fromGitPath(e->path);
+            st.conflictedPaths.push_back(p);
+            // A gitlink (submodule) conflict: any side carrying the commit mode.
+            const bool gitlink =
+                (our && our->mode == GIT_FILEMODE_COMMIT) ||
+                (their && their->mode == GIT_FILEMODE_COMMIT) ||
+                (ancestor && ancestor->mode == GIT_FILEMODE_COMMIT);
+            if (gitlink)
+                st.conflictedSubmodules.push_back(p);
+        }
+    }
+
+    if (st.inProgress)
+    {
+        const char* gp = git_repository_path(m_repo); // the .git dir
+        if (gp)
+            st.mergedRef = parseMergedRef(fromGitPath(gp));
     }
     return st;
 }

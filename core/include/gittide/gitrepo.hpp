@@ -9,6 +9,7 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
 
@@ -84,6 +85,10 @@ public:
 
     // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
     Expected<HeadState> head() const;
+
+    // Read merge-in-progress state from the repository (state == MERGE, MERGE_MSG,
+    // and the index conflict iterator). Derived every call — never cached (D30).
+    Expected<MergeState> mergeState() const;
 
     // Ahead/behind of the current branch versus its upstream remote-tracking
     // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
