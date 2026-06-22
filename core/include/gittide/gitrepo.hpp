@@ -133,6 +133,13 @@ public:
     // Returns an error if the branch does not exist or the stash-pop conflicts.
     Expected<void> checkoutBranch(std::string name);
 
+    /// Analyse and perform a merge of local branch `name` into current HEAD.
+    /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
+    /// writing conflict markers into the worktree on conflict. Caller handles a
+    /// dirty tree (stash) and, on conflict, drives resolution + commitMerge.
+    /// See MergeOutcome.
+    Expected<MergeOutcome> mergeBranch(std::string name);
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,

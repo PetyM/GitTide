@@ -1017,6 +1017,89 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
     return {};
 }
 
+Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
+{
+    // Resolve the local branch to an annotated commit (merge analysis input).
+    git_reference* ref = nullptr;
+    int rc = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+
+    git_annotated_commit* their = nullptr;
+    rc = git_annotated_commit_from_ref(&their, m_repo, ref);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_annotated_commit, decltype(&git_annotated_commit_free)>
+        their_guard(their, git_annotated_commit_free);
+
+    const git_annotated_commit* heads[] = {their};
+    git_merge_analysis_t analysis;
+    git_merge_preference_t pref;
+    rc = git_merge_analysis(&analysis, &pref, m_repo, heads, 1);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    MergeOutcome out;
+    if (analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE)
+    {
+        out.analysis = MergeAnalysis::UpToDate;
+        return out;
+    }
+
+    if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD)
+    {
+        out.analysis = MergeAnalysis::FastForward;
+        const git_oid* target = git_annotated_commit_id(their);
+
+        git_commit* tc = nullptr;
+        rc = git_commit_lookup(&tc, m_repo, target);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> tc_guard(tc, git_commit_free);
+
+        git_checkout_options copts = GIT_CHECKOUT_OPTIONS_INIT;
+        copts.checkout_strategy    = GIT_CHECKOUT_SAFE;
+        rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(tc), &copts);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        // Move the current branch ref to the target, then point HEAD's workdir at it.
+        git_reference* head_ref = nullptr;
+        rc = git_repository_head(&head_ref, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head_ref, git_reference_free);
+        git_reference* new_ref = nullptr;
+        rc = git_reference_set_target(&new_ref, head_ref, target, "merge: fast-forward");
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_reference_free(new_ref);
+
+        char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+        git_oid_tostr(hex, sizeof(hex), target);
+        out.newOid = hex;
+        return out;
+    }
+
+    // Normal merge: writes into index + worktree, leaving conflicts if any.
+    out.analysis = MergeAnalysis::Normal;
+    git_merge_options mopts   = GIT_MERGE_OPTIONS_INIT;
+    git_checkout_options copts = GIT_CHECKOUT_OPTIONS_INIT;
+    copts.checkout_strategy    = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS;
+    rc = git_merge(m_repo, heads, 1, &mopts, &copts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_index* index = nullptr;
+    rc = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+    out.conflicted = git_index_has_conflicts(index) != 0;
+    return out;
+}
+
 Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTree, git_tree** outParentTree) const
 {
     *outTree       = nullptr;
