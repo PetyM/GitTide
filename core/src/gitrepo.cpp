@@ -744,19 +744,21 @@ Expected<void> GitRepo::deinitSubmodule(std::filesystem::path path)
     // preserve the gitlink (.git file) so reinit can re-checkout rather than
     // re-clone. The gitlink and the modules directory in the superproject's
     // .git stay intact; only the checked-out source files are removed.
-    std::error_code ec;
     const std::filesystem::path wd      = workdir() / path;
     const std::filesystem::path gitlink = wd / ".git";
-    for (const auto& entry : std::filesystem::directory_iterator(wd, ec))
+    std::error_code iter_ec;
+    std::filesystem::directory_iterator it(wd, iter_ec);
+    if (iter_ec)
+        return std::unexpected(GitError{-1, "failed to open submodule working dir: " + iter_ec.message()});
+    for (const auto& entry : it)
     {
         if (entry.path() == gitlink)
-            continue; // keep the gitlink so reinit can re-checkout
-        std::filesystem::remove_all(entry.path(), ec);
-        if (ec)
-            return std::unexpected(GitError{-1, "failed to clear submodule working dir: " + ec.message()});
+            continue;
+        std::error_code rm_ec;
+        std::filesystem::remove_all(entry.path(), rm_ec);
+        if (rm_ec)
+            return std::unexpected(GitError{-1, "failed to clear submodule working dir: " + rm_ec.message()});
     }
-    if (ec)
-        return std::unexpected(GitError{-1, "failed to iterate submodule working dir: " + ec.message()});
     return {};
 }
 

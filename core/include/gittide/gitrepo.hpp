@@ -134,10 +134,9 @@ public:
     // no children. See SubmoduleStatus / SubmoduleNode.
     Expected<std::vector<SubmoduleNode>> submoduleTree() const;
 
-    /// De-initialise a submodule: remove its working-tree contents so its
-    /// gitlink merges as a plain pointer (the gitlink stays in the index).
-    /// path is repo-relative. Emulates `git submodule deinit` — libgit2 has
-    /// no first-class deinit API.
+    /// De-initialise a submodule: remove its working-tree source files while
+    /// preserving the `.git` gitlink file. This allows reinitSubmodule to
+    /// re-checkout rather than re-clone. path is repo-relative.
     Expected<void> deinitSubmodule(std::filesystem::path path);
 
     /// Re-initialise and update a submodule to its pinned commit
