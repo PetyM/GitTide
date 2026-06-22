@@ -8,6 +8,11 @@ import QtQuick.Controls.Basic
 CheckBox {
     id: cb
 
+    // Fill/border colour of the checked + partial states. Defaults to the app
+    // accent; callers (e.g. the diff gutter) override it to tint the box with
+    // the line kind — stateAdded for +, stateDeleted for −.
+    property color accentColor: theme.accent
+
     implicitWidth: 18
     implicitHeight: 18
     padding: 0
@@ -18,10 +23,10 @@ CheckBox {
         height: 18
         anchors.verticalCenter: cb.verticalCenter
         radius: 4
-        color: cb.checkState === Qt.Unchecked ? "transparent" : theme.accent
+        color: cb.checkState === Qt.Unchecked ? "transparent" : cb.accentColor
         border.color: cb.checkState === Qt.Unchecked
                       ? (cb.hovered ? theme.textSecondary : theme.border)
-                      : theme.accent
+                      : cb.accentColor
         border.width: 1
 
         // Tick for the fully-checked state.
