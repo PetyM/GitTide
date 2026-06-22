@@ -816,6 +816,17 @@ Expected<std::vector<BranchInfo>> GitRepo::branches() const
                 if (const auto wtIt = wtPaths.find(info.name); wtIt != wtPaths.end())
                     info.worktreePath = wtIt->second;
             }
+            // Peel to commit to get the tip OID (works for both local and remote).
+            {
+                git_object* obj = nullptr;
+                if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0)
+                {
+                    char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+                    git_oid_tostr(hex, sizeof(hex), git_object_id(obj));
+                    info.tipOid = hex;
+                    git_object_free(obj);
+                }
+            }
             result.push_back(std::move(info));
         }
         if (rc != GIT_ITEROVER)

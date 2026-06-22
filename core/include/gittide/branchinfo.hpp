@@ -18,6 +18,7 @@ struct BranchInfo
     BranchKind  kind   = BranchKind::Local; // Local vs remote-tracking.
     std::string upstream;                // A local branch's upstream short name, else empty.
     std::string worktreePath;            // Path of the linked worktree holding this local branch, else empty.
+    std::string tipOid;                  // Full 40-char hex SHA of the branch tip commit; empty on error.
 };
 
 // Describes the current HEAD state of the repository.

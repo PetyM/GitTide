@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include <QHash>
+
 #include <qcorotask.h>
 
 #include "gittide/ui/metatypes.hpp"
@@ -375,6 +377,17 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
 void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
 {
     m_branches->setBranches(branches);
+
+    // Build oid → local-branch-name map so the History pane can offer
+    // "Merge into <current>" on rows that are branch tips.
+    QHash<QString, QString> tips;
+    for (const auto& b : branches)
+    {
+        if (b.kind == gittide::BranchKind::Local && !b.tipOid.empty())
+            tips.insert(QString::fromStdString(b.tipOid), QString::fromStdString(b.name));
+    }
+    m_history->setLocalBranchTips(tips);
+
     for (const auto& b : branches)
     {
         if (b.isHead)
