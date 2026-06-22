@@ -13,7 +13,7 @@ ColumnLayout {
         Layout.margins: 12
         spacing: 10
 
-        CheckBox {
+        AppCheckBox {
             id: diffHeaderCheck
             objectName: "diffHeaderCheck"
             tristate: true
@@ -59,10 +59,13 @@ ColumnLayout {
                 Item {
                     Layout.preferredWidth: 22
                     Layout.fillHeight: true
-                    CheckBox {
+                    AppCheckBox {
                         anchors.centerIn: parent
                         visible: model.checkable
                         checked: model.lineChecked
+                        accentColor: model.lineKind === "added" ? theme.stateAdded
+                                     : model.lineKind === "removed" ? theme.stateDeleted
+                                     : theme.accent
                         onClicked: if (repoVm) repoVm.setLineChecked(index, !model.lineChecked)
                     }
                 }
