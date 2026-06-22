@@ -123,6 +123,19 @@ credential callback (`credentialTrampoline`) delegates to this helper; it never
 blocks for a UI dialog. HTTPS tokens are stored in a session map on the
 ViewModel and discarded on quit — secure keychain persistence is deferred.
 
+**Transfer progress.** Each network call carries a `ProgressCallback`
+(`std::function<bool(unsigned received, unsigned total)>`, core-owned, pure
+`std`). libgit2 drives it from the worker thread — fetch/pull via
+`transfer_progress`, push via `push_transfer_progress` (same received/total
+shape). `RepoController::progressSink()` builds a callback that marshals those
+counts onto the controller thread (`QMetaObject::invokeMethod`, queued; guarded
+by a `QPointer` so a controller that dies mid-transfer drops the call) and emits
+`syncProgressChanged(received, total)`. `RepoViewModel` exposes this as
+`syncProgress` (fraction, or `-1` when `total` is still 0 ⇒ indeterminate) plus
+`syncReceived` / `syncTotal` for the caption, reset at each transfer's start and
+end. Fleet fetch-all passes a no-op callback — it surfaces per-row tree state,
+not byte-level progress.
+
 ### Fleet fetch-all
 
 Fetching every repo in a project is orchestrated in `ProjectController` (it owns

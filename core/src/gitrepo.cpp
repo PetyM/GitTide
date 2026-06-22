@@ -101,6 +101,14 @@ int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
     return (*pl->cb)(stats->received_objects, stats->total_objects) ? 0 : -1;
 }
 
+// Push side: libgit2 reports objects written / total as the pack uploads. Same
+// (received, total) shape as fetch so the UI treats both uniformly.
+int pushTransferProgressTrampoline(unsigned current, unsigned total, size_t /*bytes*/, void* payload)
+{
+    auto* pl = static_cast<CbPayload*>(payload);
+    return (*pl->cb)(current, total) ? 0 : -1;
+}
+
 int credentialTrampoline(git_credential** out, const char* url, const char* username_from_url,
                          unsigned int allowed_types, void* payload)
 {
@@ -1282,9 +1290,10 @@ Expected<void> GitRepo::push(std::string remoteName, std::string branch, bool se
     git_strarray arr    = {specs, 1};
 
     CbPayload pl{&cb, &cred};
-    git_push_options opts      = GIT_PUSH_OPTIONS_INIT;
-    opts.callbacks.credentials = credentialTrampoline;
-    opts.callbacks.payload     = &pl;
+    git_push_options opts                = GIT_PUSH_OPTIONS_INIT;
+    opts.callbacks.credentials           = credentialTrampoline;
+    opts.callbacks.push_transfer_progress = pushTransferProgressTrampoline;
+    opts.callbacks.payload               = &pl;
 
     rc = git_remote_push(remote.get(), &arr, &opts);
     if (rc < 0)

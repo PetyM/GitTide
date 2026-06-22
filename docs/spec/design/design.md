@@ -110,15 +110,18 @@ letter (A / M / D / U / C).
   `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
   a warning icon, never red text alone. Radius 10 on hover highlight. Top-level
   repositories are separated by a faint `border` divider above each repo after the
-  first. **Submodules** render recursively (arbitrary depth, expanded by default):
-  a `❖` glyph in `accent` (~0.7α) distinguishes them from a repository's `◧`; the
-  pinned short OID shows in mono `text.muted`; a status dot reuses the git-state
-  tokens — `state.modified` (dirty) or `state.added` @0.55α (clean) — paired with
-  the OID text, never colour alone; an uninitialised submodule is dimmed
-  (`text.muted`) with no OID or dot. Each level draws a `border` guide rail +
-  elbow connector. (Like the history graph's multi-colour lanes, the status dot is
-  a sanctioned reuse of git-state tokens for repository structure, not a new
-  palette.)
+  first. Rows carry **no type glyph**; a leading **chevron** (`▸`/`▾`,
+  `text.secondary`) toggles a row's subtree — shown only on rows that have
+  children, with leaf rows reserving the same width so names stay aligned. Rows are
+  **collapsed by default**; opening a repo (clicking its row) expands it, and the
+  chevron toggles any subtree thereafter. **Submodules** render recursively
+  (arbitrary depth): the pinned short OID shows in mono `text.muted`; a status dot
+  reuses the git-state tokens — `state.modified` (dirty) or `state.added` @0.55α
+  (clean) — paired with the OID text, never colour alone; an uninitialised
+  submodule is dimmed (`text.muted`) with no OID or dot. Each level draws a
+  `border` guide rail + elbow connector. (Like the history graph's multi-colour
+  lanes, the status dot is a sanctioned reuse of git-state tokens for repository
+  structure, not a new palette.)
 - **Tabs** (`mainTabs`). The list column's Changes | History sub-tabs. Flat;
   active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
 - **Changed-files list** (`changedFilesList`). One row per changed file: a
@@ -133,10 +136,19 @@ letter (A / M / D / U / C).
   checkbox; in history (read-only) mode no checkboxes appear.
 - **Sidebar collapse.** A toggle collapses the project/repo sidebar to a slim
   rail and back; the collapsed rail keeps the active-repo affordance reachable.
-- **Branch bar** (`branchBar`). A bar above the tabs. The current-branch button
-  reads as `surface.raised` with a `border` outline and a branch icon + the branch
-  name in `text.primary`; a detached `HEAD` shows `detached @ <short-oid>` (mono
-  OID) with a distinct icon — state paired with a cue, never colour alone. Its
+- **Branch bar** (`branchBar`). A bar above the tabs. The current-branch chip
+  (`branchChip`) is a **fixed-width**, `accent`-tinted button (branch name in
+  `text.primary` over a "Current branch" caption, a `▾` chevron pinned right); a
+  long name elides. A detached `HEAD` shows `detached @ <short-oid>` (mono OID) —
+  state paired with a cue, never colour alone. Immediately to its right is the
+  **sync cluster**: equal-width **Fetch / Pull / Push** buttons (secondary outline
+  style). Pull and Push carry the behind / ahead count as an **inline `accent`
+  pill** beside the label (not a corner badge), and appear only with an upstream;
+  **Publish** replaces them when the branch has no upstream. While a fetch/pull/push
+  runs, a **progress bar** (`accent` fill on `surface.overlay`) with a
+  `received / total` caption shows beside the cluster — an indeterminate sweep
+  until libgit2 reports object counts, then determinate — in place of a bare
+  spinner. A trailing `⋯` opens the pull-strategy menu. Its
   dropdown is a menu on `surface.overlay`, grouped Local / Worktrees / Remote: the
   current branch is marked by an `accent` left border + check icon; remote-tracking
   rows carry a `☁` glyph and sit slightly dimmed (they are *not yet local*) yet are
@@ -161,6 +173,17 @@ letter (A / M / D / U / C).
 - **Clone progress modal.** `OverlayCard`, themed `accent` progress bar with a
   percentage readout (`received / total objects (NN%)`), Cancel as a secondary
   button.
+- **Menus** (`AppMenu` / `AppMenuItem`). All popup menus (add-repo, project
+  switcher, repo context, pull-strategy) ride on a `surface.overlay` rounded card
+  (radius 10, 1px `border` ring); items are `text.primary` with an `accent`-tint
+  hover, disabled items `text.muted`. Checkable items keep a plain row so the tick
+  survives.
+- **Progress over spinners.** Any operation that can report quantitative progress
+  shows a **determinate** bar (`accent` fill on `surface.overlay`) with a
+  `received / total` (or percent) caption — fetch/pull/push in the branch bar,
+  clone in its modal. A bare busy spinner / indeterminate sweep is a *fallback*,
+  used only while counts are unknown or for work that genuinely can't report
+  progress. Never park a spinner on an operation that exposes real progress.
 - **Empty-state cards.** Each empty page is a centered card (`surface.raised`,
   radius 18, max-width ~420px): brand icon, `22px` headline, `13px`
   `text.secondary` subtext, one primary CTA, secondary actions as ghost buttons.
@@ -186,11 +209,14 @@ The History tab is implemented in QML (Plan 4 — History Graph). The commit lis
 **Do:** read colour from a token; stay on the 4px grid and the radius set
 (6 / 10 / 18); use the one accent for primary action, selection, and focus; brand
 every empty state; define **both** dark and light values for any new token; pair
-every state colour with a non-colour cue.
+every state colour with a non-colour cue; **show determinate progress (counts /
+percent) wherever the operation reports it**, falling back to a busy/indeterminate
+indicator only when it can't.
 
 **Don't:** hard-code a hex in a widget; add a second accent hue; place text
 off-grid or invent a new radius; signal status by colour alone; ship a component
-that only works in one theme.
+that only works in one theme; **park a bare busy spinner on an operation that can
+report real progress.**
 
 ## Wiring
 

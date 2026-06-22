@@ -189,42 +189,28 @@ Rectangle {
             columnWidthProvider: function (column) { return width }
             onWidthChanged: forceLayout()
 
-            // Expand every node so nested submodules show by default. Deferred via
-            // Qt.callLater: calling expandRecursively() synchronously on model
-            // reset runs before the view has built its rows, so it no-ops.
-            onModelChanged: Qt.callLater(expandRecursively)
-            Connections {
-                target: repoModel
-                function onModelReset() { Qt.callLater(repoTree.expandRecursively) }
-            }
+            // Rows start collapsed; opening a repo (row click) expands it, and the
+            // chevron toggles any subtree manually.
 
             delegate: TreeViewDelegate {
                 id: row
                 implicitHeight: 30
                 indentation: 16
-
-                // Themed expand/collapse chevron. Replacing the default indicator
-                // means we own its x (TreeViewDelegate only indents the built-in
-                // one); the base still wires tap-to-toggle and manages visibility
-                // (shown only when hasChildren).
-                indicator: Label {
-                    x: row.leftMargin + row.depth * row.indentation
-                    y: (row.height - height) / 2
-                    width: 16
-                    horizontalAlignment: Text.AlignHCenter
-                    text: row.expanded ? "▾" : "▸"
-                    color: theme.textSecondary
-                    font.pixelSize: 11
-                }
+                // Drop the built-in indicator: its tap-to-toggle proved unreliable
+                // here. We draw our own chevron in the content row with a MouseArea
+                // that toggles expansion directly (row clicks already work).
+                indicator: null
 
                 // Selecting a repo — or an initialised submodule — opens it as a
-                // first-class repo. Expansion is left to the chevron so a manual
-                // collapse sticks. An uninitialised submodule has no repo on disk,
-                // so it does nothing.
+                // first-class repo and expands its subtree (rows are collapsed by
+                // default). The chevron still toggles it manually afterwards. An
+                // uninitialised submodule has no repo on disk, so it does nothing.
                 onClicked: {
                     if (!repoVm || row.uninit)
                         return
                     repoVm.open(model.repoPath)
+                    if (row.hasChildren)
+                        repoTree.expand(row.row)
                 }
 
                 readonly property bool isSub: model.isSubmodule === true
@@ -239,12 +225,26 @@ Rectangle {
                 contentItem: RowLayout {
                     spacing: 8
 
-                    // Glyph: repository (◧) vs submodule (❖, accent @0.7).
-                    Label {
-                        text: row.isSub ? "❖" : "◧"
-                        color: (row.isSub || row.activeRepo) ? theme.accent : theme.textSecondary
-                        opacity: row.isSub ? 0.7 : 1.0
-                        font.pixelSize: row.isSub ? 14 : 15
+                    // Expand/collapse chevron. Fixed-width so leaf rows (no
+                    // children) keep their name aligned with expandable ones. Its
+                    // own MouseArea toggles the subtree and swallows the click so
+                    // the row's repo-open handler doesn't also fire.
+                    Item {
+                        Layout.preferredWidth: 14
+                        Layout.preferredHeight: 14
+                        Layout.alignment: Qt.AlignVCenter
+                        Label {
+                            anchors.centerIn: parent
+                            visible: row.hasChildren
+                            text: row.expanded ? "▾" : "▸"
+                            color: theme.textSecondary
+                            font.pixelSize: 10
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: row.hasChildren
+                            onClicked: repoTree.toggleExpanded(row.row)
+                        }
                     }
 
                     Label {
