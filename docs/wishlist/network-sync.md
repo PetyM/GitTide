@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `idea` |
+| **Status** | `partly shipped` — per-repo fetch / pull / push + ahead/behind + credentials are **done** (Decision D28 turned transports on); fleet **fetch-all** is now **designed** (in spec). Remaining: fleet pull-all, keychain creds. |
 | **Touches** | product (sync actions + remote state), engineering (core: remotes + transport on `GitRepo`, credentials, progress/cancel), design (sync UI, ahead/behind, auth prompts) |
 
 ## What
@@ -32,9 +32,10 @@ repos up to date is one action instead of N.
 
 ## Notes
 
-- **This turns the network tier ON.** Decision D13 deliberately kept SSH/HTTPS
-  transport off for the current milestone; this wish is the one that reopens it.
-  It is the heaviest item on the list — treat it as a milestone, not a feature.
+- **This turned the network tier ON.** Decision D13 kept SSH/HTTPS transport off;
+  Decision **D28 superseded it** — transports are now on (HTTPS everywhere, SSH on
+  Linux/macOS). Per-repo fetch/pull/push shipped on top of that. The remaining
+  unbuilt piece is the fleet-wide bulk op.
 - **Credentials — the hard part.** HTTPS (token/password) and SSH (key, agent,
   passphrase) both need libgit2 credential callbacks, secure storage (OS keychain,
   never plaintext in `projects.json`), and a UI prompt flow. Decide supported

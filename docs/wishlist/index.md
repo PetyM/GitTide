@@ -25,7 +25,7 @@ and it links out to them.
 | [Merge — with conflict resolution](merge.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `idea` | product, design, engineering |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |

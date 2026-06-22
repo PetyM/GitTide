@@ -123,6 +123,28 @@ credential callback (`credentialTrampoline`) delegates to this helper; it never
 blocks for a UI dialog. HTTPS tokens are stored in a session map on the
 ViewModel and discarded on quit — secure keychain persistence is deferred.
 
+### Fleet fetch-all
+
+Fetching every repo in a project is orchestrated in `ProjectController` (it owns
+the active project and the `RepoListModel`), not in `RepoController` (which holds
+the single *active* repo). `fetchAll()` iterates the active project's `RepoRef`s
+and, for each non-missing one, opens its **own** fresh `AsyncRepo` and awaits
+`fetch()`. Each repo therefore gets a distinct `git_repository` handle — the
+one-owner invariant (#5) holds without sharing the active repo's handle, and
+because fetch only updates remote-tracking refs it is safe alongside an open repo.
+Actual parallelism is bounded by Qt's global thread pool (the same pool every
+`AsyncRepo` call dispatches to); all coroutines are launched, the pool throttles.
+
+Each repo's `Expected` is captured independently — one failure never aborts the
+fleet. Results drive a transient per-row state on `RepoListModel`
+(`Idle → Running → UpToDate | Updated | Failed`, plus a refreshed ahead/behind
+from a follow-up `syncStatus()`), surfaced through new roles and incremental
+`dataChanged`. `ProjectController` exposes a `fetchingAll` flag and an aggregate
+summary string for the project header. Session credentials are shared at the
+controller level (not per-`RepoViewModel`) so a single on-demand
+`CredentialDialog` serves the whole fleet; the prompt is serialized — the first
+auth failure prompts once, caches, and the rest reuse it.
+
 ### Branch operations & the refresh cascade
 
 Branch enumeration and mutation (list / create / checkout / delete / rename, plus

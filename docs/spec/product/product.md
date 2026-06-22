@@ -39,7 +39,8 @@ parallel, and large histories/diffs render incrementally.
 
 **Not yet (post-MVP):**
 
-- Bulk network operations: "fetch-all / pull-all" across a project.
+- Bulk **pull**-all across a project. (Bulk **fetch**-all is now designed — see
+  [Fleet fetch](#fleet-fetch).)
 - Branch **merge** and conflict-resolution UI. (Local branch *create / switch /
   delete / rename* is now designed — see [Branches](#branches).)
 - An aggregated project-wide timeline graph (all repos on one axis).
@@ -116,7 +117,25 @@ ssh-agent; HTTPS remotes accept a personal access token entered in a
 keychain storage is deferred.
 
 Remaining deferred: merge-strategy pull, rebase / merge conflict UI,
-SSH keyfile + passphrase, multi-remote management, fetch-all / pull-all.
+SSH keyfile + passphrase, multi-remote management, pull-all.
+
+#### Fleet fetch
+
+The multi-repo payoff: **fetch every repository in the active project at once**,
+in parallel, without opening each one. One action on the project header fetches
+the whole fleet; the sidebar then shows, per repo, a live spinner that resolves
+to an outcome — **up-to-date**, **updated** (with a refreshed *behind* badge so
+incoming commits are visible at a glance), or **failed** (glyph with the error on
+hover). A repo flagged *missing* is skipped. One repo's failure never stops the
+others; the project header shows an aggregate summary (e.g. "12 fetched, 1
+failed"). Fetch only moves remote-tracking refs — no working tree changes — so it
+is safe to run across the fleet while a repo is open.
+
+Credentials follow the per-repo flow: the run uses the session's cached
+credentials and ssh-agent; the first repo to hit an auth failure raises a single
+`CredentialDialog`, and the entered token is cached and reused for the rest of the
+fleet. First cut is **fetch only** — fleet pull-all stays deferred (it mutates
+working trees and pulls in merge/rebase conflict handling).
 
 ### Branches
 
