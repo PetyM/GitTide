@@ -527,7 +527,14 @@ Expected<std::string> GitRepo::commitMerge(CommitRequest req)
 
     git_signature* sig = nullptr;
     if (git_signature_default(&sig, m_repo) < 0)
+    {
+        if (sig)
+        {
+            git_signature_free(sig);
+            sig = nullptr;
+        }
         git_signature_now(&sig, "GitTide", "gittide@localhost");
+    }
     if (!sig)
     {
         free_parents();
