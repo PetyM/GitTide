@@ -137,6 +137,14 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
         return node->shortOid;
     case StatusRole:
         return static_cast<int>(node->status);
+    case FetchStateRole:
+        return static_cast<int>(node->fetchState);
+    case FetchErrorRole:
+        return node->fetchError;
+    case AheadRole:
+        return node->ahead;
+    case BehindRole:
+        return node->behind;
     default:
         return {};
     }
@@ -150,7 +158,52 @@ QHash<int, QByteArray> RepoListModel::roleNames() const
     roles[IsSubmoduleRole] = "isSubmodule";
     roles[ShortOidRole]    = "shortOid";
     roles[StatusRole]      = "status";
+    roles[FetchStateRole]  = "fetchState";
+    roles[FetchErrorRole]  = "fetchError";
+    roles[AheadRole]       = "ahead";
+    roles[BehindRole]      = "behind";
     return roles;
+}
+
+int RepoListModel::topLevelCount() const
+{
+    return static_cast<int>(m_roots.size());
+}
+
+void RepoListModel::resetFetchStates()
+{
+    for (std::size_t i = 0; i < m_roots.size(); ++i)
+    {
+        Node& n     = *m_roots[i];
+        n.fetchState = FetchState::Idle;
+        n.fetchError.clear();
+        n.ahead  = 0;
+        n.behind = 0;
+        const QModelIndex idx = createIndex(static_cast<int>(i), 0, &n);
+        emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole, AheadRole, BehindRole});
+    }
+}
+
+void RepoListModel::setFetchState(int rootRow, FetchState state, const QString& error)
+{
+    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
+        return;
+    Node& n      = *m_roots[rootRow];
+    n.fetchState = state;
+    n.fetchError = error;
+    const QModelIndex idx = createIndex(rootRow, 0, &n);
+    emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole});
+}
+
+void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind)
+{
+    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
+        return;
+    Node& n  = *m_roots[rootRow];
+    n.ahead  = ahead;
+    n.behind = behind;
+    const QModelIndex idx = createIndex(rootRow, 0, &n);
+    emit dataChanged(idx, idx, {AheadRole, BehindRole});
 }
 
 } // namespace gittide::ui

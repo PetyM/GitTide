@@ -36,6 +36,49 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
+            // Fetch-all action: runs fetch on every repo in the active project.
+            Button {
+                objectName: "fetchAllButton"
+                flat: true
+                implicitWidth: 28
+                implicitHeight: 28
+                enabled: projectController !== null
+                         && projectController.activeProjectId.length > 0
+                         && !projectController.fetchingAll
+                ToolTip.visible: hovered
+                ToolTip.text: "Fetch all repositories"
+                contentItem: Label {
+                    text: "↓↑"
+                    color: theme.textSecondary
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: parent.hovered ? theme.surfaceOverlay : "transparent"
+                }
+                onClicked: if (projectController) projectController.fetchAll()
+            }
+
+            BusyIndicator {
+                running: projectController !== null && projectController.fetchingAll
+                visible: running
+                implicitWidth: 16
+                implicitHeight: 16
+            }
+
+            Label {
+                objectName: "fetchSummary"
+                visible: projectController !== null
+                         && projectController.fetchSummary.length > 0
+                         && !projectController.fetchingAll
+                text: projectController ? projectController.fetchSummary : ""
+                color: theme.textMuted
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+            }
+
             // Theme toggle: cycles System → Dark → Light. The glyph reflects the
             // chosen mode (☾ dark / ☀ light / ◐ follow-system).
             Button {
@@ -223,6 +266,37 @@ Rectangle {
                         text: "⚠"
                         color: theme.stateModified
                     }
+
+                    // Fetch status: spinner while running, then a result glyph.
+                    // fetchState: 0 Idle, 1 Running, 2 UpToDate, 3 Updated, 4 Failed.
+                    BusyIndicator {
+                        running: model.fetchState === 1
+                        visible: running
+                        implicitWidth: 14
+                        implicitHeight: 14
+                    }
+                    Label {
+                        visible: model.fetchState === 3 && model.behind > 0
+                        text: "↓" + model.behind
+                        color: theme.accent
+                        font.pixelSize: 11
+                    }
+                    Label {
+                        visible: model.fetchState === 2
+                        text: "✓"
+                        color: theme.textMuted
+                        font.pixelSize: 11
+                    }
+                    Label {
+                        id: fetchFailedLabel
+                        visible: model.fetchState === 4
+                        text: "!"
+                        color: theme.stateDeleted
+                        font.pixelSize: 11
+                        ToolTip.text: model.fetchError
+                        ToolTip.visible: fetchFailHover.hovered
+                        HoverHandler { id: fetchFailHover }
+                    }
                 }
 
                 background: Rectangle {
@@ -297,6 +371,19 @@ Rectangle {
             }
             onClicked: addRepoMenu.popup()
         }
+    }
+
+    // ---- Fleet credential prompt ----
+    // Opened once per fleet-fetch run when authRequired fires; on accept the
+    // controller retries all auth-failed rows with the supplied credentials.
+    Connections {
+        target: projectController
+        function onAuthRequired() { fleetCredentialDialog.openDialog() }
+    }
+
+    CredentialDialog {
+        id: fleetCredentialDialog
+        onAccepted: projectController.submitFleetCredentials(username, token)
     }
 
     // ---- Add repository menu ----

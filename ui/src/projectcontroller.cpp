@@ -6,6 +6,8 @@
 
 #include "gittide/gitrepo.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/asyncrepo.hpp"
+#include "gittide/ui/autherror.hpp"
 #include "gittide/ui/projectlistmodel.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 
@@ -63,6 +65,8 @@ void ProjectController::refreshRepoModel()
 
 void ProjectController::activate(const QString& projectId)
 {
+    if (m_fetchingAll)
+        return;
     const std::string id = projectId.toStdString();
     for (const auto& p : m_store->projects())
     {
@@ -203,7 +207,7 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
 
 void ProjectController::removeRepo(const QString& path)
 {
-    if (m_activeId.isEmpty())
+    if (m_fetchingAll || m_activeId.isEmpty())
         return;
     auto result = m_store->removeRepo(m_activeId.toStdString(), path.toStdString());
     if (!result)
@@ -234,6 +238,131 @@ void ProjectController::removeProject()
     }
     saveStore();
     emit projectRemoved(removedId);
+}
+
+void ProjectController::fetchAll()
+{
+    if (m_activeId.isEmpty() || m_fetchingAll)
+        return;
+
+    const auto& repos = activeRepos();
+    if (repos.empty())
+        return;
+
+    m_repoModel->resetFetchStates();
+    m_fetchOk     = 0;
+    m_fetchFailed = 0;
+    m_authFailedRows.clear();
+
+    // Only fetch non-missing top-level repos. A missing repo is SKIPPED — left in
+    // its existing (missing) rendering, not counted as a failure (per spec).
+    std::vector<int> rows;
+    for (int row = 0; row < static_cast<int>(repos.size()); ++row)
+    {
+        const std::filesystem::path p(repos[row].path);
+        std::error_code ec;
+        if (std::filesystem::exists(p, ec) && !ec)
+            rows.push_back(row);
+    }
+
+    if (rows.empty())
+        return; // nothing fetchable; leave fetchingAll false, no summary change
+
+    m_fetchPending = static_cast<int>(rows.size());
+    m_fetchingAll  = true;
+    emit fetchingAllChanged();
+
+    for (int row : rows)
+        QCoro::connect(fetchOne(row, repos[row]), this, [] {});
+}
+
+QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
+{
+    m_repoModel->setFetchState(row, RepoListModel::FetchState::Running);
+
+    // Each repo gets its OWN handle — the one-owner invariant holds; we never
+    // touch the active RepoController's repo. The AsyncRepo lives in this
+    // coroutine frame, so it stays valid across every co_await below.
+    auto opened = AsyncRepo::open(std::filesystem::path(ref.path));
+    if (!opened)
+    {
+        m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
+                                   QString::fromStdString(opened.error().message));
+        m_fetchFailed++;
+        finishOneFetch();
+        co_return;
+    }
+    AsyncRepo repo = std::move(*opened);
+
+    auto fr = co_await repo.fetch(QStringLiteral("origin"), m_sessionCred);
+    if (!fr)
+    {
+        if (gittide::ui::isAuthError(fr.error()))
+            m_authFailedRows.push_back(row);
+        m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
+                                   QString::fromStdString(fr.error().message));
+        m_fetchFailed++;
+        finishOneFetch();
+        co_return;
+    }
+
+    // Refresh ahead/behind so the sidebar shows incoming commits. behind > 0 is
+    // our first-cut heuristic for "Updated" vs "UpToDate" (fetch itself does not
+    // report whether refs moved).
+    int behind = 0, ahead = 0;
+    if (auto st = co_await repo.syncStatus(); st)
+    {
+        ahead  = st->ahead;
+        behind = st->behind;
+        m_repoModel->setSyncCounts(row, ahead, behind);
+    }
+    m_repoModel->setFetchState(row, behind > 0 ? RepoListModel::FetchState::Updated
+                                               : RepoListModel::FetchState::UpToDate);
+    m_fetchOk++;
+    finishOneFetch();
+}
+
+void ProjectController::submitFleetCredentials(const QString& username, const QString& token)
+{
+    if (m_authFailedRows.empty() || m_fetchingAll)
+        return;
+
+    m_sessionCred.username    = username.toStdString();
+    m_sessionCred.password    = token.toStdString();
+    m_sessionCred.sshUseAgent = true;
+
+    const std::vector<int> retry = std::move(m_authFailedRows);
+    m_authFailedRows.clear();
+
+    // These rows were counted as failures in the initial run; we are re-attempting
+    // them, so back them out — fetchOne re-counts each into ok or failed.
+    m_fetchFailed -= static_cast<int>(retry.size());
+
+    const auto& repos = activeRepos();
+    m_fetchPending    = static_cast<int>(retry.size());
+    m_fetchingAll     = true;
+    emit fetchingAllChanged();
+
+    for (int row : retry)
+    {
+        if (row >= 0 && row < static_cast<int>(repos.size()))
+            QCoro::connect(fetchOne(row, repos[row]), this, [] {});
+    }
+}
+
+void ProjectController::finishOneFetch()
+{
+    // fetchOne resumes on the UI thread after each co_await, so this runs
+    // single-threaded — plain counters are safe.
+    if (--m_fetchPending > 0)
+        return;
+
+    m_fetchingAll  = false;
+    m_fetchSummary = QStringLiteral("%1 fetched, %2 failed").arg(m_fetchOk).arg(m_fetchFailed);
+    emit fetchingAllChanged();
+    emit fleetFetchFinished(m_fetchOk, m_fetchFailed);
+    if (!m_authFailedRows.empty())
+        emit authRequired();
 }
 
 } // namespace gittide::ui

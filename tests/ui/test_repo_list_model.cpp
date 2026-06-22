@@ -118,6 +118,43 @@ private slots:
         QCOMPARE(model.data(sub, RepoListModel::StatusRole).toInt(),
                  static_cast<int>(gittide::SubmoduleStatus::Clean));
     }
+
+    void fetchState_roundtrips_and_resets()
+    {
+        using gittide::ui::RepoListModel;
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = "/home/u/api"}, gittide::RepoRef{.path = "/home/u/web"}});
+        QCOMPARE(m.topLevelCount(), 2);
+
+        const QModelIndex i0 = m.index(0, 0);
+        // Defaults.
+        QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Idle));
+
+        QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
+        m.setFetchState(0, RepoListModel::FetchState::Running);
+        QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Running));
+        QCOMPARE(spy.count(), 1);
+
+        m.setSyncCounts(0, 1, 3);
+        QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 1);
+        QCOMPARE(m.data(i0, RepoListModel::BehindRole).toInt(), 3);
+
+        m.setFetchState(0, RepoListModel::FetchState::Failed, QStringLiteral("boom"));
+        QCOMPARE(m.data(i0, RepoListModel::FetchErrorRole).toString(), QStringLiteral("boom"));
+
+        m.resetFetchStates();
+        QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Idle));
+        QCOMPARE(m.data(i0, RepoListModel::BehindRole).toInt(), 0);
+    }
+
+    void setFetchState_out_of_range_is_noop()
+    {
+        using gittide::ui::RepoListModel;
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
+        m.setFetchState(5, RepoListModel::FetchState::Running); // must not crash
+        QCOMPARE(m.topLevelCount(), 1);
+    }
 };
 
 #include "test_repo_list_model.moc"

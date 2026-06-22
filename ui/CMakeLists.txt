@@ -7,6 +7,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/projectcontroller.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/repocontroller.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/repocontroller.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/autherror.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/autherror.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/asyncrepo.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/asyncrepo.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/changedfilesmodel.cpp

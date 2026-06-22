@@ -5,11 +5,14 @@
 #include <filesystem>
 #include <fstream>
 #include <git2.h>
+#include <memory>
 #include <qcorotask.h>
 
 #include "gittide/projectstore.hpp"
+#include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/repolistmodel.hpp"
+#include "support/temprepo.hpp"
 
 using gittide::Project;
 using gittide::ProjectStore;
@@ -327,6 +330,140 @@ private slots:
         QCOMPARE(spyFailed.count(), 1);
         QVERIFY(!spyFailed.at(0).at(0).toString().isEmpty());
     }
+
+    void cleanup()
+    {
+        m_temps.clear();
+    }
+
+    void fetchAll_updates_behind_repos_and_marks_failures()
+    {
+        using gittide::ui::RepoListModel;
+
+        const QString behindA = makeRepoBehindBy1();
+        const QString behindB = makeRepoBehindBy1();
+
+        // A repo with no 'origin' remote -> fetch fails.
+        gittide::test::TempRepo noRemote;
+        noRemote.setIdentity("N", "n@e.x");
+        noRemote.writeFile("x.txt", "x");
+        noRemote.commitAll("c1");
+        const QString failPath = QString::fromStdString(noRemote.path().generic_string());
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = behindA.toStdString()},
+                      RepoRef{.path = behindB.toStdString()},
+                      RepoRef{.path = failPath.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        QVERIFY(controller.fetchSummary().isEmpty());
+        controller.fetchAll();
+        QVERIFY(controller.fetchingAll());           // turns on synchronously
+        QVERIFY(finished.wait(15000));               // all repos settle
+
+        QCOMPARE(finished.at(0).at(0).toInt(), 2);   // ok
+        QCOMPARE(finished.at(0).at(1).toInt(), 1);   // failed
+        QVERIFY(!controller.fetchingAll());
+        QCOMPARE(controller.fetchSummary(), QStringLiteral("2 fetched, 1 failed"));
+
+        RepoListModel* m = controller.repos();
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Updated));
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::BehindRole).toInt(), 1);
+        QCOMPARE(m->data(m->index(2, 0), RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Failed));
+    }
+
+    void fetchAll_no_active_project_is_noop()
+    {
+        ProjectStore store;
+        ProjectController controller(&store);
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        QVERIFY(!controller.fetchingAll());
+        QCOMPARE(finished.count(), 0);
+    }
+
+    void submitFleetCredentials_with_no_pending_is_safe_noop()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.submitFleetCredentials(QStringLiteral("u"), QStringLiteral("t")); // nothing pending
+        QVERIFY(!controller.fetchingAll());
+        QCOMPARE(finished.count(), 0);
+    }
+
+    // Calling activate() while a fleet fetch is in flight must be a no-op: the
+    // active project must stay the same and the repo model must not be rebuilt.
+    // This is testable deterministically because fetchingAll is set to true
+    // synchronously by fetchAll() before any coroutine suspension point, so
+    // calling activate() in the same event-loop turn (before any QCoreApplication
+    // event processing) hits the guard reliably.
+    void activate_during_fetch_is_blocked()
+    {
+        using gittide::ui::RepoListModel;
+
+        const QString behindA = makeRepoBehindBy1();
+        const QString behindB = makeRepoBehindBy1();
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = behindA.toStdString()},
+                      RepoRef{.path = behindB.toStdString()}}});
+        store.projects().push_back(Project{.id = "p2", .name = "Other"});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("p1"));
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        // fetchingAll is set synchronously before the first co_await
+        QVERIFY(controller.fetchingAll());
+
+        // Attempt to switch project in the same event-loop turn — must be gated.
+        controller.activate(QStringLiteral("p2"));
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("p1")); // unchanged
+        QCOMPARE(controller.repos()->rowCount(), 2);                   // model not rebuilt
+
+        // Let the fetch run to completion.
+        QVERIFY(finished.wait(15000));
+        QVERIFY(!controller.fetchingAll());
+    }
+
+private:
+    // Returns the path of a fresh working repo whose 'origin' is one commit ahead.
+    // Kept alive by leaking the TempRepos into a member vector (cleaned in dtor).
+    QString makeRepoBehindBy1()
+    {
+        auto repo = std::make_unique<gittide::test::TempRepo>();
+        repo->setIdentity("Test", "test@example.com");
+        repo->writeFile("a.txt", "one");
+        repo->commitAll("c1");
+        const auto bare = repo->addBareRemote("origin");
+        repo->pushBranch("origin", "master");
+
+        auto other = std::make_unique<gittide::test::TempRepo>();
+        other->cloneFrom(bare);
+        other->setIdentity("Other", "o@example.com");
+        other->writeFile("a.txt", "two");
+        other->commitAll("c2");
+        other->pushBranch("origin", "master");
+
+        const QString p = QString::fromStdString(repo->path().generic_string());
+        m_temps.push_back(std::move(repo));
+        m_temps.push_back(std::move(other));
+        return p;
+    }
+
+    std::vector<std::unique_ptr<gittide::test::TempRepo>> m_temps;
 };
 
 #include "test_project_controller.moc"

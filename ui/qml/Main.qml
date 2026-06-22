@@ -80,7 +80,10 @@ ApplicationWindow {
     }
     CloneProgressDialog { id: cloneProgressDialog }
     NewProjectDialog { id: newProjectDialog }
-    CredentialDialog { id: credentialDialog }
+    CredentialDialog {
+        id: credentialDialog
+        onAccepted: if (repoVm) repoVm.submitCredentials(username, token)
+    }
 
     // ---- Delete-project confirmation ----
     Dialog {
