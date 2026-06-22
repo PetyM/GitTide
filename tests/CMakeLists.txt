@@ -63,6 +63,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_logging.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_auth_error.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_merge.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

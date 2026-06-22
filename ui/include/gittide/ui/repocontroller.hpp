@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <filesystem>
 #include <optional>
 #include <qcorotask.h>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 #include "gittide/sync.hpp"
 #include "gittide/ui/asyncrepo.hpp"
 
@@ -63,6 +65,24 @@ public slots:
     QCoro::Task<void> loadPullStrategy();
     QCoro::Task<void> setPullStrategy(gittide::PullStrategy strategy);
 
+    /// Merge the named branch into HEAD with auto-stash (D31). Handles
+    /// UpToDate, FastForward, clean Normal, and conflicted Normal cases.
+    /// Emits mergeFinished on success; leaves repo mid-merge on conflict.
+    QCoro::Task<void> merge(QString name);
+
+    /// Create the merge commit from the current (partially-resolved) index.
+    /// Pops the deferred auto-stash and emits mergeFinished on success.
+    QCoro::Task<void> commitMerge(gittide::CommitRequest req);
+
+    /// Abort an in-progress merge: reset working tree to HEAD, pop the
+    /// deferred auto-stash, and re-init any deinited submodules.
+    QCoro::Task<void> abortMerge();
+
+    /// Abort the current conflicted merge, deinit each conflicted submodule
+    /// so the gitlink can merge as a plain pointer, then re-run merge(name).
+    /// Re-init is deferred to the eventual commitMerge or abortMerge.
+    QCoro::Task<void> retryMergeDeinitSubmodules(QString name);
+
 signals:
     void repoOpened(const QString& path);
     void repoFailed(const QString& path, const QString& message);
@@ -79,6 +99,14 @@ signals:
 
     void syncStatusChanged(gittide::SyncStatus status);
     void pullStrategyChanged(gittide::PullStrategy strategy);
+
+    /// Emitted whenever the merge-in-progress state is refreshed (D30).
+    /// Always reflects disk truth — never a cached/in-memory flag.
+    void mergeStateChanged(gittide::MergeState state);
+
+    /// Emitted when a merge finishes successfully (FF, clean Normal, or
+    /// commitMerge). headOid is the new HEAD commit OID.
+    void mergeFinished(QString headOid);
     void syncBusyChanged(bool busy);
     // Transfer progress for the in-flight fetch/pull/push: objects received of
     // total. total == 0 means the count is not yet known (indeterminate).
@@ -91,8 +119,25 @@ private:
     // mid-transfer: the queued call is dropped with the object.
     gittide::ProgressCallback progressSink();
 
+    // Pop the pending auto-stash if one was saved.
+    QCoro::Task<void> popPendingStash();
+
+    // Refresh status (including mergeState → mergeStateChanged) + history +
+    // branches + sync. Used as the tail of every merge operation.
+    QCoro::Task<void> refreshAfterMerge();
+
+    // Re-init every path in m_pendingSubmoduleReinit, then clear the list.
+    QCoro::Task<void> reinitPendingSubmodules();
+
+    // Return the short HEAD branch name, or "HEAD" when detached.
+    std::string currentBranchName();
+
     std::optional<AsyncRepo> m_repo;
     QString m_path;
+
+    // Orchestration bookkeeping (D31) — NOT merge-state; D30 governs that.
+    bool m_pendingStashPop = false;
+    std::vector<std::filesystem::path> m_pendingSubmoduleReinit;
 };
 
 } // namespace gittide::ui

@@ -8,6 +8,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 
 // Core types carried across Qt signals / captured by QSignalSpy. Q_DECLARE_METATYPE
 // must appear at global scope. Call qRegisterMetaType<T>() once per type before use
@@ -50,3 +51,4 @@ Q_DECLARE_METATYPE(gittide::GraphRow)
 Q_DECLARE_METATYPE(gittide::BranchInfo)
 Q_DECLARE_METATYPE(std::vector<gittide::BranchInfo>)
 Q_DECLARE_METATYPE(gittide::HeadState)
+Q_DECLARE_METATYPE(gittide::MergeState)
