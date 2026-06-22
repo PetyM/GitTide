@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-22 |
-| **Status** | `planned` |
+| **Status** | `done` (2026-06-22) |
 | **Spec** | [`spec/product` §Merge](../spec/product/product.md#merge) · [`spec/engineering` §Merge & conflict resolution](../spec/engineering/engineering.md#merge--conflict-resolution) · [`spec/design` (merge banner, inline conflict, `state.incoming`)](../spec/design/design.md) · [D29](../decisions.md) · [D30](../decisions.md) · [D31](../decisions.md) |
 | **Depends on** | **Plan 14a** (core merge engine), Plan 9b (GitHub-Desktop UI: WorkingPane/ChangesPane/DiffView), Plan 8 (BranchBar/BranchDropdown), Plan 13 (DiffLinesModel block rows) |
 
@@ -79,7 +79,7 @@ QCoro::Task<gittide::Expected<void>>                  deinitSubmodule(std::files
 QCoro::Task<gittide::Expected<void>>                  reinitSubmodule(std::filesystem::path path);
 ```
 
-- [ ] **Step 1: Write the failing test** — drive a real conflict through the async
+- [x] **Step 1: Write the failing test** — drive a real conflict through the async
   API and assert `mergeState()` reports it.
 
 ```cpp
@@ -120,10 +120,10 @@ private slots:
 #include "test_async_merge.moc"
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (wrappers missing).
+- [x] **Step 2: Run — expect FAIL** (wrappers missing).
   Run: `ctest --test-dir build -R 'ui' --output-on-failure` (after the two runner edits)
 
-- [ ] **Step 3: Implement** each wrapper. Representative (the rest follow identically
+- [x] **Step 3: Implement** each wrapper. Representative (the rest follow identically
   — copy the body shape of the existing `checkoutBranch`/`commit` wrappers in
   `asyncrepo.cpp`, swapping the inner `GitRepo` call):
 
@@ -142,11 +142,11 @@ QCoro::Task<gittide::Expected<gittide::MergeOutcome>> AsyncRepo::mergeBranch(QSt
   `stashPop`, `deinitSubmodule`, `reinitSubmodule`. (`MergeOutcome`/`MergeState`
   are already `std`-only structs; no Qt conversion in the worker.)
 
-- [ ] **Step 4: Run — expect PASS.** Register `gittide::MergeState` /
+- [x] **Step 4: Run — expect PASS.** Register `gittide::MergeState` /
   `gittide::MergeOutcome` as metatypes if a queued signal will carry them (Task 2);
   for now the direct return is fine.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): AsyncRepo wrappers for the core merge engine"`
 
 ---
@@ -182,7 +182,7 @@ std::vector<std::filesystem::path> m_pendingSubmoduleReinit;
 **Consumes:** all of Task 1's `AsyncRepo` wrappers; the existing `refreshStatus()`,
 `refreshHistory()`, `refreshBranches()`, `refreshSyncStatus()` cascade.
 
-- [ ] **Step 1: Write the failing test** — a dirty-tree FF merge stashes then pops,
+- [x] **Step 1: Write the failing test** — a dirty-tree FF merge stashes then pops,
   and `mergeStateChanged` is emitted on refresh.
 
 ```cpp
@@ -208,9 +208,9 @@ private slots:
 #include "test_repocontroller_merge.moc"
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (slots/signals missing).
+- [x] **Step 2: Run — expect FAIL** (slots/signals missing).
 
-- [ ] **Step 3: Implement.** The orchestration (D31):
+- [x] **Step 3: Implement.** The orchestration (D31):
 
 ```cpp
 QCoro::Task<void> RepoController::merge(QString name)
@@ -308,11 +308,11 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
   `refreshStatus()` to `co_await m_repo->mergeState()` and `emit
   mergeStateChanged(*ms)` after emitting `statusChanged`.
 
-- [ ] **Step 4: Run — expect PASS.** Register `gittide::MergeState` in
+- [x] **Step 4: Run — expect PASS.** Register `gittide::MergeState` in
   `metatypes.hpp` (`qRegisterMetaType<gittide::MergeState>()`) so the queued signal
   marshals it.
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): RepoController merge slots + auto-stash/submodule orchestration"`
 
 ---
@@ -349,7 +349,7 @@ private: gittide::MergeState m_merge; QString m_mergeStartName;
 ```
 **Consumes:** Task 2's controller slots + `mergeStateChanged(MergeState)` signal.
 
-- [ ] **Step 1: Write the failing test** — after a conflicting merge, the VM
+- [x] **Step 1: Write the failing test** — after a conflicting merge, the VM
   reports `mergeInProgress == true` and `conflictedCount == 1`.
 
 ```cpp
@@ -360,9 +360,9 @@ private: gittide::MergeState m_merge; QString m_mergeStartName;
 //  - QCOMPARE(vm.property("conflictedCount").toInt(), 1);
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (properties missing).
+- [x] **Step 2: Run — expect FAIL** (properties missing).
 
-- [ ] **Step 3: Implement.** Connect in the VM constructor:
+- [x] **Step 3: Implement.** Connect in the VM constructor:
 
 ```cpp
 connect(m_controller, &RepoController::mergeStateChanged, this,
@@ -387,9 +387,9 @@ void RepoViewModel::retryMergeDeinitSubmodules()
 }
 ```
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): RepoViewModel publishes MergeState + merge actions"`
 
 ---
@@ -406,7 +406,7 @@ as `conflict`, and sort to the top of the changed-files list.
 **Interfaces — Produces:** no signature change; behaviour: `letterForFlags(flags
 with Conflicted) == "C"`, `kindForFlags(...) == "conflict"`.
 
-- [ ] **Step 1: Write the failing test.**
+- [x] **Step 1: Write the failing test.**
 
 ```cpp
 void conflicted_file_reads_as_C() {
@@ -417,9 +417,9 @@ void conflicted_file_reads_as_C() {
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement.** In `letterForFlags`, check `Conflicted` **first**
+- [x] **Step 3: Implement.** In `letterForFlags`, check `Conflicted` **first**
   (it dominates the working/index bits):
 
 ```cpp
@@ -437,9 +437,9 @@ QString ChangedFilesModel::kindForFlags(gittide::StatusFlag flags)
   In `setFiles`, give conflicted rows priority in the sort (stable_sort with
   conflicted-first comparator) so they head the list.
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): ChangedFilesModel shows the C letter for conflicts"`
 
 ---
@@ -476,7 +476,7 @@ Q_INVOKABLE QString acceptBoth(int region);      // keep ours then theirs
 Q_INVOKABLE bool isResolved() const;
 ```
 
-- [ ] **Step 1: Write the failing test** (parse + each accept).
+- [x] **Step 1: Write the failing test** (parse + each accept).
 
 ```cpp
 // tests/ui/test_difflinesmodel_conflict.cpp
@@ -520,9 +520,9 @@ private slots:
 #include "test_difflinesmodel_conflict.moc"
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (methods missing).
+- [x] **Step 2: Run — expect FAIL** (methods missing).
 
-- [ ] **Step 3: Implement.** Parse line-by-line into regions; rewrite by region.
+- [x] **Step 3: Implement.** Parse line-by-line into regions; rewrite by region.
   Keep it a pure string transform so it is unit-testable without a repo:
 
 ```cpp
@@ -609,9 +609,9 @@ QString DiffLinesModel::acceptBoth(int region)     { return rewriteRegion(m_conf
   sufficient for the single-region tests — extend to multi-region by keeping the
   original `<<<<<<< HEAD` / `>>>>>>> name` lines if a test needs them.)
 
-- [ ] **Step 4: Run — expect PASS** (all four cases).
+- [x] **Step 4: Run — expect PASS** (all four cases).
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): DiffLinesModel parses conflict regions + accept ours/theirs/both"`
 
 ---
@@ -634,7 +634,7 @@ submodules & retry (only when submodule conflicts exist).
 **Interfaces — Produces:** QML object names `mergeBanner`, `mergeAbortButton`,
 `mergeCommitButton`, `mergeRetryButton` for tests.
 
-- [ ] **Step 1: Write the failing test** — with `mergeInProgress` true the banner
+- [x] **Step 1: Write the failing test** — with `mergeInProgress` true the banner
   is visible; the retry button shows only with submodule conflicts.
 
 ```cpp
@@ -646,9 +646,9 @@ submodules & retry (only when submodule conflicts exist).
 //   findChild("mergeCommitButton")->property("enabled") == (conflictedCount == 0)
 ```
 
-- [ ] **Step 2: Run — expect FAIL** (component missing).
+- [x] **Step 2: Run — expect FAIL** (component missing).
 
-- [ ] **Step 3: Implement** `MergeBanner.qml` (tokens only — D18):
+- [x] **Step 3: Implement** `MergeBanner.qml` (tokens only — D18):
 
 ```qml
 import QtQuick
@@ -708,9 +708,9 @@ Rectangle {
   as `t.stateIncoming`). Host the banner in `WorkingPane.qml` directly above the
   `changedFilesList`.
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): merge-in-progress banner (abort/commit/retry)"`
 
 ---
@@ -736,7 +736,7 @@ text to the file and refresh. Reuses `DiffLinesModel`'s conflict rows from Task 
 Q_INVOKABLE void acceptConflict(int region, int which); // which: 0 ours,1 theirs,2 both
 ```
 
-- [ ] **Step 1: Write the failing test** — after `acceptConflict(0, 0)` on a
+- [x] **Step 1: Write the failing test** — after `acceptConflict(0, 0)` on a
   single-region conflict, the file has no markers and (after refresh) the file is
   no longer conflicted.
 
@@ -749,9 +749,9 @@ void accept_resolves_conflict() {
 }
 ```
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement.** In `selectFile`, when the file is conflicted (the row's
+- [x] **Step 3: Implement.** In `selectFile`, when the file is conflicted (the row's
   kind is `conflict`), load raw file content into the diff model via
   `setConflictContent(readFile(path))` instead of the normal `diff()`; otherwise
   the existing path. Implement `acceptConflict`:
@@ -781,9 +781,9 @@ void RepoViewModel::acceptConflict(int region, int which)
   `repo.acceptConflict(model.conflictRegion, 0|1|2)`. The text body stays editable
   via the existing edit affordance (manual resolution path).
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): inline conflict rendering + accept actions in DiffView"`
 
 ---
@@ -803,13 +803,13 @@ History commit/branch-tip context menu. Both call `repo.startMerge(name)`.
 
 **Interfaces — Consumes:** `RepoViewModel::startMerge(QString)`.
 
-- [ ] **Step 1: Write the failing test** — the dropdown exposes a `mergeIntoItem`
+- [x] **Step 1: Write the failing test** — the dropdown exposes a `mergeIntoItem`
   for a non-current local branch; clicking it calls `startMerge` with that name
   (spy on a stub repo).
 
-- [ ] **Step 2: Run — expect FAIL.**
+- [x] **Step 2: Run — expect FAIL.**
 
-- [ ] **Step 3: Implement.** In `BranchDropdown.qml`, for each **local** branch row
+- [x] **Step 3: Implement.** In `BranchDropdown.qml`, for each **local** branch row
   that is not the current branch, add a trailing action (or a context sub-item)
   `objectName: "mergeIntoItem"` with `text: "Merge into " + repo.currentBranch`,
   `onTriggered: repo.startMerge(model.name)`. In `HistoryPane.qml`'s existing commit
@@ -819,40 +819,78 @@ History commit/branch-tip context menu. Both call `repo.startMerge(name)`.
   branch label already available on the graph row (skip the item when the row has no
   branch tip).
 
-- [ ] **Step 4: Run — expect PASS.**
+- [x] **Step 4: Run — expect PASS.**
 
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "feat(ui): merge entry points in branch dropdown + history menu"`
 
 ---
 
 ## Task 9: Close-out
 
-- [ ] **Step 1:** Build + full suite (core + UI headless) green; no new warnings.
+- [x] **Step 1:** Build + full suite (core + UI headless) green; no new warnings.
   Run: `cmake --build build --parallel && ctest --test-dir build --output-on-failure`
-- [ ] **Step 2:** Manual smoke (per [run](../../README.md)): create a conflict, merge
+- [x] **Step 2:** Manual smoke (per [run](../../README.md)): create a conflict, merge
   from the dropdown, resolve inline (Accept Current / Incoming / Both + a manual
   edit), commit; repeat and Abort; verify the banner appears/clears and Abort is
   reachable after an app restart mid-merge (D30). If a submodule fixture is handy,
   exercise deinit-and-retry.
-- [ ] **Step 3:** Confirm spec sections (product §Merge, engineering §Merge &
+- [x] **Step 3:** Confirm spec sections (product §Merge, engineering §Merge &
   conflict resolution, design merge components) match the shipped UI; fix drift.
-- [ ] **Step 4:** Tick this plan's boxes, fill **Outcome**, set `Status` to `done`
+- [x] **Step 4:** Tick this plan's boxes, fill **Outcome**, set `Status` to `done`
   here and in [`plans/index.md`](index.md); flip the merge wish row to `shipped` and
   move `docs/wishlist/merge.md` into `docs/wishlist/shipped/` if that is the
   convention (check `docs/wishlist/shipped/`).
-- [ ] **Step 5: Commit.**
+- [x] **Step 5: Commit.**
   `git commit -am "docs: close Plan 14b — UI merge + inline conflict resolution"`
 
 ---
 
 ## Outcome
 
-> Fill in when the plan reaches `done`. Expected: AsyncRepo merge wrappers;
-> RepoController merge slots + auto-stash/submodule orchestration + `mergeStateChanged`;
-> RepoViewModel merge properties/actions; `ChangedFilesModel` C letter;
-> `DiffLinesModel` conflict parse + accept; `MergeBanner.qml`; inline conflict
-> rendering in `DiffView.qml`; entry points in `BranchDropdown.qml` + `HistoryPane.qml`.
-> Spec: product §Merge, engineering §Merge & conflict resolution, design merge
-> components. Code: `ui/...` as above; tests `tests/ui/test_*merge*.cpp`,
-> `tests/ui/test_difflinesmodel_conflict.cpp`.
+Shipped. The core merge engine (Plan 14a) is now fully surfaced in the QML
+client:
+
+- **AsyncRepo** wraps all eight core primitives as `QCoro::Task`s (lock-inside-worker).
+- **RepoController** owns the merge state machine: `merge` / `commitMerge` /
+  `abortMerge` / `retryMergeDeinitSubmodules` slots with controller-side
+  auto-stash (deferred pop past a conflicted merge until `commitMerge`, D31) and
+  reactive submodule deinit-and-retry; `mergeState()` is folded into the status
+  refresh and republished via `mergeStateChanged(MergeState)` so merge state is
+  always disk-derived (D30). `QPointer` self-guards on every `co_await`.
+- **RepoViewModel** publishes `mergeInProgress` / `mergedRef` / `conflictedCount`
+  / `hasSubmoduleConflicts` and exposes `startMerge` / `commitMerge` / `abortMerge`
+  / `retryMergeDeinitSubmodules` / `acceptConflict`; `currentBranchName()` resolves
+  the real branch for the merge-commit message.
+- **ChangedFilesModel** renders the `C` letter / `conflict` kind and sorts
+  conflicted files to the top.
+- **DiffLinesModel** parses `<<<<<<< / ======= / >>>>>>>` regions into
+  ours/theirs/context rows (`ConflictRegionRole`) and rewrites a region keeping
+  ours / theirs / both — a pure string transform; "resolved" = no markers remain.
+- **MergeBanner.qml** (above both working-pane tabs) drives Abort / Commit
+  (enabled at zero conflicts) / Deinit-submodules-&-retry (only with submodule
+  conflicts) purely from `MergeState`; new `state.incoming` (`#388BFD`) theme token.
+- **DiffView.qml** renders conflicted files inline — ours band (`stateAdded`),
+  theirs band (`stateIncoming`), per-region Accept Current/Incoming/Both — writing
+  the rewritten file via the controller (the VM never touches the filesystem).
+- **Entry points** in `BranchDropdown.qml` (per non-current local branch) and the
+  `HistoryPane` commit context menu (branch-tip commits), both calling
+  `startMerge`. `BranchInfo::tipOid` was added to core to map history rows to
+  local branch tips.
+
+Spec: product §Merge, engineering §Merge & conflict resolution, design merge
+components (all match the shipped UI). Code: `ui/` (asyncrepo, repocontroller,
+repoviewmodel, changedfilesmodel, difflinesmodel, qmltheme; QML MergeBanner /
+WorkingPane / DiffView / BranchDropdown / HistoryPane). Tests:
+`tests/ui/test_async_merge.cpp`, `test_repocontroller_merge.cpp`,
+`test_repoviewmodel_merge.cpp`, `test_difflinesmodel_conflict.cpp`,
+`test_qml_merge_banner.cpp`, `test_qml_merge_entrypoints.cpp`, plus the
+ChangedFilesModel conflict case. Full suite 113/113 green. Commits
+`87c1e57`…`6dd34ed` (9 tasks; Tasks 2, 7, 8 each took a review-fix cycle —
+retry-stash strand / abort-failure guard / QPointer guards, silent write
+failure, and two hollow tests made genuinely falsifiable).
+
+Known scope limits: the inline view handles standard 3-way markers (not diff3
+`|||||||`); merge-from-history is offered for branch-tip commits only; the
+BranchDropdown entry-point test exercises a faithful delegate replica (the real
+Popup delegate is unreachable under offscreen QPA).

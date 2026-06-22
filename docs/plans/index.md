@@ -32,7 +32,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 12 — UI polish + sync transfer progress](2026-06-22-plan12-ui-polish-sync-progress.md) | 2026-06-22 | done | design · engineering · product |
 | [Plan 13 — Diff block checkbox](2026-06-22-plan13-diff-block-checkbox.md) | 2026-06-22 | done | product |
 | [Plan 14a — Core merge engine](2026-06-22-plan14a-core-merge-engine.md) | 2026-06-22 | done | engineering · core |
-| [Plan 14b — UI merge + inline conflict](2026-06-22-plan14b-ui-merge-conflict.md) | 2026-06-22 | planned | product · design · engineering |
+| [Plan 14b — UI merge + inline conflict](2026-06-22-plan14b-ui-merge-conflict.md) | 2026-06-22 | done | product · design · engineering |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

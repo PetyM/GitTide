@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `designed` (2026-06-22) |
+| **Status** | `shipped` (2026-06-22) |
 | **Touches** | product (merge action + conflict flow), engineering (core: merge + index conflict state on `GitRepo`), design (conflict resolution UI, merge-in-progress state) |
 
 ## What
@@ -63,18 +63,34 @@ conflict-resolution UI together as post-MVP; this is that.
 
 Designed into the living spec:
 
-- **Product:** [`spec/product/product.md` § Merge](../spec/product/product.md#merge)
+- **Product:** [`spec/product/product.md` § Merge](../../spec/product/product.md#merge)
   — merge action (branch dropdown + history context menu), outcomes, the
   merge-in-progress state, inline conflict resolution, submodule deinit-and-retry.
 - **Engineering:**
-  [`spec/engineering/engineering.md` § Merge & conflict resolution](../spec/engineering/engineering.md#merge--conflict-resolution)
+  [`spec/engineering/engineering.md` § Merge & conflict resolution](../../spec/engineering/engineering.md#merge--conflict-resolution)
   — core merge API, the merge-state-from-disk invariant, controller-side
   auto-stash + reactive submodule deinit.
 - **Design:**
-  [`spec/design/design.md`](../spec/design/design.md) — `state.incoming` token,
+  [`spec/design/design.md`](../../spec/design/design.md) — `state.incoming` token,
   the merge banner, and the inline conflict view.
 
 Decisions logged: **D29** (inline VS-Code-style conflict UI over coarse per-file
 or full 3-pane), **D30** (merge state derived from disk — the no-limbo
 guarantee), **D31** (controller-side auto-stash + reactive submodule
-deinit-and-retry). Plan: _pending_.
+deinit-and-retry).
+
+---
+
+## Shipped (2026-06-22)
+
+Built across two plans, both `done`:
+
+- **[Plan 14a — Core merge engine](../../plans/2026-06-22-plan14a-core-merge-engine.md)**
+  — `GitRepo::{mergeBranch, mergeState, commitMerge, abortMerge, stashSave,
+  stashPop, deinitSubmodule, reinitSubmodule}`, `StatusFlag::Conflicted`,
+  `merge.hpp` model.
+- **[Plan 14b — UI merge + inline conflict](../../plans/2026-06-22-plan14b-ui-merge-conflict.md)**
+  — AsyncRepo wrappers, RepoController orchestration (auto-stash + reactive
+  submodule retry), RepoViewModel merge properties/actions, the `C` letter,
+  conflict-region parse/accept, `MergeBanner.qml`, inline `DiffView` rendering,
+  and the dropdown + history entry points.

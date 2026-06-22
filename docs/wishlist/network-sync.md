@@ -50,7 +50,7 @@ repos up to date is one action instead of N.
   many-repos-in-parallel → per-worker repo instances, never a shared `GitRepo`
   (the one-owner invariant), with aggregated progress/cancel across the fleet.
 - **Pull integration depends on other wishes.** Fast-forward pull is self-contained;
-  a pull that must merge or rebase pulls in [merge](merge.md) /
+  a pull that must merge or rebase pulls in [merge](shipped/merge.md) /
   [rebase](rebase.md) and conflict handling. First cut: fetch, push, FF-only pull.
 - **Push safety.** Reject non-fast-forward by default; force-push is a separate,
   guarded action (and dangerous — gate it like discard). Show ahead/behind so the

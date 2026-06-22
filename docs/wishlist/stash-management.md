@@ -39,7 +39,7 @@ uncommitted changes, can't checkout" is "stash them, switch, optionally restore.
   + diff must refresh, same cascade as discard/checkout.
 - **Apply conflicts.** `stash apply`/`pop` can conflict against the current tree.
   Decide first-cut behaviour: surface the conflict (depends on
-  [merge](merge.md)/conflict UI) or just report it and leave the user in the
+  [merge](shipped/merge.md)/conflict UI) or just report it and leave the user in the
   conflicted state. At minimum, never silently lose the stash on a failed pop.
 - **Untracked / index handling.** Expose the common toggles: include untracked
   (`--include-untracked`), keep index. Don't over-build — a checkbox or two.
