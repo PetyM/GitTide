@@ -9,11 +9,10 @@
 //      and asserts startMerge fires with the correct branch name.
 //   2. BranchDropdown delegate: same harness, isHead=true → mergeIntoItem hidden.
 //   3. BranchDropdown delegate: same harness, remote=true → mergeIntoItem hidden.
-//   4. HistoryPane: mergeIntoItem present in context menu, correct text.
-//   5. HistoryPane: setting rowBranchName and invoking triggered → startMerge spy
-//      fires with the correct argument (verifies the onTriggered binding, not a
-//      stub direct-call).
-//   6. HistoryPane: mergeIntoItem hidden when rowBranchName is empty.
+//   4. HistoryPane: mergeIntoItem present in CommitContextMenu, correct text.
+//   5. HistoryPane: setting localBranchName and invoking triggered → startMerge spy
+//      fires with the correct argument (verifies the onTriggered→merge→onMerge chain).
+//   6. HistoryPane: mergeIntoItem hidden when localBranchName is empty.
 
 #include <QtTest>
 #include <QQmlApplicationEngine>
@@ -190,6 +189,9 @@ public:
     Q_INVOKABLE void switchBranch(const QString&) {}
     Q_INVOKABLE void checkoutRemoteBranch(const QString&) {}
     Q_INVOKABLE void selectCommit(const QString&) {}
+    Q_INVOKABLE void checkoutCommit(const QString&) {}
+    Q_INVOKABLE void copyToClipboard(const QString&) {}
+    Q_INVOKABLE void createBranch(const QString&, const QString&, bool) {}
 
     // The key method we're testing.
     Q_INVOKABLE void startMerge(const QString& name)
@@ -481,13 +483,6 @@ Item {
         RepoListModel repoModel;
         MergeEntryStub stub;
         stub.setCurrentBranch(QStringLiteral("main"));
-        // Populate history with one row that has a localBranchName.
-        stub.historyModel()->addRow(
-            QStringLiteral("feat: add thing"),
-            QStringLiteral("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-            false,
-            QStringLiteral("feature")
-        );
 
         QQmlApplicationEngine engine;
         QObject* root = loadMain(engine, theme, repoModel, stub);
@@ -501,8 +496,12 @@ Item {
         QObject* mergeItem = menu->findChild<QObject*>(QStringLiteral("mergeIntoItem"));
         QVERIFY2(mergeItem != nullptr, "mergeIntoItem not found inside commitContextMenu");
 
-        // Text should be "Merge into main".
-        const QString expectedText = QStringLiteral("Merge into main");
+        // Set localBranchName to simulate a right-click on a branch-tip commit.
+        QVERIFY(menu->setProperty("localBranchName", QStringLiteral("feature")));
+        QTest::qWait(50); // let QML bindings update
+
+        // Text should be "Merge feature into main".
+        const QString expectedText = QStringLiteral("Merge feature into main");
         const QString actualText   = mergeItem->property("text").toString();
         QCOMPARE(actualText, expectedText);
     }
@@ -510,14 +509,15 @@ Item {
     // -----------------------------------------------------------------
     // HistoryPane: onTriggered binding drives startMerge.
     //
-    // This test verifies the REAL QML wiring: it sets commitContextMenu.rowBranchName
+    // This test verifies the REAL QML wiring: it sets commitMenu.localBranchName
     // from C++ (simulating a right-click on a branch-tip commit row), then fires the
     // AppMenuItem's triggered() signal via QMetaObject::invokeMethod — which runs
-    // the onTriggered handler in HistoryPane.qml, which calls repoVm.startMerge().
+    // the onTriggered handler in CommitContextMenu.qml (emitting merge()), which
+    // routes through HistoryPane.qml's onMerge handler to repoVm.startMerge().
     // The spy asserts the call reached the stub with the correct argument.
     //
-    // Falsifiability: removing the onTriggered binding in HistoryPane.qml causes
-    // spy.count() to stay 0 and the QCOMPARE to FAIL.
+    // Falsifiability: removing the onTriggered binding in CommitContextMenu.qml or
+    // the onMerge handler in HistoryPane.qml causes spy.count() to stay 0.
     // -----------------------------------------------------------------
     void history_pane_merge_item_triggers_start_merge()
     {
@@ -527,12 +527,6 @@ Item {
         RepoListModel repoModel;
         MergeEntryStub stub;
         stub.setCurrentBranch(QStringLiteral("main"));
-        stub.historyModel()->addRow(
-            QStringLiteral("feat: branch tip"),
-            QStringLiteral("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
-            false,
-            QStringLiteral("feature")
-        );
 
         QQmlApplicationEngine engine;
         QObject* root = loadMain(engine, theme, repoModel, stub);
@@ -544,28 +538,18 @@ Item {
         QObject* mergeItem = menu->findChild<QObject*>(QStringLiteral("mergeIntoItem"));
         QVERIFY(mergeItem != nullptr);
 
-        // Set rowBranchName on the menu to simulate what the right-click MouseArea
+        // Set localBranchName on the menu to simulate what the right-click MouseArea
         // does in production before showing the context menu.
-        QVERIFY(menu->setProperty("rowBranchName", QStringLiteral("feature")));
+        QVERIFY(menu->setProperty("localBranchName", QStringLiteral("feature")));
         QTest::qWait(50); // let QML bindings update
 
-        // Verify the rowBranchName was actually stored (confirms setProperty works on
+        // Verify the localBranchName was actually stored (confirms setProperty works on
         // QML-declared properties).
-        QCOMPARE(menu->property("rowBranchName").toString(), QStringLiteral("feature"));
+        QCOMPARE(menu->property("localBranchName").toString(), QStringLiteral("feature"));
 
-        // Fire the triggered() signal on the AppMenuItem (a MenuItem, which exposes
-        // triggered() as an invokable signal). This runs its onTriggered handler in
-        // HistoryPane.qml:
-        //   repoVm.startMerge(commitContextMenu.rowBranchName)
-        //
-        // Falsifiability: removing the onTriggered binding in HistoryPane.qml causes
-        // spy.count() to stay 0 and the QCOMPARE to FAIL.
-        //
-        // Note: MenuItem::visible reflects the popup's effective visibility (false when
-        // Menu is closed), so we skip the visible check here — the gate is already
-        // covered by history_pane_merge_item_hidden_when_no_branch_tip and the guard
-        // inside onTriggered (rowBranchName !== ""). The meaningful assertion is that
-        // triggered → startMerge("feature") is the wiring that exists.
+        // Fire the triggered() signal on the AppMenuItem. This runs onTriggered in
+        // CommitContextMenu.qml which emits merge(), which is handled in HistoryPane
+        // by: onMerge: if (repoVm) repoVm.startMerge(commitMenu.localBranchName)
         QSignalSpy spy(&stub, &MergeEntryStub::startMergeCalled);
         QVERIFY2(QMetaObject::invokeMethod(mergeItem, "triggered"),
                  "Could not invoke triggered on mergeIntoItem (AppMenuItem/MenuItem)");
@@ -576,7 +560,7 @@ Item {
     }
 
     // -----------------------------------------------------------------
-    // HistoryPane: mergeIntoItem hidden when rowBranchName is empty
+    // HistoryPane: mergeIntoItem hidden when localBranchName is empty
     // -----------------------------------------------------------------
     void history_pane_merge_item_hidden_when_no_branch_tip()
     {
@@ -593,8 +577,8 @@ Item {
 
         QObject* menu = root->findChild<QObject*>(QStringLiteral("commitContextMenu"));
         QVERIFY(menu != nullptr);
-        // rowBranchName is "" by default.
-        QCOMPARE(menu->property("rowBranchName").toString(), QString{});
+        // localBranchName is "" by default.
+        QCOMPARE(menu->property("localBranchName").toString(), QString{});
 
         QObject* mergeItem = menu->findChild<QObject*>(QStringLiteral("mergeIntoItem"));
         QVERIFY(mergeItem != nullptr);
