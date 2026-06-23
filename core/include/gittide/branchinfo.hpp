@@ -18,6 +18,13 @@ struct BranchInfo
     BranchKind  kind   = BranchKind::Local; // Local vs remote-tracking.
     std::string upstream;                // A local branch's upstream short name, else empty.
     std::string worktreePath;            // Path of the linked worktree holding this local branch, else empty.
+    /// Full 40-char hex OID of the branch tip commit, resolved by peeling the
+    /// branch reference to a commit object. Empty when resolution fails.
+    /// Populated for both local and remote-tracking branches (the peel is cheap
+    /// and keeping it uniform avoids a special case in the collection loop in
+    /// gitrepo.cpp). Only local branches' tipOids are currently consumed by the
+    /// ViewModel layer (for mapping history rows to branch names).
+    std::string tipOid;
 };
 
 // Describes the current HEAD state of the repository.

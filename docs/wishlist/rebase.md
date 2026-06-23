@@ -25,7 +25,7 @@ shares the squash/fixup mechanics.
 
 Rebase is how many users prefer to keep history linear and clean before sharing
 work. It's local, and it reuses the conflict-resolution UI built for
-[merge](merge.md), so the incremental cost after merge is mostly the
+[merge](shipped/merge.md), so the incremental cost after merge is mostly the
 **stepwise driver** (continue/skip/abort) and its in-progress state. Offering a
 safe, visual rebase — with abort always available — removes one of the scariest
 terminal operations from the user's day.
@@ -33,7 +33,7 @@ terminal operations from the user's day.
 ## Notes
 
 - **Depends on merge/conflict UI.** Per-step conflicts are resolved with the same
-  machinery as [merge](merge.md); build that first. This wish is largely the
+  machinery as [merge](shipped/merge.md); build that first. This wish is largely the
   *driver* around it.
 - **Layering.** `core/` on `GitRepo`: libgit2 `git_rebase_init` /
   `git_rebase_next` / `git_rebase_commit` / `git_rebase_finish` /

@@ -1,5 +1,6 @@
 #include "gittide/gitrepo.hpp"
 
+#include <fstream>
 #include <git2.h>
 #include <git2/annotated_commit.h>
 #include <git2/branch.h>
@@ -49,6 +50,8 @@ gittide::StatusFlag mapStatus(unsigned int s)
         f |= StatusFlag::WtModified;
     if (s & GIT_STATUS_WT_DELETED)
         f |= StatusFlag::WtDeleted;
+    if (s & GIT_STATUS_CONFLICTED)
+        f |= StatusFlag::Conflicted;
     return f;
 }
 
@@ -459,6 +462,100 @@ Expected<std::string> GitRepo::commit(const CommitRequest& req)
     return std::string(buf);
 }
 
+Expected<std::string> GitRepo::commitMerge(CommitRequest req)
+{
+    git_index* index = nullptr;
+    int rc           = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+
+    if (git_index_has_conflicts(index))
+        return std::unexpected(GitError{-1, "cannot commit: unresolved conflicts remain"});
+
+    git_oid tree_oid;
+    rc = git_index_write_tree(&tree_oid, index);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_tree* tree = nullptr;
+    rc             = git_tree_lookup(&tree, m_repo, &tree_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+
+    // Parents: current HEAD, then every MERGE_HEAD.
+    std::vector<git_commit*> parents;
+    auto free_parents = [&]() { for (auto* p : parents) git_commit_free(p); };
+
+    git_oid head_oid;
+    rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_commit* head_commit = nullptr;
+    rc                       = git_commit_lookup(&head_commit, m_repo, &head_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    parents.push_back(head_commit);
+
+    struct CbData
+    {
+        GitRepo* self;
+        std::vector<git_commit*>* parents;
+        int rc;
+    };
+    CbData cb{this, &parents, 0};
+    git_repository_mergehead_foreach(
+        m_repo,
+        [](const git_oid* oid, void* payload) -> int {
+            auto* d = static_cast<CbData*>(payload);
+            git_commit* c = nullptr;
+            int r         = git_commit_lookup(&c, d->self->m_repo, oid);
+            if (r < 0)
+            {
+                d->rc = r;
+                return r;
+            }
+            d->parents->push_back(c);
+            return 0;
+        },
+        &cb);
+    if (cb.rc < 0)
+    {
+        free_parents();
+        return std::unexpected(lastGitError(cb.rc));
+    }
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+    {
+        if (sig)
+        {
+            git_signature_free(sig);
+            sig = nullptr;
+        }
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    }
+    if (!sig)
+    {
+        free_parents();
+        return std::unexpected(GitError{-1, "no signature for merge commit"});
+    }
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    git_oid commit_oid;
+    rc = git_commit_create(&commit_oid, m_repo, "HEAD", sig, sig, nullptr, req.message.c_str(), tree,
+                           parents.size(), const_cast<git_commit* const*>(parents.data()));
+    free_parents();
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_repository_state_cleanup(m_repo); // clears MERGE_HEAD / MERGE_MSG
+
+    char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(hex, sizeof(hex), &commit_oid);
+    return std::string(hex);
+}
+
 Expected<void> GitRepo::resetIndexToHead()
 {
     // Unborn HEAD: there is no commit to reset to, so clearing the index is the
@@ -634,6 +731,53 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
     return result;
 }
 
+Expected<void> GitRepo::deinitSubmodule(std::filesystem::path path)
+{
+    // Verify it is actually a submodule (gives a clear error otherwise).
+    git_submodule* sm = nullptr;
+    int rc            = git_submodule_lookup(&sm, m_repo, toGitPath(path).c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_submodule_free(sm);
+
+    // Emulate `submodule deinit`: remove the working-tree contents but
+    // preserve the gitlink (.git file) so reinit can re-checkout rather than
+    // re-clone. The gitlink and the modules directory in the superproject's
+    // .git stay intact; only the checked-out source files are removed.
+    const std::filesystem::path wd      = workdir() / path;
+    const std::filesystem::path gitlink = wd / ".git";
+    std::error_code iter_ec;
+    std::filesystem::directory_iterator it(wd, iter_ec);
+    if (iter_ec)
+        return std::unexpected(GitError{-1, "failed to open submodule working dir: " + iter_ec.message()});
+    for (const auto& entry : it)
+    {
+        if (entry.path() == gitlink)
+            continue;
+        std::error_code rm_ec;
+        std::filesystem::remove_all(entry.path(), rm_ec);
+        if (rm_ec)
+            return std::unexpected(GitError{-1, "failed to clear submodule working dir: " + rm_ec.message()});
+    }
+    return {};
+}
+
+Expected<void> GitRepo::reinitSubmodule(std::filesystem::path path)
+{
+    git_submodule* sm = nullptr;
+    int rc            = git_submodule_lookup(&sm, m_repo, toGitPath(path).c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_submodule, decltype(&git_submodule_free)> sm_guard(sm, git_submodule_free);
+
+    git_submodule_update_options opts        = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+    opts.checkout_opts.checkout_strategy     = GIT_CHECKOUT_FORCE;
+    rc                                       = git_submodule_update(sm, /*init=*/1, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
 {
     std::vector<BranchInfo> result;
@@ -671,6 +815,17 @@ Expected<std::vector<BranchInfo>> GitRepo::branches() const
                 }
                 if (const auto wtIt = wtPaths.find(info.name); wtIt != wtPaths.end())
                     info.worktreePath = wtIt->second;
+            }
+            // Peel to commit to get the tip OID (works for both local and remote).
+            {
+                git_object* obj = nullptr;
+                if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0)
+                {
+                    char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+                    git_oid_tostr(hex, sizeof(hex), git_object_id(obj));
+                    info.tipOid = hex;
+                    git_object_free(obj);
+                }
             }
             result.push_back(std::move(info));
         }
@@ -712,6 +867,70 @@ Expected<HeadState> GitRepo::head() const
     {
         const char* sh = git_reference_shorthand(ref);
         st.branch      = sh ? sh : "";
+    }
+    return st;
+}
+
+namespace {
+// Parse the branch name out of a MERGE_MSG first line: "Merge branch 'feature/x'".
+std::string parseMergedRef(const std::filesystem::path& gitdir)
+{
+    std::ifstream in(gitdir / "MERGE_MSG");
+    if (!in) return {};
+    std::string line;
+    std::getline(in, line);
+    const auto a = line.find('\'');
+    if (a == std::string::npos) return {};
+    const auto b = line.find('\'', a + 1);
+    if (b == std::string::npos) return {};
+    return line.substr(a + 1, b - a - 1);
+}
+} // namespace
+
+Expected<MergeState> GitRepo::mergeState() const
+{
+    MergeState st;
+    st.inProgress = git_repository_state(m_repo) == GIT_REPOSITORY_STATE_MERGE;
+
+    git_index* index = nullptr;
+    int rc           = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+
+    if (git_index_has_conflicts(index))
+    {
+        git_index_conflict_iterator* it = nullptr;
+        rc = git_index_conflict_iterator_new(&it, index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index_conflict_iterator,
+                        decltype(&git_index_conflict_iterator_free)>
+            it_guard(it, git_index_conflict_iterator_free);
+
+        const git_index_entry *ancestor = nullptr, *our = nullptr, *their = nullptr;
+        while (git_index_conflict_next(&ancestor, &our, &their, it) == 0)
+        {
+            const git_index_entry* e = our ? our : (their ? their : ancestor);
+            if (!e || !e->path)
+                continue;
+            std::filesystem::path p = fromGitPath(e->path);
+            st.conflictedPaths.push_back(p);
+            // A gitlink (submodule) conflict: any side carrying the commit mode.
+            const bool gitlink =
+                (our && our->mode == GIT_FILEMODE_COMMIT) ||
+                (their && their->mode == GIT_FILEMODE_COMMIT) ||
+                (ancestor && ancestor->mode == GIT_FILEMODE_COMMIT);
+            if (gitlink)
+                st.conflictedSubmodules.push_back(p);
+        }
+    }
+
+    if (st.inProgress)
+    {
+        const char* gp = git_repository_path(m_repo); // the .git dir
+        if (gp)
+            st.mergedRef = parseMergedRef(fromGitPath(gp));
     }
     return st;
 }
@@ -899,6 +1118,45 @@ Expected<void> GitRepo::checkoutCommit(std::string oid)
     return safeSwitch(target, /*refToSet=*/"");
 }
 
+Expected<bool> GitRepo::stashSave(std::string message)
+{
+    auto st = status();
+    if (!st)
+        return std::unexpected(st.error());
+    if (st->empty())
+        return false; // clean — nothing stashed
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+    {
+        if (sig)
+        {
+            git_signature_free(sig);
+            sig = nullptr;
+        }
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    }
+    if (!sig)
+        return std::unexpected(GitError{-1, "could not build a signature for the stash"});
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    git_oid stash_oid;
+    int rc = git_stash_save(&stash_oid, m_repo, sig, message.c_str(), GIT_STASH_INCLUDE_UNTRACKED);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return true;
+}
+
+Expected<void> GitRepo::stashPop()
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_pop(m_repo, 0, &aopts);
+    if (rc < 0)
+        // Stash is intentionally preserved — the caller can inspect it.
+        return std::unexpected(GitError{rc, "Your changes conflict and are kept in the stash"});
+    return {};
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;
@@ -947,6 +1205,112 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     git_reference_free(moved);
+    return {};
+}
+
+Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
+{
+    // Resolve the local branch to an annotated commit (merge analysis input).
+    git_reference* ref = nullptr;
+    int rc = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+
+    git_annotated_commit* their = nullptr;
+    rc = git_annotated_commit_from_ref(&their, m_repo, ref);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_annotated_commit, decltype(&git_annotated_commit_free)>
+        their_guard(their, git_annotated_commit_free);
+
+    const git_annotated_commit* heads[] = {their};
+    git_merge_analysis_t analysis;
+    git_merge_preference_t pref;
+    rc = git_merge_analysis(&analysis, &pref, m_repo, heads, 1);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    MergeOutcome out;
+    if (analysis & GIT_MERGE_ANALYSIS_UP_TO_DATE)
+    {
+        out.analysis = MergeAnalysis::UpToDate;
+        return out;
+    }
+
+    if (analysis & GIT_MERGE_ANALYSIS_FASTFORWARD)
+    {
+        out.analysis = MergeAnalysis::FastForward;
+        const git_oid* target = git_annotated_commit_id(their);
+
+        git_commit* tc = nullptr;
+        rc = git_commit_lookup(&tc, m_repo, target);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> tc_guard(tc, git_commit_free);
+
+        git_checkout_options copts = GIT_CHECKOUT_OPTIONS_INIT;
+        copts.checkout_strategy    = GIT_CHECKOUT_SAFE;
+        rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(tc), &copts);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        // Move the current branch ref to the target, then point HEAD's workdir at it.
+        git_reference* head_ref = nullptr;
+        rc = git_repository_head(&head_ref, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head_ref, git_reference_free);
+        git_reference* new_ref = nullptr;
+        rc = git_reference_set_target(&new_ref, head_ref, target, "merge: fast-forward");
+        if (new_ref)
+            git_reference_free(new_ref);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        char hex[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+        git_oid_tostr(hex, sizeof(hex), target);
+        out.newOid = hex;
+        return out;
+    }
+
+    // Normal merge: writes into index + worktree, leaving conflicts if any.
+    out.analysis = MergeAnalysis::Normal;
+    git_merge_options mopts   = GIT_MERGE_OPTIONS_INIT;
+    git_checkout_options copts = GIT_CHECKOUT_OPTIONS_INIT;
+    copts.checkout_strategy    = GIT_CHECKOUT_SAFE | GIT_CHECKOUT_ALLOW_CONFLICTS;
+    rc = git_merge(m_repo, heads, 1, &mopts, &copts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_index* index = nullptr;
+    rc = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_index, decltype(&git_index_free)> index_guard(index, git_index_free);
+    out.conflicted = git_index_has_conflicts(index) != 0;
+    return out;
+}
+
+Expected<void> GitRepo::abortMerge()
+{
+    git_oid head_oid;
+    int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_commit* head = nullptr;
+    rc = git_commit_lookup(&head, m_repo, &head_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> head_guard(head, git_commit_free);
+
+    git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+    opts.checkout_strategy    = GIT_CHECKOUT_FORCE; // discard the half-merged worktree
+    rc = git_reset(m_repo, reinterpret_cast<const git_object*>(head), GIT_RESET_HARD, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_repository_state_cleanup(m_repo);
     return {};
 }
 

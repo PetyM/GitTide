@@ -9,6 +9,7 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
 
@@ -63,6 +64,12 @@ public:
     // (user.name/user.email). Returns the new commit's hex oid.
     Expected<std::string> commit(const CommitRequest& req);
 
+    // Create the merge commit from the current index (parents HEAD + MERGE_HEAD),
+    // then clear merge state. Errors if unresolved conflict entries remain.
+    // req.message typically defaults at the UI layer to "Merge branch '<x>' into <current>".
+    // Returns the commit's hex oid.
+    Expected<std::string> commitMerge(CommitRequest req);
+
     // Revert worktree changes for the selection (whole file or hunk/lines).
     Expected<void> discard(const StageSelection& sel);
 
@@ -84,6 +91,10 @@ public:
 
     // Resolve the current HEAD state (branch name, commit SHA, detached/unborn).
     Expected<HeadState> head() const;
+
+    // Read merge-in-progress state from the repository (state == MERGE, MERGE_MSG,
+    // and the index conflict iterator). Derived every call — never cached (D30).
+    Expected<MergeState> mergeState() const;
 
     // Ahead/behind of the current branch versus its upstream remote-tracking
     // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
@@ -123,10 +134,38 @@ public:
     // no children. See SubmoduleStatus / SubmoduleNode.
     Expected<std::vector<SubmoduleNode>> submoduleTree() const;
 
+    /// De-initialise a submodule: remove its working-tree source files while
+    /// preserving the `.git` gitlink file. This allows reinitSubmodule to
+    /// re-checkout rather than re-clone. path is repo-relative.
+    Expected<void> deinitSubmodule(std::filesystem::path path);
+
+    /// Re-initialise and update a submodule to its pinned commit
+    /// (`git_submodule_update` with init enabled). path is repo-relative.
+    Expected<void> reinitSubmodule(std::filesystem::path path);
+
     // Switch HEAD to the named local branch. If the working tree is dirty the
     // changes are auto-stashed before the switch and re-applied afterwards.
     // Returns an error if the branch does not exist or the stash-pop conflicts.
     Expected<void> checkoutBranch(std::string name);
+
+    /// Stash the working tree (including untracked) if it is dirty. Returns true
+    /// if a stash was created, false if the tree was already clean (nothing stashed).
+    Expected<bool> stashSave(std::string message);
+
+    /// Pop the most-recent stash onto the working tree. Errors (and preserves the
+    /// stash) if the pop conflicts.
+    Expected<void> stashPop();
+
+    /// Analyse and perform a merge of local branch `name` into current HEAD.
+    /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
+    /// writing conflict markers into the worktree on conflict. Caller handles a
+    /// dirty tree (stash) and, on conflict, drives resolution + commitMerge.
+    /// See MergeOutcome.
+    Expected<MergeOutcome> mergeBranch(std::string name);
+
+    /// Abort an in-progress merge: reset --hard to HEAD and clear MERGE_HEAD/MERGE_MSG,
+    /// returning the worktree to its pre-merge state.
+    Expected<void> abortMerge();
 
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is

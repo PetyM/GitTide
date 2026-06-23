@@ -13,6 +13,7 @@
 #include "gittide/giterror.hpp"
 #include "gittide/gitrepo.hpp" // ProgressCallback
 #include "gittide/graph.hpp"
+#include "gittide/merge.hpp"
 #include "gittide/sync.hpp"
 
 namespace gittide::ui {
@@ -62,6 +63,37 @@ public:
     QCoro::Task<gittide::Expected<void>>                push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred, gittide::ProgressCallback onProgress);
     QCoro::Task<gittide::Expected<gittide::PullStrategy>> pullStrategy();
     QCoro::Task<gittide::Expected<void>>                setPullStrategy(gittide::PullStrategy strategy);
+
+    /// Analyse and perform a merge of the named branch into the current HEAD.
+    /// Returns the merge outcome (conflicted status, analysis type, new OID if clean/FF).
+    QCoro::Task<gittide::Expected<gittide::MergeOutcome>> mergeBranch(QString name);
+
+    /// Retrieve the current merge-in-progress state (derived from repository state,
+    /// MERGE_MSG, and conflict entries). Always current, never cached.
+    QCoro::Task<gittide::Expected<gittide::MergeState>> mergeState();
+
+    /// Create the merge commit from the current index during a merge.
+    /// Clears merge state on success. Errors if unresolved conflicts remain.
+    QCoro::Task<gittide::Expected<std::string>> commitMerge(gittide::CommitRequest req);
+
+    /// Abort an in-progress merge: reset working tree to HEAD and clear merge state.
+    QCoro::Task<gittide::Expected<void>> abortMerge();
+
+    /// Stash the working tree if dirty. Returns true if a stash was created,
+    /// false if the tree was already clean.
+    QCoro::Task<gittide::Expected<bool>> stashSave(QString message);
+
+    /// Pop the most-recent stash onto the working tree.
+    /// Errors (and preserves the stash) if the pop conflicts.
+    QCoro::Task<gittide::Expected<void>> stashPop();
+
+    /// De-initialise a submodule: remove its working-tree source files while
+    /// preserving the .git gitlink file. path is repo-relative.
+    QCoro::Task<gittide::Expected<void>> deinitSubmodule(std::filesystem::path path);
+
+    /// Re-initialise and update a submodule to its pinned commit.
+    /// path is repo-relative.
+    QCoro::Task<gittide::Expected<void>> reinitSubmodule(std::filesystem::path path);
 
 private:
     struct Impl;

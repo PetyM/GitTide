@@ -15,6 +15,17 @@ void HistoryListModel::setLayout(const gittide::GraphLayout& layout, const QStri
     emit changed();
 }
 
+void HistoryListModel::setLocalBranchTips(const QHash<QString, QString>& oidToName)
+{
+    m_oidToLocalBranch = oidToName;
+    if (!m_layout.rows.empty())
+    {
+        emit dataChanged(index(0, 0),
+                         index(static_cast<int>(m_layout.rows.size()) - 1, 0),
+                         {LocalBranchNameRole});
+    }
+}
+
 int HistoryListModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
@@ -48,6 +59,8 @@ QVariant HistoryListModel::data(const QModelIndex& index, int role) const
         return oid.left(7);
     case IsHeadRole:
         return !m_headOid.isEmpty() && oid == m_headOid;
+    case LocalBranchNameRole:
+        return m_oidToLocalBranch.value(oid);
     default:
         return {};
     }
@@ -63,6 +76,7 @@ QHash<int, QByteArray> HistoryListModel::roleNames() const
         {OidRole, QByteArrayLiteral("oid")},
         {ShortOidRole, QByteArrayLiteral("shortOid")},
         {IsHeadRole, QByteArrayLiteral("isHead")},
+        {LocalBranchNameRole, QByteArrayLiteral("localBranchName")},
     };
 }
 

@@ -62,6 +62,7 @@ private:
         QString letter;
         QString kind;
         Check   check = Checked;
+        gittide::StatusFlag flags = gittide::StatusFlag::None;
     };
     std::vector<Row> m_rows;
 };

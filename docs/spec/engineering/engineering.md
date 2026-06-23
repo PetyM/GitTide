@@ -180,6 +180,55 @@ exposes them as slots and emits the result.
   project," scoped to the one repo. Delete / rename (HEAD unchanged) refreshes the
   branch list only.
 
+### Merge & conflict resolution
+
+Merge of one local branch into the current branch is a pure git operation on
+`GitRepo` (libgit2 `git_merge_analysis` → FF / normal / up-to-date, `git_merge`,
+the index conflict iterator, and `git_commit` with two parents), wrapped by
+`AsyncRepo` and surfaced by `RepoController` like every other op. The product
+shape is in [`../product/product.md`](../product/product.md#merge); this is the
+engineering contract.
+
+- **Merge-in-progress state is derived from the repository, never from app
+  memory.** This is the load-bearing invariant: GitTide must never be unable to
+  describe or exit a merge (the failure mode that makes other clients get
+  "stuck"). A `MergeState` value — *in-progress* (does `MERGE_HEAD` exist),
+  the merged ref name, and the conflicted paths (with the gitlink subset flagged
+  as submodule conflicts) — is read fresh from disk on **every** status refresh,
+  alongside the normal `FileStatus` list (conflicted entries also carry a new
+  `StatusFlag::Conflicted` bit). The UI renders the banner, conflict list, and
+  Abort/Commit purely from this value, so a merge begun outside GitTide or
+  surviving a restart is shown correctly, and **Abort is reachable whenever
+  `MERGE_HEAD` exists**. There is no in-memory "are we merging?" boolean that can
+  desync from the repo. Every core merge op returns `Expected<T>`; a failure
+  surfaces as `operationFailed`, and the next refresh still reports true state —
+  no silent half-state.
+- **Inline conflicts need no special core parse.** libgit2 writes the
+  `<<<<<<< / ======= / >>>>>>>` markers into the worktree file on conflict, so the
+  existing file read already hands the marked content to the UI; `DiffLinesModel`
+  groups it into conflict regions for the inline view, and "resolved" is simply
+  "no markers remain" — derived, not flagged.
+- **Auto-stash orchestration lives in `RepoController`, not core** (mirroring
+  `commitSelection`), keeping the core `mergeBranch` primitive clean. On a dirty
+  tree it stashes before the merge and records a "stash owed" marker; the pop
+  runs after a clean FF/merge, or is **deferred past a conflicted merge until
+  `commitMerge` succeeds** (never popped onto conflict markers). A pop conflict
+  preserves the stash and reports — the same exit as the safe-switch (D21). The
+  "stash owed" marker is *not* a merge-state flag (merge state is still derived
+  from disk); worst case a crash leaves a recoverable stash entry, never lost
+  work.
+- **Submodule conflicts are handled reactively (deinit-and-retry).** When a
+  merge's conflicts are gitlinks, `MergeState.conflictedSubmodules` is non-empty
+  and the controller offers a retry that: aborts the merge, de-initialises those
+  submodules (libgit2 submodule deinit — empties the working dir, keeps the
+  gitlink), re-runs `mergeBranch` so the pointers merge as plain blobs, then
+  re-initialises and updates them to their pinned commits once the merge concludes
+  (commit or abort). De-init/re-init are core `GitRepo` operations; the
+  re-init-owed set is tracked on the controller like the stash marker.
+- **Cascade.** Starting / committing / aborting / retrying a merge invalidates
+  status (+`MergeState`) + diff + history + branches + sync-status — the same
+  cascade as a checkout, scoped to the one repo.
+
 ### Inline selection, commit, and the history diff
 
 There is **no staging area**: the UI owns the commit selection, and `core/` stays

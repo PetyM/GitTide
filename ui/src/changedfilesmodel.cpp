@@ -1,5 +1,7 @@
 #include "gittide/ui/changedfilesmodel.hpp"
 
+#include <algorithm>
+
 #include "gittide/ui/metatypes.hpp"
 
 namespace gittide::ui {
@@ -7,6 +9,8 @@ namespace gittide::ui {
 QString ChangedFilesModel::letterForFlags(gittide::StatusFlag flags)
 {
     using F = gittide::StatusFlag;
+    if (gittide::hasFlag(flags, F::Conflicted))
+        return QStringLiteral("C");
     if (gittide::hasFlag(flags, F::IndexNew))
         return QStringLiteral("A");
     if (gittide::hasFlag(flags, F::IndexModified))
@@ -25,6 +29,8 @@ QString ChangedFilesModel::letterForFlags(gittide::StatusFlag flags)
 QString ChangedFilesModel::kindForFlags(gittide::StatusFlag flags)
 {
     using F = gittide::StatusFlag;
+    if (gittide::hasFlag(flags, F::Conflicted))
+        return QStringLiteral("conflict");
     if (gittide::hasFlag(flags, F::IndexNew))
         return QStringLiteral("added");
     if (gittide::hasFlag(flags, F::IndexModified))
@@ -99,8 +105,15 @@ void ChangedFilesModel::setFiles(const std::vector<gittide::FileStatus>& files)
         r.letter = letterForFlags(f.flags);
         r.kind   = kindForFlags(f.flags);
         r.check  = Checked;
+        r.flags  = f.flags;
         m_rows.push_back(std::move(r));
     }
+    // Sort conflicted rows to the top, stable sort preserves relative order otherwise
+    std::stable_sort(m_rows.begin(), m_rows.end(), [](const Row& a, const Row& b) {
+        const bool a_conflicted = gittide::hasFlag(a.flags, gittide::StatusFlag::Conflicted);
+        const bool b_conflicted = gittide::hasFlag(b.flags, gittide::StatusFlag::Conflicted);
+        return a_conflicted > b_conflicted;
+    });
     endResetModel();
 }
 

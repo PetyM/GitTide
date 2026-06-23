@@ -28,7 +28,8 @@ public:
         CheckedRole,
         HunkRole,
         LineRole,
-        BlockStateRole, // int Qt::CheckState; meaningful only on "block" rows
+        BlockStateRole,    ///< int Qt::CheckState; meaningful only on "block" rows
+        ConflictRegionRole ///< int region index on conflict rows; -1 for non-conflict rows
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -55,13 +56,38 @@ public:
     int checkedCount() const;
     std::map<int, std::vector<int>> checkedLines() const;
 
+    /// Load a conflicted file's raw content (with `<<<<<<<`/`=======`/`>>>>>>>`
+    /// markers) for inline resolution. Parses regions; marker lines get kinds
+    /// "conflict-start" / "conflict-sep" / "conflict-end"; content lines inside a
+    /// region get kind "ours" or "theirs". Context lines outside any region get
+    /// kind "context". Each row's conflictRegion field holds the region index
+    /// (0-based) or -1 for rows outside any conflict region.
+    void setConflictContent(const QString& fileText);
+
+    /// Rewrite region @p region keeping our side. Returns the new full file text.
+    /// Caller is responsible for writing it to disk and calling setConflictContent()
+    /// with the result if the model should reflect the updated state.
+    Q_INVOKABLE QString acceptCurrent(int region);
+
+    /// Rewrite region @p region keeping the incoming (their) side. Returns new text.
+    Q_INVOKABLE QString acceptIncoming(int region);
+
+    /// Rewrite region @p region keeping both sides (ours then theirs). Returns new text.
+    Q_INVOKABLE QString acceptBoth(int region);
+
+    /// True when the stored conflict text contains no conflict markers, meaning the
+    /// file has been fully resolved (or was never conflicted).
+    Q_INVOKABLE bool isResolved() const;
+
 signals:
     void lineToggled(int hunkIndex, int lineIndex, bool checked);
 
 private:
     struct Row
     {
-        QString kind; // "hunk" | "context" | "added" | "removed" | "block"
+        QString kind; ///< "hunk" | "context" | "added" | "removed" | "block" |
+                      ///<  "conflict-start" | "conflict-sep" | "conflict-end" |
+                      ///<  "ours" | "theirs"
         int     oldNo = -1;
         int     newNo = -1;
         QString text;
@@ -73,8 +99,11 @@ private:
         int              blockRow   = -1; // on a line row: index of its block row, or -1
         std::vector<int> coveredRows;     // on a "block" row: the line rows it controls
         int              blockState = 0;  // on a "block" row: Qt::CheckState as int
+        // Conflict support:
+        int conflictRegion = -1; ///< 0-based region index for conflict rows; -1 otherwise
     };
     std::vector<Row> m_rows;
+    QString m_conflictText; ///< raw file text supplied to setConflictContent()
 
     Row  makeLineRow(const gittide::DiffLine& line, int hunkIndex, int lineIndex,
                      bool wholeChecked,

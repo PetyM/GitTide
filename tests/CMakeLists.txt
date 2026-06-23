@@ -17,10 +17,12 @@ add_executable(gittide_core_tests
   test_git_repo_log.cpp
   test_git_repo_commit_diff.cpp
   test_git_repo_branches.cpp
+  test_git_repo_merge.cpp
   test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
   test_git_repo_submodules.cpp
+  test_git_repo_submodule_merge.cpp
   test_git_repo_sync.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
@@ -48,6 +50,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
@@ -60,6 +63,11 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_branch_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_logging.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_auth_error.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_merge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_merge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_difflinesmodel_conflict.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_banner.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_entrypoints.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

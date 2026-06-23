@@ -51,10 +51,15 @@ Identical across themes (tuned for contrast on both surfaces).
 | `state.modified`  | `#D29922` | Modified |
 | `state.deleted`   | `#F85149` | Deleted |
 | `state.untracked` | `#6E7681` | Untracked |
-| `state.conflict`  | `#DB6D28` | Conflict |
+| `state.conflict`  | `#DB6D28` | Conflict (badge / merge banner) |
+| `state.incoming`  | `#388BFD` | Merge "Incoming (theirs)" conflict band |
 
 State is **never** signalled by colour alone — always pair it with an icon or a
-letter (A / M / D / U / C).
+letter (A / M / D / U / C). The inline merge-conflict bands reuse this git-state
+palette — *Current (ours)* tints from `state.added` (green), *Incoming (theirs)*
+from `state.incoming` (blue) — at low alpha as backgrounds, each paired with its
+text label. These are state signalling like the diff gutter and lane colours, not
+a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 
 ## Typography
 
@@ -134,6 +139,22 @@ letter (A / M / D / U / C).
   `state.deleted` at low-alpha background with a full-strength sign in the gutter;
   mono font. In working-changes (editable) mode each line carries a leading
   checkbox; in history (read-only) mode no checkboxes appear.
+- **Merge banner** (`mergeBanner`). Shown above the Changes list whenever the repo
+  is mid-merge (driven by `MergeState`, derived from disk). A `state.conflict`
+  (orange) left accent + warning glyph, the text *"Merging \<branch\> into
+  \<current\> — N conflicted files"* in `text.primary`, and trailing actions:
+  **Abort merge** (destructive secondary) always present, **Commit merge**
+  (primary, disabled until zero conflicts remain), and — only when the conflicts
+  include submodule pointers — **Deinit submodules & retry** (secondary). Conflict
+  is paired with the glyph + text, never colour alone.
+- **Inline conflict view.** A conflicted file opens in the shared diff panel with
+  its `<<<<<<< / ======= / >>>>>>>` regions rendered inline. The *Current (ours)*
+  band tints from `state.added`, the *Incoming (theirs)* band from `state.incoming`
+  (both low-alpha backgrounds), each with a labelled header row carrying per-region
+  **Accept Current · Accept Incoming · Accept Both** ghost actions; the body stays
+  editable for a hand-merge. Conflicted files in `changedFilesList` show the `C`
+  letter in `state.conflict`. Bands are always labelled, so the two hues are never
+  the sole signal.
 - **Sidebar collapse.** A toggle collapses the project/repo sidebar to a slim
   rail and back; the collapsed rail keeps the active-repo affordance reachable.
 - **Branch bar** (`branchBar`). A bar above the tabs. The current-branch chip

@@ -83,6 +83,12 @@ private slots:
         QCOMPARE(m.rowForPath(QStringLiteral("src/a.cpp")), 0);
         QCOMPARE(m.rowForPath(QStringLiteral("nope")), -1);
     }
+
+    void conflicted_file_reads_as_C()
+    {
+        QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::Conflicted), QStringLiteral("C"));
+        QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::Conflicted), QStringLiteral("conflict"));
+    }
 };
 
 #include "test_changed_files_model.moc"

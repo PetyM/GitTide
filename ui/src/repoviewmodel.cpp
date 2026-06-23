@@ -2,6 +2,8 @@
 
 #include <utility>
 
+#include <QHash>
+
 #include <qcorotask.h>
 
 #include "gittide/ui/metatypes.hpp"
@@ -54,6 +56,10 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
     connect(m_controller, &RepoController::authFailed, this,
             [this](QString) { emit authRequired(); });
+    connect(m_controller, &RepoController::mergeStateChanged, this,
+            [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
+    connect(m_controller, &RepoController::mergeFinished, this,
+            [this](const QString&) { /* refresh driven by the controller cascade */ });
 }
 
 bool RepoViewModel::repoOpen() const
@@ -141,6 +147,8 @@ void RepoViewModel::close()
     m_pullRebase     = false;
     m_pendingOp      = PendingOp::None;
     m_sessionCred    = {};
+    m_merge          = {};
+    m_mergeStartName.clear();
     emit changed();
     emit pullRebaseChanged();
     emit branchChanged();
@@ -149,13 +157,48 @@ void RepoViewModel::close()
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
     emit syncStatusChanged();
+    emit mergeStateChanged();
 }
 
 void RepoViewModel::selectFile(const QString& path)
 {
     m_activeFile = path;
     emit activeFileChanged();
+
+    // When the selected file is conflicted, load its raw marker-bearing content
+    // for inline resolution rather than computing a normal diff (D29).
+    const auto isConflicted = [&]() -> bool
+    {
+        for (const auto& cp : m_merge.conflictedPaths)
+        {
+            if (pathToQString(cp) == path)
+                return true;
+        }
+        return false;
+    };
+
+    if (!path.isEmpty() && isConflicted())
+    {
+        const QString raw = m_controller->readWorkingFile(path);
+        m_diff->setConflictContent(raw);
+        return;
+    }
+
     QCoro::connect(m_controller->refreshDiff(path, gittide::DiffTarget::WorktreeVsHead), this, [] {});
+}
+
+void RepoViewModel::acceptConflict(int region, int which)
+{
+    QString out;
+    switch (which)
+    {
+        case 0:  out = m_diff->acceptCurrent(region);  break;
+        case 1:  out = m_diff->acceptIncoming(region); break;
+        default: out = m_diff->acceptBoth(region);     break;
+    }
+    m_controller->writeWorkingFile(m_activeFile, out);
+    selectFile(m_activeFile);                          // re-loads content / diff
+    QCoro::connect(m_controller->refreshStatus(), this, [] {}); // re-derives MergeState (D30)
 }
 
 void RepoViewModel::setFileChecked(int row, bool checked)
@@ -290,9 +333,28 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     m_sel.clear();
     for (const auto& f : files)
         m_sel[pathToQString(f.path)] = FileSel{ChangedFilesModel::Checked, {}};
-    m_activeFile.clear();
-    m_diff->clear();
-    emit activeFileChanged();
+
+    // I-1 fix: When a file is selected (e.g. mid-conflict resolution), preserve
+    // it if it still appears in the refreshed file list — clearing unconditionally
+    // blanks the diff panel after every acceptConflict(). Only clear when the
+    // previously active file is gone from the new list (deleted, staged, etc.).
+    const bool fileStillPresent = !m_activeFile.isEmpty()
+        && std::any_of(files.begin(), files.end(),
+                       [&](const gittide::FileStatus& f)
+                       { return pathToQString(f.path) == m_activeFile; });
+    if (fileStillPresent)
+    {
+        // Re-load content so the diff reflects the updated on-disk state (e.g.
+        // after one conflict region was resolved). selectFile is idempotent here.
+        selectFile(m_activeFile);
+    }
+    else
+    {
+        m_activeFile.clear();
+        m_diff->clear();
+        emit activeFileChanged();
+    }
+
     emit checkedChanged();
 }
 
@@ -334,6 +396,17 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
 void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
 {
     m_branches->setBranches(branches);
+
+    // Build oid → local-branch-name map so the History pane can offer
+    // "Merge into <current>" on rows that are branch tips.
+    QHash<QString, QString> tips;
+    for (const auto& b : branches)
+    {
+        if (b.kind == gittide::BranchKind::Local && !b.tipOid.empty())
+            tips.insert(QString::fromStdString(b.tipOid), QString::fromStdString(b.name));
+    }
+    m_history->setLocalBranchTips(tips);
+
     for (const auto& b : branches)
     {
         if (b.isHead)
@@ -500,6 +573,44 @@ void RepoViewModel::setPullRebase(bool rebase)
     QCoro::connect(m_controller->setPullStrategy(rebase ? gittide::PullStrategy::Rebase
                                                         : gittide::PullStrategy::FastForwardOnly),
                    this, [] {});
+}
+
+void RepoViewModel::startMerge(const QString& name)
+{
+    m_mergeStartName = name;
+    QCoro::connect(m_controller->merge(name), this, [] {});
+}
+
+void RepoViewModel::commitMerge(const QString& message)
+{
+    QCoro::connect(m_controller->commitMerge(gittide::CommitRequest{message.toStdString()}), this, [] {});
+}
+
+void RepoViewModel::abortMerge()
+{
+    QCoro::connect(m_controller->abortMerge(), this, [] {});
+}
+
+void RepoViewModel::retryMergeDeinitSubmodules()
+{
+    // I-2 fix: m_mergeStartName is only set when GitTide initiated the merge in
+    // this session. For merges started on the CLI or across restarts it is empty.
+    // Fall back to the disk-derived ref name from MERGE_MSG (D30) rather than
+    // passing an empty string — which would abort-then-fail destructively.
+    QString name = m_mergeStartName;
+    if (name.isEmpty())
+        name = mergedRef(); // parsed from MERGE_MSG, never fabricated in-memory
+
+    // If both are empty we cannot determine the target; do nothing. The controller
+    // has its own guard too, but we avoid even starting the operation here.
+    if (name.isEmpty())
+    {
+        emit operationFailed(
+            tr("Cannot determine which branch to merge; resolve or abort this merge manually."));
+        return;
+    }
+
+    QCoro::connect(m_controller->retryMergeDeinitSubmodules(name), this, [] {});
 }
 
 } // namespace gittide::ui

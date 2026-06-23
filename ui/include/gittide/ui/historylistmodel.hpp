@@ -1,5 +1,6 @@
 #pragma once
 #include <QAbstractListModel>
+#include <QHash>
 #include <QString>
 
 #include "gittide/graph.hpp"
@@ -22,10 +23,11 @@ public:
         GraphRole = Qt::UserRole + 1, // QVariant<gittide::GraphRow>
         SummaryRole,
         AuthorRole,
-        DateRole,     // pre-formatted "yyyy-MM-dd hh:mm"
-        OidRole,      // full 40-char SHA
-        ShortOidRole, // first 7 chars
-        IsHeadRole,   // true when oid == the layout's HEAD oid
+        DateRole,           // pre-formatted "yyyy-MM-dd hh:mm"
+        OidRole,            // full 40-char SHA
+        ShortOidRole,       // first 7 chars
+        IsHeadRole,         // true when oid == the layout's HEAD oid
+        LocalBranchNameRole, // short name of a local branch whose tip is this commit; empty otherwise
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -33,6 +35,10 @@ public:
     /// Replace all rows. headOid is the full SHA of HEAD; the matching row's
     /// IsHeadRole is true (drives the white HEAD node in the graph).
     void setLayout(const gittide::GraphLayout& layout, const QString& headOid);
+
+    /// Update the oid → local-branch-name map used by LocalBranchNameRole.
+    /// Call after setLayout or whenever branches change.
+    void setLocalBranchTips(const QHash<QString, QString>& oidToName);
 
     int laneCount() const
     {
@@ -47,8 +53,9 @@ signals:
     void changed();
 
 private:
-    gittide::GraphLayout m_layout;
-    QString              m_headOid;
+    gittide::GraphLayout     m_layout;
+    QString                  m_headOid;
+    QHash<QString, QString>  m_oidToLocalBranch; // tip oid → local branch name
 };
 
 } // namespace gittide::ui

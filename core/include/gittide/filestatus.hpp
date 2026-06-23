@@ -13,6 +13,7 @@ enum class StatusFlag : std::uint32_t
     WtNew         = 1 << 3, // unstaged: untracked
     WtModified    = 1 << 4, // unstaged: modified
     WtDeleted     = 1 << 5, // unstaged: deleted
+    Conflicted    = 1 << 6, // index has conflict stages (mid-merge)
 };
 
 constexpr StatusFlag operator|(StatusFlag a, StatusFlag b)

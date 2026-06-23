@@ -8,6 +8,26 @@ RowLayout {
     objectName: "historyPane"
     spacing: 0
 
+    // ---- Commit context menu (right-click on a history row) ----
+    AppMenu {
+        id: commitContextMenu
+        objectName: "commitContextMenu"
+        property string rowBranchName: ""
+
+        // Shown only when the right-clicked commit is a local branch tip
+        // (rowBranchName is set by the MouseArea only when model.localBranchName
+        // is non-empty). Merging by an arbitrary commit's "containing branch" is
+        // ambiguous and out of scope.
+        AppMenuItem {
+            objectName: "mergeIntoItem"
+            text: repoVm ? ("Merge into " + repoVm.currentBranch) : "Merge"
+            enabled: commitContextMenu.rowBranchName !== ""
+            visible: commitContextMenu.rowBranchName !== ""
+            onTriggered: if (repoVm && commitContextMenu.rowBranchName !== "")
+                             repoVm.startMerge(commitContextMenu.rowBranchName)
+        }
+    }
+
     // ---- Commit list (graph + avatar + summary/author/date) ----
     ListView {
         id: historyList
@@ -32,9 +52,16 @@ RowLayout {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: {
-                    historyList.currentIndex = index
-                    if (repoVm) repoVm.selectCommit(model.oid)
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: function(mouse) {
+                    if (mouse.button === Qt.RightButton) {
+                        historyList.currentIndex = index
+                        commitContextMenu.rowBranchName = model.localBranchName ?? ""
+                        commitContextMenu.popup()
+                    } else {
+                        historyList.currentIndex = index
+                        if (repoVm) repoVm.selectCommit(model.oid)
+                    }
                 }
             }
 

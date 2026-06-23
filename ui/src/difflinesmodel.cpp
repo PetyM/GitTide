@@ -49,6 +49,8 @@ QVariant DiffLinesModel::data(const QModelIndex& index, int role) const
         return r.lineIndex;
     case BlockStateRole:
         return r.blockState;
+    case ConflictRegionRole:
+        return r.conflictRegion;
     default:
         return {};
     }
@@ -66,6 +68,7 @@ QHash<int, QByteArray> DiffLinesModel::roleNames() const
         {HunkRole, "hunkIndex"},
         {LineRole, "lineIndex"},
         {BlockStateRole, "blockState"},
+        {ConflictRegionRole, "conflictRegion"},
     };
 }
 
@@ -286,6 +289,191 @@ std::map<int, std::vector<int>> DiffLinesModel::checkedLines() const
         if (r.checkable && r.checked)
             out[r.hunkIndex].push_back(r.lineIndex);
     return out;
+}
+
+
+// ---------------------------------------------------------------------------
+// Conflict region support
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// Rewrite region @p target in @p text, keeping the side indicated by @p which
+/// (0 = ours, 1 = theirs, 2 = both ours+theirs). Returns the new full file text.
+/// This is a pure string transform with no git repo access so it can be unit-tested
+/// directly. Untouched regions are re-emitted verbatim with simplified markers.
+static QString rewriteRegion(const QString& text, int target, int which)
+{
+    const bool trailingNl = text.endsWith(u'\n');
+    QStringList in = text.split(u'\n');
+    if (trailingNl && !in.isEmpty() && in.last().isEmpty())
+        in.removeLast();
+
+    QStringList out;
+    int region = 0;
+
+    enum State
+    {
+        Outside,
+        Ours,
+        Theirs
+    } state = Outside;
+
+    QStringList ours, theirs;
+
+    auto flush = [&]()
+    {
+        if (which == 0)
+            out += ours;
+        else if (which == 1)
+            out += theirs;
+        else
+        {
+            out += ours;
+            out += theirs;
+        }
+        ours.clear();
+        theirs.clear();
+    };
+
+    for (const QString& ln : in)
+    {
+        if (ln.startsWith(QStringLiteral("<<<<<<<")))
+        {
+            state = Ours;
+            continue;
+        }
+        if (ln.startsWith(QStringLiteral("=======")) && state != Outside)
+        {
+            state = Theirs;
+            continue;
+        }
+        if (ln.startsWith(QStringLiteral(">>>>>>>")))
+        {
+            if (region == target)
+            {
+                flush();
+            }
+            else
+            {
+                // Untouched region: re-emit with simplified markers.
+                out += QStringLiteral("<<<<<<<");
+                out += ours;
+                out += QStringLiteral("=======");
+                out += theirs;
+                out += QStringLiteral(">>>>>>>");
+                ours.clear();
+                theirs.clear();
+            }
+            state = Outside;
+            ++region;
+            continue;
+        }
+        if (state == Ours)
+            ours += ln;
+        else if (state == Theirs)
+            theirs += ln;
+        else
+            out += ln;
+    }
+
+    QString joined = out.join(u'\n');
+    if (trailingNl)
+        joined += u'\n';
+    return joined;
+}
+
+} // anonymous namespace
+
+void DiffLinesModel::setConflictContent(const QString& fileText)
+{
+    beginResetModel();
+    m_rows.clear();
+    m_conflictText = fileText;
+
+    const QStringList lines = fileText.split(u'\n');
+    int  region   = 0;
+    bool inOurs   = false;
+    bool inTheirs = false;
+
+    for (const QString& ln : lines)
+    {
+        if (ln.startsWith(QStringLiteral("<<<<<<<")) && !inOurs && !inTheirs)
+        {
+            inOurs    = true;
+            inTheirs  = false;
+            Row r;
+            r.kind           = QStringLiteral("conflict-start");
+            r.text           = ln;
+            r.conflictRegion = region;
+            m_rows.push_back(std::move(r));
+            continue;
+        }
+        if (ln.startsWith(QStringLiteral("=======")) && (inOurs || inTheirs))
+        {
+            inOurs   = false;
+            inTheirs = true;
+            Row r;
+            r.kind           = QStringLiteral("conflict-sep");
+            r.text           = ln;
+            r.conflictRegion = region;
+            m_rows.push_back(std::move(r));
+            continue;
+        }
+        if (ln.startsWith(QStringLiteral(">>>>>>>")) && inTheirs)
+        {
+            inOurs   = false;
+            inTheirs = false;
+            Row r;
+            r.kind           = QStringLiteral("conflict-end");
+            r.text           = ln;
+            r.conflictRegion = region;
+            m_rows.push_back(std::move(r));
+            ++region;
+            continue;
+        }
+        Row r;
+        r.text = ln;
+        if (inOurs)
+        {
+            r.kind           = QStringLiteral("ours");
+            r.conflictRegion = region;
+        }
+        else if (inTheirs)
+        {
+            r.kind           = QStringLiteral("theirs");
+            r.conflictRegion = region;
+        }
+        else
+        {
+            r.kind = QStringLiteral("context");
+        }
+        m_rows.push_back(std::move(r));
+    }
+
+    endResetModel();
+}
+
+bool DiffLinesModel::isResolved() const
+{
+    return !m_conflictText.contains(QStringLiteral("<<<<<<<"))
+        && !m_conflictText.contains(QStringLiteral(">>>>>>>"))
+        && !m_conflictText.contains(QStringLiteral("\n======="));
+}
+
+QString DiffLinesModel::acceptCurrent(int region)
+{
+    return rewriteRegion(m_conflictText, region, 0);
+}
+
+QString DiffLinesModel::acceptIncoming(int region)
+{
+    return rewriteRegion(m_conflictText, region, 1);
+}
+
+QString DiffLinesModel::acceptBoth(int region)
+{
+    return rewriteRegion(m_conflictText, region, 2);
 }
 
 } // namespace gittide::ui
