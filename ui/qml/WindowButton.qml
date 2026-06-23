@@ -32,7 +32,7 @@ AbstractButton {
                 anchors.centerIn: parent
                 visible: btn.hovered
                 text: btn.glyph
-                color: "#333333"
+                color: Qt.rgba(0, 0, 0, 0.65)
                 font.pixelSize: 7
                 font.weight: Font.Bold
             }
