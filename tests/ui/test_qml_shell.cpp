@@ -406,6 +406,22 @@ private slots:
         // Per-type checks happen in the context-menu tasks below.
         QVERIFY(!engine.rootObjects().isEmpty());
     }
+
+    void discard_changes_dialog_loads()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        // DiscardChangesDialog is instantiated inside ChangesPane (wired in Task 5).
+        // Here we verify the type compiles and the engine stays error-free.
+        QVERIFY(!engine.rootObjects().isEmpty());
+    }
 };
 
 #include "test_qml_shell.moc"

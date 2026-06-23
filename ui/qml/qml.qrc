@@ -13,6 +13,7 @@
     <file>NewBranchDialog.qml</file>
     <file>RenameBranchDialog.qml</file>
     <file>DeleteBranchDialog.qml</file>
+    <file>DiscardChangesDialog.qml</file>
     <file>ChangesPane.qml</file>
     <file>DiffView.qml</file>
     <file>Avatar.qml</file>
