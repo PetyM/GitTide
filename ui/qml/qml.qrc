@@ -29,5 +29,6 @@
     <file>EdgeResizer.qml</file>
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
+    <file>OptionsDialog.qml</file>
   </qresource>
 </RCC>
