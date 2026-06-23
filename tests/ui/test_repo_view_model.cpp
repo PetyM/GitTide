@@ -335,6 +335,38 @@ private slots:
         QVERIFY(true);
     }
 
+    void select_commit_at_row_ignores_out_of_bounds()
+    {
+        RepoViewModel vm;
+        // No repo open — history is empty. Should not crash.
+        vm.selectCommitAtRow(-1);
+        vm.selectCommitAtRow(0);
+        vm.selectCommitAtRow(99);
+        // Just verify no crash.
+        QVERIFY(true);
+    }
+
+    void select_commit_at_row_selects_correct_commit()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // Wait for history to load
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        QVERIFY(historySpy.wait(3000));
+        QVERIFY(vm.history()->rowCount(QModelIndex()) > 0);
+
+        // Select the first commit and verify selectedCommit is populated
+        vm.selectCommitAtRow(0);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.selectedCommit().isEmpty(), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
     void select_commit_file_at_row_ignores_out_of_bounds()
     {
         RepoViewModel vm;
