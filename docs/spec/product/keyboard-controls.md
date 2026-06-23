@@ -151,10 +151,11 @@ C++ `QAbstractItemModel`. Two new `Q_INVOKABLE` methods are added to
 | Method | Implementation |
 |--------|---------------|
 | `void selectFileAtRow(int row)` | Reads `filePath` from `changedFiles` at `row`; calls `selectFile` |
+| `void selectCommitAtRow(int row)` | Reads OID via `OidRole` from `history` at `row`; calls `selectCommit` |
 | `void selectCommitFileAtRow(int row)` | Reads `filePath` from `commitFiles` at `row`; calls `selectCommitFile` |
 
-`selectCommit` already takes an OID string; `historyList` uses `currentItem` to
-read the OID from the delegate's exposed `property string oid: model.oid`.
+`selectCommitAtRow` reads the OID internally via `HistoryListModel::OidRole` so QML key handlers
+don't need to access delegate properties from the list's `currentItem`.
 
 ```qml
 ListView {
@@ -228,6 +229,7 @@ No new theme tokens beyond `focusBorder` (§1.3).
 
 **Modified `ui/include/gittide/ui/repoviewmodel.hpp` + `ui/src/repoviewmodel.cpp`:**
 - Add `Q_INVOKABLE void selectFileAtRow(int row)`
+- Add `Q_INVOKABLE void selectCommitAtRow(int row)`
 - Add `Q_INVOKABLE void selectCommitFileAtRow(int row)`
 
 **Modified `ui/include/gittide/ui/theme.hpp` + `ui/src/theme.cpp`:**
