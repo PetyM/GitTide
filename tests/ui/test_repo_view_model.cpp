@@ -304,6 +304,44 @@ private slots:
         vm.copyToClipboard(QStringLiteral("abc123"));
         QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
     }
+
+    void select_file_at_row_selects_correct_file()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(vm.changedFiles()->rowCount() > 0);
+
+        // Also wait for diff to populate to ensure the async diff load completes
+        QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
+        vm.selectFileAtRow(0);
+        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(!vm.activeFile().isEmpty());
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void select_file_at_row_ignores_out_of_bounds()
+    {
+        RepoViewModel vm;
+        // No repo open — changedFiles is empty. Should not crash.
+        vm.selectFileAtRow(-1);
+        vm.selectFileAtRow(0);
+        vm.selectFileAtRow(99);
+        // Just verify no crash.
+        QVERIFY(true);
+    }
+
+    void select_commit_file_at_row_ignores_out_of_bounds()
+    {
+        RepoViewModel vm;
+        vm.selectCommitFileAtRow(-1);
+        vm.selectCommitFileAtRow(0);
+        QVERIFY(true);
+    }
 };
 
 #include "test_repo_view_model.moc"

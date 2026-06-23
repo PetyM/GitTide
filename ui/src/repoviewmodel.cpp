@@ -187,6 +187,29 @@ void RepoViewModel::selectFile(const QString& path)
     QCoro::connect(m_controller->refreshDiff(path, gittide::DiffTarget::WorktreeVsHead), this, [] {});
 }
 
+void RepoViewModel::selectFileAtRow(int row)
+{
+    if (row < 0 || row >= m_files->rowCount())
+        return;
+    selectFile(m_files->pathAt(row));
+}
+
+void RepoViewModel::selectCommitAtRow(int row)
+{
+    if (!m_history || row < 0 || row >= m_history->rowCount())
+        return;
+    const QString oid = m_history->data(m_history->index(row, 0),
+                                        HistoryListModel::OidRole).toString();
+    selectCommit(oid);
+}
+
+void RepoViewModel::selectCommitFileAtRow(int row)
+{
+    if (row < 0 || row >= m_commitFiles->rowCount())
+        return;
+    selectCommitFile(m_commitFiles->pathAt(row));
+}
+
 void RepoViewModel::acceptConflict(int region, int which)
 {
     QString out;

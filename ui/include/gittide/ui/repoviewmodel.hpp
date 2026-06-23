@@ -103,6 +103,9 @@ public:
     /// Used when switching to a project that has no repository to show.
     Q_INVOKABLE void close();
     Q_INVOKABLE void selectFile(const QString& path);
+    Q_INVOKABLE void selectFileAtRow(int row);
+    Q_INVOKABLE void selectCommitAtRow(int row);
+    Q_INVOKABLE void selectCommitFileAtRow(int row);
     Q_INVOKABLE void setFileChecked(int row, bool checked);
     Q_INVOKABLE void setAllFilesChecked(bool checked);
     Q_INVOKABLE void setLineChecked(int row, bool checked);
