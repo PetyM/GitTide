@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-22 |
-| **Status** | `idea` |
+| **Status** | `shipped` (2026-06-23) |
 | **Touches** | product, design, engineering — app window chrome, new Options dialog, app-level settings persistence |
 
 ## What
@@ -59,5 +59,4 @@ Direction agreed while capturing this wish (real design happens in the spec):
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/<section> · plan: plans/<file> -->
+**Shipped in Plan 15 (2026-06-23).** Design: `docs/spec/product/app-menu.md`. Components: `TitleBar.qml`, `AboutDialog.qml`, `OptionsDialog.qml`, `AppRadioButton.qml`, `WindowButton.qml`, `EdgeResizer.qml`. Persistence via `QSettings`. Theme and pull-default settings persist across restarts. Window launches maximised; custom frameless chrome with platform-native drag and resize.

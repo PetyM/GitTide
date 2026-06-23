@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+| | |
+|--|--|
+| **Date** | 2026-06-23 |
+| **Status** | `shipped` (2026-06-23) |
+
 **Goal:** Replace the native OS window decorations with a custom frameless title bar carrying an app-icon menu; add an Options dialog for theme and pull-default settings persisted via `QSettings`; launch the window maximised by default.
 
 **Architecture:** `QSettings` (Qt, in `ui/` and `app/`) handles all app-level persistence — no new `core/` type. A single `Settings { id: appSettings }` QML object in `Main.qml` owns theme mode and pull-default in memory and on disk; C++ reads `QSettings` at startup to apply the stored theme before QML renders. `TitleBar.qml` uses `DragHandler + window.startSystemMove()` for native drag (Snap on Windows, correct macOS behaviour) and platform-conditional layout (traffic lights left on macOS, glyphs right elsewhere).

@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-23 |
-| **Status** | `planned` |
+| **Status** | `shipped` (2026-06-23) |
 | **Spec** | [`docs/spec/product/context-menus.md`](../spec/product/context-menus.md) |
 | **Depends on** | Plan 15 (app menu / frameless title bar) |
 

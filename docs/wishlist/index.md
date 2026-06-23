@@ -16,9 +16,7 @@ and it links out to them.
 
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
-| [App menu + Options dialog](app-menu.md) | 2026-06-22 | `idea` | product, design, engineering |
 | [Deployment — native installers (apt / brew / .exe)](deployment-packaging.md) | 2026-06-22 | `idea` | engineering, product |
-| [Context menus — right-click actions on every entity](context-menus.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Keyboard controls — navigate and act without the mouse](keyboard-controls.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
@@ -44,3 +42,5 @@ plan from the bottom of its file.
 | [Merge — with conflict resolution](shipped/merge.md) | 2026-06-17 | 2026-06-22 | product, engineering, design |
 | [GitHub-Desktop-style UI refactor](shipped/github-desktop-ui-refactor.md) | 2026-06-17 | 2026-06-18 | product, design, engineering |
 | [Logging — categories with per-category and global levels](shipped/logging.md) | 2026-06-21 | 2026-06-21 | engineering, product |
+| [App menu + Options dialog](shipped/app-menu.md) | 2026-06-22 | 2026-06-23 | product, design, engineering |
+| [Context menus — right-click actions on every entity](shipped/context-menus.md) | 2026-06-21 | 2026-06-23 | product, design, engineering |
