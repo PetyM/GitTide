@@ -33,6 +33,15 @@ Popup {
         radius: 10
     }
 
+    BranchContextMenu {
+        id: branchMenu
+        onSwitchBranch:      { if (repoVm) { if (branchMenu.isRemote) repoVm.checkoutRemoteBranch(branchMenu.branchName); else repoVm.switchBranch(branchMenu.branchName) }; dropdown.close() }
+        onNewBranchFromHere: { dropdown.newRequested(); dropdown.close() }
+        onRename:            { dropdown.renameRequested(); dropdown.close() }
+        onDeleteBranch:      { dropdown.deleteRequested(); dropdown.close() }
+        onMerge:             { if (repoVm) repoVm.startMerge(branchMenu.branchName); dropdown.close() }
+    }
+
     contentItem: ColumnLayout {
         spacing: 0
 
@@ -90,6 +99,15 @@ Popup {
                 opacity: model.remote ? 0.8 : 1.0
 
                 HoverHandler { id: hover }
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: {
+                        branchMenu.branchName = model.branchName
+                        branchMenu.isHead     = model.isHead
+                        branchMenu.isRemote   = model.remote
+                        branchMenu.popup()
+                    }
+                }
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
@@ -132,36 +150,6 @@ Popup {
                         font.pixelSize: 10
                         elide: Text.ElideLeft
                         Layout.maximumWidth: 120
-                    }
-                    // "Merge into <current>" action — local non-current branches only.
-                    Rectangle {
-                        objectName: "mergeIntoItem"
-                        visible: !model.isHead && !model.remote
-                        property string branchNameForMerge: model.branchName
-                        property string mergeText: repoVm ? ("Merge into " + repoVm.currentBranch) : "Merge"
-                        Layout.preferredWidth: visible ? mergeLabel.implicitWidth + 12 : 0
-                        Layout.preferredHeight: 22
-                        radius: 4
-                        color: mergeHover.hovered ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.18) : "transparent"
-                        border.color: theme.border
-                        border.width: 1
-
-                        Label {
-                            id: mergeLabel
-                            anchors.centerIn: parent
-                            text: parent.mergeText
-                            color: theme.textPrimary
-                            font.pixelSize: 11
-                        }
-                        HoverHandler { id: mergeHover }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                mouse.accepted = true
-                                if (repoVm) repoVm.startMerge(model.branchName)
-                                dropdown.close()
-                            }
-                        }
                     }
                 }
             }

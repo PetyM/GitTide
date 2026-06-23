@@ -423,6 +423,22 @@ private slots:
         QVERIFY(!engine.rootObjects().isEmpty());
     }
 
+    void branch_context_menu_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("branchContextMenu"));
+        QVERIFY(menu != nullptr);
+    }
+
     void file_context_menu_exists_in_shell()
     {
         const auto dir = qml_shell_test::make_dirty_repo();

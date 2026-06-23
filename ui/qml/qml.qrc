@@ -26,6 +26,7 @@
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
     <file>AppMenuSeparator.qml</file>
+    <file>BranchContextMenu.qml</file>
     <file>FileContextMenu.qml</file>
     <file>MergeBanner.qml</file>
     <file>WindowButton.qml</file>
