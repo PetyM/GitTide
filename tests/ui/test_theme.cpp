@@ -69,6 +69,14 @@ private slots:
             QVERIFY(c.alpha() < 255);
         }
     }
+    void focus_border_token_exists()
+    {
+        const auto dark  = gittide::ui::darkTheme();
+        const auto light = gittide::ui::lightTheme();
+        // focusBorder is defined as accent in both themes.
+        QCOMPARE(dark.focusBorder,  dark.accent);
+        QCOMPARE(light.focusBorder, light.accent);
+    }
 };
 
 #include "test_theme.moc"

@@ -35,6 +35,7 @@ class QmlTheme : public QObject
     Q_PROPERTY(QColor stateConflict READ stateConflict NOTIFY changed)
     Q_PROPERTY(QColor stateIncoming READ stateIncoming NOTIFY changed)
     Q_PROPERTY(QColor shadow READ shadow NOTIFY changed)
+    Q_PROPERTY(QColor focusBorder READ focusBorder NOTIFY changed)
     Q_PROPERTY(QVariantList laneColors READ laneColors CONSTANT)
     Q_PROPERTY(QString iconSource READ iconSource NOTIFY changed)
 
@@ -67,6 +68,7 @@ public:
     QColor stateConflict() const;
     QColor stateIncoming() const;
     QColor shadow() const;
+    QColor focusBorder() const;
     QVariantList laneColors() const;
     QString iconSource() const;
 

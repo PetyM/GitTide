@@ -23,6 +23,7 @@ Theme darkTheme()
         .stateConflict  = QStringLiteral("#DB6D28"),
         .stateIncoming  = QStringLiteral("#388BFD"),
         .shadow         = QStringLiteral("#66000000"), // 40% black — deep on dark surfaces
+        .focusBorder    = QStringLiteral("#22D3EE"),  // = accent
     };
 }
 
@@ -47,6 +48,7 @@ Theme lightTheme()
         .stateConflict  = QStringLiteral("#DB6D28"),
         .stateIncoming  = QStringLiteral("#388BFD"),
         .shadow         = QStringLiteral("#2E0B1623"), // ~18% of the dark brand ink
+        .focusBorder    = QStringLiteral("#0891B2"),  // = accent
     };
 }
 

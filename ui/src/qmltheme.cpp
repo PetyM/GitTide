@@ -117,6 +117,10 @@ QColor QmlTheme::shadow() const
 {
     return QColor(theme().shadow);
 }
+QColor QmlTheme::focusBorder() const
+{
+    return QColor(theme().focusBorder);
+}
 
 QVariantList QmlTheme::laneColors() const
 {
