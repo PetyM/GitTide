@@ -36,5 +36,6 @@
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
     <file>OptionsDialog.qml</file>
+    <file>ShortcutsHelpPopup.qml</file>
   </qresource>
 </RCC>

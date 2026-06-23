@@ -146,13 +146,12 @@ Item {
     }
 
     // ? — toggle shortcuts overlay (guarded: don't fire while typing in commit fields).
-    // shortcutsPopup is defined in Task 6.
-    // Shortcut {
-    //     sequence: "?"
-    //     context: Qt.WindowShortcut
-    //     enabled: repoVm !== null && repoVm.repoOpen && !anyTextInputActive
-    //     onActivated: shortcutsPopup.visible ? shortcutsPopup.close() : shortcutsPopup.open()
-    // }
+    Shortcut {
+        sequence: "?"
+        context: Qt.WindowShortcut
+        enabled: repoVm !== null && repoVm.repoOpen && !anyTextInputActive
+        onActivated: shortcutsPopup.visible ? shortcutsPopup.close() : shortcutsPopup.open()
+    }
 
     // Focus fileList when a repo first opens.
     Connections {
@@ -162,5 +161,9 @@ Item {
             if (repoVm && repoVm.repoOpen)
                 Qt.callLater(function() { changesTabBody.takeFocus() })
         }
+    }
+
+    ShortcutsHelpPopup {
+        id: shortcutsPopup
     }
 }

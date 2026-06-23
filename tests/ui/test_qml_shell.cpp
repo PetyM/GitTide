@@ -560,6 +560,23 @@ private slots:
             QStringLiteral("workingPane"));
         QVERIFY(pane != nullptr);
     }
+
+    void shortcuts_popup_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* popup = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("shortcutsPopup"));
+        QVERIFY(popup != nullptr);
+    }
 };
 
 #include "test_qml_shell.moc"
