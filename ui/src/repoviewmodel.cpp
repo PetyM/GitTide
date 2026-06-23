@@ -52,8 +52,6 @@ RepoViewModel::RepoViewModel(QObject* parent)
                 m_syncTotal    = static_cast<int>(total);
                 emit syncProgressChanged();
             });
-    connect(m_controller, &RepoController::pullStrategyChanged, this,
-            [this](gittide::PullStrategy s) { m_pullRebase = (s == gittide::PullStrategy::Rebase); emit pullRebaseChanged(); });
     connect(m_controller, &RepoController::authFailed, this,
             [this](QString) { emit authRequired(); });
     connect(m_controller, &RepoController::mergeStateChanged, this,

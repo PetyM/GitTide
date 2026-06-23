@@ -225,7 +225,7 @@ Rectangle {
                     text: "Pull: rebase"
                     checkable: true
                     checked: repoVm && repoVm.pullRebase
-                    onToggled: if (repoVm) repoVm.setPullRebase(checked)
+                    onToggled: if (repoVm) repoVm.applyPullDefault(checked)
                 }
             }
         }
