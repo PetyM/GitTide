@@ -2,11 +2,13 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDir>
+#include <QSettings>
 #include <QStandardPaths>
 
 #include "gittide/libgit2context.hpp"
 #include "gittide/log.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/version.hpp"
 #include "gittide/ui/logging.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
@@ -35,7 +37,11 @@ int main(int argc, char** argv)
     const gittide::LibGit2Context git_ctx;
 
     ThemeManager theme;
-    theme.setMode(ThemeManager::Mode::System);
+    {
+        QSettings s;
+        const int storedMode = s.value(QStringLiteral("themeMode"), 0).toInt();
+        theme.setMode(static_cast<ThemeManager::Mode>(storedMode));
+    }
 
     // Load the project registry into a local store (single-window shell — multi
     // window/session restore is a later plan).
@@ -58,7 +64,9 @@ int main(int argc, char** argv)
 
     RepoViewModel repoVm;
     QQmlApplicationEngine engine;
-    installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm);
+    installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm,
+                      nullptr,
+                      QString::fromStdString(std::string(gittide::kVersion)));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return 1;

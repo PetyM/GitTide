@@ -292,6 +292,23 @@ private slots:
         QCOMPARE(controller.activeProjectName(), QStringLiteral("Work"));
     }
 
+    void appVersion_context_property_is_set()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr,
+                          nullptr, QStringLiteral("1.2.3"));
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QVariant v = engine.rootContext()->contextProperty(QStringLiteral("appVersion"));
+        QCOMPARE(v.toString(), QStringLiteral("1.2.3"));
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;
