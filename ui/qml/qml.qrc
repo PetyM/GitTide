@@ -24,6 +24,7 @@
     <file>AppRadioButton.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
+    <file>AppMenuSeparator.qml</file>
     <file>MergeBanner.qml</file>
     <file>WindowButton.qml</file>
     <file>EdgeResizer.qml</file>
