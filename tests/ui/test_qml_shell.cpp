@@ -482,6 +482,22 @@ private slots:
         QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("commitContextMenu"));
         QVERIFY(menu != nullptr);
     }
+
+    void repo_context_menu_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("repoContextMenu"));
+        QVERIFY(menu != nullptr);
+    }
 };
 
 #include "test_qml_shell.moc"

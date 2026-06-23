@@ -388,14 +388,10 @@ Rectangle {
     }
 
     // ---- Remove-repo context menu ----
-    AppMenu {
+    RepoContextMenu {
         id: repoContextMenu
-        objectName: "repoContextMenu"
-        property string repoPath: ""
-        AppMenuItem {
-            text: "Remove from project"
-            onTriggered: if (projectController && repoContextMenu.repoPath.length > 0)
-                             projectController.removeRepo(repoContextMenu.repoPath)
-        }
+        onRevealInFileManager: if (repoVm) repoVm.revealInFileManager(repoContextMenu.repoPath)
+        onRemoveFromProject:   if (projectController && repoContextMenu.repoPath.length > 0)
+                                  projectController.removeRepo(repoContextMenu.repoPath)
     }
 }
