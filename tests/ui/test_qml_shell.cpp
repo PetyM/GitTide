@@ -343,6 +343,24 @@ private slots:
         QVERIFY(root->findChild<QObject*>(QStringLiteral("appMenuPopup")) != nullptr);
     }
 
+    void theme_toggle_removed_from_sidebar()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        // themeToggle was removed from Sidebar — must not be found
+        QObject* toggle = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("themeToggle"));
+        QVERIFY(toggle == nullptr);
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;
