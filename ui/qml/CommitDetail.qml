@@ -6,6 +6,9 @@ ColumnLayout {
     id: commitDetail
     spacing: 0
 
+    signal tabBackward()
+    function takeFocus() { commitFilesList.forceActiveFocus() }
+
     // Header: selected commit short-oid (empty when nothing selected).
     RowLayout {
         Layout.fillWidth: true
@@ -40,52 +43,82 @@ ColumnLayout {
     }
 
     // ---- Files in the commit (read-only) ----
-    ListView {
-        id: commitFilesList
-        objectName: "commitFilesList"
+    Item {
         Layout.fillWidth: true
         Layout.preferredHeight: 160
-        clip: true
-        model: repoVm ? repoVm.commitFiles : null
 
-        delegate: Rectangle {
-            width: ListView.view.width
-            height: 28
-            color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+        ListView {
+            id: commitFilesList
+            objectName: "commitFilesList"
+            anchors.fill: parent
+            clip: true
+            model: repoVm ? repoVm.commitFiles : null
 
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    commitFilesList.currentIndex = index
-                    if (repoVm) repoVm.selectCommitFile(model.filePath)
+            activeFocusOnTab: true
+            Keys.onUpPressed: {
+                if (currentIndex > 0) {
+                    currentIndex--
+                    if (repoVm) repoVm.selectCommitFileAtRow(currentIndex)
                 }
             }
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 8
-                Label {
-                    Layout.fillWidth: true
-                    elide: Text.ElideMiddle
-                    font.family: "monospace"
-                    font.pixelSize: 12
-                    textFormat: Text.RichText
-                    text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
-                          + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
-                }
-                Label {
-                    text: model.statusLetter
-                    font.family: "monospace"
-                    font.pixelSize: 12
-                    font.weight: Font.Bold
-                    color: model.statusKind === "added" ? theme.stateAdded
-                           : model.statusKind === "deleted" ? theme.stateDeleted
-                           : model.statusKind === "untracked" ? theme.stateUntracked
-                           : theme.stateModified
+            Keys.onDownPressed: {
+                if (currentIndex < count - 1) {
+                    currentIndex++
+                    if (repoVm) repoVm.selectCommitFileAtRow(currentIndex)
                 }
             }
+            Keys.onTabPressed: {
+                commitDetail.tabBackward()
+                event.accepted = true
+            }
+
+            delegate: Rectangle {
+                width: ListView.view.width
+                height: 28
+                color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        commitFilesList.currentIndex = index
+                        if (repoVm) repoVm.selectCommitFile(model.filePath)
+                    }
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideMiddle
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        textFormat: Text.RichText
+                        text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
+                              + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+                    }
+                    Label {
+                        text: model.statusLetter
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        font.weight: Font.Bold
+                        color: model.statusKind === "added" ? theme.stateAdded
+                               : model.statusKind === "deleted" ? theme.stateDeleted
+                               : model.statusKind === "untracked" ? theme.stateUntracked
+                               : theme.stateModified
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            border.color: commitFilesList.activeFocus ? theme.focusBorder : "transparent"
+            border.width: 1
+            enabled: false
         }
     }
 

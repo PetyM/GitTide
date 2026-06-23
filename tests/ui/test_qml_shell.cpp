@@ -518,6 +518,31 @@ private slots:
         QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("repoContextMenu"));
         QVERIFY(menu != nullptr);
     }
+
+    void history_pane_exposes_take_focus()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* pane = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("historyTabBody"));
+        QVERIFY(pane != nullptr);
+        bool ok = QMetaObject::invokeMethod(pane, "takeFocus");
+        QVERIFY(ok);
+
+        QObject* detail = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("commitDetail"));
+        QVERIFY(detail != nullptr);
+        bool ok2 = QMetaObject::invokeMethod(detail, "takeFocus");
+        QVERIFY(ok2);
+    }
 };
 
 #include "test_qml_shell.moc"
