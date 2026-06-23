@@ -126,7 +126,7 @@ public:
     Q_INVOKABLE void push();
     Q_INVOKABLE void publishBranch();
     Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
-    Q_INVOKABLE void setPullRebase(bool rebase);
+    Q_INVOKABLE void applyPullDefault(bool rebase);
 
     /// Accept one side of a single conflict region and write the resolved file.
     /// @p region is the 0-based region index from DiffLinesModel::ConflictRegionRole.
