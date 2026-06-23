@@ -146,6 +146,11 @@ public:
     /// Deinit conflicting submodules then retry the merge started by startMerge().
     Q_INVOKABLE void retryMergeDeinitSubmodules();
 
+    Q_INVOKABLE void discardFile(const QString& path);
+    Q_INVOKABLE void openInEditor(const QString& path);
+    Q_INVOKABLE void revealInFileManager(const QString& path);
+    Q_INVOKABLE void copyToClipboard(const QString& text);
+
 signals:
     void changed();
     void branchChanged();

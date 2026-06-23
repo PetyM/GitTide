@@ -2,7 +2,12 @@
 
 #include <utility>
 
+#include <QClipboard>
+#include <QDesktopServices>
+#include <QFileInfo>
+#include <QGuiApplication>
 #include <QHash>
+#include <QUrl>
 
 #include <qcorotask.h>
 
@@ -605,6 +610,31 @@ void RepoViewModel::retryMergeDeinitSubmodules()
     }
 
     QCoro::connect(m_controller->retryMergeDeinitSubmodules(name), this, [] {});
+}
+
+void RepoViewModel::discardFile(const QString& path)
+{
+    gittide::StageSelection sel{
+        .path        = qstringToPath(path),
+        .hunkIndex   = std::nullopt,
+        .lineIndices = {}
+    };
+    QCoro::connect(m_controller->discard(sel), this, [] {});
+}
+
+void RepoViewModel::openInEditor(const QString& path)
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void RepoViewModel::revealInFileManager(const QString& path)
+{
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+}
+
+void RepoViewModel::copyToClipboard(const QString& text)
+{
+    QGuiApplication::clipboard()->setText(text);
 }
 
 } // namespace gittide::ui
