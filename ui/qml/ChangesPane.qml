@@ -82,6 +82,18 @@ SplitView {
                     }
                 }
 
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: {
+                        fileMenu.filePath   = model.filePath
+                        fileMenu.fileName   = model.fileName
+                        fileMenu.statusKind = model.statusKind
+                        fileMenu.checkState = model.checkState
+                        fileMenu.rowIndex   = index
+                        fileMenu.popup()
+                    }
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 12
@@ -191,5 +203,22 @@ SplitView {
             commitSummary.text = ""
             commitDescription.text = ""
         }
+    }
+
+    // ---- File context menu (right-click on a changed file row) ----
+    FileContextMenu {
+        id: fileMenu
+        onStage:               if (repoVm) repoVm.setFileChecked(fileMenu.rowIndex, true)
+        onUnstage:             if (repoVm) repoVm.setFileChecked(fileMenu.rowIndex, false)
+        onDiscard:             discardDialog.open()
+        onOpenInEditor:        if (repoVm) repoVm.openInEditor(fileMenu.filePath)
+        onRevealInFileManager: if (repoVm) repoVm.revealInFileManager(fileMenu.filePath)
+        onCopyPath:            if (repoVm) repoVm.copyToClipboard(fileMenu.filePath)
+    }
+
+    DiscardChangesDialog {
+        id: discardDialog
+        fileName: fileMenu.fileName
+        onAccepted: if (repoVm) repoVm.discardFile(fileMenu.filePath)
     }
 }

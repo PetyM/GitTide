@@ -422,6 +422,34 @@ private slots:
         // Here we verify the type compiles and the engine stays error-free.
         QVERIFY(!engine.rootObjects().isEmpty());
     }
+
+    void file_context_menu_exists_in_shell()
+    {
+        const auto dir = qml_shell_test::make_dirty_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("fileContextMenu"));
+        QVERIFY(menu != nullptr);
+
+        QObject* discardDialog = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("discardChangesDialog"));
+        QVERIFY(discardDialog != nullptr);
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_qml_shell.moc"
