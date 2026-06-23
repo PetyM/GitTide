@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// Create a new branch. Base-ref picker defaults to the current branch; only the
-// default (current HEAD) is honoured for now — a non-default base needs a
-// name->OID resolver (deferred), so the picker is informational until then.
+// Create a new branch.
+// openDialog()       — branch from HEAD (or the base-combo selection, deferred).
+// openFromCommit(id) — branch from a specific commit OID; hides the base combo.
 Dialog {
     id: dialog
     objectName: "newBranchDialog"
@@ -14,12 +14,23 @@ Dialog {
     width: 380
     padding: 20
 
+    property string fromOid: ""
+
     background: OverlayCard {}
 
     function openDialog() {
+        fromOid = ""   // always reset; callers that want a specific OID use openFromCommit
         nameField.text = ""
         baseCombo.model = repoVm ? repoVm.branches.localBranchNames() : []
         baseCombo.currentIndex = repoVm ? Math.max(0, baseCombo.model.indexOf(repoVm.currentBranch)) : 0
+        open()
+        nameField.forceActiveFocus()
+    }
+
+    function openFromCommit(oid) {
+        fromOid = oid
+        nameField.text = ""
+        baseCombo.model = []
         open()
         nameField.forceActiveFocus()
     }
@@ -51,11 +62,20 @@ Dialog {
             text: "Create from"
             color: theme.textMuted
             font.pixelSize: 11
+            visible: dialog.fromOid.length === 0
         }
         ComboBox {
             id: baseCombo
             objectName: "newBranchBase"
             Layout.fillWidth: true
+            visible: dialog.fromOid.length === 0
+        }
+        Label {
+            visible: dialog.fromOid.length > 0
+            text: "From commit " + dialog.fromOid.slice(0, 7)
+            color: theme.textMuted
+            font.pixelSize: 11
+            font.family: "monospace"
         }
     }
 
@@ -78,6 +98,6 @@ Dialog {
 
     onAccepted: {
         if (repoVm)
-            repoVm.createBranch(nameField.text.trim(), "", true)
+            repoVm.createBranch(nameField.text.trim(), dialog.fromOid, true)
     }
 }

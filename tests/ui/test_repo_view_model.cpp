@@ -1,6 +1,8 @@
 #include <QtTest>
 #include <QSignalSpy>
 #include <QAbstractItemModel>
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QRandomGenerator>
 
 #include <filesystem>
@@ -276,6 +278,31 @@ private slots:
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         std::filesystem::remove_all(dir);
+    }
+
+    void discardFile_restores_clean_status()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo(); // has modified a.txt
+        RepoViewModel vm;
+
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1); // a.txt modified
+
+        QSignalSpy statusSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.discardFile(QStringLiteral("a.txt"));
+        QVERIFY(statusSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0); // clean after discard
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void copyToClipboard_sets_system_clipboard()
+    {
+        RepoViewModel vm;
+        vm.copyToClipboard(QStringLiteral("abc123"));
+        QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
     }
 };
 

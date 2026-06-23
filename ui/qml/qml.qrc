@@ -13,6 +13,7 @@
     <file>NewBranchDialog.qml</file>
     <file>RenameBranchDialog.qml</file>
     <file>DeleteBranchDialog.qml</file>
+    <file>DiscardChangesDialog.qml</file>
     <file>ChangesPane.qml</file>
     <file>DiffView.qml</file>
     <file>Avatar.qml</file>
@@ -24,6 +25,11 @@
     <file>AppRadioButton.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
+    <file>AppMenuSeparator.qml</file>
+    <file>BranchContextMenu.qml</file>
+    <file>CommitContextMenu.qml</file>
+    <file>RepoContextMenu.qml</file>
+    <file>FileContextMenu.qml</file>
     <file>MergeBanner.qml</file>
     <file>WindowButton.qml</file>
     <file>EdgeResizer.qml</file>

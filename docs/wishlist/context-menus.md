@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-21 |
-| **Status** | `idea` |
+| **Status** | `shipped` — Plan 16 |
 | **Touches** | product (a consistent right-click action surface across the shell), design (menu component, action grouping, destructive-action affordance), engineering (ui: QML `Menu` wiring on the existing lists/models, reusing core ops already exposed — **not** core) |
 
 ## What
@@ -75,7 +75,4 @@ future feature (merge, stash, revert, tags) an obvious place to hang its action.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (per-entity action sets), spec/design (menu component + grouping + destructive affordance), spec/engineering (shared ui menu wiring over existing models) · plan: plans/<file>
-- Disabled-vs-hidden rule and the shared menu component shape → log in decisions.md
--->
+**Shipped in Plan 16 (2026-06-23).** Design: `docs/spec/product/context-menus.md`. Components: `FileContextMenu.qml`, `BranchContextMenu.qml`, `CommitContextMenu.qml`, `RepoContextMenu.qml`, `AppMenuSeparator.qml`, `DiscardChangesDialog.qml`. ViewModel: `discardFile`, `openInEditor`, `revealInFileManager`, `copyToClipboard`. Disabled/hidden rule, destructive affordance, and the per-entity action sets are all in the spec.

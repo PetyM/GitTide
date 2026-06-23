@@ -9,23 +9,16 @@ RowLayout {
     spacing: 0
 
     // ---- Commit context menu (right-click on a history row) ----
-    AppMenu {
-        id: commitContextMenu
-        objectName: "commitContextMenu"
-        property string rowBranchName: ""
+    CommitContextMenu {
+        id: commitMenu
+        onCopySha:           if (repoVm) repoVm.copyToClipboard(commitMenu.oid)
+        onNewBranchFromHere: commitNewBranchDialog.openFromCommit(commitMenu.oid)
+        onCheckoutCommit:    if (repoVm) repoVm.checkoutCommit(commitMenu.oid)
+        onMerge:             if (repoVm) repoVm.startMerge(commitMenu.localBranchName)
+    }
 
-        // Shown only when the right-clicked commit is a local branch tip
-        // (rowBranchName is set by the MouseArea only when model.localBranchName
-        // is non-empty). Merging by an arbitrary commit's "containing branch" is
-        // ambiguous and out of scope.
-        AppMenuItem {
-            objectName: "mergeIntoItem"
-            text: repoVm ? ("Merge into " + repoVm.currentBranch) : "Merge"
-            enabled: commitContextMenu.rowBranchName !== ""
-            visible: commitContextMenu.rowBranchName !== ""
-            onTriggered: if (repoVm && commitContextMenu.rowBranchName !== "")
-                             repoVm.startMerge(commitContextMenu.rowBranchName)
-        }
+    NewBranchDialog {
+        id: commitNewBranchDialog
     }
 
     // ---- Commit list (graph + avatar + summary/author/date) ----
@@ -56,8 +49,11 @@ RowLayout {
                 onClicked: function(mouse) {
                     if (mouse.button === Qt.RightButton) {
                         historyList.currentIndex = index
-                        commitContextMenu.rowBranchName = model.localBranchName ?? ""
-                        commitContextMenu.popup()
+                        commitMenu.oid             = model.oid
+                        commitMenu.shortOid        = model.shortOid
+                        commitMenu.localBranchName = model.localBranchName ?? ""
+                        commitMenu.isHead          = model.isHead
+                        commitMenu.popup()
                     } else {
                         historyList.currentIndex = index
                         if (repoVm) repoVm.selectCommit(model.oid)

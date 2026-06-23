@@ -388,6 +388,116 @@ private slots:
         QCOMPARE(model.rowCount(top), 1);
         QCOMPARE(model.data(model.index(0, 0, top), RepoListModel::IsSubmoduleRole).toBool(), true);
     }
+
+    void app_menu_infrastructure_exists()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        // AppMenuSeparator must be a registered type (loads without QML error).
+        // We verify indirectly: Main.qml loads cleanly and the engine has no errors.
+        // Per-type checks happen in the context-menu tasks below.
+        QVERIFY(!engine.rootObjects().isEmpty());
+    }
+
+    void discard_changes_dialog_loads()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        // DiscardChangesDialog is instantiated inside ChangesPane (wired in Task 5).
+        // Here we verify the type compiles and the engine stays error-free.
+        QVERIFY(!engine.rootObjects().isEmpty());
+    }
+
+    void branch_context_menu_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("branchContextMenu"));
+        QVERIFY(menu != nullptr);
+    }
+
+    void file_context_menu_exists_in_shell()
+    {
+        const auto dir = qml_shell_test::make_dirty_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("fileContextMenu"));
+        QVERIFY(menu != nullptr);
+
+        QObject* discardDialog = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("discardChangesDialog"));
+        QVERIFY(discardDialog != nullptr);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void commit_context_menu_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("commitContextMenu"));
+        QVERIFY(menu != nullptr);
+    }
+
+    void repo_context_menu_exists_in_shell()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* menu = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("repoContextMenu"));
+        QVERIFY(menu != nullptr);
+    }
 };
 
 #include "test_qml_shell.moc"

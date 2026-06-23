@@ -24,6 +24,12 @@ Dialog {
         newField.selectAll()
     }
 
+    function openFor(name) {
+        oldName = name
+        newField.text = name
+        open()
+    }
+
     contentItem: ColumnLayout {
         spacing: 12
 

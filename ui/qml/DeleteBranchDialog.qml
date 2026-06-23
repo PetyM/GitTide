@@ -38,6 +38,15 @@ Dialog {
         open()
     }
 
+    function openFor(name) {
+        armed = false
+        unmerged = false
+        branchCombo.model = deletableBranches()
+        var idx = branchCombo.model.indexOf(name)
+        branchCombo.currentIndex = idx >= 0 ? idx : 0
+        open()
+    }
+
     contentItem: ColumnLayout {
         spacing: 12
 

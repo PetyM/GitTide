@@ -120,8 +120,8 @@ Rectangle {
                 id: branchDropdown
                 y: branchChip.height + 4
                 onNewRequested: newBranchDialog.openDialog()
-                onRenameRequested: renameBranchDialog.openDialog()
-                onDeleteRequested: deleteBranchDialog.openDialog()
+                onRenameRequested: (branchName) => branchName ? renameBranchDialog.openFor(branchName) : renameBranchDialog.openDialog()
+                onDeleteRequested: (branchName) => branchName ? deleteBranchDialog.openFor(branchName) : deleteBranchDialog.openDialog()
             }
         }
 
