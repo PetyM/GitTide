@@ -361,6 +361,26 @@ private slots:
         QVERIFY(toggle == nullptr);
     }
 
+    void changes_pane_exposes_take_focus()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* pane = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("changesTabBody"));
+        QVERIFY(pane != nullptr);
+        // takeFocus() must be callable without crashing.
+        bool ok = QMetaObject::invokeMethod(pane, "takeFocus");
+        QVERIFY(ok);
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;

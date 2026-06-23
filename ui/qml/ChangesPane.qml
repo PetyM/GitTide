@@ -10,6 +10,11 @@ SplitView {
     objectName: "changesPane"
     orientation: Qt.Horizontal
 
+    // Public API used by WorkingPane global shortcuts (spec §2.2).
+    function takeFocus() { fileList.forceActiveFocus() }
+    readonly property bool commitSummaryActive:     commitSummary.activeFocus
+    readonly property bool commitDescriptionActive: commitDescription.activeFocus
+
     handle: Rectangle {
         implicitWidth: 3
         // HoverHandler (rather than the SplitView attached props) keeps the
@@ -60,74 +65,113 @@ SplitView {
             }
         }
 
-        ListView {
-            id: fileList
-            objectName: "fileList"
+        // ---- Files list with focus-ring overlay ----
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            model: repoVm ? repoVm.changedFiles : null
 
-            delegate: Rectangle {
-                width: ListView.view.width
-                height: 30
-                color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+            ListView {
+                id: fileList
+                objectName: "fileList"
+                anchors.fill: parent
+                clip: true
+                model: repoVm ? repoVm.changedFiles : null
 
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    onClicked: {
-                        fileList.currentIndex = index
-                        if (repoVm) repoVm.selectFile(model.filePath)
+                // Keyboard navigation (spec §2.3).
+                activeFocusOnTab: true
+                KeyNavigation.tab: commitSummary
+                Keys.onUpPressed: {
+                    if (currentIndex > 0) {
+                        currentIndex--
+                        if (repoVm) repoVm.selectFileAtRow(currentIndex)
                     }
                 }
-
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: {
-                        fileMenu.filePath   = model.filePath
-                        fileMenu.fileName   = model.fileName
-                        fileMenu.statusKind = model.statusKind
-                        fileMenu.checkState = model.checkState
-                        fileMenu.rowIndex   = index
-                        fileMenu.popup()
+                Keys.onDownPressed: {
+                    if (currentIndex < count - 1) {
+                        currentIndex++
+                        if (repoVm) repoVm.selectFileAtRow(currentIndex)
                     }
                 }
+                Keys.onSpacePressed: {
+                    if (currentIndex >= 0 && repoVm && currentItem)
+                        repoVm.setFileChecked(currentIndex, currentItem.fileCheckState !== 2)
+                }
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 12
-                    spacing: 8
+                delegate: Rectangle {
+                    // Expose checkState so Keys.onSpacePressed can read it via currentItem.
+                    property int fileCheckState: model.checkState
 
-                    AppCheckBox {
-                        checkState: model.checkState === 2 ? Qt.Checked
-                                    : model.checkState === 1 ? Qt.PartiallyChecked
-                                    : Qt.Unchecked
-                        onClicked: if (repoVm) repoVm.setFileChecked(index, model.checkState !== 2)
+                    width: ListView.view.width
+                    height: 30
+                    color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton
+                        onClicked: {
+                            fileList.currentIndex = index
+                            if (repoVm) repoVm.selectFile(model.filePath)
+                        }
                     }
-                    Label {
-                        Layout.fillWidth: true
-                        // StyledText (unlike RichText) honours elide, so a long
-                        // path truncates instead of overrunning the status letter.
-                        elide: Text.ElideMiddle
-                        font.family: "monospace"
-                        font.pixelSize: 12
-                        textFormat: Text.StyledText
-                        text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
-                              + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: {
+                            fileMenu.filePath   = model.filePath
+                            fileMenu.fileName   = model.fileName
+                            fileMenu.statusKind = model.statusKind
+                            fileMenu.checkState = model.checkState
+                            fileMenu.rowIndex   = index
+                            fileMenu.popup()
+                        }
                     }
-                    Label {
-                        text: model.statusLetter
-                        font.family: "monospace"
-                        font.pixelSize: 12
-                        font.weight: Font.Bold
-                        color: model.statusKind === "added" ? theme.stateAdded
-                               : model.statusKind === "deleted" ? theme.stateDeleted
-                               : model.statusKind === "untracked" ? theme.stateUntracked
-                               : theme.stateModified
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 8
+
+                        AppCheckBox {
+                            checkState: model.checkState === 2 ? Qt.Checked
+                                        : model.checkState === 1 ? Qt.PartiallyChecked
+                                        : Qt.Unchecked
+                            onClicked: if (repoVm) repoVm.setFileChecked(index, model.checkState !== 2)
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            // StyledText (unlike RichText) honours elide, so a long
+                            // path truncates instead of overrunning the status letter.
+                            elide: Text.ElideMiddle
+                            font.family: "monospace"
+                            font.pixelSize: 12
+                            textFormat: Text.StyledText
+                            text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
+                                  + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+                        }
+                        Label {
+                            text: model.statusLetter
+                            font.family: "monospace"
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                            color: model.statusKind === "added" ? theme.stateAdded
+                                   : model.statusKind === "deleted" ? theme.stateDeleted
+                                   : model.statusKind === "untracked" ? theme.stateUntracked
+                                   : theme.stateModified
+                        }
                     }
                 }
+            }
+
+            // Focus ring — overlay Rectangle whose 1px border lights up when fileList
+            // has active focus. Drawn on top so it never insets the list content.
+            Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                border.color: fileList.activeFocus ? theme.focusBorder : "transparent"
+                border.width: 1
+                // Pointer-transparent so mouse events pass through to the ListView.
+                enabled: false
             }
         }
 
@@ -149,6 +193,12 @@ SplitView {
                     border.color: theme.border
                     border.width: 1
                 }
+                Keys.onReturnPressed: {
+                    if ((event.modifiers & Qt.ControlModifier) && commitButton.enabled) {
+                        repoVm.commit(commitSummary.text, commitDescription.text)
+                        event.accepted = true
+                    }
+                }
             }
             TextArea {
                 id: commitDescription
@@ -163,6 +213,14 @@ SplitView {
                     color: theme.surfaceBase
                     border.color: theme.border
                     border.width: 1
+                }
+                KeyNavigation.tab: fileList
+                Keys.onReturnPressed: {
+                    if ((event.modifiers & Qt.ControlModifier) && commitButton.enabled) {
+                        repoVm.commit(commitSummary.text, commitDescription.text)
+                        event.accepted = true
+                    }
+                    // else: default TextArea behaviour inserts newline — do not accept event.
                 }
             }
             Button {
