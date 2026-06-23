@@ -11,8 +11,8 @@ Popup {
     objectName: "branchDropdown"
 
     signal newRequested()
-    signal renameRequested()
-    signal deleteRequested()
+    signal renameRequested(string branchName)
+    signal deleteRequested(string branchName)
 
     width: 320
     padding: 0
@@ -37,8 +37,8 @@ Popup {
         id: branchMenu
         onSwitchBranch:      { if (repoVm) { if (branchMenu.isRemote) repoVm.checkoutRemoteBranch(branchMenu.branchName); else repoVm.switchBranch(branchMenu.branchName) }; dropdown.close() }
         onNewBranchFromHere: { dropdown.newRequested(); dropdown.close() }
-        onRename:            { dropdown.renameRequested(); dropdown.close() }
-        onDeleteBranch:      { dropdown.deleteRequested(); dropdown.close() }
+        onRename:            { dropdown.renameRequested(branchMenu.branchName); dropdown.close() }
+        onDeleteBranch:      { dropdown.deleteRequested(branchMenu.branchName); dropdown.close() }
         onMerge:             { if (repoVm) repoVm.startMerge(branchMenu.branchName); dropdown.close() }
     }
 
@@ -189,8 +189,8 @@ Popup {
                     onClicked: {
                         dropdown.close()
                         if (modelData.key === "new") dropdown.newRequested()
-                        else if (modelData.key === "rename") dropdown.renameRequested()
-                        else dropdown.deleteRequested()
+                        else if (modelData.key === "rename") dropdown.renameRequested("")
+                        else dropdown.deleteRequested("")
                     }
                 }
             }
