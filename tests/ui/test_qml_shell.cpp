@@ -543,6 +543,23 @@ private slots:
         bool ok2 = QMetaObject::invokeMethod(detail, "takeFocus");
         QVERIFY(ok2);
     }
+
+    void working_pane_has_keyboard_shortcuts()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        // WorkingPane and its shortcuts load without error.
+        QObject* pane = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("workingPane"));
+        QVERIFY(pane != nullptr);
+    }
 };
 
 #include "test_qml_shell.moc"

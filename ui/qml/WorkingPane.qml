@@ -103,13 +103,64 @@ Item {
 
             // Index 0: Changes — ChangesPane (file list + colored diff with per-line staging).
             ChangesPane {
+                id: changesTabBody
                 objectName: "changesTabBody"
             }
 
             // Index 1: History — commit list + graph + read-only commit detail.
             HistoryPane {
+                id: historyTabBody
                 objectName: "historyTabBody"
             }
+        }
+    }
+
+    // ---- Global keyboard shortcuts (spec §2.2) ----
+
+    readonly property bool anyTextInputActive:
+        changesTabBody.commitSummaryActive || changesTabBody.commitDescriptionActive
+
+    // Ctrl+1 / Ctrl+2 — switch tabs and route focus.
+    Shortcut {
+        sequence: "Ctrl+1"
+        enabled: repoVm !== null && repoVm.repoOpen
+        onActivated: {
+            tabs.currentIndex = 0
+            changesTabBody.takeFocus()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+2"
+        enabled: repoVm !== null && repoVm.repoOpen
+        onActivated: {
+            tabs.currentIndex = 1
+            historyTabBody.takeFocus()
+        }
+    }
+
+    // Ctrl+R — refresh history (status refresh is triggered by the controller automatically).
+    Shortcut {
+        sequence: "Ctrl+R"
+        enabled: repoVm !== null && repoVm.repoOpen
+        onActivated: repoVm.refreshHistory()
+    }
+
+    // ? — toggle shortcuts overlay (guarded: don't fire while typing in commit fields).
+    // shortcutsPopup is defined in Task 6.
+    // Shortcut {
+    //     sequence: "?"
+    //     context: Qt.WindowShortcut
+    //     enabled: repoVm !== null && repoVm.repoOpen && !anyTextInputActive
+    //     onActivated: shortcutsPopup.visible ? shortcutsPopup.close() : shortcutsPopup.open()
+    // }
+
+    // Focus fileList when a repo first opens.
+    Connections {
+        target: repoVm
+        enabled: repoVm !== null
+        function onChanged() {
+            if (repoVm && repoVm.repoOpen)
+                Qt.callLater(function() { changesTabBody.takeFocus() })
         }
     }
 }
