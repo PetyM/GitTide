@@ -199,6 +199,7 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   (radius 10, 1px `border` ring); items are `text.primary` with an `accent`-tint
   hover, disabled items `text.muted`. Checkable items keep a plain row so the tick
   survives.
+- **Context menus.** `AppMenu` + `AppMenuItem` rows with `AppMenuSeparator` between groups. Destructive actions (discard, delete, remove) set `AppMenuItem { destructive: true }`, which renders text in `state.deleted` — same hover highlight, just the label colour changes. Each entity type has a dedicated QML component (`FileContextMenu`, `BranchContextMenu`, `CommitContextMenu`, `RepoContextMenu`); see [spec/product/context-menus.md](../product/context-menus.md) for the per-entity action tables and disabled/hidden rules.
 - **Progress over spinners.** Any operation that can report quantitative progress
   shows a **determinate** bar (`accent` fill on `surface.overlay`) with a
   `received / total` (or percent) caption — fetch/pull/push in the branch bar,
