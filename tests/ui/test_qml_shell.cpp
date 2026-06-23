@@ -309,6 +309,40 @@ private slots:
         QCOMPARE(v.toString(), QStringLiteral("1.2.3"));
     }
 
+    void title_bar_is_present()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* bar = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("titleBar"));
+        QVERIFY(bar != nullptr);
+    }
+
+    void options_and_about_dialogs_exist()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("optionsDialog")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("aboutDialog")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("appMenuPopup")) != nullptr);
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;

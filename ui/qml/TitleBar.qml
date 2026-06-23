@@ -33,12 +33,13 @@ Rectangle {
 
     // Double-click: toggle maximise / restore
     TapHandler {
-        numberOfTapsRequired: 2
         onTapped: {
-            if (window.visibility === Window.Maximized)
-                window.showNormal()
-            else
-                window.showMaximized()
+            if (tapCount === 2) {
+                if (window.visibility === Window.Maximized)
+                    window.showNormal()
+                else
+                    window.showMaximized()
+            }
         }
     }
 
