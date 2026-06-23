@@ -23,7 +23,7 @@ void registerQmlTypes()
 }
 
 void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoModel, ProjectController* projectController,
-                       RepoViewModel* repoVm, QmlLog* log)
+                       RepoViewModel* repoVm, QmlLog* log, const QString& appVersion)
 {
     registerQmlTypes();
     ctx->setContextProperty(QStringLiteral("theme"), theme);
@@ -32,6 +32,7 @@ void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoMod
     ctx->setContextProperty(QStringLiteral("projectModel"), projectController ? projectController->projects() : nullptr);
     ctx->setContextProperty(QStringLiteral("repoVm"), repoVm);
     ctx->setContextProperty(QStringLiteral("log"), log ? log : new QmlLog(ctx));
+    ctx->setContextProperty(QStringLiteral("appVersion"), appVersion);
 }
 
 } // namespace gittide::ui
