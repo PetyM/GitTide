@@ -72,16 +72,15 @@ void TestQmlSync::aheadBehindMapToProperties()
 
 void TestQmlSync::pullRebaseRoundTrips()
 {
-    using namespace gittide::test;
-    TempRepo repo;
-    repo.setIdentity("Test", "test@example.com");
-    repo.writeFile("a.txt", "one");
-    repo.commitAll("c1");
-
+    // applyPullDefault sets m_pullRebase without opening a repo or touching git config
     RepoViewModel vm;
-    vm.open(QString::fromStdString(repo.path().generic_string()));
-    vm.setPullRebase(true);
-    QTRY_VERIFY_WITH_TIMEOUT(vm.pullRebase(), 5000);
+    QCOMPARE(vm.pullRebase(), false);
+
+    vm.applyPullDefault(true);
+    QCOMPARE(vm.pullRebase(), true);
+
+    vm.applyPullDefault(false);
+    QCOMPARE(vm.pullRebase(), false);
 }
 
 void TestQmlSync::detachedHeadCannotPublish()

@@ -167,7 +167,8 @@ private slots:
         QVERIFY(vm.currentBranch().isEmpty());
         QVERIFY(vm.activeFile().isEmpty());
         QVERIFY(vm.repoPath().isEmpty());   // active-repo affordance clears
-        QCOMPARE(vm.pullRebase(), false);   // session state reset
+        // pullRebase is no longer reset on close — it reflects the global default
+        // set via applyPullDefault(), which persists across repo switches.
         QCOMPARE(vm.syncing(), false);
 
         std::filesystem::remove_all(dir);

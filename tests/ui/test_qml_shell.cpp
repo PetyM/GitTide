@@ -292,6 +292,75 @@ private slots:
         QCOMPARE(controller.activeProjectName(), QStringLiteral("Work"));
     }
 
+    void appVersion_context_property_is_set()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr,
+                          nullptr, QStringLiteral("1.2.3"));
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QVariant v = engine.rootContext()->contextProperty(QStringLiteral("appVersion"));
+        QCOMPARE(v.toString(), QStringLiteral("1.2.3"));
+    }
+
+    void title_bar_is_present()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* bar = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("titleBar"));
+        QVERIFY(bar != nullptr);
+    }
+
+    void options_and_about_dialogs_exist()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("optionsDialog")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("aboutDialog")) != nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("appMenuPopup")) != nullptr);
+    }
+
+    void theme_toggle_removed_from_sidebar()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        // themeToggle was removed from Sidebar — must not be found
+        QObject* toggle = engine.rootObjects().first()->findChild<QObject*>(
+            QStringLiteral("themeToggle"));
+        QVERIFY(toggle == nullptr);
+    }
+
     void shell_loads_with_a_submodule_bearing_repo_model()
     {
         gittide::test::TempRepo child;
