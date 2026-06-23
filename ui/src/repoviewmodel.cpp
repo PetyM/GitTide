@@ -119,7 +119,6 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshStatus(), this, [] {});
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
-    QCoro::connect(m_controller->loadPullStrategy(), this, [] {});
     QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
 }
 
@@ -144,13 +143,11 @@ void RepoViewModel::close()
     m_historyArrived = false;
     m_sync           = {};
     m_syncing        = false;
-    m_pullRebase     = false;
     m_pendingOp      = PendingOp::None;
     m_sessionCred    = {};
     m_merge          = {};
     m_mergeStartName.clear();
     emit changed();
-    emit pullRebaseChanged();
     emit branchChanged();
     emit activeFileChanged();
     emit checkedChanged();
@@ -568,11 +565,10 @@ void RepoViewModel::submitCredentials(const QString& username, const QString& to
     }
 }
 
-void RepoViewModel::setPullRebase(bool rebase)
+void RepoViewModel::applyPullDefault(bool rebase)
 {
-    QCoro::connect(m_controller->setPullStrategy(rebase ? gittide::PullStrategy::Rebase
-                                                        : gittide::PullStrategy::FastForwardOnly),
-                   this, [] {});
+    m_pullRebase = rebase;
+    emit pullRebaseChanged();
 }
 
 void RepoViewModel::startMerge(const QString& name)
