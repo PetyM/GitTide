@@ -87,8 +87,11 @@ public:
 
     /// Rebase the current branch onto ontoRef's tip (clean tree assumed; controller stashes).
     QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> startRebase(QString ontoRef);
-    /// Continue an in-progress rebase after the current step's conflicts are resolved.
-    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> continueRebase();
+    /// Begin an interactive rebase (clean tree assumed; controller stashes).
+    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> startInteractiveRebase(gittide::RebaseTodo todo);
+    /// Continue an in-progress rebase. `message` is non-empty only for an
+    /// interactive Message pause (reword/squash); empty otherwise.
+    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> continueRebase(QString message = QString());
     /// Skip the current rebase step.
     QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> skipRebase();
     /// Abort an in-progress rebase, restoring the pre-rebase state.
