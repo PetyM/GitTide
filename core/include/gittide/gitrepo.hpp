@@ -196,6 +196,11 @@ public:
     /// then advances. Errors if not rebasing or conflicts remain.
     Expected<RebaseOutcome> continueRebase();
 
+    /// Skip the current rebase step without committing it, then advance.
+    Expected<RebaseOutcome> skipRebase();
+    /// Abort an in-progress rebase: restore the exact pre-rebase HEAD and worktree.
+    Expected<void> abortRebase();
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,

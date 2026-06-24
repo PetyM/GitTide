@@ -140,3 +140,62 @@ TEST_CASE("continueRebase errors when no rebase is in progress", "[rebase]")
     auto cont = repo->continueRebase();
     REQUIRE_FALSE(cont.has_value());
 }
+
+TEST_CASE("abortRebase restores the exact pre-rebase HEAD", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+    tmp.writeFile("a.txt", "feature\n");
+    tmp.commitAll("c1 on feature");
+    auto before = repo->head();                // pre-rebase feature tip
+    REQUIRE(before.has_value());
+
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    tmp.writeFile("a.txt", "main\n");
+    tmp.commitAll("c2 on master");
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+
+    auto out = repo->startRebase("master");
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);
+
+    REQUIRE(repo->abortRebase().has_value());
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+    auto after = repo->head();
+    REQUIRE(after.has_value());
+    REQUIRE(after->oid == before->oid);        // tip identical to pre-rebase
+}
+
+TEST_CASE("skipRebase drops the conflicting commit", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+    tmp.writeFile("a.txt", "feature\n");       // the only feature commit; conflicts
+    tmp.commitAll("c1 on feature");
+
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    tmp.writeFile("a.txt", "main\n");
+    tmp.commitAll("c2 on master");
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+
+    auto out = repo->startRebase("master");
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);
+
+    auto sk = repo->skipRebase();              // drop c1 → nothing left → finish
+    REQUIRE(sk.has_value());
+    REQUIRE_FALSE(sk->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+}
