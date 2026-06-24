@@ -374,6 +374,39 @@ private slots:
         vm.selectCommitFileAtRow(0);
         QVERIFY(true);
     }
+
+    void reword_updates_head_summary_in_history()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // Commit the dirty change so HEAD has a known message.
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("before reword"), QString());
+        QVERIFY(committedSpy.wait(3000));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 1, 3000);
+
+        const QString headOid = vm.history()->data(
+            vm.history()->index(0, 0), gittide::ui::HistoryListModel::OidRole).toString();
+
+        // Lazy-fetch the message round-trips the committed text.
+        QSignalSpy msgSpy(&vm, &RepoViewModel::commitMessageReady);
+        vm.requestCommitMessage(headOid);
+        QVERIFY(msgSpy.wait(3000));
+        QCOMPARE(msgSpy.takeFirst().at(1).toString(), QStringLiteral("before reword"));
+
+        // Reword → the top history row's summary changes.
+        vm.rewordHead(QStringLiteral("after reword"));
+        QTRY_COMPARE_WITH_TIMEOUT(
+            vm.history()->data(vm.history()->index(0, 0),
+                               gittide::ui::HistoryListModel::SummaryRole).toString(),
+            QStringLiteral("after reword"), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_view_model.moc"

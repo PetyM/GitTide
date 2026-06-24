@@ -63,6 +63,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
     connect(m_controller, &RepoController::mergeFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
+    connect(m_controller, &RepoController::commitMessageReady,
+            this, &RepoViewModel::commitMessageReady);
 }
 
 bool RepoViewModel::repoOpen() const
@@ -524,6 +526,16 @@ void RepoViewModel::selectCommitFile(const QString& path)
 void RepoViewModel::checkoutCommit(const QString& oid)
 {
     QCoro::connect(m_controller->checkoutCommit(oid), this, [] {});
+}
+
+void RepoViewModel::rewordHead(const QString& message)
+{
+    QCoro::connect(m_controller->rewordHead(message), this, [] {});
+}
+
+void RepoViewModel::requestCommitMessage(const QString& oid)
+{
+    QCoro::connect(m_controller->requestCommitMessage(oid), this, [] {});
 }
 
 void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files)

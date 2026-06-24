@@ -116,6 +116,8 @@ public:
     Q_INVOKABLE void selectCommit(const QString& oid);
     Q_INVOKABLE void selectCommitFile(const QString& path);
     Q_INVOKABLE void checkoutCommit(const QString& oid);
+    Q_INVOKABLE void rewordHead(const QString& message);
+    Q_INVOKABLE void requestCommitMessage(const QString& oid);
 
     Q_INVOKABLE void switchBranch(const QString& name);
     Q_INVOKABLE void checkoutRemoteBranch(const QString& remoteShorthand);
@@ -164,6 +166,7 @@ signals:
     void branchDeleteUnmerged(const QString& name);
     void selectedCommitChanged();
     void activeCommitFileChanged();
+    void commitMessageReady(const QString& oid, const QString& message);
     void syncStatusChanged();
     void syncingChanged();
     void syncProgressChanged();
