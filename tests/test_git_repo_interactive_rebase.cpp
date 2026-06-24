@@ -1,7 +1,9 @@
 #include "gittide/gitrepo.hpp"
 #include "gittide/rebase.hpp"
+#include "gittide/diff.hpp"
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <fstream>
 #include <git2.h>
 
 using gittide::GitRepo;
@@ -24,6 +26,7 @@ std::string firstParentOf(gittide::test::TempRepo& tmp, const std::string& oid)
     git_commit_free(c); git_repository_free(raw);
     return buf;
 }
+
 } // namespace
 
 TEST_CASE("interactive rebase reorders two non-conflicting commits", "[rebase-i]")
@@ -113,4 +116,89 @@ TEST_CASE("RebaseTodo and extended RebaseState have sane defaults", "[rebase-i]"
     gittide::RebaseOutcome out;
     REQUIRE_FALSE(out.conflicted);
     REQUIRE(out.pause == gittide::RebasePause::None);
+}
+
+TEST_CASE("interactive rebase pauses on conflict, continue finishes after resolve", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "A\n");            // edits same line
+    tmp.commitAll("A");
+    tmp.writeFile("a.txt", "B\n");            // edits same line again
+    tmp.commitAll("B");
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidB},   // reorder → B before A conflicts
+                     {RebaseAction::Pick, oidA} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);
+    REQUIRE(out->pause == gittide::RebasePause::Conflict);
+
+    auto st = repo->rebaseState();
+    REQUIRE(st.inProgress);
+    REQUIRE(st.interactive);
+    REQUIRE(st.pause == gittide::RebasePause::Conflict);
+    REQUIRE(st.total == 2);
+    REQUIRE(st.conflictedPaths.size() == 1);
+
+    tmp.writeFile("a.txt", "resolved\n");
+    REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    auto cont = repo->continueRebase();
+    REQUIRE(cont.has_value());
+    // second pick (A) also conflicts against the resolved B → resolve again
+    if (cont->conflicted)
+    {
+        tmp.writeFile("a.txt", "resolved2\n");
+        REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+        cont = repo->continueRebase();
+        REQUIRE(cont.has_value());
+    }
+    REQUIRE_FALSE(cont->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+}
+
+TEST_CASE("interactive abort restores the exact pre-rebase tip", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "A\n");
+    tmp.commitAll("A");
+    tmp.writeFile("a.txt", "B\n");
+    tmp.commitAll("B");
+    auto before = repo->head();
+    REQUIRE(before.has_value());
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidB}, {RebaseAction::Pick, oidA} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);
+
+    REQUIRE(repo->abortRebase().has_value());
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+    auto after = repo->head();
+    REQUIRE(after.has_value());
+    REQUIRE(after->oid == before->oid);
 }

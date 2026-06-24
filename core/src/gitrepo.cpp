@@ -1139,10 +1139,103 @@ void GitRepo::clearInteractiveState() const
 RebaseState GitRepo::interactiveRebaseState() const
 {
     RebaseState st;
+    auto loaded = loadInteractiveState();
+    if (!loaded)
+        return st; // dir vanished mid-read → not in progress
+    const InteractiveState& s = *loaded;
     st.inProgress  = true;
     st.interactive = true;
-    // Further population (current/total/stepSummary/messagePrefill) will be
-    // added in Task 3 when the UI needs it.
+
+    const auto& entries = s.todo.entries;
+    for (const auto& e : entries)
+        if (e.action != RebaseAction::Drop)
+            ++st.total;
+    int committedKeep = 0;
+    for (int i = 0; i < s.done && i < static_cast<int>(entries.size()); ++i)
+        if (entries[i].action != RebaseAction::Drop)
+            ++committedKeep;
+    st.current = committedKeep + 1;
+    if (st.current > st.total)
+        st.current = st.total;
+
+    const RebaseTodoEntry* cur =
+        (s.done < static_cast<int>(entries.size())) ? &entries[s.done] : nullptr;
+    if (cur)
+    {
+        git_oid o;
+        if (git_oid_fromstr(&o, cur->oid.c_str()) == 0)
+        {
+            git_commit* c = nullptr;
+            if (git_commit_lookup(&c, m_repo, &o) == 0)
+            {
+                std::unique_ptr<git_commit, decltype(&git_commit_free)> cg(c, git_commit_free);
+                if (const char* sm = git_commit_summary(c))
+                    st.stepSummary = sm;
+            }
+        }
+    }
+
+    // Conflicts — identical derivation to mergeState()/rebaseState().
+    git_index* index = nullptr;
+    if (git_repository_index(&index, m_repo) == 0)
+    {
+        std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+        if (git_index_has_conflicts(index))
+        {
+            git_index_conflict_iterator* it = nullptr;
+            if (git_index_conflict_iterator_new(&it, index) == 0)
+            {
+                std::unique_ptr<git_index_conflict_iterator,
+                                decltype(&git_index_conflict_iterator_free)>
+                    itg(it, git_index_conflict_iterator_free);
+                const git_index_entry *anc = nullptr, *our = nullptr, *their = nullptr;
+                while (git_index_conflict_next(&anc, &our, &their, it) == 0)
+                {
+                    const git_index_entry* en = our ? our : (their ? their : anc);
+                    if (!en || !en->path)
+                        continue;
+                    std::filesystem::path p = fromGitPath(en->path);
+                    st.conflictedPaths.push_back(p);
+                    const bool gitlink =
+                        (our && our->mode == GIT_FILEMODE_COMMIT) ||
+                        (their && their->mode == GIT_FILEMODE_COMMIT) ||
+                        (anc && anc->mode == GIT_FILEMODE_COMMIT);
+                    if (gitlink)
+                        st.conflictedSubmodules.push_back(p);
+                }
+            }
+        }
+    }
+
+    // Pause reason.
+    if (!st.conflictedPaths.empty())
+        st.pause = RebasePause::Conflict;
+    else if (s.applied && cur
+             && (cur->action == RebaseAction::Reword || cur->action == RebaseAction::Squash))
+    {
+        st.pause = RebasePause::Message;
+        if (cur->action == RebaseAction::Reword)
+        {
+            if (auto m = commitMessage(cur->oid))
+                st.messagePrefill = *m;
+        }
+        else // Squash: HEAD's accumulated message + this commit's message
+        {
+            std::string head;
+            git_oid head_oid;
+            if (git_reference_name_to_id(&head_oid, m_repo, "HEAD") == 0)
+            {
+                char hb[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+                git_oid_tostr(hb, sizeof(hb), &head_oid);
+                if (auto hm = commitMessage(hb))
+                    head = *hm;
+            }
+            std::string mine;
+            if (auto m = commitMessage(cur->oid))
+                mine = *m;
+            st.messagePrefill = head + "\n\n" + mine;
+        }
+    }
     return st;
 }
 
@@ -1150,6 +1243,9 @@ RebaseState GitRepo::interactiveRebaseState() const
 
 RebaseState GitRepo::rebaseState() const
 {
+    if (interactiveRebaseInProgress())
+        return interactiveRebaseState();
+
     RebaseState st;
     const int state = git_repository_state(m_repo);
     st.inProgress = state == GIT_REPOSITORY_STATE_REBASE_MERGE
@@ -1497,6 +1593,8 @@ Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
     // etc.) is in progress — mirroring the equivalent guard in startRebase.
     if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE)
         return std::unexpected(GitError{-1, "cannot merge: another operation is in progress"});
+    if (interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot merge: a rebase is in progress"});
 
     // Resolve the local branch to an annotated commit (merge analysis input).
     git_reference* ref = nullptr;
@@ -2136,6 +2234,32 @@ Expected<RebaseOutcome> GitRepo::continueRebase(std::optional<std::string> messa
 
 Expected<RebaseOutcome> GitRepo::skipRebase()
 {
+    if (interactiveRebaseInProgress())
+    {
+        auto loaded = loadInteractiveState();
+        if (!loaded)
+            return std::unexpected(loaded.error());
+        InteractiveState st = *loaded;
+        // Discard the half-applied cherry-pick: hard-reset to detached HEAD.
+        git_oid head_oid;
+        if (int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD"); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_commit* head = nullptr;
+        if (int rc = git_commit_lookup(&head, m_repo, &head_oid); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> hg(head, git_commit_free);
+        if (int rc = git_reset(m_repo, reinterpret_cast<const git_object*>(head),
+                               GIT_RESET_HARD, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_repository_state_cleanup(m_repo);
+        // Advance past the current entry without committing it.
+        st.applied = false;
+        ++st.done;
+        if (auto r = setInteractiveProgress(st.done, st.applied); !r)
+            return std::unexpected(r.error());
+        return driveInteractive(std::nullopt);
+    }
+
     const int state = git_repository_state(m_repo);
     const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
                        || state == GIT_REPOSITORY_STATE_REBASE
@@ -2193,6 +2317,33 @@ Expected<RebaseOutcome> GitRepo::skipRebase()
 
 Expected<void> GitRepo::abortRebase()
 {
+    if (interactiveRebaseInProgress())
+    {
+        auto loaded = loadInteractiveState();
+        if (!loaded)
+        {
+            clearInteractiveState();
+            return std::unexpected(GitError{-1, "no rebase in progress"});
+        }
+        const std::string refname = "refs/heads/" + loaded->branch;
+        // The branch ref was never moved during the drive → it still points at
+        // orig-head. Reattach HEAD and hard-reset the worktree to it.
+        if (int rc = git_repository_set_head(m_repo, refname.c_str()); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_oid orig_oid;
+        if (git_oid_fromstr(&orig_oid, loaded->origHead.c_str()) < 0)
+            return std::unexpected(GitError{-1, "bad orig-head"});
+        git_object* obj = nullptr;
+        if (int rc = git_object_lookup(&obj, m_repo, &orig_oid, GIT_OBJECT_COMMIT); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_object, decltype(&git_object_free)> og(obj, git_object_free);
+        if (int rc = git_reset(m_repo, obj, GIT_RESET_HARD, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_repository_state_cleanup(m_repo);
+        clearInteractiveState();
+        return {};
+    }
+
     const int state = git_repository_state(m_repo);
     const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
                        || state == GIT_REPOSITORY_STATE_REBASE
@@ -2219,6 +2370,8 @@ Expected<RebaseOutcome> GitRepo::startRebase(std::string ontoRef)
     const int state = git_repository_state(m_repo);
     if (state != GIT_REPOSITORY_STATE_NONE)
         return std::unexpected(GitError{-1, "cannot rebase: another operation is in progress"});
+    if (interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot rebase: a rebase is already in progress"});
 
     // Guard: need a born, attached HEAD (a branch to move).
     if (git_repository_head_unborn(m_repo) == 1)
