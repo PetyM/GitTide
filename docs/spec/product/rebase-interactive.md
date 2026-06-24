@@ -131,12 +131,17 @@ and `stepSummary` come from the on-disk todo + cursor, not from `git_rebase_*`.
 The manual engine is **not** a libgit2 rebase, so it owns a small state directory
 under the repo's git dir (created at start, removed at finish/abort):
 
-- `todo` — the full plan (action + oid per line, oldest first), plus `base`.
+- `base` — the oid to detach onto (parent-of-oldest).
+- `todo` — the full plan (action + oid per line, oldest first).
 - `done` — the cursor: how many entries are applied (advances per committed step).
+- `applied` — a marker file: present when the current entry has been cherry-picked
+  but not yet committed (distinguishes a conflict/message pause from "not started").
 - `orig-head` — the pre-rebase branch tip oid (for abort restore).
 - `branch` — the branch name being rewritten (to move at finish).
-- `message` — the accumulating squash/fixup message buffer (combined text carried
-  across a squash chain until it is committed).
+
+There is **no** persisted message buffer: a squash's combined-message prefill is
+computed on the fly from the current `HEAD`'s message plus the entry's original
+message, so a squash chain accumulates naturally through `HEAD` (§2.5).
 
 Disk is the single source of truth (D30): a paused interactive rebase survives an
 app restart and `rebaseState()` reconstructs the banner from these files. The
