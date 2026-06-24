@@ -57,6 +57,10 @@ public slots:
     // Read-only history diff:
     QCoro::Task<void> refreshCommitFiles(QString oid);
     QCoro::Task<void> refreshCommitDiff(QString oid, QString path);
+    // Reword HEAD commit message; emits committed then refreshes status/history/branches.
+    QCoro::Task<void> rewordHead(QString message);
+    // Fetch the commit message for a given OID; emits commitMessageReady on success.
+    QCoro::Task<void> requestCommitMessage(QString oid);
 
     QCoro::Task<void> refreshSyncStatus();
     QCoro::Task<void> fetch(gittide::Credentials cred);
@@ -105,6 +109,7 @@ signals:
     void headChanged(gittide::HeadState);
     void commitFilesReady(QString oid, std::vector<gittide::FileStatus> files);
     void commitDiffReady(QString oid, QString path, gittide::DiffResult result);
+    void commitMessageReady(QString oid, QString message);
 
     void syncStatusChanged(gittide::SyncStatus status);
     void pullStrategyChanged(gittide::PullStrategy strategy);

@@ -41,6 +41,7 @@
 #include "test_difflinesmodel_conflict.cpp"
 #include "test_qml_merge_banner.cpp"
 #include "test_qml_merge_entrypoints.cpp"
+#include "test_repocontroller_reword.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
     RUN(TestDiffConflict);
     RUN(TestQmlMergeBanner);
     RUN(TestQmlMergeEntrypoints);
+    RUN(TestRepoControllerReword);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

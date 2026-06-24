@@ -396,6 +396,41 @@ QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
     emit commitDiffReady(oid, path, *d);
 }
 
+QCoro::Task<void> RepoController::rewordHead(QString message)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->rewordHead(message);
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    emit committed(QString::fromStdString(*r));
+    co_await refreshStatus();
+    co_await refreshHistory();
+    co_await refreshBranches();
+}
+
+QCoro::Task<void> RepoController::requestCommitMessage(QString oid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->commitMessage(oid);
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    emit commitMessageReady(oid, QString::fromStdString(*r));
+}
+
 QCoro::Task<void> RepoController::refreshSyncStatus()
 {
     if (!m_repo)
