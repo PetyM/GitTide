@@ -17,6 +17,7 @@ RowLayout {
         onNewBranchFromHere: commitNewBranchDialog.openFromCommit(commitMenu.oid)
         onCheckoutCommit:    if (repoVm) repoVm.checkoutCommit(commitMenu.oid)
         onReword:            rewordDialog.openFor(commitMenu.oid)
+        onEditHistory:       if (repoVm) repoVm.requestRebaseTodo(commitMenu.oid)
         onMerge:             if (repoVm) repoVm.startMerge(commitMenu.localBranchName)
     }
 
@@ -27,6 +28,10 @@ RowLayout {
     RewordDialog {
         id: rewordDialog
         onReworded: function(message) { if (repoVm) repoVm.rewordHead(message) }
+    }
+
+    RebaseTodoDialog {
+        id: rebaseTodoDialog
     }
 
     // ---- Commit list (graph + avatar + summary/author/date) ----
