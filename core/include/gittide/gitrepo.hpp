@@ -10,6 +10,7 @@
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
+#include "gittide/rebase.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
 
@@ -105,6 +106,10 @@ public:
     // Read merge-in-progress state from the repository (state == MERGE, MERGE_MSG,
     // and the index conflict iterator). Derived every call — never cached (D30).
     Expected<MergeState> mergeState() const;
+
+    /// Rebase-in-progress state, derived from disk every call (D30). Never errors:
+    /// a not-rebasing repo returns a default (inProgress == false).
+    RebaseState rebaseState() const;
 
     // Ahead/behind of the current branch versus its upstream remote-tracking
     // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
@@ -220,6 +225,9 @@ private:
     // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
     // root commit). Both out-trees are owned by the caller (git_tree_free).
     Expected<void> commitTrees(const std::string& oid, git_tree** outTree, git_tree** outParentTree) const;
+
+    // Best-effort read of rebase-merge/onto_name (the target's label). Empty if absent.
+    std::string rebaseOntoName() const;
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty

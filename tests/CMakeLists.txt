@@ -18,6 +18,7 @@ add_executable(gittide_core_tests
   test_git_repo_commit_diff.cpp
   test_git_repo_branches.cpp
   test_git_repo_merge.cpp
+  test_git_repo_rebase.cpp
   test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp

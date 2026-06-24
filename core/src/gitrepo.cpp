@@ -992,6 +992,96 @@ Expected<MergeState> GitRepo::mergeState() const
     return st;
 }
 
+std::string GitRepo::rebaseOntoName() const
+{
+    const char* gp = git_repository_path(m_repo); // the .git dir
+    if (!gp)
+        return {};
+    namespace fs = std::filesystem;
+    for (const char* sub : {"rebase-merge", "rebase-apply"})
+    {
+        fs::path f = fs::path(fromGitPath(gp)) / sub / "onto_name";
+        std::ifstream in(f);
+        if (in)
+        {
+            std::string line;
+            std::getline(in, line);
+            return line; // may be a ref shorthand or an oid; best-effort label
+        }
+    }
+    return {};
+}
+
+RebaseState GitRepo::rebaseState() const
+{
+    RebaseState st;
+    const int state = git_repository_state(m_repo);
+    st.inProgress = state == GIT_REPOSITORY_STATE_REBASE_MERGE
+                 || state == GIT_REPOSITORY_STATE_REBASE
+                 || state == GIT_REPOSITORY_STATE_REBASE_INTERACTIVE;
+    if (!st.inProgress)
+        return st;
+
+    st.ontoRef = rebaseOntoName();
+
+    // Re-open the on-disk rebase to read step counts and the current commit (D30).
+    git_rebase*        rebase = nullptr;
+    git_rebase_options opts   = GIT_REBASE_OPTIONS_INIT;
+    if (git_rebase_open(&rebase, m_repo, &opts) == 0)
+    {
+        std::unique_ptr<git_rebase, decltype(&git_rebase_free)> rb_guard(rebase, git_rebase_free);
+        st.total          = static_cast<int>(git_rebase_operation_entrycount(rebase));
+        const size_t curIx = git_rebase_operation_current(rebase);
+        if (curIx != GIT_REBASE_NO_OPERATION && st.total > 0)
+        {
+            st.current = static_cast<int>(curIx) + 1;
+            if (git_rebase_operation* op = git_rebase_operation_byindex(rebase, curIx))
+            {
+                git_commit* c = nullptr;
+                if (git_commit_lookup(&c, m_repo, &op->id) == 0)
+                {
+                    std::unique_ptr<git_commit, decltype(&git_commit_free)> cg(c, git_commit_free);
+                    if (const char* s = git_commit_summary(c))
+                        st.stepSummary = s;
+                }
+            }
+        }
+    }
+
+    // Conflicted entries — identical derivation to mergeState().
+    git_index* index = nullptr;
+    if (git_repository_index(&index, m_repo) == 0)
+    {
+        std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+        if (git_index_has_conflicts(index))
+        {
+            git_index_conflict_iterator* it = nullptr;
+            if (git_index_conflict_iterator_new(&it, index) == 0)
+            {
+                std::unique_ptr<git_index_conflict_iterator,
+                                decltype(&git_index_conflict_iterator_free)>
+                    itg(it, git_index_conflict_iterator_free);
+                const git_index_entry *anc = nullptr, *our = nullptr, *their = nullptr;
+                while (git_index_conflict_next(&anc, &our, &their, it) == 0)
+                {
+                    const git_index_entry* e = our ? our : (their ? their : anc);
+                    if (!e || !e->path)
+                        continue;
+                    std::filesystem::path p = fromGitPath(e->path);
+                    st.conflictedPaths.push_back(p);
+                    const bool gitlink =
+                        (our && our->mode == GIT_FILEMODE_COMMIT) ||
+                        (their && their->mode == GIT_FILEMODE_COMMIT) ||
+                        (anc && anc->mode == GIT_FILEMODE_COMMIT);
+                    if (gitlink)
+                        st.conflictedSubmodules.push_back(p);
+                }
+            }
+        }
+    }
+    return st;
+}
+
 Expected<void> GitRepo::createBranch(std::string name, std::string fromOid)
 {
     int valid = 0;
