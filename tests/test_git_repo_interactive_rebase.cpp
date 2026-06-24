@@ -202,3 +202,76 @@ TEST_CASE("interactive abort restores the exact pre-rebase tip", "[rebase-i]")
     REQUIRE(after.has_value());
     REQUIRE(after->oid == before->oid);
 }
+
+// ---------------------------------------------------------------------------
+// Task 4: Reword
+// ---------------------------------------------------------------------------
+
+TEST_CASE("interactive reword of an older commit pauses for a message", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A original");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B");
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Reword, oidA}, {RebaseAction::Pick, oidB} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE_FALSE(out->conflicted);
+    REQUIRE(out->pause == gittide::RebasePause::Message);
+
+    auto st = repo->rebaseState();
+    REQUIRE(st.pause == gittide::RebasePause::Message);
+    REQUIRE(st.messagePrefill.rfind("A original", 0) == 0); // prefilled with the old message
+
+    auto cont = repo->continueRebase("A reworded\n");
+    REQUIRE(cont.has_value());
+    REQUIRE_FALSE(cont->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+
+    auto after = repo->log(10);
+    REQUIRE(after->at(1).summary == "A reworded");
+    REQUIRE(after->at(0).summary == "B");
+}
+
+TEST_CASE("continue without a message errors on a reword pause", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A");
+
+    auto hist = repo->log(10);
+    const std::string oidA = hist->at(0).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Reword, oidA} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->pause == gittide::RebasePause::Message);
+
+    // Continuing with no message re-pauses (does not finish, does not error-out the repo).
+    auto cont = repo->continueRebase(); // nullopt
+    REQUIRE(cont.has_value());
+    REQUIRE(cont->pause == gittide::RebasePause::Message);
+    REQUIRE(repo->rebaseState().inProgress);
+}
+
