@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-24 |
-| **Status** | `planned` |
+| **Status** | `shipped (2026-06-24)` |
 | **Spec** | [`docs/spec/product/rebase-interactive.md`](../spec/product/rebase-interactive.md) |
 | **Depends on** | Plan 19 (plain rebase driver, Tier 1), history-editing round (reword-tip, `RewordDialog.qml`, multi-select), Plan 14 (merge/conflict UI), Plan 16 (context menus) |
 

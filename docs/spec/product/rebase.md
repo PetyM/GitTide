@@ -15,9 +15,9 @@ building first. Drive it **step by step**: a conflicting step pauses; the user
 resolves it with the **existing merge/conflict UI**, then **continues**; or
 **skips** the step; or **aborts** to the exact pre-rebase state.
 
-This is the **driver** the deferred interactive engine (squash / reorder / drop /
-fixup / reword-older) will later hang its todo-list editor off. None of that
-editor ships here (YAGNI) — only the foundation both wishes demand first.
+This is the **driver** the interactive engine hangs its todo-list editor off.
+**Tier 2 (interactive) has graduated** — see
+[rebase-interactive.md](rebase-interactive.md).
 
 The design mirrors the shipped **merge engine** throughout: a disk-derived state
 struct (D30), `Expected<T>` core verbs, an auto-stash dirty-tree guard (D31), a

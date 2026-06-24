@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Designed** | 2026-06-24 |
-| **Status** | `spec` |
+| **Status** | `shipped` |
 | **Wishlist** | [rebase.md](../../wishlist/rebase.md) · [history-editing.md](../../wishlist/history-editing.md) |
 | **Builds on** | [rebase.md (Tier 1, plain driver)](rebase.md) · [history-editing.md (reword-tip, multi-select)](history-editing.md) |
 | **Touches** | core: manual cherry-pick engine + extended `RebaseState` + interactive verbs on `GitRepo`; ui: todo-list editor dialog, message-pause surface, banner extension, ViewModel/Controller wiring, commit-menu entry; design: todo-editor layout |

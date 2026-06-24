@@ -189,6 +189,22 @@ an entry with a newer one if it changes.
   conflict UI and merge machinery). *Why:* fast, safe wins that stand alone, per the
   YAGNI rule stated in D32. → [`engineering`](spec/engineering/engineering.md),
   [`product`](spec/product/rebase.md)
+- **D34 — Interactive rebase is a manual cherry-pick engine over a GitTide-private
+  todo, with a mid-rebase message pause.** libgit2's `git_rebase_init` only
+  generates a `PICK`-only operation list in original order and exposes no API to
+  inject a reordered / squashed / dropped / reworded todo, so the interactive
+  engine is built by hand: detach HEAD at the base, `git_cherrypick` each kept
+  commit on the detached HEAD (the branch ref is moved only at finish, making abort
+  trivial), `git_commit_amend` for squash/fixup, skip for drop. State lives in
+  `<gitdir>/gittide-rebase/` (todo + `done` cursor + `applied` marker + orig-head +
+  branch), so `RebaseState` stays disk-truth (D30) and a paused rebase survives a
+  restart. Reword/squash pause mid-rebase for a message (git-CLI style) rather than
+  collecting messages up-front. The Tier 1 `continueRebase`/`skipRebase`/`abortRebase`
+  verbs dispatch to whichever engine is live (libgit2 plain vs. our dir). *Rejected:*
+  re-`init`'ing libgit2 per step (no todo API); shelling out to `git rebase -i`
+  (violates the no-git-command-strings invariant, loses structured conflict state);
+  up-front message collection (the user chose git-faithful mid-rebase pausing). →
+  [`engineering`](spec/engineering/engineering.md), [`product`](spec/product/rebase-interactive.md)
 
 ## Design
 

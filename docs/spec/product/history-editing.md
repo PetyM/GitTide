@@ -258,13 +258,8 @@ test list.
 
 ---
 
-## 7. Deferred — the interactive-rebase engine
+## 7. Shipped — the interactive-rebase engine
 
-Reword-older, squash/fixup, and reorder all need a rebase **driver** (step
-state machine over `git_rebase_*`, reusing the merge/conflict UI) plus a
-**todo-list editor**. That is its own design, owned jointly by
-[rebase.md](../../wishlist/rebase.md) (the driver) and
-[history-editing.md](../../wishlist/history-editing.md) (the commit-level verbs);
-the two must not duplicate the todo-list editor. The multi-select model and the
-commit context menu built here are the surfaces those verbs will hang off when the
-engine graduates.
+Reword-older, squash/fixup, and reorder shipped in
+[rebase-interactive.md](rebase-interactive.md) (Plan 20). The multi-select model
+and the commit context menu built here are the surfaces the engine hangs off.
