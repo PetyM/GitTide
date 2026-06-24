@@ -139,6 +139,50 @@ QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::commitDiff(QStrin
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::rangeFiles(QString oldOid, QString newOid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oldOid.toStdString(), n = newOid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.rangeFiles(o, n);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::rangeDiff(QString oldOid, QString newOid, std::filesystem::path file)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oldOid.toStdString(), n = newOid.toStdString(), f = std::move(file)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.rangeDiff(o, n, f);
+        });
+}
+
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::rewordHead(QString message)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, m = message.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.rewordHead(m);
+        });
+}
+
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMessage(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.commitMessage(o);
+        });
+}
+
 QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> AsyncRepo::branches()
 {
     auto impl = m_impl;

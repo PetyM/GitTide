@@ -21,6 +21,8 @@ add_executable(gittide_core_tests
   test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
+  test_git_repo_reword.cpp
+  test_git_repo_range_diff.cpp
   test_git_repo_submodules.cpp
   test_git_repo_submodule_merge.cpp
   test_git_repo_sync.cpp
@@ -68,6 +70,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_difflinesmodel_conflict.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_banner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_entrypoints.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

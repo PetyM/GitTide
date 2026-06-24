@@ -9,10 +9,26 @@ ColumnLayout {
     signal tabBackward()
     function takeFocus() { commitFilesList.forceActiveFocus() }
 
+    // Range header / hint shown when a multi-commit selection is active.
+    Label {
+        objectName: "rangeHeaderLabel"
+        Layout.fillWidth: true
+        visible: repoVm && (repoVm.historyDetailHeader.length > 0 || repoVm.historyDetailHint.length > 0)
+        text: repoVm ? (repoVm.historyDetailHint.length > 0
+                        ? repoVm.historyDetailHint
+                        : repoVm.historyDetailHeader) : ""
+        color: repoVm && repoVm.historyDetailHint.length > 0 ? theme.textMuted : theme.textPrimary
+        wrapMode: Text.WordWrap
+        padding: 8
+    }
+
     // Header: selected commit short-oid (empty when nothing selected).
+    // Hidden when a range header or hint is active (range mode uses its own header).
     RowLayout {
         Layout.fillWidth: true
         Layout.margins: 12
+        visible: repoVm && repoVm.historyDetailHeader.length === 0
+                 && repoVm.historyDetailHint.length === 0
         Label {
             Layout.fillWidth: true
             text: repoVm && repoVm.selectedCommit.length > 0
@@ -25,6 +41,8 @@ ColumnLayout {
         Button {
             objectName: "checkoutCommitButton"
             visible: repoVm && repoVm.selectedCommit.length > 0
+                     && repoVm.historyDetailHeader.length === 0
+                     && repoVm.historyDetailHint.length === 0
             text: "Checkout"
             contentItem: Label {
                 text: parent.text

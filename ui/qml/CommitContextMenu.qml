@@ -18,6 +18,7 @@ AppMenu {
     signal copySha()
     signal newBranchFromHere()
     signal checkoutCommit()
+    signal reword()
     signal merge()
 
     AppMenuItem {
@@ -35,6 +36,12 @@ AppMenu {
         text: "Checkout commit"
         enabled: !menu.isHead
         onTriggered: menu.checkoutCommit()
+    }
+    AppMenuItem {
+        objectName: "rewordItem"
+        text: "Reword…"
+        visible: menu.isHead
+        onTriggered: menu.reword()
     }
 
     AppMenuSeparator {

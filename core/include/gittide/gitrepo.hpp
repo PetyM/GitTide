@@ -86,6 +86,16 @@ public:
     // first parent (root commit: against an empty tree). Mirrors diff()'s DiffResult.
     Expected<DiffResult> commitDiff(std::string oid, const std::filesystem::path& file) const;
 
+    // Files changed across the inclusive range oldOid..newOid:
+    // tree(parent(oldOid)) vs tree(newOid). Flags use Index* (added/modified/
+    // deleted), matching commitFiles(). Caller guarantees a contiguous range.
+    Expected<std::vector<FileStatus>> rangeFiles(std::string oldOid, std::string newOid) const;
+
+    // Diff one file across the inclusive range oldOid..newOid (same tree pair as
+    // rangeFiles). Mirrors commitDiff()'s DiffResult.
+    Expected<DiffResult> rangeDiff(std::string oldOid, std::string newOid,
+                                   const std::filesystem::path& file) const;
+
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
 
@@ -179,6 +189,15 @@ public:
     // If the working tree is dirty the changes are auto-stashed and re-applied
     // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.
     Expected<void> checkoutCommit(std::string oid);
+
+    // Rewrite HEAD's commit message via git_commit_amend, keeping the tree and
+    // parents exactly (working tree/index untouched, submodule pointers preserved).
+    // Errors on an unborn or detached HEAD. Returns the new commit's hex oid.
+    Expected<std::string> rewordHead(std::string newMessage);
+
+    // Full commit message (summary + body) of the 40-char hex oid. Used to
+    // pre-fill the reword dialog. Errors on a bad oid.
+    Expected<std::string> commitMessage(std::string oid) const;
 
     // Delete the named local branch. Blocks if it is the current branch.
     // Without force, also blocks if the branch is not fully merged into HEAD.

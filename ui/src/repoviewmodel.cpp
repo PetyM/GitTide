@@ -1,5 +1,6 @@
 #include "gittide/ui/repoviewmodel.hpp"
 
+#include <algorithm>
 #include <utility>
 
 #include <QClipboard>
@@ -34,6 +35,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
     connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
     connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
+    connect(m_controller, &RepoController::rangeFilesReady, this, &RepoViewModel::onRangeFiles);
+    connect(m_controller, &RepoController::rangeDiffReady, this, &RepoViewModel::onRangeDiff);
     connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
@@ -63,6 +66,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
     connect(m_controller, &RepoController::mergeFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
+    connect(m_controller, &RepoController::commitMessageReady,
+            this, &RepoViewModel::commitMessageReady);
 }
 
 bool RepoViewModel::repoOpen() const
@@ -503,6 +508,11 @@ QString RepoViewModel::activeCommitFile() const
 
 void RepoViewModel::selectCommit(const QString& oid)
 {
+    m_rangeOld.clear();
+    m_rangeNew.clear();
+    m_detailHeader.clear();
+    m_detailHint.clear();
+    emit historyDetailChanged();
     m_selectedCommit = oid;
     m_activeCommitFile.clear();
     // Clear both panes synchronously so the previous commit's files and diff
@@ -518,12 +528,25 @@ void RepoViewModel::selectCommitFile(const QString& path)
 {
     m_activeCommitFile = path;
     emit activeCommitFileChanged();
-    QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
+    if (!m_rangeOld.isEmpty())
+        QCoro::connect(m_controller->refreshRangeDiff(m_rangeOld, m_rangeNew, path), this, [] {});
+    else
+        QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
 }
 
 void RepoViewModel::checkoutCommit(const QString& oid)
 {
     QCoro::connect(m_controller->checkoutCommit(oid), this, [] {});
+}
+
+void RepoViewModel::rewordHead(const QString& message)
+{
+    QCoro::connect(m_controller->rewordHead(message), this, [] {});
+}
+
+void RepoViewModel::requestCommitMessage(const QString& oid)
+{
+    QCoro::connect(m_controller->requestCommitMessage(oid), this, [] {});
 }
 
 void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files)
@@ -539,6 +562,97 @@ void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const 
         return;
     // Read-only: no checked lines, not whole-file-checked. The QML detail view
     // hides the per-line checkbox column.
+    m_commitDiff->setDiff(result, {}, false);
+}
+
+void RepoViewModel::selectCommitRows(const QVariantList& rows)
+{
+    if (!m_history)
+        return;
+
+    // Sort row indices ascending; drop out-of-range entries.
+    std::vector<int> idx;
+    idx.reserve(rows.size());
+    for (const auto& v : rows)
+    {
+        bool ok = false;
+        const int r = v.toInt(&ok);
+        if (ok && r >= 0 && r < m_history->rowCount())
+            idx.push_back(r);
+    }
+    std::sort(idx.begin(), idx.end());
+    idx.erase(std::unique(idx.begin(), idx.end()), idx.end());
+    if (idx.empty())
+        return;
+
+    auto oidAt = [&](int row) {
+        return m_history->data(m_history->index(row, 0),
+                               HistoryListModel::OidRole).toString();
+    };
+
+    if (idx.size() == 1)
+    {
+        selectCommit(oidAt(idx.front())); // single-commit flow; clears range mode
+        return;
+    }
+
+    const bool contiguous = (idx.back() - idx.front()) == int(idx.size()) - 1;
+    if (!contiguous)
+    {
+        applyRangeHint();
+        return;
+    }
+
+    // History is newest-first: the largest row index is the oldest commit.
+    applyRange(oidAt(idx.back()), oidAt(idx.front()), int(idx.size()));
+}
+
+void RepoViewModel::applyRange(const QString& oldOid, const QString& newOid, int count)
+{
+    m_rangeOld = oldOid;
+    m_rangeNew = newOid;
+    m_selectedCommit = newOid;          // anchor for per-file diff matching
+    m_activeCommitFile.clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    m_detailHint.clear();
+    m_detailHeader = QStringLiteral("Changes across %1 commits (%2…%3)")
+                         .arg(count)
+                         .arg(oldOid.left(7), newOid.left(7));
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    emit historyDetailChanged();
+    QCoro::connect(m_controller->refreshRangeFiles(oldOid, newOid), this, [] {});
+}
+
+void RepoViewModel::applyRangeHint()
+{
+    m_rangeOld.clear();
+    m_rangeNew.clear();
+    m_selectedCommit.clear();
+    m_activeCommitFile.clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    m_detailHeader.clear();
+    m_detailHint = QStringLiteral("Select a contiguous range to see combined changes.");
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    emit historyDetailChanged();
+}
+
+void RepoViewModel::onRangeFiles(const QString& oldOid, const QString& newOid,
+                                 const std::vector<gittide::FileStatus>& files)
+{
+    if (oldOid != m_rangeOld || newOid != m_rangeNew)
+        return;
+    m_commitFiles->setFiles(files);
+}
+
+void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,
+                                const QString& path, const gittide::DiffResult& result)
+{
+    if (oldOid != m_rangeOld || newOid != m_rangeNew || path != m_activeCommitFile)
+        return;
     m_commitDiff->setDiff(result, {}, false);
 }
 

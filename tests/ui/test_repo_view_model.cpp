@@ -374,6 +374,100 @@ private slots:
         vm.selectCommitFileAtRow(0);
         QVERIFY(true);
     }
+
+    void reword_updates_head_summary_in_history()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // Commit the dirty change so HEAD has a known message.
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("before reword"), QString());
+        QVERIFY(committedSpy.wait(3000));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 1, 3000);
+
+        const QString headOid = vm.history()->data(
+            vm.history()->index(0, 0), gittide::ui::HistoryListModel::OidRole).toString();
+
+        // Lazy-fetch the message round-trips the committed text.
+        QSignalSpy msgSpy(&vm, &RepoViewModel::commitMessageReady);
+        vm.requestCommitMessage(headOid);
+        QVERIFY(msgSpy.wait(3000));
+        QCOMPARE(msgSpy.takeFirst().at(1).toString(), QStringLiteral("before reword"));
+
+        // Reword → the top history row's summary changes.
+        vm.rewordHead(QStringLiteral("after reword"));
+        QTRY_COMPARE_WITH_TIMEOUT(
+            vm.history()->data(vm.history()->index(0, 0),
+                               gittide::ui::HistoryListModel::SummaryRole).toString(),
+            QStringLiteral("after reword"), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void range_selection_shows_combined_files_and_header()
+    {
+        // Build a repo with 3 commits: init (a.txt), c2 (dirty a.txt), c3 (b.txt).
+        const auto dir = repo_view_model_test::make_dirty_repo(); // has 1 commit + dirty a.txt
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // c2: commit the dirty a.txt
+        {
+            QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+            vm.commit(QStringLiteral("c2"), QString());
+            QVERIFY(committedSpy.wait(3000));
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 2, 3000);
+
+        // c3: write b.txt, re-open the repo to trigger a status refresh, then commit.
+        {
+            std::ofstream(dir / "b.txt") << "b content\n";
+            QSignalSpy filesSpy2(vm.changedFiles(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(filesSpy2.wait(3000));
+            QTRY_VERIFY_WITH_TIMEOUT(vm.changedFiles()->rowCount() >= 1, 3000);
+            QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+            vm.commit(QStringLiteral("c3"), QString());
+            QVERIFY(committedSpy.wait(3000));
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 3, 3000);
+
+        auto oidAt = [&](int row) {
+            return vm.history()->data(vm.history()->index(row, 0),
+                                      gittide::ui::HistoryListModel::OidRole).toString();
+        };
+        const QString newest = oidAt(0);
+        const QString oldest = oidAt(2);
+        (void)newest; (void)oldest;
+
+        // Contiguous range rows {0,1} → combined files + header.
+        QSignalSpy cfReset(vm.commitFiles(), &QAbstractItemModel::modelReset);
+        vm.selectCommitRows(QVariantList{0, 1});
+        QVERIFY(cfReset.wait(3000));
+        QVERIFY(vm.commitFiles()->rowCount() >= 1);
+        QVERIFY(vm.property("historyDetailHeader").toString().contains(QStringLiteral("2 commits")));
+        QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
+
+        // Non-contiguous rows {0,2} (3 commits present) → hint set, header empty, no core call.
+        QVERIFY(vm.history()->rowCount() >= 3);
+        vm.selectCommitRows(QVariantList{0, 2});
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.property("historyDetailHint").toString().isEmpty(), 3000);
+        QVERIFY(vm.property("historyDetailHeader").toString().isEmpty());
+        QCOMPARE(vm.commitFiles()->rowCount(), 0); // no files loaded for non-contiguous
+
+        // Single row → header + hint both cleared.
+        vm.selectCommitRows(QVariantList{0});
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("historyDetailHeader").toString().isEmpty(), 3000);
+        QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_view_model.moc"
