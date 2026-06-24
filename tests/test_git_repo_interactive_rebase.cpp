@@ -324,3 +324,77 @@ TEST_CASE("interactive squash folds a commit into the previous, pausing for mess
     REQUIRE(std::filesystem::exists(tmp.path() / "b.txt"));
 }
 
+// ---------------------------------------------------------------------------
+// Task 6: Fixup (no message pause) + guard cases
+// ---------------------------------------------------------------------------
+
+TEST_CASE("interactive fixup folds in without a message pause", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A keep");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B discard msg");
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidA}, {RebaseAction::Fixup, oidB} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE_FALSE(out->conflicted);
+    REQUIRE(out->pause == gittide::RebasePause::None);     // fixup never pauses for a message
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+
+    auto after = repo->log(10);
+    REQUIRE(after->size() == 2);
+    REQUIRE(after->at(0).summary == "A keep");            // B's message discarded
+    REQUIRE(std::filesystem::exists(tmp.path() / "b.txt"));
+}
+
+TEST_CASE("interactive rebase rejects invalid plans", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A");
+
+    auto hist = repo->log(10);
+    const std::string oidA = hist->at(0).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    // first entry squash → error
+    {
+        gittide::RebaseTodo bad;
+        bad.base = base;
+        bad.entries = { {RebaseAction::Squash, oidA} };
+        REQUIRE_FALSE(repo->startInteractiveRebase(bad).has_value());
+    }
+    // all-drop → error
+    {
+        gittide::RebaseTodo bad;
+        bad.base = base;
+        bad.entries = { {RebaseAction::Drop, oidA} };
+        REQUIRE_FALSE(repo->startInteractiveRebase(bad).has_value());
+    }
+    // base not an ancestor of HEAD → error
+    {
+        gittide::RebaseTodo bad;
+        bad.base = std::string(40, '0'); // nonexistent/zero oid
+        bad.entries = { {RebaseAction::Pick, oidA} };
+        REQUIRE_FALSE(repo->startInteractiveRebase(bad).has_value());
+    }
+}
