@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <QPointer>
+#include <QVariant>
 
 #include "gittide/graphbuilder.hpp"
 #include "gittide/log.hpp"
@@ -900,6 +901,69 @@ QCoro::Task<void> RepoController::abortRebase()
     if (!self)
         co_return;
     co_await refreshAfterRebase();
+}
+
+// ---------------------------------------------------------------------------
+// Interactive rebase seed (Task 8)
+// ---------------------------------------------------------------------------
+
+QCoro::Task<void> RepoController::buildRebaseTodo(QString fromOid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    // Fetch history newest-first (limit 1000 — same as refreshHistory default).
+    auto hist = co_await m_repo->log(1000);
+    if (!self)
+        co_return;
+    if (!hist)
+    {
+        emit operationFailed(QString::fromStdString(hist.error().message));
+        co_return;
+    }
+
+    // Walk from HEAD down until we find fromOid; collect those rows newest-first.
+    const std::string from = fromOid.toStdString();
+    std::vector<std::pair<QString, QString>> picked; // (oid, summary), newest-first
+    bool found = false;
+    for (const auto& node : *hist)
+    {
+        picked.emplace_back(QString::fromStdString(node.oid),
+                            QString::fromStdString(node.summary));
+        if (node.oid == from)
+        {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+    {
+        emit operationFailed(QStringLiteral("commit is not on the current branch history"));
+        co_return;
+    }
+
+    // Resolve base = first parent of fromOid.
+    auto baseOid = co_await m_repo->firstParent(fromOid);
+    if (!self)
+        co_return;
+    if (!baseOid)
+    {
+        emit operationFailed(QString::fromStdString(baseOid.error().message));
+        co_return;
+    }
+    const QString base = QString::fromStdString(*baseOid);
+
+    // Reverse to oldest-first.
+    QVariantList entries;
+    for (auto it = picked.rbegin(); it != picked.rend(); ++it)
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("oid"), it->first);
+        m.insert(QStringLiteral("summary"), it->second);
+        entries.push_back(m);
+    }
+    emit rebaseTodoReady(base, entries);
 }
 
 // ---------------------------------------------------------------------------

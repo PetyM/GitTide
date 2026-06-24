@@ -184,6 +184,17 @@ QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMessage(QString oid
         });
 }
 
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::firstParent(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.firstParent(o);
+        });
+}
+
 QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> AsyncRepo::branches()
 {
     auto impl = m_impl;

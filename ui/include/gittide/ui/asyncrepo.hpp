@@ -54,6 +54,9 @@ public:
     QCoro::Task<gittide::Expected<std::string>>                      rewordHead(QString message);
     QCoro::Task<gittide::Expected<std::string>>                      commitMessage(QString oid);
 
+    /// First-parent oid (40-char hex) of `oid`. Errors if `oid` is a root commit.
+    QCoro::Task<gittide::Expected<std::string>> firstParent(QString oid);
+
     QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> branches();
     QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
     QCoro::Task<gittide::Expected<void>> createBranch(QString name, QString fromOid);

@@ -521,6 +521,25 @@ Expected<std::string> GitRepo::commitMessage(std::string oidHex) const
     return std::string(msg ? msg : "");
 }
 
+Expected<std::string> GitRepo::firstParent(std::string oidHex) const
+{
+    git_oid oid;
+    int rc = git_oid_fromstr(&oid, oidHex.c_str());
+    if (rc < 0)
+        return std::unexpected(GitError{-1, "bad oid"});
+    git_commit* c = nullptr;
+    rc            = git_commit_lookup(&c, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> cg(c, git_commit_free);
+    if (git_commit_parentcount(c) == 0)
+        return std::unexpected(GitError{-1, "cannot edit history from a root commit"});
+    const git_oid* p = git_commit_parent_id(c, 0);
+    char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(buf, sizeof(buf), p);
+    return std::string(buf);
+}
+
 Expected<std::string> GitRepo::commitMerge(CommitRequest req)
 {
     git_index* index = nullptr;

@@ -45,6 +45,7 @@
 #include "test_repocontroller_reword.cpp"
 #include "test_repocontroller_rebase.cpp"
 #include "test_repoviewmodel_rebase.cpp"
+#include "test_repocontroller_interactive_rebase.cpp"
 #include "test_qml_rebase_banner.cpp"
 #include "test_qml_rebase_entrypoints.cpp"
 
@@ -105,6 +106,7 @@ int main(int argc, char** argv)
     RUN(TestRepoControllerReword);
     RUN(TestRepoControllerRebase);
     RUN(TestRepoViewModelRebase);
+    RUN(TestRepoControllerInteractiveRebase);
     RUN(TestQmlRebaseBanner);
     RUN(TestQmlRebaseEntrypoints);
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QVariant>
 #include <filesystem>
 #include <optional>
 #include <qcorotask.h>
@@ -104,6 +105,10 @@ public slots:
     /// Abort the rebase, restoring the pre-rebase state, and pop the auto-stash.
     QCoro::Task<void> abortRebase();
 
+    /// Build the interactive-rebase todo for fromOid..HEAD (oldest first) and emit
+    /// rebaseTodoReady with the detach base (fromOid's first parent).
+    QCoro::Task<void> buildRebaseTodo(QString fromOid);
+
     /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
     /// the repository root). Returns an empty string if the file cannot be read.
     /// Keeps filesystem access inside the controller; the VM must not touch the FS.
@@ -145,6 +150,10 @@ signals:
     void rebaseStateChanged(gittide::RebaseState state);
     /// Emitted when a rebase finishes cleanly. headOid is the new HEAD commit OID.
     void rebaseFinished(QString headOid);
+
+    /// Emitted with the seed plan for the interactive editor. `entries` is a list of
+    /// QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
+    void rebaseTodoReady(QString base, QVariantList entries);
 
     void syncBusyChanged(bool busy);
     // Transfer progress for the in-flight fetch/pull/push: objects received of

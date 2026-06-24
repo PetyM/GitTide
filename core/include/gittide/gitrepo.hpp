@@ -233,6 +233,11 @@ public:
     // pre-fill the reword dialog. Errors on a bad oid.
     Expected<std::string> commitMessage(std::string oid) const;
 
+    /// First-parent oid (40-char hex) of `oid`. Errors if `oid` is a root commit
+    /// (no parent) — this is what makes "Edit history from here…" on the initial
+    /// commit fail cleanly (spec §2.6).
+    Expected<std::string> firstParent(std::string oid) const;
+
     // Delete the named local branch. Blocks if it is the current branch.
     // Without force, also blocks if the branch is not fully merged into HEAD.
     Expected<void> deleteBranch(std::string name, bool force);
