@@ -97,9 +97,31 @@ Item {
         }
 
         // Rebase-in-progress banner — collapses to height 0 when not rebasing.
+        // onRequestMessageEdit: emitted when pauseReason == "message"; opens
+        // rebaseMessageDialog prefilled from repoVm.rebaseMessagePrefill so the user
+        // can edit the commit message before continuing the interactive rebase.
         RebaseBanner {
             Layout.fillWidth: true
             repo: repoVm
+            onRequestMessageEdit: {
+                // Split prefill into summary (first line) and body (rest).
+                var prefill = repoVm ? repoVm.rebaseMessagePrefill : ""
+                var nl = prefill.indexOf("\n")
+                if (nl < 0) {
+                    rebaseMessageDialog.summary = prefill
+                } else {
+                    rebaseMessageDialog.summary = prefill.substring(0, nl)
+                }
+                rebaseMessageDialog.open()
+            }
+        }
+
+        // Separate RewordDialog for the interactive-rebase message-pause flow.
+        // Distinct from HistoryPane's rewordDialog (tip-reword) so the two flows
+        // never clash. On save, calls repoVm.continueRebase(message) to proceed.
+        RewordDialog {
+            id: rebaseMessageDialog
+            onReworded: function(message) { if (repoVm) repoVm.continueRebase(message) }
         }
 
         StackLayout {
