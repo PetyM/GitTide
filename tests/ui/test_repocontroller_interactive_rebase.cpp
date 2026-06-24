@@ -55,6 +55,47 @@ private slots:
         QCOMPARE(entries.at(0).toMap().value("summary").toString(), QString("A"));
         QCOMPARE(entries.at(1).toMap().value("summary").toString(), QString("B"));
     }
+
+    void clean_interactive_reorder_finishes_and_idles()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("base.txt", "base\n");
+        tmp.commitAll("c0");
+        tmp.writeFile("a.txt", "a\n");
+        tmp.commitAll("A");
+        tmp.writeFile("b.txt", "b\n");
+        tmp.commitAll("B");
+
+        std::string oidA, oidB, base;
+        {
+            auto r = gittide::GitRepo::open(tmp.path());
+            QVERIFY(r.has_value());
+            auto hist = r->log(10);
+            QVERIFY(hist.has_value());
+            oidB = hist->at(0).oid;
+            oidA = hist->at(1).oid;
+            base = r->firstParent(oidA).value();
+        }
+
+        RepoController ctrl;
+        ctrl.open(QString::fromStdString(tmp.path().generic_string()));
+        QVERIFY(ctrl.isOpen());
+
+        QSignalSpy finished(&ctrl, &RepoController::rebaseFinished);
+        QSignalSpy failed(&ctrl, &RepoController::operationFailed);
+        bool done = false;
+        [&]() -> QCoro::Task<void> {
+            co_await ctrl.startInteractiveRebase(
+                QString::fromStdString(base),
+                QStringList{"pick", "pick"},
+                QStringList{QString::fromStdString(oidA), QString::fromStdString(oidB)});
+            done = true;
+        }();
+        QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+        QCOMPARE(failed.count(), 0);
+        QCOMPARE(finished.count(), 1);
+    }
 };
 
 #include "test_repocontroller_interactive_rebase.moc"

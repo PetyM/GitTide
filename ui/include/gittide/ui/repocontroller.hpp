@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariant>
 #include <filesystem>
 #include <optional>
@@ -108,6 +109,11 @@ public slots:
     /// Build the interactive-rebase todo for fromOid..HEAD (oldest first) and emit
     /// rebaseTodoReady with the detach base (fromOid's first parent).
     QCoro::Task<void> buildRebaseTodo(QString fromOid);
+
+    /// Start an interactive rebase from a seed plan. Auto-stashes (D31), drives the
+    /// first run; clean finish emits rebaseFinished + pops the stash; a pause leaves
+    /// the repo mid-rebase. `actions[i]` is one of pick/reword/squash/fixup/drop.
+    QCoro::Task<void> startInteractiveRebase(QString base, QStringList actions, QStringList oids);
 
     /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
     /// the repository root). Returns an empty string if the file cannot be read.

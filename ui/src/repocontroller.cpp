@@ -815,7 +815,7 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
         co_return;
     }
 
-    if (!out->conflicted) // finished in one run
+    if (out->pause == gittide::RebasePause::None) // finished in one run
     {
         co_await popPendingStash();
         if (!self)
@@ -824,7 +824,7 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
         if (self && head)
             emit rebaseFinished(QString::fromStdString(head->oid));
     }
-    // else: conflicted → leave mid-rebase; the deferred pop waits for finish/abort.
+    // else: conflicted or message pause → leave mid-rebase; deferred pop waits.
 
     co_await refreshAfterRebase();
 }
@@ -843,7 +843,7 @@ QCoro::Task<void> RepoController::continueRebase()
         co_await refreshAfterRebase();
         co_return;
     }
-    if (!out->conflicted)
+    if (out->pause == gittide::RebasePause::None) // clean finish only
     {
         co_await popPendingStash();
         if (!self)
@@ -869,7 +869,7 @@ QCoro::Task<void> RepoController::skipRebase()
         co_await refreshAfterRebase();
         co_return;
     }
-    if (!out->conflicted)
+    if (out->pause == gittide::RebasePause::None) // clean finish only
     {
         co_await popPendingStash();
         if (!self)
@@ -964,6 +964,64 @@ QCoro::Task<void> RepoController::buildRebaseTodo(QString fromOid)
         entries.push_back(m);
     }
     emit rebaseTodoReady(base, entries);
+}
+
+QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    gittide::RebaseTodo todo;
+    todo.base = base.toStdString();
+    for (int i = 0; i < actions.size() && i < oids.size(); ++i)
+    {
+        gittide::RebaseTodoEntry e;
+        const QString a = actions.at(i);
+        e.action = a == "reword" ? gittide::RebaseAction::Reword
+                 : a == "squash" ? gittide::RebaseAction::Squash
+                 : a == "fixup"  ? gittide::RebaseAction::Fixup
+                 : a == "drop"   ? gittide::RebaseAction::Drop
+                                 : gittide::RebaseAction::Pick;
+        e.oid = oids.at(i).toStdString();
+        todo.entries.push_back(e);
+    }
+
+    auto saved = co_await m_repo->stashSave("gittide: auto-stash before rebase");
+    if (!self)
+        co_return;
+    if (!saved)
+    {
+        emit operationFailed(QString::fromStdString(saved.error().message));
+        co_return;
+    }
+    m_pendingStashPop = *saved;
+
+    auto out = co_await m_repo->startInteractiveRebase(todo);
+    if (!self)
+        co_return;
+    if (!out)
+    {
+        emit operationFailed(QString::fromStdString(out.error().message));
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        co_await refreshAfterRebase();
+        co_return;
+    }
+
+    if (out->pause == gittide::RebasePause::None) // finished in one run
+    {
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        auto head = co_await m_repo->head();
+        if (self && head)
+            emit rebaseFinished(QString::fromStdString(head->oid));
+    }
+    // else: paused (conflict or message) → banner drives; deferred pop waits.
+
+    co_await refreshAfterRebase();
 }
 
 // ---------------------------------------------------------------------------
