@@ -9,6 +9,19 @@ ColumnLayout {
     signal tabBackward()
     function takeFocus() { commitFilesList.forceActiveFocus() }
 
+    // Range header / hint shown when a multi-commit selection is active.
+    Label {
+        objectName: "rangeHeaderLabel"
+        Layout.fillWidth: true
+        visible: repoVm && (repoVm.historyDetailHeader.length > 0 || repoVm.historyDetailHint.length > 0)
+        text: repoVm ? (repoVm.historyDetailHint.length > 0
+                        ? repoVm.historyDetailHint
+                        : repoVm.historyDetailHeader) : ""
+        color: repoVm && repoVm.historyDetailHint.length > 0 ? theme.textMuted : theme.textPrimary
+        wrapMode: Text.WordWrap
+        padding: 8
+    }
+
     // Header: selected commit short-oid (empty when nothing selected).
     RowLayout {
         Layout.fillWidth: true

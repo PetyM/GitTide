@@ -301,6 +301,24 @@ private slots:
         QVERIFY(obj != nullptr);
         QVERIFY(obj->property("summary").isValid());
     }
+
+    void commit_detail_has_range_header_item()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/CommitDetail.qml")));
+        QVERIFY2(comp.isReady(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> obj(comp.create());
+        QVERIFY(obj != nullptr);
+        QVERIFY(obj->findChild<QObject *>("rangeHeaderLabel") != nullptr);
+    }
 };
 
 #include "test_qml_history.moc"

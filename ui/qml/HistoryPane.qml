@@ -41,16 +41,25 @@ RowLayout {
             clip: true
             model: repoVm ? repoVm.history : null
 
+            // Selected row indices. Always includes currentIndex.
+            property var selectedRows: []
+
+            function applySelection() {
+                if (repoVm) repoVm.selectCommitRows(selectedRows)
+            }
+
             activeFocusOnTab: true
             Keys.onUpPressed: {
                 if (currentIndex > 0) {
                     currentIndex--
+                    selectedRows = [currentIndex]
                     if (repoVm) repoVm.selectCommitAtRow(currentIndex)
                 }
             }
             Keys.onDownPressed: {
                 if (currentIndex < count - 1) {
                     currentIndex++
+                    selectedRows = [currentIndex]
                     if (repoVm) repoVm.selectCommitAtRow(currentIndex)
                 }
             }
@@ -62,11 +71,14 @@ RowLayout {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: 48
-                color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+                color: (ListView.isCurrentItem
+                        || historyList.selectedRows.indexOf(index) >= 0)
+                       ? theme.surfaceOverlay : "transparent"
 
                 // Accent left border on the selected row (over the graph cell, x=0).
                 Rectangle {
                     visible: parent.ListView.isCurrentItem
+                             || historyList.selectedRows.indexOf(index) >= 0
                     width: 2
                     height: parent.height
                     color: theme.accent
@@ -84,8 +96,27 @@ RowLayout {
                             commitMenu.isHead          = model.isHead
                             commitMenu.popup()
                         } else {
-                            historyList.currentIndex = index
-                            if (repoVm) repoVm.selectCommit(model.oid)
+                            if (mouse.modifiers & Qt.ShiftModifier) {
+                                var anchor = historyList.currentIndex
+                                var lo = Math.min(anchor, index)
+                                var hi = Math.max(anchor, index)
+                                var range = []
+                                for (var r = lo; r <= hi; ++r) range.push(r)
+                                historyList.selectedRows = range
+                                historyList.currentIndex = index
+                            } else if (mouse.modifiers & Qt.ControlModifier) {
+                                var set = historyList.selectedRows.slice()
+                                var at = set.indexOf(index)
+                                if (at >= 0) set.splice(at, 1); else set.push(index)
+                                if (set.indexOf(historyList.currentIndex) < 0)
+                                    set.push(historyList.currentIndex)
+                                historyList.selectedRows = set
+                                historyList.currentIndex = index
+                            } else {
+                                historyList.selectedRows = [index]
+                                historyList.currentIndex = index
+                            }
+                            if (repoVm) historyList.applySelection()
                         }
                     }
                 }
