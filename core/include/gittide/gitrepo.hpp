@@ -16,6 +16,8 @@
 
 struct git_repository;
 struct git_oid;
+struct git_rebase;
+struct git_signature;
 struct git_tree;
 
 namespace gittide {
@@ -182,6 +184,13 @@ public:
     /// returning the worktree to its pre-merge state.
     Expected<void> abortMerge();
 
+    /// Rebase the current branch onto local branch `ontoRef`'s tip.
+    /// Assumes a clean worktree (controller auto-stashes, D31). Drives every step;
+    /// returns conflicted==true paused on the first conflicting step (state left on
+    /// disk), else finishes. Errors: unborn/detached HEAD, ontoRef missing, a rebase
+    /// or merge already in progress.
+    Expected<RebaseOutcome> startRebase(std::string ontoRef);
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,
@@ -228,6 +237,10 @@ private:
 
     // Best-effort read of rebase-merge/onto_name (the target's label). Empty if absent.
     std::string rebaseOntoName() const;
+
+    // Advance an open rebase: next→(conflict? pause : commit) until GIT_ITEROVER
+    // (then git_rebase_finish). GIT_EAPPLIED steps are skipped. Does not free rebase/sig.
+    Expected<RebaseOutcome> driveRebase(git_rebase* rebase, git_signature* sig);
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty

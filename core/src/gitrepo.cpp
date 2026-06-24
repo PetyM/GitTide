@@ -1907,4 +1907,90 @@ Expected<void> GitRepo::push(std::string remoteName, std::string branch, bool se
     return {};
 }
 
+Expected<RebaseOutcome> GitRepo::driveRebase(git_rebase* rebase, git_signature* sig)
+{
+    RebaseOutcome out;
+    while (true)
+    {
+        git_rebase_operation* op = nullptr;
+        int rc = git_rebase_next(&op, rebase);
+        if (rc == GIT_ITEROVER)
+        {
+            rc = git_rebase_finish(rebase, sig);
+            if (rc < 0)
+                return std::unexpected(lastGitError(rc));
+            out.conflicted = false;
+            return out;
+        }
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        // Did applying this operation leave conflicts? Pause if so (state on disk).
+        git_index* index = nullptr;
+        rc = git_repository_index(&index, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+        if (git_index_has_conflicts(index))
+        {
+            out.conflicted = true;
+            return out;
+        }
+
+        // Commit the applied step, reusing its original author/message.
+        git_oid id;
+        rc = git_rebase_commit(&id, rebase, nullptr, sig, nullptr, nullptr);
+        if (rc == GIT_EAPPLIED)
+            continue; // change already upstream → implicit skip
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+}
+
+Expected<RebaseOutcome> GitRepo::startRebase(std::string ontoRef)
+{
+    // Guard: never start over a merge or an existing rebase.
+    const int state = git_repository_state(m_repo);
+    if (state != GIT_REPOSITORY_STATE_NONE)
+        return std::unexpected(GitError{-1, "cannot rebase: another operation is in progress"});
+
+    // Guard: need a born, attached HEAD (a branch to move).
+    if (git_repository_head_unborn(m_repo) == 1)
+        return std::unexpected(GitError{-1, "cannot rebase: HEAD is unborn"});
+    if (git_repository_head_detached(m_repo) == 1)
+        return std::unexpected(GitError{-1, "cannot rebase: HEAD is detached"});
+
+    // Resolve the target branch to an annotated commit (the upstream).
+    git_reference* ref = nullptr;
+    int rc = git_branch_lookup(&ref, m_repo, ontoRef.c_str(), GIT_BRANCH_LOCAL);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> ref_guard(ref, git_reference_free);
+
+    git_annotated_commit* upstream = nullptr;
+    rc = git_annotated_commit_from_ref(&upstream, m_repo, ref);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_annotated_commit, decltype(&git_annotated_commit_free)>
+        up_guard(upstream, git_annotated_commit_free);
+
+    // branch == NULL → use HEAD; onto == NULL → defaults to upstream. This is the
+    // exact "git rebase <upstream>" semantics: replay upstream..HEAD onto upstream.
+    git_rebase*        rebase = nullptr;
+    git_rebase_options opts   = GIT_REBASE_OPTIONS_INIT;
+    rc = git_rebase_init(&rebase, m_repo, nullptr, upstream, nullptr, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_rebase, decltype(&git_rebase_free)> rb_guard(rebase, git_rebase_free);
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    if (!sig)
+        return std::unexpected(GitError{-1, "no signature for rebase"});
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    return driveRebase(rebase, sig);
+}
+
 } // namespace gittide
