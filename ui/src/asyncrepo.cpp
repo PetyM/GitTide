@@ -381,6 +381,61 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::abortMerge()
         });
 }
 
+QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::startRebase(QString ontoRef)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, n = ontoRef.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.startRebase(n);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::continueRebase()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.continueRebase();
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::skipRebase()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.skipRebase();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::abortRebase()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.abortRebase();
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::RebaseState>> AsyncRepo::rebaseState()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]() -> gittide::Expected<gittide::RebaseState>
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.rebaseState();
+        });
+}
+
 QCoro::Task<gittide::Expected<bool>> AsyncRepo::stashSave(QString message)
 {
     auto impl = m_impl;

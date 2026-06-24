@@ -18,6 +18,7 @@
 
 #include "test_async_repo.cpp"
 #include "test_async_merge.cpp"
+#include "test_async_rebase.cpp"
 #include "test_auth_error.cpp"
 #include "test_project_controller.cpp"
 #include "test_project_list_model.cpp"
@@ -42,6 +43,10 @@
 #include "test_qml_merge_banner.cpp"
 #include "test_qml_merge_entrypoints.cpp"
 #include "test_repocontroller_reword.cpp"
+#include "test_repocontroller_rebase.cpp"
+#include "test_repoviewmodel_rebase.cpp"
+#include "test_qml_rebase_banner.cpp"
+#include "test_qml_rebase_entrypoints.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -79,6 +84,7 @@ int main(int argc, char** argv)
     RUN(TestQCoroSmoke);
     RUN(TestAsyncRepo);
     RUN(TestAsyncMerge);
+    RUN(TestAsyncRebase);
     RUN(TestAuthError);
     RUN(TestTheme);
     RUN(TestThemeManager);
@@ -97,6 +103,10 @@ int main(int argc, char** argv)
     RUN(TestQmlMergeBanner);
     RUN(TestQmlMergeEntrypoints);
     RUN(TestRepoControllerReword);
+    RUN(TestRepoControllerRebase);
+    RUN(TestRepoViewModelRebase);
+    RUN(TestQmlRebaseBanner);
+    RUN(TestQmlRebaseEntrypoints);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

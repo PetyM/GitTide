@@ -96,6 +96,12 @@ Item {
             repo: repoVm
         }
 
+        // Rebase-in-progress banner — collapses to height 0 when not rebasing.
+        RebaseBanner {
+            Layout.fillWidth: true
+            repo: repoVm
+        }
+
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true

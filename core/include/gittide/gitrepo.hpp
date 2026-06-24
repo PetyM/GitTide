@@ -10,11 +10,14 @@
 #include "gittide/giterror.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
+#include "gittide/rebase.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
 
 struct git_repository;
 struct git_oid;
+struct git_rebase;
+struct git_signature;
 struct git_tree;
 
 namespace gittide {
@@ -106,6 +109,10 @@ public:
     // and the index conflict iterator). Derived every call — never cached (D30).
     Expected<MergeState> mergeState() const;
 
+    /// Rebase-in-progress state, derived from disk every call (D30). Never errors:
+    /// a not-rebasing repo returns a default (inProgress == false).
+    RebaseState rebaseState() const;
+
     // Ahead/behind of the current branch versus its upstream remote-tracking
     // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
     // or HEAD is unborn/detached. See SyncStatus.
@@ -177,6 +184,23 @@ public:
     /// returning the worktree to its pre-merge state.
     Expected<void> abortMerge();
 
+    /// Rebase the current branch onto local branch `ontoRef`'s tip.
+    /// Assumes a clean worktree (controller auto-stashes, D31). Drives every step;
+    /// returns conflicted==true paused on the first conflicting step (state left on
+    /// disk), else finishes. Errors: unborn/detached HEAD, ontoRef missing, a rebase
+    /// or merge already in progress.
+    Expected<RebaseOutcome> startRebase(std::string ontoRef);
+
+    /// Continue an in-progress rebase after the current step's conflicts are
+    /// resolved (the resolved files must be staged in the index). Commits the step,
+    /// then advances. Errors if not rebasing or conflicts remain.
+    Expected<RebaseOutcome> continueRebase();
+
+    /// Skip the current rebase step without committing it, then advance.
+    Expected<RebaseOutcome> skipRebase();
+    /// Abort an in-progress rebase: restore the exact pre-rebase HEAD and worktree.
+    Expected<void> abortRebase();
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,
@@ -220,6 +244,13 @@ private:
     // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
     // root commit). Both out-trees are owned by the caller (git_tree_free).
     Expected<void> commitTrees(const std::string& oid, git_tree** outTree, git_tree** outParentTree) const;
+
+    // Best-effort read of rebase-merge/onto_name (the target's label). Empty if absent.
+    std::string rebaseOntoName() const;
+
+    // Advance an open rebase: next→(conflict? pause : commit) until GIT_ITEROVER
+    // (then git_rebase_finish). GIT_EAPPLIED steps are skipped. Does not free rebase/sig.
+    Expected<RebaseOutcome> driveRebase(git_rebase* rebase, git_signature* sig);
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty

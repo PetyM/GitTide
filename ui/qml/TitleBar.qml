@@ -13,6 +13,7 @@ Rectangle {
 
     signal optionsRequested()
     signal aboutRequested()
+    signal rebaseRequested()
 
     readonly property bool isMac: Qt.platform.os === "osx"
 
@@ -108,6 +109,11 @@ Rectangle {
                     objectName: "aboutMenuItem"
                     text: "About GitTide"
                     onTriggered: titleBar.aboutRequested()
+                }
+                AppMenuItem {
+                    objectName: "rebaseMenuItem"
+                    text: "Rebase current branch…"
+                    onTriggered: titleBar.rebaseRequested()
                 }
                 MenuSeparator {
                     padding: 6

@@ -14,6 +14,7 @@
 #include "gittide/gitrepo.hpp" // ProgressCallback
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
+#include "gittide/rebase.hpp"
 #include "gittide/sync.hpp"
 
 namespace gittide::ui {
@@ -83,6 +84,17 @@ public:
 
     /// Abort an in-progress merge: reset working tree to HEAD and clear merge state.
     QCoro::Task<gittide::Expected<void>> abortMerge();
+
+    /// Rebase the current branch onto ontoRef's tip (clean tree assumed; controller stashes).
+    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> startRebase(QString ontoRef);
+    /// Continue an in-progress rebase after the current step's conflicts are resolved.
+    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> continueRebase();
+    /// Skip the current rebase step.
+    QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> skipRebase();
+    /// Abort an in-progress rebase, restoring the pre-rebase state.
+    QCoro::Task<gittide::Expected<void>> abortRebase();
+    /// Rebase-in-progress state, derived from disk (D30).
+    QCoro::Task<gittide::Expected<gittide::RebaseState>> rebaseState();
 
     /// Stash the working tree if dirty. Returns true if a stash was created,
     /// false if the tree was already clean.

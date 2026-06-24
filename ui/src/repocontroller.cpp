@@ -28,6 +28,7 @@ RepoController::RepoController(QObject* parent)
     qRegisterMetaType<gittide::PullStrategy>();
     qRegisterMetaType<gittide::Credentials>();
     qRegisterMetaType<gittide::MergeState>();
+    qRegisterMetaType<gittide::RebaseState>();
 }
 
 void RepoController::open(const QString& path)
@@ -69,6 +70,13 @@ QCoro::Task<void> RepoController::refreshStatus()
     // case and not an error worth surfacing. The next refresh re-reports truth.
     if (ms)
         emit mergeStateChanged(*ms);
+
+    // D30: rebase state is derived from disk on every status refresh, never cached.
+    auto rs = co_await m_repo->rebaseState();
+    if (!self)
+        co_return;
+    if (rs)
+        emit rebaseStateChanged(*rs);
 }
 
 QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget target)
@@ -773,6 +781,128 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
 }
 
 // ---------------------------------------------------------------------------
+// Rebase orchestration (D31)
+// ---------------------------------------------------------------------------
+
+QCoro::Task<void> RepoController::startRebase(QString ontoRef)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    // Auto-stash a dirty tree (D31); remember the deferred pop.
+    auto saved = co_await m_repo->stashSave("gittide: auto-stash before rebase");
+    if (!self)
+        co_return;
+    if (!saved)
+    {
+        emit operationFailed(QString::fromStdString(saved.error().message));
+        co_return;
+    }
+    m_pendingStashPop = *saved;
+
+    auto out = co_await m_repo->startRebase(ontoRef);
+    if (!self)
+        co_return;
+    if (!out)
+    {
+        emit operationFailed(QString::fromStdString(out.error().message));
+        co_await popPendingStash(); // start never began → restore the user's work
+        if (!self)
+            co_return;
+        co_await refreshAfterRebase();
+        co_return;
+    }
+
+    if (!out->conflicted) // finished in one run
+    {
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        auto head = co_await m_repo->head();
+        if (self && head)
+            emit rebaseFinished(QString::fromStdString(head->oid));
+    }
+    // else: conflicted → leave mid-rebase; the deferred pop waits for finish/abort.
+
+    co_await refreshAfterRebase();
+}
+
+QCoro::Task<void> RepoController::continueRebase()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto out = co_await m_repo->continueRebase();
+    if (!self)
+        co_return;
+    if (!out)
+    {
+        emit operationFailed(QString::fromStdString(out.error().message));
+        co_await refreshAfterRebase();
+        co_return;
+    }
+    if (!out->conflicted)
+    {
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        auto head = co_await m_repo->head();
+        if (self && head)
+            emit rebaseFinished(QString::fromStdString(head->oid));
+    }
+    co_await refreshAfterRebase();
+}
+
+QCoro::Task<void> RepoController::skipRebase()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto out = co_await m_repo->skipRebase();
+    if (!self)
+        co_return;
+    if (!out)
+    {
+        emit operationFailed(QString::fromStdString(out.error().message));
+        co_await refreshAfterRebase();
+        co_return;
+    }
+    if (!out->conflicted)
+    {
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        auto head = co_await m_repo->head();
+        if (self && head)
+            emit rebaseFinished(QString::fromStdString(head->oid));
+    }
+    co_await refreshAfterRebase();
+}
+
+QCoro::Task<void> RepoController::abortRebase()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->abortRebase();
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        // Abort failed: repo is still mid-rebase/conflicted. Popping the stash
+        // onto a conflicted tree would corrupt it — re-report disk truth and bail.
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_await refreshAfterRebase();
+        co_return;
+    }
+    co_await popPendingStash(); // restore the user's pre-rebase work
+    if (!self)
+        co_return;
+    co_await refreshAfterRebase();
+}
+
+// ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
 
@@ -780,6 +910,21 @@ QCoro::Task<void> RepoController::refreshAfterMerge()
 {
     QPointer<RepoController> self = this;
     co_await refreshStatus(); // also fetches mergeState and emits mergeStateChanged
+    if (!self)
+        co_return;
+    co_await refreshHistory();
+    if (!self)
+        co_return;
+    co_await refreshBranches();
+    if (!self)
+        co_return;
+    co_await refreshSyncStatus();
+}
+
+QCoro::Task<void> RepoController::refreshAfterRebase()
+{
+    QPointer<RepoController> self = this;
+    co_await refreshStatus(); // also fetches rebaseState → rebaseStateChanged
     if (!self)
         co_return;
     co_await refreshHistory();

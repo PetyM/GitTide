@@ -37,6 +37,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 16 — Context menus](2026-06-23-plan16-context-menus.md) | 2026-06-23 | done | product · design |
 | [Plan 17 — Keyboard controls](2026-06-23-plan17-keyboard-controls.md) | 2026-06-23 | planned | product · design |
 | [Plan 18 — History range-diff & reword-tip](2026-06-24-plan18-history-range-reword.md) | 2026-06-24 | planned | product · engineering · core |
+| [Plan 19 — Plain rebase driver (Tier 1)](2026-06-24-plan19-rebase-driver.md) | 2026-06-24 | shipped | product · engineering · core |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

@@ -66,6 +66,10 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
     connect(m_controller, &RepoController::mergeFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
+    connect(m_controller, &RepoController::rebaseStateChanged, this,
+            [this](const gittide::RebaseState& s) { m_rebase = s; emit rebaseStateChanged(); });
+    connect(m_controller, &RepoController::rebaseFinished, this,
+            [this](const QString&) { /* refresh driven by the controller cascade */ });
     connect(m_controller, &RepoController::commitMessageReady,
             this, &RepoViewModel::commitMessageReady);
 }
@@ -155,6 +159,7 @@ void RepoViewModel::close()
     m_sessionCred    = {};
     m_merge          = {};
     m_mergeStartName.clear();
+    m_rebase         = {};
     emit changed();
     emit branchChanged();
     emit activeFileChanged();
@@ -163,6 +168,7 @@ void RepoViewModel::close()
     emit activeCommitFileChanged();
     emit syncStatusChanged();
     emit mergeStateChanged();
+    emit rebaseStateChanged();
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -725,6 +731,26 @@ void RepoViewModel::commitMerge(const QString& message)
 void RepoViewModel::abortMerge()
 {
     QCoro::connect(m_controller->abortMerge(), this, [] {});
+}
+
+void RepoViewModel::startRebase(const QString& ref)
+{
+    QCoro::connect(m_controller->startRebase(ref), this, [] {});
+}
+
+void RepoViewModel::continueRebase()
+{
+    QCoro::connect(m_controller->continueRebase(), this, [] {});
+}
+
+void RepoViewModel::skipRebase()
+{
+    QCoro::connect(m_controller->skipRebase(), this, [] {});
+}
+
+void RepoViewModel::abortRebase()
+{
+    QCoro::connect(m_controller->abortRebase(), this, [] {});
 }
 
 void RepoViewModel::retryMergeDeinitSubmodules()

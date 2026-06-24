@@ -172,11 +172,12 @@ below the icon button:
 ```
 Options…
 About GitTide
+Rebase current branch…
 ─────────────
 Quit
 ```
 
-`Quit` calls `Qt.quit()`.
+`Quit` calls `Qt.quit()`. `Rebase current branch…` opens `RebaseTargetDialog` (a local branch picker; emits `accepted(ref)` → `repoVm.startRebase(ref)`).
 
 ---
 

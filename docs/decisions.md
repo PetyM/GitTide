@@ -171,6 +171,24 @@ an entry with a newer one if it changes.
   than the first cut needs) and structured/JSON logging, log shipping, and a log
   viewer UI (later wishes). *Why:* the cheapest path that makes the app observable
   and bug reports attachable. → [`engineering`](spec/engineering/engineering.md)
+- **D33 — Rebase and merge are mutually exclusive; rebase auto-stash follows D31;
+  interactive todo-editor is deferred (YAGNI).** Every rebase verb guards on
+  `git_repository_state() != GIT_REPOSITORY_STATE_NONE` and refuses to start a
+  rebase while a merge (or another rebase) is already in progress; the merge path
+  applies the same guard. At most one in-progress-operation banner is visible at a
+  time. The rebase **auto-stash** follows the D31 pattern: the controller calls
+  `stashSave` before starting a rebase, records the handle in `m_pendingStashPop`
+  (shared with merge — safe, because only one operation runs at a time), pops on
+  clean `finishRebase` / `abortRebase` / start-error, and leaves the stash pending
+  while the rebase is paused on a conflict. The first rebase cut ships **plain
+  rebase only** (init/next/commit/finish/abort, continue/skip/abort); the
+  interactive todo-list editor (squash / reorder / drop / fixup / reword-older) is
+  deliberately deferred — it is the next, independent iteration that builds on this
+  driver. *Rejected:* implementing the interactive editor now (large new UI surface,
+  complicates the first-cut scope — the plain driver already reuses the existing
+  conflict UI and merge machinery). *Why:* fast, safe wins that stand alone, per the
+  YAGNI rule stated in D32. → [`engineering`](spec/engineering/engineering.md),
+  [`product`](spec/product/rebase.md)
 
 ## Design
 

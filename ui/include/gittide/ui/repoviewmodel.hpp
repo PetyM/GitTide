@@ -11,6 +11,7 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
+#include "gittide/rebase.hpp"
 #include "gittide/sync.hpp"
 #include "gittide/ui/branchlistmodel.hpp"
 #include "gittide/ui/changedfilesmodel.hpp"
@@ -68,6 +69,20 @@ class RepoViewModel : public QObject
     Q_PROPERTY(int conflictedCount READ conflictedCount NOTIFY mergeStateChanged)
     /// True when at least one conflicted file is a submodule (gitlink).
     Q_PROPERTY(bool hasSubmoduleConflicts READ hasSubmoduleConflicts NOTIFY mergeStateChanged)
+    /// True while a rebase is in progress (conflict state or advancing).
+    Q_PROPERTY(bool    rebaseInProgress  READ rebaseInProgress  NOTIFY rebaseStateChanged)
+    /// The ref name being rebased onto (e.g. "master"); empty when none.
+    Q_PROPERTY(QString rebaseOnto        READ rebaseOnto        NOTIFY rebaseStateChanged)
+    /// Current rebase step, 1-based (0 when none).
+    Q_PROPERTY(int     rebaseStep        READ rebaseStep        NOTIFY rebaseStateChanged)
+    /// Total number of rebase steps.
+    Q_PROPERTY(int     rebaseTotal       READ rebaseTotal       NOTIFY rebaseStateChanged)
+    /// Summary of the commit being applied at the current step; empty when none.
+    Q_PROPERTY(QString rebaseStepSummary READ rebaseStepSummary NOTIFY rebaseStateChanged)
+    /// Number of files with rebase conflicts that still need resolution.
+    Q_PROPERTY(int     rebaseConflictedCount       READ rebaseConflictedCount       NOTIFY rebaseStateChanged)
+    /// True when at least one conflicted file is a submodule (gitlink).
+    Q_PROPERTY(bool    rebaseHasSubmoduleConflicts READ rebaseHasSubmoduleConflicts NOTIFY rebaseStateChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -101,6 +116,13 @@ public:
     QString mergedRef() const { return QString::fromStdString(m_merge.mergedRef); }
     int conflictedCount() const { return int(m_merge.conflictedPaths.size()); }
     bool hasSubmoduleConflicts() const { return !m_merge.conflictedSubmodules.empty(); }
+    bool    rebaseInProgress() const { return m_rebase.inProgress; }
+    QString rebaseOnto() const { return QString::fromStdString(m_rebase.ontoRef); }
+    int     rebaseStep() const { return m_rebase.current; }
+    int     rebaseTotal() const { return m_rebase.total; }
+    QString rebaseStepSummary() const { return QString::fromStdString(m_rebase.stepSummary); }
+    int     rebaseConflictedCount() const { return int(m_rebase.conflictedPaths.size()); }
+    bool    rebaseHasSubmoduleConflicts() const { return !m_rebase.conflictedSubmodules.empty(); }
 
     Q_INVOKABLE void open(const QString& path);
     /// Reset to the no-repo state: clears the file/diff/branch/history models and
@@ -158,6 +180,15 @@ public:
     /// Deinit conflicting submodules then retry the merge started by startMerge().
     Q_INVOKABLE void retryMergeDeinitSubmodules();
 
+    /// Begin rebasing the current branch onto @p ref.
+    Q_INVOKABLE void startRebase(const QString& ref);
+    /// Continue the in-progress rebase after resolving conflicts.
+    Q_INVOKABLE void continueRebase();
+    /// Skip the current conflicting commit and advance to the next step.
+    Q_INVOKABLE void skipRebase();
+    /// Abort the in-progress rebase and restore the pre-rebase state.
+    Q_INVOKABLE void abortRebase();
+
     Q_INVOKABLE void discardFile(const QString& path);
     Q_INVOKABLE void openInEditor(const QString& path);
     Q_INVOKABLE void revealInFileManager(const QString& path);
@@ -183,6 +214,9 @@ signals:
     /// Emitted whenever the MergeState changes (merge started, conflict resolved,
     /// merge committed or aborted). All merge-related Q_PROPERTYs use this NOTIFY.
     void mergeStateChanged();
+    /// Emitted whenever the RebaseState changes (rebase started, conflict resolved,
+    /// step applied, rebase finished or aborted). All rebase-related Q_PROPERTYs use this NOTIFY.
+    void rebaseStateChanged();
 
 private:
     struct FileSel
@@ -225,6 +259,7 @@ private:
     bool                       m_open = false;
     gittide::MergeState        m_merge;
     QString                    m_mergeStartName;
+    gittide::RebaseState       m_rebase;
     gittide::SyncStatus        m_sync;
     bool                       m_syncing    = false;
     int                        m_syncReceived = 0;

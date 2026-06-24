@@ -3,14 +3,18 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `idea` |
+| **Status** | driver: graduated · interactive editor: `idea` |
 | **Touches** | product (rebase action + in-progress flow), engineering (core: rebase driver + conflict state on `GitRepo`), design (rebase-in-progress UI, per-step conflict resolution) |
 
 > **Read-only slice graduated** (2026-06-24): combined range-diff over a
 > contiguous commit selection ships in
-> [spec/product/history-editing.md](../spec/product/history-editing.md). The
-> rebase **driver** itself (plain rebase + continue/skip/abort, then interactive
-> reorder/squash/reword-older) is still `idea`.
+> [spec/product/history-editing.md](../spec/product/history-editing.md).
+>
+> **Rebase driver graduated** (2026-06-24): plain rebase + continue/skip/abort
+> ships in [spec/product/rebase.md](../spec/product/rebase.md) and
+> [plans/2026-06-24-plan19-rebase-driver.md](../plans/2026-06-24-plan19-rebase-driver.md).
+> The **interactive editor** (reorder / squash / fixup / drop / reword-older) is
+> the remaining `idea` — a follow-on iteration that builds on this driver.
 
 ## What
 

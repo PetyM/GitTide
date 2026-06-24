@@ -40,6 +40,7 @@ Popup {
         onRename:            { dropdown.renameRequested(branchMenu.branchName); dropdown.close() }
         onDeleteBranch:      { dropdown.deleteRequested(branchMenu.branchName); dropdown.close() }
         onMerge:             { if (repoVm) repoVm.startMerge(branchMenu.branchName); dropdown.close() }
+        onRebase:            { if (repoVm) repoVm.startRebase(branchMenu.branchName); dropdown.close() }
     }
 
     contentItem: ColumnLayout {

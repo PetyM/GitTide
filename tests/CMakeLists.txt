@@ -18,6 +18,7 @@ add_executable(gittide_core_tests
   test_git_repo_commit_diff.cpp
   test_git_repo_branches.cpp
   test_git_repo_merge.cpp
+  test_git_repo_rebase.cpp
   test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
@@ -53,6 +54,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_merge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_theme.cpp
@@ -71,6 +73,10 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_banner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_entrypoints.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_rebase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_entrypoints.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

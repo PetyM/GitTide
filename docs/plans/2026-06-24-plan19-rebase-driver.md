@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-24 |
-| **Status** | `draft` |
+| **Status** | `shipped (2026-06-24)` |
 | **Spec** | [`docs/spec/product/rebase.md`](../spec/product/rebase.md) |
 | **Depends on** | Plan 14 (merge engine + conflict UI), Plan 16 (context menus), Plan 15 (app menu) |
 

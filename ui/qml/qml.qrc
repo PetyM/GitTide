@@ -31,6 +31,7 @@
     <file>RepoContextMenu.qml</file>
     <file>FileContextMenu.qml</file>
     <file>MergeBanner.qml</file>
+    <file>RebaseBanner.qml</file>
     <file>WindowButton.qml</file>
     <file>EdgeResizer.qml</file>
     <file>TitleBar.qml</file>
@@ -38,5 +39,6 @@
     <file>OptionsDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
+    <file>RebaseTargetDialog.qml</file>
   </qresource>
 </RCC>
