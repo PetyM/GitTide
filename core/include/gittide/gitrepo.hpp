@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -191,10 +192,19 @@ public:
     /// or merge already in progress.
     Expected<RebaseOutcome> startRebase(std::string ontoRef);
 
-    /// Continue an in-progress rebase after the current step's conflicts are
-    /// resolved (the resolved files must be staged in the index). Commits the step,
-    /// then advances. Errors if not rebasing or conflicts remain.
-    Expected<RebaseOutcome> continueRebase();
+    /// Begin an interactive rebase of the current branch per `todo` (base + ordered
+    /// entries, oldest first). Assumes a clean worktree (controller auto-stashes,
+    /// D31). Detaches HEAD at todo.base, then drives until the first pause (conflict
+    /// or message) or a clean finish. Errors: unborn/detached HEAD, base not an
+    /// ancestor of HEAD, first entry squash/fixup, all-drop plan, a rebase/merge
+    /// already in progress.
+    Expected<RebaseOutcome> startInteractiveRebase(RebaseTodo todo);
+
+    /// Continue an in-progress rebase. For an interactive Message pause, `message`
+    /// MUST be supplied (the reword/combined-squash text). For a Conflict pause the
+    /// resolved index is committed; pass nullopt. Errors if not rebasing, conflicts
+    /// remain, or a Message pause is continued without a message.
+    Expected<RebaseOutcome> continueRebase(std::optional<std::string> message = std::nullopt);
 
     /// Skip the current rebase step without committing it, then advance.
     Expected<RebaseOutcome> skipRebase();
@@ -251,6 +261,31 @@ private:
     // Advance an open rebase: next→(conflict? pause : commit) until GIT_ITEROVER
     // (then git_rebase_finish). GIT_EAPPLIED steps are skipped. Does not free rebase/sig.
     Expected<RebaseOutcome> driveRebase(git_rebase* rebase, git_signature* sig);
+
+    // Interactive (manual cherry-pick) engine state, persisted under
+    // interactiveRebaseDir(). See rebase-interactive.md §2.3.
+    struct InteractiveState
+    {
+        RebaseTodo  todo;
+        int         done    = 0;     ///< fully-committed entries
+        bool        applied = false; ///< current entry cherry-picked, awaiting commit/message
+        std::string branch;          ///< branch shorthand being rewritten
+        std::string origHead;        ///< pre-rebase branch tip (for abort)
+    };
+
+    std::filesystem::path interactiveRebaseDir() const;   // <gitdir>/gittide-rebase
+    bool interactiveRebaseInProgress() const;             // the dir exists
+    Expected<void> initInteractiveState(const RebaseTodo& todo, const std::string& branch,
+                                        const std::string& origHead);
+    Expected<InteractiveState> loadInteractiveState() const;
+    Expected<void> setInteractiveProgress(int done, bool applied) const;
+    void clearInteractiveState() const;
+    // The manual driver: apply entries from the cursor until a pause or finish.
+    Expected<RebaseOutcome> driveInteractive(std::optional<std::string> message);
+    // All entries applied → move the branch to detached HEAD and reattach.
+    Expected<RebaseOutcome> finishInteractive(const InteractiveState& st);
+    // Build a RebaseState from the interactive state dir (D30).
+    RebaseState interactiveRebaseState() const;
 
     // Low-level: checkout the commit identified by targetCommit, then update
     // HEAD to refToSet (or detach if refToSet is empty). Auto-stashes dirty
