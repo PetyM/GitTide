@@ -37,5 +37,6 @@
     <file>AboutDialog.qml</file>
     <file>OptionsDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
+    <file>RewordDialog.qml</file>
   </qresource>
 </RCC>

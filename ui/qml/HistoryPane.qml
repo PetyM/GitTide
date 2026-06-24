@@ -16,11 +16,17 @@ RowLayout {
         onCopySha:           if (repoVm) repoVm.copyToClipboard(commitMenu.oid)
         onNewBranchFromHere: commitNewBranchDialog.openFromCommit(commitMenu.oid)
         onCheckoutCommit:    if (repoVm) repoVm.checkoutCommit(commitMenu.oid)
+        onReword:            rewordDialog.openFor(commitMenu.oid)
         onMerge:             if (repoVm) repoVm.startMerge(commitMenu.localBranchName)
     }
 
     NewBranchDialog {
         id: commitNewBranchDialog
+    }
+
+    RewordDialog {
+        id: rewordDialog
+        onReworded: function(message) { if (repoVm) repoVm.rewordHead(message) }
     }
 
     // ---- Commit list (graph + avatar + summary/author/date) ----

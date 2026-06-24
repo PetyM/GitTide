@@ -283,6 +283,24 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void reword_dialog_loads_and_exposes_summary()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/RewordDialog.qml")));
+        QVERIFY2(comp.isReady(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> obj(comp.create());
+        QVERIFY(obj != nullptr);
+        QVERIFY(obj->property("summary").isValid());
+    }
 };
 
 #include "test_qml_history.moc"
