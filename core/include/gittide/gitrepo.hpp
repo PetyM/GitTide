@@ -180,6 +180,15 @@ public:
     // afterwards. Returns an error if oid is malformed or the stash-pop conflicts.
     Expected<void> checkoutCommit(std::string oid);
 
+    // Rewrite HEAD's commit message via git_commit_amend, keeping the tree and
+    // parents exactly (working tree/index untouched, submodule pointers preserved).
+    // Errors on an unborn or detached HEAD. Returns the new commit's hex oid.
+    Expected<std::string> rewordHead(std::string newMessage);
+
+    // Full commit message (summary + body) of the 40-char hex oid. Used to
+    // pre-fill the reword dialog. Errors on a bad oid.
+    Expected<std::string> commitMessage(std::string oid) const;
+
     // Delete the named local branch. Blocks if it is the current branch.
     // Without force, also blocks if the branch is not fully merged into HEAD.
     Expected<void> deleteBranch(std::string name, bool force);
