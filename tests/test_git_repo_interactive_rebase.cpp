@@ -275,3 +275,52 @@ TEST_CASE("continue without a message errors on a reword pause", "[rebase-i]")
     REQUIRE(repo->rebaseState().inProgress);
 }
 
+// ---------------------------------------------------------------------------
+// Task 5: Squash
+// ---------------------------------------------------------------------------
+
+TEST_CASE("interactive squash folds a commit into the previous, pausing for message", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B");
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidA}, {RebaseAction::Squash, oidB} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->pause == gittide::RebasePause::Message);
+
+    auto st = repo->rebaseState();
+    REQUIRE(st.pause == gittide::RebasePause::Message);
+    // Combined prefill carries both A's and B's messages.
+    REQUIRE(st.messagePrefill.find("A") != std::string::npos);
+    REQUIRE(st.messagePrefill.find("B") != std::string::npos);
+
+    auto cont = repo->continueRebase("A and B combined\n");
+    REQUIRE(cont.has_value());
+    REQUIRE_FALSE(cont->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+
+    auto after = repo->log(10);
+    // newest-first: [combined, c0] — two commits, not three.
+    REQUIRE(after->size() == 2);
+    REQUIRE(after->at(0).summary == "A and B combined");
+    // both files present in the single squashed commit.
+    REQUIRE(std::filesystem::exists(tmp.path() / "a.txt"));
+    REQUIRE(std::filesystem::exists(tmp.path() / "b.txt"));
+}
+
