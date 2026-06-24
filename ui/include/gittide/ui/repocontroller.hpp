@@ -11,8 +11,11 @@
 #include "gittide/filestatus.hpp"
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
+#include "gittide/rebase.hpp"
 #include "gittide/sync.hpp"
 #include "gittide/ui/asyncrepo.hpp"
+
+Q_DECLARE_METATYPE(gittide::RebaseState)
 
 namespace gittide::ui {
 
@@ -90,6 +93,17 @@ public slots:
     /// Re-init is deferred to the eventual commitMerge or abortMerge.
     QCoro::Task<void> retryMergeDeinitSubmodules(QString name);
 
+    /// Rebase the current branch onto ontoRef. Auto-stashes a dirty tree (D31),
+    /// drives the first run; on a clean finish emits rebaseFinished + pops the stash,
+    /// on conflict leaves the repo mid-rebase (pop deferred to continue/abort).
+    QCoro::Task<void> startRebase(QString ontoRef);
+    /// Continue after resolving the current step's conflicts.
+    QCoro::Task<void> continueRebase();
+    /// Skip the current step.
+    QCoro::Task<void> skipRebase();
+    /// Abort the rebase, restoring the pre-rebase state, and pop the auto-stash.
+    QCoro::Task<void> abortRebase();
+
     /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
     /// the repository root). Returns an empty string if the file cannot be read.
     /// Keeps filesystem access inside the controller; the VM must not touch the FS.
@@ -126,6 +140,12 @@ signals:
     /// Emitted when a merge finishes successfully (FF, clean Normal, or
     /// commitMerge). headOid is the new HEAD commit OID.
     void mergeFinished(QString headOid);
+
+    /// Emitted whenever rebase-in-progress state is refreshed (D30).
+    void rebaseStateChanged(gittide::RebaseState state);
+    /// Emitted when a rebase finishes cleanly. headOid is the new HEAD commit OID.
+    void rebaseFinished(QString headOid);
+
     void syncBusyChanged(bool busy);
     // Transfer progress for the in-flight fetch/pull/push: objects received of
     // total. total == 0 means the count is not yet known (indeterminate).
@@ -144,6 +164,9 @@ private:
     // Refresh status (including mergeState → mergeStateChanged) + history +
     // branches + sync. Used as the tail of every merge operation.
     QCoro::Task<void> refreshAfterMerge();
+
+    // Status(+rebaseState) + history + branches + sync. Tail of every rebase op.
+    QCoro::Task<void> refreshAfterRebase();
 
     // Re-init every path in m_pendingSubmoduleReinit, then clear the list.
     QCoro::Task<void> reinitPendingSubmodules();
