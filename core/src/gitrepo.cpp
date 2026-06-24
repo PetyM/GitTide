@@ -1357,6 +1357,11 @@ Expected<void> GitRepo::renameBranch(std::string oldName, std::string newName, b
 
 Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
 {
+    // Guard: never start a merge while another operation (rebase, cherry-pick,
+    // etc.) is in progress — mirroring the equivalent guard in startRebase.
+    if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE)
+        return std::unexpected(GitError{-1, "cannot merge: another operation is in progress"});
+
     // Resolve the local branch to an annotated commit (merge analysis input).
     git_reference* ref = nullptr;
     int rc = git_branch_lookup(&ref, m_repo, name.c_str(), GIT_BRANCH_LOCAL);

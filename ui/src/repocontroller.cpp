@@ -890,6 +890,8 @@ QCoro::Task<void> RepoController::abortRebase()
         co_return;
     if (!r)
     {
+        // Abort failed: repo is still mid-rebase/conflicted. Popping the stash
+        // onto a conflicted tree would corrupt it — re-report disk truth and bail.
         emit operationFailed(QString::fromStdString(r.error().message));
         co_await refreshAfterRebase();
         co_return;

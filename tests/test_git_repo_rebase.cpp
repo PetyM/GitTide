@@ -1,7 +1,6 @@
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
-#include <fstream>
 #include <git2.h> // for oid parent inspection in assertions
 
 using gittide::GitRepo;
@@ -87,6 +86,8 @@ TEST_CASE("startRebase errors mid-merge", "[rebase]")
     tmp.commitAll("main edit");
     auto m = repo->mergeBranch("feature");     // conflicts → mid-merge
     REQUIRE(m.has_value());
+    REQUIRE(m->analysis == gittide::MergeAnalysis::Normal);  // precondition: real merge, not FF/up-to-date
+    REQUIRE(m->conflicted);                                    // precondition: repo is now mid-merge
 
     auto out = repo->startRebase("feature");
     REQUIRE_FALSE(out.has_value());            // refuse to rebase mid-merge
@@ -198,4 +199,74 @@ TEST_CASE("skipRebase drops the conflicting commit", "[rebase]")
     REQUIRE(sk.has_value());
     REQUIRE_FALSE(sk->conflicted);
     REQUIRE_FALSE(repo->rebaseState().inProgress);
+}
+
+TEST_CASE("mergeBranch errors mid-rebase", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+    tmp.writeFile("a.txt", "feature\n");         // same line → conflicts with master
+    tmp.commitAll("c1 on feature");
+
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    tmp.writeFile("a.txt", "main\n");
+    tmp.commitAll("c2 on master");
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+
+    // Pause the rebase on a conflict.
+    auto out = repo->startRebase("master");
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);                    // precondition: we are mid-rebase
+    REQUIRE(repo->rebaseState().inProgress);
+
+    // Attempting to merge while mid-rebase must be rejected.
+    auto m = repo->mergeBranch("master");
+    REQUIRE_FALSE(m.has_value());
+    REQUIRE(m.error().message == "cannot merge: another operation is in progress");
+}
+
+TEST_CASE("startRebase auto-skips an already-applied commit", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    // Create feature branch and add a new file.
+    REQUIRE(repo->createBranch("feature", "").has_value());
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+    tmp.writeFile("extra.txt", "same content\n");
+    tmp.commitAll("add extra.txt");              // feature commit to be replayed
+
+    // Switch to master and apply the identical change (simulates cherry-pick).
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    tmp.writeFile("extra.txt", "same content\n");
+    tmp.commitAll("add extra.txt on master");    // master already has the patch
+
+    // Also advance master with a non-conflicting change so the branches diverge.
+    tmp.writeFile("only-master.txt", "master only\n");
+    tmp.commitAll("master advance");
+
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+
+    // Rebase feature onto master — the feature commit is already applied →
+    // GIT_EAPPLIED auto-skip → rebase finishes clean with no conflicts.
+    auto out = repo->startRebase("master");
+    REQUIRE(out.has_value());
+    REQUIRE_FALSE(out->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+
+    // The duplicate commit must not appear twice; extra.txt must be present.
+    REQUIRE(std::filesystem::exists(tmp.path() / "extra.txt"));
+    REQUIRE(std::filesystem::exists(tmp.path() / "only-master.txt"));
 }
