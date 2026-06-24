@@ -45,6 +45,7 @@
 #include "test_repocontroller_reword.cpp"
 #include "test_repocontroller_rebase.cpp"
 #include "test_repoviewmodel_rebase.cpp"
+#include "test_qml_rebase_banner.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -103,6 +104,7 @@ int main(int argc, char** argv)
     RUN(TestRepoControllerReword);
     RUN(TestRepoControllerRebase);
     RUN(TestRepoViewModelRebase);
+    RUN(TestQmlRebaseBanner);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

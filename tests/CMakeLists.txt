@@ -75,6 +75,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

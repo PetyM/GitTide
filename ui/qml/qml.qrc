@@ -31,6 +31,7 @@
     <file>RepoContextMenu.qml</file>
     <file>FileContextMenu.qml</file>
     <file>MergeBanner.qml</file>
+    <file>RebaseBanner.qml</file>
     <file>WindowButton.qml</file>
     <file>EdgeResizer.qml</file>
     <file>TitleBar.qml</file>
