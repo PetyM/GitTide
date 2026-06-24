@@ -4,6 +4,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
@@ -44,6 +45,8 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
+    Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
+    Q_PROPERTY(QString historyDetailHint READ historyDetailHint NOTIFY historyDetailChanged)
     Q_PROPERTY(int aheadCount READ aheadCount NOTIFY syncStatusChanged)
     Q_PROPERTY(int behindCount READ behindCount NOTIFY syncStatusChanged)
     Q_PROPERTY(bool hasUpstream READ hasUpstream NOTIFY syncStatusChanged)
@@ -82,6 +85,8 @@ public:
     DiffLinesModel* commitDiff() const;
     QString selectedCommit() const;
     QString activeCommitFile() const;
+    QString historyDetailHeader() const { return m_detailHeader; }
+    QString historyDetailHint() const { return m_detailHint; }
     int aheadCount() const { return m_sync.ahead; }
     int behindCount() const { return m_sync.behind; }
     bool hasUpstream() const { return m_sync.hasUpstream; }
@@ -115,6 +120,8 @@ public:
 
     Q_INVOKABLE void selectCommit(const QString& oid);
     Q_INVOKABLE void selectCommitFile(const QString& path);
+    // Single entry point from HistoryPane: rows is the selected row-index set.
+    Q_INVOKABLE void selectCommitRows(const QVariantList& rows);
     Q_INVOKABLE void checkoutCommit(const QString& oid);
     Q_INVOKABLE void rewordHead(const QString& message);
     Q_INVOKABLE void requestCommitMessage(const QString& oid);
@@ -166,6 +173,7 @@ signals:
     void branchDeleteUnmerged(const QString& name);
     void selectedCommitChanged();
     void activeCommitFileChanged();
+    void historyDetailChanged();
     void commitMessageReady(const QString& oid, const QString& message);
     void syncStatusChanged();
     void syncingChanged();
@@ -193,6 +201,14 @@ private:
     void recomputeActiveFileState();
     void onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files);
     void onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result);
+    // Range-mode routing helpers (called by selectCommitRows):
+    void applyRange(const QString& oldOid, const QString& newOid, int count);
+    void applyRangeHint();
+    // Range-mode async handlers:
+    void onRangeFiles(const QString& oldOid, const QString& newOid,
+                      const std::vector<gittide::FileStatus>& files);
+    void onRangeDiff(const QString& oldOid, const QString& newOid, const QString& path,
+                     const gittide::DiffResult& result);
 
     // Applies a whole-file check to one row without emitting checkedChanged;
     // returns true if the row was valid. Callers coalesce the emit.
@@ -218,6 +234,10 @@ private:
     enum class PendingOp { None, Fetch, Pull, Push, Publish } m_pendingOp = PendingOp::None;
     QString                    m_selectedCommit;
     QString                    m_activeCommitFile;
+    QString                    m_rangeOld;     ///< non-empty only in range mode
+    QString                    m_rangeNew;
+    QString                    m_detailHeader;
+    QString                    m_detailHint;
     // History population is reconciled from two async signals (historyReady and
     // headChanged) that can arrive in either order. We cache both and apply once
     // both have landed for the current open(), so IsHeadRole is always correct

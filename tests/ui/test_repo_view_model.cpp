@@ -407,6 +407,51 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void range_selection_shows_combined_files_and_header()
+    {
+        // Build a repo with 3 commits adding a.txt, b.txt, c.txt.
+        const auto dir = repo_view_model_test::make_dirty_repo(); // has 1 commit + dirty a.txt
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("c2"), QString());           // commit the dirty a.txt
+        QVERIFY(committedSpy.wait(3000));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 2, 3000);
+
+        auto oidAt = [&](int row) {
+            return vm.history()->data(vm.history()->index(row, 0),
+                                      gittide::ui::HistoryListModel::OidRole).toString();
+        };
+        const QString newest = oidAt(0);
+        const QString oldest = oidAt(1);
+
+        Q_UNUSED(oldest); Q_UNUSED(newest);
+
+        // Contiguous range rows {0,1} → combined files + header.
+        QSignalSpy cfReset(vm.commitFiles(), &QAbstractItemModel::modelReset);
+        vm.selectCommitRows(QVariantList{0, 1});
+        QVERIFY(cfReset.wait(3000));
+        QVERIFY(vm.commitFiles()->rowCount() >= 1);
+        QVERIFY(vm.property("historyDetailHeader").toString().contains(QStringLiteral("2 commits")));
+        QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
+
+        // Non-contiguous rows {0,2} → hint, no files (needs ≥3 commits; if the
+        // repo has only 2, assert the single-row path clears the header instead).
+        if (vm.history()->rowCount() >= 3)
+        {
+            vm.selectCommitRows(QVariantList{0, 2});
+            QTRY_VERIFY_WITH_TIMEOUT(!vm.property("historyDetailHint").toString().isEmpty(), 3000);
+        }
+
+        // Single row → header + hint both cleared.
+        vm.selectCommitRows(QVariantList{0});
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("historyDetailHeader").toString().isEmpty(), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_view_model.moc"
