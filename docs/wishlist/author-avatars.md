@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `idea` |
+| **Status** | `partly shipped` |
 | **Touches** | product (avatar in History rows), design (avatar size/placement, fallback/placeholder), engineering (ui-side avatar fetch + cache; **not** core) |
 
 ## What

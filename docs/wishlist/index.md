@@ -17,14 +17,13 @@ and it links out to them.
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
 | [Deployment — native installers (apt / brew / .exe)](deployment-packaging.md) | 2026-06-22 | `idea` | engineering, product |
-| [Keyboard controls — navigate and act without the mouse](keyboard-controls.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
 | [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `partly designed` | product, engineering, design |
+| [Rebase](rebase.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
+| [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
-| [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `idea` | product, design, engineering |
+| [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `partly shipped` | product, design, engineering |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |
 | [`repo` tool — manifest-driven multi-repo](repo-manifest-tool.md) | 2026-06-17 | `idea` | product, engineering, design |
 
@@ -44,3 +43,4 @@ plan from the bottom of its file.
 | [Logging — categories with per-category and global levels](shipped/logging.md) | 2026-06-21 | 2026-06-21 | engineering, product |
 | [App menu + Options dialog](shipped/app-menu.md) | 2026-06-22 | 2026-06-23 | product, design, engineering |
 | [Context menus — right-click actions on every entity](shipped/context-menus.md) | 2026-06-21 | 2026-06-23 | product, design, engineering |
+| [Keyboard controls — navigate and act without the mouse](shipped/keyboard-controls.md) | 2026-06-21 | 2026-06-23 | product, design, engineering |

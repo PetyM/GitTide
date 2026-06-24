@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-23 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`docs/spec/product/keyboard-controls.md`](../spec/product/keyboard-controls.md) |
 | **Depends on** | Plan 16 (context menus) |
 
@@ -1060,8 +1060,8 @@
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: keyboard navigation for the review-and-commit loop.
-> - Spec updated: `docs/spec/product/keyboard-controls.md` (Status → `shipped`).
-> - Code: `ui/qml/ChangesPane.qml`, `HistoryPane.qml`, `CommitDetail.qml`, `WorkingPane.qml`, `ShortcutsHelpPopup.qml`; `RepoViewModel` (`selectFileAtRow`, `selectCommitAtRow`, `selectCommitFileAtRow`); `Theme`/`QmlTheme` (`focusBorder`).
+Shipped 2026-06-23 (commits `aa99143`..`c826c44`), all six tasks test-first.
+
+- Shipped: keyboard navigation for the review-and-commit loop.
+- Spec: `docs/spec/product/keyboard-controls.md` (Status → `shipped`).
+- Code: `ui/qml/ChangesPane.qml`, `HistoryPane.qml`, `CommitDetail.qml`, `WorkingPane.qml`, `ShortcutsHelpPopup.qml`; `RepoViewModel` (`selectFileAtRow`, `selectCommitAtRow`, `selectCommitFileAtRow`); `Theme`/`QmlTheme` (`focusBorder`).

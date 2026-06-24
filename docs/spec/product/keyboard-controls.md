@@ -3,8 +3,8 @@
 | | |
 |--|--|
 | **Designed** | 2026-06-23 |
-| **Status** | `spec` |
-| **Wishlist** | [docs/wishlist/keyboard-controls.md](../../wishlist/keyboard-controls.md) |
+| **Status** | `shipped` |
+| **Wishlist** | [docs/wishlist/shipped/keyboard-controls.md](../../wishlist/shipped/keyboard-controls.md) |
 | **Touches** | ui: QML `Keys`/`FocusScope`/`Shortcut` wiring on existing models; design: `focusBorder` token; **not** core |
 
 ## Overview

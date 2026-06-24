@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-24 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/history-editing.md`](../spec/product/history-editing.md); touches [`spec/product/context-menus.md`](../spec/product/context-menus.md) |
 | **Depends on** | Plan 16 (context menus), Plan 9a (commit-selection history diff) |
 
@@ -1476,15 +1476,19 @@ git commit -m "feat(ui): history multi-select gestures + combined-diff header/hi
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: combined range diff over a contiguous commit selection + reword of
->   the HEAD commit, from the History tab.
-> - Spec updated: [`spec/product/history-editing.md`](../spec/product/history-editing.md)
->   (this plan realises it), with cross-refs in `context-menus.md` and `product.md`;
->   decision **D32**.
-> - Code: `GitRepo::{rangeFiles,rangeDiff,rewordHead,commitMessage}`; AsyncRepo /
->   RepoController / RepoViewModel range + reword plumbing; `RewordDialog.qml`,
->   multi-select `HistoryPane.qml`, header/hint on `CommitDetail.qml`.
-> - Deferred (unchanged): reword-of-older, squash, reorder → interactive-rebase
->   engine (spec §7).
+Shipped 2026-06-24 (merge `653958b`, commits `5a6a7ca`..`e7b787c`), all eight
+tasks test-first.
+
+- Shipped: combined range diff over a contiguous commit selection + reword of
+  the HEAD commit, from the History tab.
+- Spec: [`spec/product/history-editing.md`](../spec/product/history-editing.md)
+  (this plan realises it), with cross-refs in `context-menus.md` and `product.md`;
+  decision **D32**.
+- Code: `GitRepo::{rangeFiles,rangeDiff,rewordHead,commitMessage}`; AsyncRepo /
+  RepoController / RepoViewModel range + reword plumbing; `RewordDialog.qml`,
+  multi-select `HistoryPane.qml`, header/hint on `CommitDetail.qml`.
+- Tests added: `test_git_repo_reword.cpp`, `test_git_repo_range_diff.cpp`,
+  `test_repocontroller_reword.cpp`, plus reword/range cases in
+  `test_repo_view_model.cpp` and `test_qml_history.cpp`.
+- Deferred (unchanged): reword-of-older, squash, reorder → interactive-rebase
+  engine (spec §7).

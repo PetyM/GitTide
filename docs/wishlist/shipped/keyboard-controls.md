@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-21 |
-| **Status** | `idea` |
+| **Status** | `done` |
 | **Touches** | product (keyboard-driven flows across the shell), design (focus model, focus-ring affordance, shortcut discoverability), engineering (ui: QML `Keys`/`FocusScope`/`Shortcut` wiring on the existing models, **not** core) |
 
 ## What
@@ -72,7 +72,4 @@ engine.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (keyboard flows + Enter semantics), spec/design (focus model + focus-ring token + shortcut discoverability), spec/engineering (ui focus/Keys wiring) · plan: plans/<file>
-- Enter-to-commit vs newline escape hatch, and the focus model → log in decisions.md
--->
+**Shipped in Plan 17 (2026-06-23).** Design: `docs/spec/product/keyboard-controls.md`. Components: `ShortcutsHelpPopup.qml`; `Keys`/`Shortcut` wiring on `ChangesPane.qml`, `HistoryPane.qml`, `CommitDetail.qml`, `WorkingPane.qml`. ViewModel: `selectFileAtRow`, `selectCommitAtRow`, `selectCommitFileAtRow`. Theme: `focusBorder` token. Arrow-key navigation, Space stage/unstage, Ctrl+Enter commit, Ctrl+1/2/R global chords, and the `?` overlay are all in the spec.
