@@ -1947,6 +1947,48 @@ Expected<RebaseOutcome> GitRepo::driveRebase(git_rebase* rebase, git_signature* 
     }
 }
 
+Expected<RebaseOutcome> GitRepo::continueRebase()
+{
+    const int state = git_repository_state(m_repo);
+    const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
+                       || state == GIT_REPOSITORY_STATE_REBASE
+                       || state == GIT_REPOSITORY_STATE_REBASE_INTERACTIVE;
+    if (!rebasing)
+        return std::unexpected(GitError{-1, "no rebase in progress"});
+
+    git_index* index = nullptr;
+    int rc = git_repository_index(&index, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    {
+        std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+        if (git_index_has_conflicts(index))
+            return std::unexpected(GitError{-1, "cannot continue: unresolved conflicts remain"});
+    }
+
+    git_rebase*        rebase = nullptr;
+    git_rebase_options opts   = GIT_REBASE_OPTIONS_INIT;
+    rc = git_rebase_open(&rebase, m_repo, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_rebase, decltype(&git_rebase_free)> rb_guard(rebase, git_rebase_free);
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    if (!sig)
+        return std::unexpected(GitError{-1, "no signature for rebase"});
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    // Commit the just-resolved current operation, then advance.
+    git_oid id;
+    rc = git_rebase_commit(&id, rebase, nullptr, sig, nullptr, nullptr);
+    if (rc < 0 && rc != GIT_EAPPLIED)
+        return std::unexpected(lastGitError(rc));
+
+    return driveRebase(rebase, sig);
+}
+
 Expected<RebaseOutcome> GitRepo::startRebase(std::string ontoRef)
 {
     // Guard: never start over a merge or an existing rebase.

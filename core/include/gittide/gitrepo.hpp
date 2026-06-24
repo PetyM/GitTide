@@ -191,6 +191,11 @@ public:
     /// or merge already in progress.
     Expected<RebaseOutcome> startRebase(std::string ontoRef);
 
+    /// Continue an in-progress rebase after the current step's conflicts are
+    /// resolved (the resolved files must be staged in the index). Commits the step,
+    /// then advances. Errors if not rebasing or conflicts remain.
+    Expected<RebaseOutcome> continueRebase();
+
     // Check out a remote-tracking branch (e.g. "origin/feature"). DWIM, à la
     // GitHub Desktop: if a local branch of the trailing name already exists it is
     // simply switched to; otherwise a local branch is created from the remote ref,

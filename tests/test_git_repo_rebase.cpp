@@ -1,6 +1,7 @@
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
+#include <fstream>
 #include <git2.h> // for oid parent inspection in assertions
 
 using gittide::GitRepo;
@@ -89,4 +90,53 @@ TEST_CASE("startRebase errors mid-merge", "[rebase]")
 
     auto out = repo->startRebase("feature");
     REQUIRE_FALSE(out.has_value());            // refuse to rebase mid-merge
+}
+
+TEST_CASE("startRebase pauses on conflict, continueRebase finishes after resolve", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "base\n");
+    tmp.commitAll("c0");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->createBranch("feature", "").has_value());
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+    tmp.writeFile("a.txt", "feature\n");       // same line → will conflict
+    tmp.commitAll("c1 on feature");
+
+    REQUIRE(repo->checkoutBranch("master").has_value());
+    tmp.writeFile("a.txt", "main\n");
+    tmp.commitAll("c2 on master");
+    REQUIRE(repo->checkoutBranch("feature").has_value());
+
+    auto out = repo->startRebase("master");
+    REQUIRE(out.has_value());
+    REQUIRE(out->conflicted);
+    auto st = repo->rebaseState();
+    REQUIRE(st.inProgress);
+    REQUIRE(st.conflictedPaths.size() == 1);
+
+    // Resolve: write a merged file and stage it.
+    tmp.writeFile("a.txt", "resolved\n");
+    REQUIRE(repo->stage(gittide::StageSelection{"a.txt", std::nullopt, {}}).has_value());
+
+    auto cont = repo->continueRebase();
+    REQUIRE(cont.has_value());
+    REQUIRE_FALSE(cont->conflicted);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+}
+
+TEST_CASE("continueRebase errors when no rebase is in progress", "[rebase]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("a.txt", "x\n");
+    tmp.commitAll("c1");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto cont = repo->continueRebase();
+    REQUIRE_FALSE(cont.has_value());
 }
