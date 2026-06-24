@@ -174,6 +174,7 @@ of this menu item to avoid duplication.
 | **New branch from here** | Always enabled |
 | **Checkout commit** | Disabled when `isHead` |
 | **Reword…** | **Hidden** unless `isHead` (reword of older commits is deferred to the rebase engine — see [history-editing](history-editing.md)) |
+| **Edit history from here…** | **Hidden** when `isHead` (the clicked commit is the tip — nothing to rebase onto it); opens `RebaseTodoDialog` via `repoVm.startInteractiveRebase(oid)` |
 | — separator — | |
 | **Merge `<localBranchName>` into current** | **Hidden** when `localBranchName` is empty |
 

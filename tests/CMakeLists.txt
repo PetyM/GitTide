@@ -19,6 +19,7 @@ add_executable(gittide_core_tests
   test_git_repo_branches.cpp
   test_git_repo_merge.cpp
   test_git_repo_rebase.cpp
+  test_git_repo_interactive_rebase.cpp
   test_credential_select.cpp
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
@@ -77,6 +78,9 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_entrypoints.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_interactive_rebase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_todo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner_message.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

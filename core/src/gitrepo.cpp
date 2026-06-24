@@ -5,6 +5,7 @@
 #include <git2/annotated_commit.h>
 #include <git2/branch.h>
 #include <git2/checkout.h>
+#include <git2/cherrypick.h>
 #include <git2/commit.h>
 #include <git2/config.h>
 #include <git2/credential.h>
@@ -18,6 +19,7 @@
 #include <git2/worktree.h>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -519,6 +521,25 @@ Expected<std::string> GitRepo::commitMessage(std::string oidHex) const
     return std::string(msg ? msg : "");
 }
 
+Expected<std::string> GitRepo::firstParent(std::string oidHex) const
+{
+    git_oid oid;
+    int rc = git_oid_fromstr(&oid, oidHex.c_str());
+    if (rc < 0)
+        return std::unexpected(GitError{-1, "bad oid"});
+    git_commit* c = nullptr;
+    rc            = git_commit_lookup(&c, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> cg(c, git_commit_free);
+    if (git_commit_parentcount(c) == 0)
+        return std::unexpected(GitError{-1, "cannot edit history from a root commit"});
+    const git_oid* p = git_commit_parent_id(c, 0);
+    char buf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(buf, sizeof(buf), p);
+    return std::string(buf);
+}
+
 Expected<std::string> GitRepo::commitMerge(CommitRequest req)
 {
     git_index* index = nullptr;
@@ -1012,8 +1033,238 @@ std::string GitRepo::rebaseOntoName() const
     return {};
 }
 
+// ── Interactive rebase state-dir helpers ─────────────────────────────────────
+
+std::filesystem::path GitRepo::interactiveRebaseDir() const
+{
+    const char* gp = git_repository_path(m_repo); // the .git dir (trailing slash)
+    if (!gp)
+        return {};
+    return std::filesystem::path(fromGitPath(gp)) / "gittide-rebase";
+}
+
+bool GitRepo::interactiveRebaseInProgress() const
+{
+    std::error_code ec;
+    return std::filesystem::exists(interactiveRebaseDir() / "todo", ec);
+}
+
+static const char* actionToken(gittide::RebaseAction a)
+{
+    using A = gittide::RebaseAction;
+    switch (a)
+    {
+        case A::Pick:   return "pick";
+        case A::Reword: return "reword";
+        case A::Squash: return "squash";
+        case A::Fixup:  return "fixup";
+        case A::Drop:   return "drop";
+    }
+    return "pick";
+}
+
+static gittide::RebaseAction tokenToAction(const std::string& t)
+{
+    using A = gittide::RebaseAction;
+    if (t == "reword") return A::Reword;
+    if (t == "squash") return A::Squash;
+    if (t == "fixup")  return A::Fixup;
+    if (t == "drop")   return A::Drop;
+    return A::Pick;
+}
+
+Expected<void> GitRepo::initInteractiveState(const RebaseTodo& todo, const std::string& branch,
+                                             const std::string& origHead)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const fs::path dir = interactiveRebaseDir();
+    fs::create_directories(dir, ec);
+    if (ec)
+        return std::unexpected(GitError{-1, "cannot create rebase state dir"});
+
+    { std::ofstream(dir / "base")      << todo.base    << "\n"; }
+    { std::ofstream(dir / "branch")    << branch       << "\n"; }
+    { std::ofstream(dir / "orig-head") << origHead     << "\n"; }
+    {
+        std::ofstream todoFile(dir / "todo");
+        for (const auto& e : todo.entries)
+            todoFile << actionToken(e.action) << ' ' << e.oid << "\n";
+    }
+    { std::ofstream(dir / "done") << 0 << "\n"; }
+    std::error_code rmEc;
+    fs::remove(dir / "applied", rmEc); // ensure clean
+    return {};
+}
+
+Expected<GitRepo::InteractiveState> GitRepo::loadInteractiveState() const
+{
+    namespace fs = std::filesystem;
+    const fs::path dir = interactiveRebaseDir();
+    std::error_code ec;
+    if (!fs::exists(dir / "todo", ec))
+        return std::unexpected(GitError{-1, "no interactive rebase in progress"});
+
+    InteractiveState st;
+    auto readLine = [&](const char* name) -> std::string {
+        std::ifstream in(dir / name);
+        std::string line;
+        std::getline(in, line);
+        return line;
+    };
+    st.todo.base = readLine("base");
+    st.branch    = readLine("branch");
+    st.origHead  = readLine("orig-head");
+    {
+        std::ifstream todoFile(dir / "todo");
+        std::string line;
+        while (std::getline(todoFile, line))
+        {
+            if (line.empty())
+                continue;
+            const auto sp = line.find(' ');
+            if (sp == std::string::npos)
+                continue;
+            RebaseTodoEntry e;
+            e.action = tokenToAction(line.substr(0, sp));
+            e.oid    = line.substr(sp + 1);
+            st.todo.entries.push_back(e);
+        }
+    }
+    try { st.done = std::stoi(readLine("done")); } catch (...) { st.done = 0; }
+    st.applied = fs::exists(dir / "applied", ec);
+    return st;
+}
+
+Expected<void> GitRepo::setInteractiveProgress(int done, bool applied) const
+{
+    namespace fs = std::filesystem;
+    const fs::path dir = interactiveRebaseDir();
+    { std::ofstream(dir / "done") << done << "\n"; }
+    std::error_code ec;
+    if (applied)
+        { std::ofstream(dir / "applied") << "1\n"; }
+    else
+        fs::remove(dir / "applied", ec);
+    return {};
+}
+
+void GitRepo::clearInteractiveState() const
+{
+    std::error_code ec;
+    std::filesystem::remove_all(interactiveRebaseDir(), ec);
+}
+
+RebaseState GitRepo::interactiveRebaseState() const
+{
+    RebaseState st;
+    auto loaded = loadInteractiveState();
+    if (!loaded)
+        return st; // dir vanished mid-read → not in progress
+    const InteractiveState& s = *loaded;
+    st.inProgress  = true;
+    st.interactive = true;
+
+    const auto& entries = s.todo.entries;
+    for (const auto& e : entries)
+        if (e.action != RebaseAction::Drop)
+            ++st.total;
+    int committedKeep = 0;
+    for (int i = 0; i < s.done && i < static_cast<int>(entries.size()); ++i)
+        if (entries[i].action != RebaseAction::Drop)
+            ++committedKeep;
+    st.current = committedKeep + 1;
+    if (st.current > st.total)
+        st.current = st.total;
+
+    const RebaseTodoEntry* cur =
+        (s.done < static_cast<int>(entries.size())) ? &entries[s.done] : nullptr;
+    if (cur)
+    {
+        git_oid o;
+        if (git_oid_fromstr(&o, cur->oid.c_str()) == 0)
+        {
+            git_commit* c = nullptr;
+            if (git_commit_lookup(&c, m_repo, &o) == 0)
+            {
+                std::unique_ptr<git_commit, decltype(&git_commit_free)> cg(c, git_commit_free);
+                if (const char* sm = git_commit_summary(c))
+                    st.stepSummary = sm;
+            }
+        }
+    }
+
+    // Conflicts — identical derivation to mergeState()/rebaseState().
+    git_index* index = nullptr;
+    if (git_repository_index(&index, m_repo) == 0)
+    {
+        std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+        if (git_index_has_conflicts(index))
+        {
+            git_index_conflict_iterator* it = nullptr;
+            if (git_index_conflict_iterator_new(&it, index) == 0)
+            {
+                std::unique_ptr<git_index_conflict_iterator,
+                                decltype(&git_index_conflict_iterator_free)>
+                    itg(it, git_index_conflict_iterator_free);
+                const git_index_entry *anc = nullptr, *our = nullptr, *their = nullptr;
+                while (git_index_conflict_next(&anc, &our, &their, it) == 0)
+                {
+                    const git_index_entry* en = our ? our : (their ? their : anc);
+                    if (!en || !en->path)
+                        continue;
+                    std::filesystem::path p = fromGitPath(en->path);
+                    st.conflictedPaths.push_back(p);
+                    const bool gitlink =
+                        (our && our->mode == GIT_FILEMODE_COMMIT) ||
+                        (their && their->mode == GIT_FILEMODE_COMMIT) ||
+                        (anc && anc->mode == GIT_FILEMODE_COMMIT);
+                    if (gitlink)
+                        st.conflictedSubmodules.push_back(p);
+                }
+            }
+        }
+    }
+
+    // Pause reason.
+    if (!st.conflictedPaths.empty())
+        st.pause = RebasePause::Conflict;
+    else if (s.applied && cur
+             && (cur->action == RebaseAction::Reword || cur->action == RebaseAction::Squash))
+    {
+        st.pause = RebasePause::Message;
+        if (cur->action == RebaseAction::Reword)
+        {
+            if (auto m = commitMessage(cur->oid))
+                st.messagePrefill = *m;
+        }
+        else // Squash: HEAD's accumulated message + this commit's message
+        {
+            std::string head;
+            git_oid head_oid;
+            if (git_reference_name_to_id(&head_oid, m_repo, "HEAD") == 0)
+            {
+                char hb[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+                git_oid_tostr(hb, sizeof(hb), &head_oid);
+                if (auto hm = commitMessage(hb))
+                    head = *hm;
+            }
+            std::string mine;
+            if (auto m = commitMessage(cur->oid))
+                mine = *m;
+            st.messagePrefill = head + "\n\n" + mine;
+        }
+    }
+    return st;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 RebaseState GitRepo::rebaseState() const
 {
+    if (interactiveRebaseInProgress())
+        return interactiveRebaseState();
+
     RebaseState st;
     const int state = git_repository_state(m_repo);
     st.inProgress = state == GIT_REPOSITORY_STATE_REBASE_MERGE
@@ -1361,6 +1612,8 @@ Expected<MergeOutcome> GitRepo::mergeBranch(std::string name)
     // etc.) is in progress — mirroring the equivalent guard in startRebase.
     if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE)
         return std::unexpected(GitError{-1, "cannot merge: another operation is in progress"});
+    if (interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot merge: a rebase is in progress"});
 
     // Resolve the local branch to an annotated commit (merge analysis input).
     git_reference* ref = nullptr;
@@ -1952,8 +2205,12 @@ Expected<RebaseOutcome> GitRepo::driveRebase(git_rebase* rebase, git_signature* 
     }
 }
 
-Expected<RebaseOutcome> GitRepo::continueRebase()
+Expected<RebaseOutcome> GitRepo::continueRebase(std::optional<std::string> message)
 {
+    // Interactive rebase in progress — delegate to the manual driver.
+    if (interactiveRebaseInProgress())
+        return driveInteractive(std::move(message));
+
     const int state = git_repository_state(m_repo);
     const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
                        || state == GIT_REPOSITORY_STATE_REBASE
@@ -1996,6 +2253,32 @@ Expected<RebaseOutcome> GitRepo::continueRebase()
 
 Expected<RebaseOutcome> GitRepo::skipRebase()
 {
+    if (interactiveRebaseInProgress())
+    {
+        auto loaded = loadInteractiveState();
+        if (!loaded)
+            return std::unexpected(loaded.error());
+        InteractiveState st = *loaded;
+        // Discard the half-applied cherry-pick: hard-reset to detached HEAD.
+        git_oid head_oid;
+        if (int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD"); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_commit* head = nullptr;
+        if (int rc = git_commit_lookup(&head, m_repo, &head_oid); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> hg(head, git_commit_free);
+        if (int rc = git_reset(m_repo, reinterpret_cast<const git_object*>(head),
+                               GIT_RESET_HARD, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_repository_state_cleanup(m_repo);
+        // Advance past the current entry without committing it.
+        st.applied = false;
+        ++st.done;
+        if (auto r = setInteractiveProgress(st.done, st.applied); !r)
+            return std::unexpected(r.error());
+        return driveInteractive(std::nullopt);
+    }
+
     const int state = git_repository_state(m_repo);
     const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
                        || state == GIT_REPOSITORY_STATE_REBASE
@@ -2053,6 +2336,33 @@ Expected<RebaseOutcome> GitRepo::skipRebase()
 
 Expected<void> GitRepo::abortRebase()
 {
+    if (interactiveRebaseInProgress())
+    {
+        auto loaded = loadInteractiveState();
+        if (!loaded)
+        {
+            clearInteractiveState();
+            return std::unexpected(GitError{-1, "no rebase in progress"});
+        }
+        const std::string refname = "refs/heads/" + loaded->branch;
+        // The branch ref was never moved during the drive → it still points at
+        // orig-head. Reattach HEAD and hard-reset the worktree to it.
+        if (int rc = git_repository_set_head(m_repo, refname.c_str()); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_oid orig_oid;
+        if (git_oid_fromstr(&orig_oid, loaded->origHead.c_str()) < 0)
+            return std::unexpected(GitError{-1, "bad orig-head"});
+        git_object* obj = nullptr;
+        if (int rc = git_object_lookup(&obj, m_repo, &orig_oid, GIT_OBJECT_COMMIT); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_object, decltype(&git_object_free)> og(obj, git_object_free);
+        if (int rc = git_reset(m_repo, obj, GIT_RESET_HARD, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_repository_state_cleanup(m_repo);
+        clearInteractiveState();
+        return {};
+    }
+
     const int state = git_repository_state(m_repo);
     const bool rebasing = state == GIT_REPOSITORY_STATE_REBASE_MERGE
                        || state == GIT_REPOSITORY_STATE_REBASE
@@ -2079,6 +2389,8 @@ Expected<RebaseOutcome> GitRepo::startRebase(std::string ontoRef)
     const int state = git_repository_state(m_repo);
     if (state != GIT_REPOSITORY_STATE_NONE)
         return std::unexpected(GitError{-1, "cannot rebase: another operation is in progress"});
+    if (interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot rebase: a rebase is already in progress"});
 
     // Guard: need a born, attached HEAD (a branch to move).
     if (git_repository_head_unborn(m_repo) == 1)
@@ -2117,6 +2429,236 @@ Expected<RebaseOutcome> GitRepo::startRebase(std::string ontoRef)
     std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
 
     return driveRebase(rebase, sig);
+}
+
+Expected<RebaseOutcome> GitRepo::startInteractiveRebase(RebaseTodo todo)
+{
+    // Guards (D33 mutual exclusion + structural).
+    if (interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot rebase: a rebase is already in progress"});
+    if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE)
+        return std::unexpected(GitError{-1, "cannot rebase: another operation is in progress"});
+    if (git_repository_head_unborn(m_repo) == 1)
+        return std::unexpected(GitError{-1, "cannot rebase: HEAD is unborn"});
+    if (git_repository_head_detached(m_repo) == 1)
+        return std::unexpected(GitError{-1, "cannot rebase: HEAD is detached"});
+    if (todo.entries.empty())
+        return std::unexpected(GitError{-1, "cannot rebase: empty plan"});
+    if (todo.entries.front().action == RebaseAction::Squash
+        || todo.entries.front().action == RebaseAction::Fixup)
+        return std::unexpected(GitError{-1, "cannot rebase: first entry cannot be squash/fixup"});
+    bool anyKeep = false;
+    for (const auto& e : todo.entries)
+        if (e.action != RebaseAction::Drop) { anyKeep = true; break; }
+    if (!anyKeep)
+        return std::unexpected(GitError{-1, "cannot rebase: all entries dropped"});
+
+    // Current branch + tip.
+    git_reference* head_ref = nullptr;
+    if (git_repository_head(&head_ref, m_repo) < 0)
+        return std::unexpected(GitError{-1, "cannot resolve HEAD"});
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> hr(head_ref, git_reference_free);
+    const char* branch_name = nullptr;
+    if (git_branch_name(&branch_name, head_ref) < 0 || !branch_name)
+        return std::unexpected(GitError{-1, "cannot rebase: HEAD is not a branch"});
+    const std::string branch = branch_name;
+
+    git_oid orig_oid;
+    if (git_reference_name_to_id(&orig_oid, m_repo, "HEAD") < 0)
+        return std::unexpected(GitError{-1, "cannot resolve HEAD"});
+    char origbuf[GIT_OID_SHA1_HEXSIZE + 1] = {0};
+    git_oid_tostr(origbuf, sizeof(origbuf), &orig_oid);
+    const std::string origHead = origbuf;
+
+    // base must be an ancestor of HEAD.
+    git_oid base_oid;
+    if (git_oid_fromstr(&base_oid, todo.base.c_str()) < 0)
+        return std::unexpected(GitError{-1, "cannot rebase: bad base oid"});
+    if (git_graph_descendant_of(m_repo, &orig_oid, &base_oid) != 1)
+        return std::unexpected(GitError{-1, "cannot rebase: base is not an ancestor of HEAD"});
+
+    // Detach HEAD onto base.
+    git_commit* base_commit = nullptr;
+    if (git_commit_lookup(&base_commit, m_repo, &base_oid) < 0)
+        return std::unexpected(GitError{-1, "cannot rebase: base is not a commit"});
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> bg(base_commit, git_commit_free);
+    {
+        git_checkout_options co = GIT_CHECKOUT_OPTIONS_INIT;
+        co.checkout_strategy    = GIT_CHECKOUT_FORCE;
+        if (int rc = git_checkout_tree(m_repo, reinterpret_cast<const git_object*>(base_commit), &co); rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    if (int rc = git_repository_set_head_detached(m_repo, &base_oid); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    if (auto r = initInteractiveState(todo, branch, origHead); !r)
+        return std::unexpected(r.error());
+    return driveInteractive(std::nullopt);
+}
+
+Expected<RebaseOutcome> GitRepo::driveInteractive(std::optional<std::string> message)
+{
+    auto loaded = loadInteractiveState();
+    if (!loaded)
+        return std::unexpected(loaded.error());
+    InteractiveState st = *loaded;
+
+    git_signature* sig = nullptr;
+    if (git_signature_default(&sig, m_repo) < 0)
+        git_signature_now(&sig, "GitTide", "gittide@localhost");
+    if (!sig)
+        return std::unexpected(GitError{-1, "no signature for rebase"});
+    std::unique_ptr<git_signature, decltype(&git_signature_free)> sig_guard(sig, git_signature_free);
+
+    while (st.done < static_cast<int>(st.todo.entries.size()))
+    {
+        const RebaseTodoEntry& e = st.todo.entries[st.done];
+
+        if (e.action == RebaseAction::Drop)
+        {
+            st.applied = false;
+            ++st.done;
+            if (auto r = setInteractiveProgress(st.done, st.applied); !r)
+                return std::unexpected(r.error());
+            message.reset();
+            continue;
+        }
+
+        // 1) Apply the commit if not already applied.
+        if (!st.applied)
+        {
+            git_oid pick_oid;
+            if (git_oid_fromstr(&pick_oid, e.oid.c_str()) < 0)
+                return std::unexpected(GitError{-1, "bad oid in todo"});
+            git_commit* pick = nullptr;
+            if (int rc = git_commit_lookup(&pick, m_repo, &pick_oid); rc < 0)
+                return std::unexpected(lastGitError(rc));
+            std::unique_ptr<git_commit, decltype(&git_commit_free)> pg(pick, git_commit_free);
+
+            git_cherrypick_options copts = GIT_CHERRYPICK_OPTIONS_INIT;
+            copts.checkout_opts.checkout_strategy = GIT_CHECKOUT_SAFE;
+            if (int rc = git_cherrypick(m_repo, pick, &copts); rc < 0)
+                return std::unexpected(lastGitError(rc));
+
+            st.applied = true;
+            if (auto r = setInteractiveProgress(st.done, st.applied); !r)
+                return std::unexpected(r.error());
+
+            git_index* index = nullptr;
+            if (int rc = git_repository_index(&index, m_repo); rc < 0)
+                return std::unexpected(lastGitError(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+            if (git_index_has_conflicts(index))
+                return RebaseOutcome{true, RebasePause::Conflict};
+        }
+        else
+        {
+            // Re-entry after a conflict was resolved + staged.
+            git_index* index = nullptr;
+            if (int rc = git_repository_index(&index, m_repo); rc < 0)
+                return std::unexpected(lastGitError(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+            if (git_index_has_conflicts(index))
+                return std::unexpected(GitError{-1, "cannot continue: unresolved conflicts remain"});
+        }
+
+        // 2) reword/squash need a message before we can commit.
+        if ((e.action == RebaseAction::Reword || e.action == RebaseAction::Squash)
+            && !message.has_value())
+            return RebaseOutcome{false, RebasePause::Message};
+
+        // Build the tree from the resolved index.
+        git_oid tree_oid;
+        {
+            git_index* index = nullptr;
+            if (int rc = git_repository_index(&index, m_repo); rc < 0)
+                return std::unexpected(lastGitError(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)> ig(index, git_index_free);
+            if (int rc = git_index_write_tree(&tree_oid, index); rc < 0)
+                return std::unexpected(lastGitError(rc));
+        }
+        git_tree* tree = nullptr;
+        if (int rc = git_tree_lookup(&tree, m_repo, &tree_oid); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_tree, decltype(&git_tree_free)> tg(tree, git_tree_free);
+
+        // current detached HEAD commit = parent (pick/reword) or amend target (squash/fixup)
+        git_oid head_oid;
+        if (int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD"); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        git_commit* head = nullptr;
+        if (int rc = git_commit_lookup(&head, m_repo, &head_oid); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> hg(head, git_commit_free);
+
+        // original commit for author + message
+        git_oid orig_oid;
+        git_oid_fromstr(&orig_oid, e.oid.c_str());
+        git_commit* orig = nullptr;
+        if (int rc = git_commit_lookup(&orig, m_repo, &orig_oid); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_commit, decltype(&git_commit_free)> og(orig, git_commit_free);
+
+        git_oid newc;
+        int rc = 0;
+        if (e.action == RebaseAction::Pick)
+        {
+            git_commit* parents[1] = {head};
+            rc = git_commit_create(&newc, m_repo, "HEAD", git_commit_author(orig), sig,
+                                   nullptr, git_commit_message(orig), tree, 1, parents);
+        }
+        else if (e.action == RebaseAction::Reword)
+        {
+            git_commit* parents[1] = {head};
+            rc = git_commit_create(&newc, m_repo, "HEAD", git_commit_author(orig), sig,
+                                   nullptr, message->c_str(), tree, 1, parents);
+        }
+        else if (e.action == RebaseAction::Fixup)
+        {
+            rc = git_commit_amend(&newc, head, "HEAD", git_commit_author(head), sig,
+                                  nullptr, git_commit_message(head), tree);
+        }
+        else // Squash
+        {
+            rc = git_commit_amend(&newc, head, "HEAD", git_commit_author(head), sig,
+                                  nullptr, message->c_str(), tree);
+        }
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+
+        git_repository_state_cleanup(m_repo); // clear CHERRY_PICK_HEAD/MERGE_MSG
+        st.applied = false;
+        ++st.done;
+        if (auto r = setInteractiveProgress(st.done, st.applied); !r)
+            return std::unexpected(r.error());
+        message.reset(); // a message applies only to the step that paused for it
+    }
+
+    return finishInteractive(st);
+}
+
+Expected<RebaseOutcome> GitRepo::finishInteractive(const InteractiveState& st)
+{
+    git_oid head_oid;
+    if (int rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD"); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    const std::string refname = "refs/heads/" + st.branch;
+    git_reference* newref = nullptr;
+    if (int rc = git_reference_create(&newref, m_repo, refname.c_str(), &head_oid,
+                                      /*force=*/1, "gittide: interactive rebase"); rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_reference_free(newref);
+
+    if (int rc = git_repository_set_head(m_repo, refname.c_str()); rc < 0)
+    {
+        clearInteractiveState();
+        return std::unexpected(lastGitError(rc));
+    }
+
+    clearInteractiveState();
+    git_repository_state_cleanup(m_repo);
+    return RebaseOutcome{false, RebasePause::None};
 }
 
 } // namespace gittide

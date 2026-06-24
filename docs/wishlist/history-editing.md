@@ -3,13 +3,14 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `partly designed` |
+| **Status** | `partly shipped` |
 | **Touches** | product (history actions on commits), engineering (core: amend + commit-rewrite on `GitRepo`), design (amend affordance in Changes, history-rewrite actions + warnings) |
 
 > **Reword-tip designed** (2026-06-24) in
 > [spec/product/history-editing.md](../spec/product/history-editing.md), alongside
-> combined range-diff. Amend, reword-of-older, and squash/fixup remain `idea` —
-> the latter two ride on the deferred interactive-rebase engine.
+> combined range-diff. Amend remains `idea`; reword-of-older, squash/fixup, and
+> reorder now ship via the interactive rebase engine in
+> [spec/product/rebase-interactive.md](../spec/product/rebase-interactive.md).
 
 ## What
 

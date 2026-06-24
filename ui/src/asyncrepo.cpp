@@ -3,6 +3,7 @@
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "gittide/gitrepo.hpp"
@@ -180,6 +181,17 @@ QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMessage(QString oid
         {
             std::scoped_lock lock(impl->mutex);
             return impl->repo.commitMessage(o);
+        });
+}
+
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::firstParent(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.firstParent(o);
         });
 }
 
@@ -392,14 +404,28 @@ QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::startRebase(QS
         });
 }
 
-QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::continueRebase()
+QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::startInteractiveRebase(gittide::RebaseTodo todo)
 {
     auto impl = m_impl;
     co_return co_await QtConcurrent::run(
-        [impl]()
+        [impl, todo = std::move(todo)]()
         {
             std::scoped_lock lock(impl->mutex);
-            return impl->repo.continueRebase();
+            return impl->repo.startInteractiveRebase(todo);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::RebaseOutcome>> AsyncRepo::continueRebase(QString message)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, message]() -> gittide::Expected<gittide::RebaseOutcome>
+        {
+            std::scoped_lock lock(impl->mutex);
+            std::optional<std::string> msg;
+            if (!message.isEmpty())
+                msg = message.toStdString();
+            return impl->repo.continueRebase(std::move(msg));
         });
 }
 

@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <QPointer>
+#include <QVariant>
 
 #include "gittide/graphbuilder.hpp"
 #include "gittide/log.hpp"
@@ -814,7 +815,7 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
         co_return;
     }
 
-    if (!out->conflicted) // finished in one run
+    if (out->pause == gittide::RebasePause::None) // finished in one run
     {
         co_await popPendingStash();
         if (!self)
@@ -823,17 +824,17 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
         if (self && head)
             emit rebaseFinished(QString::fromStdString(head->oid));
     }
-    // else: conflicted → leave mid-rebase; the deferred pop waits for finish/abort.
+    // else: conflicted or message pause → leave mid-rebase; deferred pop waits.
 
     co_await refreshAfterRebase();
 }
 
-QCoro::Task<void> RepoController::continueRebase()
+QCoro::Task<void> RepoController::continueRebase(QString message)
 {
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
-    auto out = co_await m_repo->continueRebase();
+    auto out = co_await m_repo->continueRebase(message);
     if (!self)
         co_return;
     if (!out)
@@ -842,7 +843,7 @@ QCoro::Task<void> RepoController::continueRebase()
         co_await refreshAfterRebase();
         co_return;
     }
-    if (!out->conflicted)
+    if (out->pause == gittide::RebasePause::None) // clean finish only
     {
         co_await popPendingStash();
         if (!self)
@@ -868,7 +869,7 @@ QCoro::Task<void> RepoController::skipRebase()
         co_await refreshAfterRebase();
         co_return;
     }
-    if (!out->conflicted)
+    if (out->pause == gittide::RebasePause::None) // clean finish only
     {
         co_await popPendingStash();
         if (!self)
@@ -899,6 +900,127 @@ QCoro::Task<void> RepoController::abortRebase()
     co_await popPendingStash(); // restore the user's pre-rebase work
     if (!self)
         co_return;
+    co_await refreshAfterRebase();
+}
+
+// ---------------------------------------------------------------------------
+// Interactive rebase seed (Task 8)
+// ---------------------------------------------------------------------------
+
+QCoro::Task<void> RepoController::buildRebaseTodo(QString fromOid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    // Fetch history newest-first (limit 1000 — same as refreshHistory default).
+    auto hist = co_await m_repo->log(1000);
+    if (!self)
+        co_return;
+    if (!hist)
+    {
+        emit operationFailed(QString::fromStdString(hist.error().message));
+        co_return;
+    }
+
+    // Walk from HEAD down until we find fromOid; collect those rows newest-first.
+    const std::string from = fromOid.toStdString();
+    std::vector<std::pair<QString, QString>> picked; // (oid, summary), newest-first
+    bool found = false;
+    for (const auto& node : *hist)
+    {
+        picked.emplace_back(QString::fromStdString(node.oid),
+                            QString::fromStdString(node.summary));
+        if (node.oid == from)
+        {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+    {
+        emit operationFailed(QStringLiteral("commit is not on the current branch history"));
+        co_return;
+    }
+
+    // Resolve base = first parent of fromOid.
+    auto baseOid = co_await m_repo->firstParent(fromOid);
+    if (!self)
+        co_return;
+    if (!baseOid)
+    {
+        emit operationFailed(QString::fromStdString(baseOid.error().message));
+        co_return;
+    }
+    const QString base = QString::fromStdString(*baseOid);
+
+    // Reverse to oldest-first.
+    QVariantList entries;
+    for (auto it = picked.rbegin(); it != picked.rend(); ++it)
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("oid"), it->first);
+        m.insert(QStringLiteral("summary"), it->second);
+        entries.push_back(m);
+    }
+    emit rebaseTodoReady(base, entries);
+}
+
+QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    gittide::RebaseTodo todo;
+    todo.base = base.toStdString();
+    for (int i = 0; i < actions.size() && i < oids.size(); ++i)
+    {
+        gittide::RebaseTodoEntry e;
+        const QString a = actions.at(i);
+        e.action = a == "reword" ? gittide::RebaseAction::Reword
+                 : a == "squash" ? gittide::RebaseAction::Squash
+                 : a == "fixup"  ? gittide::RebaseAction::Fixup
+                 : a == "drop"   ? gittide::RebaseAction::Drop
+                                 : gittide::RebaseAction::Pick;
+        e.oid = oids.at(i).toStdString();
+        todo.entries.push_back(e);
+    }
+
+    auto saved = co_await m_repo->stashSave("gittide: auto-stash before rebase");
+    if (!self)
+        co_return;
+    if (!saved)
+    {
+        emit operationFailed(QString::fromStdString(saved.error().message));
+        co_return;
+    }
+    m_pendingStashPop = *saved;
+
+    auto out = co_await m_repo->startInteractiveRebase(todo);
+    if (!self)
+        co_return;
+    if (!out)
+    {
+        emit operationFailed(QString::fromStdString(out.error().message));
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        co_await refreshAfterRebase();
+        co_return;
+    }
+
+    if (out->pause == gittide::RebasePause::None) // finished in one run
+    {
+        co_await popPendingStash();
+        if (!self)
+            co_return;
+        auto head = co_await m_repo->head();
+        if (self && head)
+            emit rebaseFinished(QString::fromStdString(head->oid));
+    }
+    // else: paused (conflict or message) → banner drives; deferred pop waits.
+
     co_await refreshAfterRebase();
 }
 

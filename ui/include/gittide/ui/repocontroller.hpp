@@ -1,6 +1,8 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QStringList>
+#include <QVariant>
 #include <filesystem>
 #include <optional>
 #include <qcorotask.h>
@@ -97,12 +99,22 @@ public slots:
     /// drives the first run; on a clean finish emits rebaseFinished + pops the stash,
     /// on conflict leaves the repo mid-rebase (pop deferred to continue/abort).
     QCoro::Task<void> startRebase(QString ontoRef);
-    /// Continue after resolving the current step's conflicts.
-    QCoro::Task<void> continueRebase();
+    /// Continue after resolving the current step's conflicts, optionally supplying
+    /// a commit message for a Message pause (reword/squash). Empty string → nullopt.
+    QCoro::Task<void> continueRebase(QString message = QString());
     /// Skip the current step.
     QCoro::Task<void> skipRebase();
     /// Abort the rebase, restoring the pre-rebase state, and pop the auto-stash.
     QCoro::Task<void> abortRebase();
+
+    /// Build the interactive-rebase todo for fromOid..HEAD (oldest first) and emit
+    /// rebaseTodoReady with the detach base (fromOid's first parent).
+    QCoro::Task<void> buildRebaseTodo(QString fromOid);
+
+    /// Start an interactive rebase from a seed plan. Auto-stashes (D31), drives the
+    /// first run; clean finish emits rebaseFinished + pops the stash; a pause leaves
+    /// the repo mid-rebase. `actions[i]` is one of pick/reword/squash/fixup/drop.
+    QCoro::Task<void> startInteractiveRebase(QString base, QStringList actions, QStringList oids);
 
     /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
     /// the repository root). Returns an empty string if the file cannot be read.
@@ -145,6 +157,10 @@ signals:
     void rebaseStateChanged(gittide::RebaseState state);
     /// Emitted when a rebase finishes cleanly. headOid is the new HEAD commit OID.
     void rebaseFinished(QString headOid);
+
+    /// Emitted with the seed plan for the interactive editor. `entries` is a list of
+    /// QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
+    void rebaseTodoReady(QString base, QVariantList entries);
 
     void syncBusyChanged(bool busy);
     // Transfer progress for the in-flight fetch/pull/push: objects received of

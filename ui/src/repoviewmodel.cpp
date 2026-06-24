@@ -72,6 +72,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             [this](const QString&) { /* refresh driven by the controller cascade */ });
     connect(m_controller, &RepoController::commitMessageReady,
             this, &RepoViewModel::commitMessageReady);
+    connect(m_controller, &RepoController::rebaseTodoReady,
+            this, &RepoViewModel::rebaseTodoReady);
 }
 
 bool RepoViewModel::repoOpen() const
@@ -738,9 +740,19 @@ void RepoViewModel::startRebase(const QString& ref)
     QCoro::connect(m_controller->startRebase(ref), this, [] {});
 }
 
-void RepoViewModel::continueRebase()
+void RepoViewModel::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
 {
-    QCoro::connect(m_controller->continueRebase(), this, [] {});
+    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+}
+
+void RepoViewModel::requestRebaseTodo(QString fromOid)
+{
+    QCoro::connect(m_controller->buildRebaseTodo(fromOid), this, [] {});
+}
+
+void RepoViewModel::continueRebase(const QString& message)
+{
+    QCoro::connect(m_controller->continueRebase(message), this, [] {});
 }
 
 void RepoViewModel::skipRebase()

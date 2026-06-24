@@ -19,6 +19,7 @@ AppMenu {
     signal newBranchFromHere()
     signal checkoutCommit()
     signal reword()
+    signal editHistory()
     signal merge()
 
     AppMenuItem {
@@ -42,6 +43,11 @@ AppMenu {
         text: "Reword…"
         visible: menu.isHead
         onTriggered: menu.reword()
+    }
+    AppMenuItem {
+        objectName: "editHistoryItem"
+        text: "Edit history from here…"
+        onTriggered: menu.editHistory()
     }
 
     AppMenuSeparator {

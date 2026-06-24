@@ -40,5 +40,6 @@
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
     <file>RebaseTargetDialog.qml</file>
+    <file>RebaseTodoDialog.qml</file>
   </qresource>
 </RCC>

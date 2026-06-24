@@ -17,6 +17,7 @@ Dialog {
 
     property string oid: ""
     property alias summary: summaryField.text
+    property alias body: bodyField.text
 
     signal reworded(string message)
 
