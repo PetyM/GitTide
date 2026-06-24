@@ -1474,6 +1474,88 @@ Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem:
     return DiffEngine::parse(diff_guard.get());
 }
 
+Expected<std::vector<FileStatus>> GitRepo::rangeFiles(std::string oldOid, std::string newOid) const
+{
+    // Older endpoint's first-parent tree (null for a root commit).
+    git_tree* oldOwn    = nullptr;
+    git_tree* oldParent = nullptr;
+    if (auto r = commitTrees(oldOid, &oldOwn, &oldParent); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> oldOwn_guard(oldOwn, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> oldParent_guard(oldParent, git_tree_free);
+
+    // Newer endpoint's own tree.
+    git_tree* newOwn    = nullptr;
+    git_tree* newParent = nullptr;
+    if (auto r = commitTrees(newOid, &newOwn, &newParent); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> newOwn_guard(newOwn, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> newParent_guard(newParent, git_tree_free);
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, oldParent, newOwn, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    std::vector<FileStatus> result;
+    size_t n = git_diff_num_deltas(raw);
+    result.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const git_diff_delta* d = git_diff_get_delta(raw, i);
+        StatusFlag flag         = StatusFlag::IndexModified;
+        const char* path        = d->new_file.path;
+        switch (d->status)
+        {
+            case GIT_DELTA_ADDED:
+                flag = StatusFlag::IndexNew;
+                break;
+            case GIT_DELTA_DELETED:
+                flag = StatusFlag::IndexDeleted;
+                path = d->old_file.path;
+                break;
+            default:
+                flag = StatusFlag::IndexModified;
+                break;
+        }
+        if (path)
+            result.push_back(FileStatus{fromGitPath(path), flag});
+    }
+    return result;
+}
+
+Expected<DiffResult> GitRepo::rangeDiff(std::string oldOid, std::string newOid,
+                                        const std::filesystem::path& file) const
+{
+    git_tree* oldOwn    = nullptr;
+    git_tree* oldParent = nullptr;
+    if (auto r = commitTrees(oldOid, &oldOwn, &oldParent); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> oldOwn_guard(oldOwn, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> oldParent_guard(oldParent, git_tree_free);
+
+    git_tree* newOwn    = nullptr;
+    git_tree* newParent = nullptr;
+    if (auto r = commitTrees(newOid, &newOwn, &newParent); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> newOwn_guard(newOwn, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> newParent_guard(newParent, git_tree_free);
+
+    std::string git_file  = toGitPath(file);
+    char* paths[]         = {git_file.data()};
+    git_diff_options opts  = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count   = 1;
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, oldParent, newOwn, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+    return DiffEngine::parse(diff_guard.get());
+}
+
 Expected<SyncStatus> GitRepo::syncStatus() const
 {
     SyncStatus out;

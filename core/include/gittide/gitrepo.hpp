@@ -86,6 +86,16 @@ public:
     // first parent (root commit: against an empty tree). Mirrors diff()'s DiffResult.
     Expected<DiffResult> commitDiff(std::string oid, const std::filesystem::path& file) const;
 
+    // Files changed across the inclusive range oldOid..newOid:
+    // tree(parent(oldOid)) vs tree(newOid). Flags use Index* (added/modified/
+    // deleted), matching commitFiles(). Caller guarantees a contiguous range.
+    Expected<std::vector<FileStatus>> rangeFiles(std::string oldOid, std::string newOid) const;
+
+    // Diff one file across the inclusive range oldOid..newOid (same tree pair as
+    // rangeFiles). Mirrors commitDiff()'s DiffResult.
+    Expected<DiffResult> rangeDiff(std::string oldOid, std::string newOid,
+                                   const std::filesystem::path& file) const;
+
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
 
