@@ -162,7 +162,8 @@ of this menu item to avoid duplication.
 **Properties:** `oid: string`, `shortOid: string`, `localBranchName: string`,
 `isHead: bool`
 
-**Signals:** `copySha()`, `newBranchFromHere()`, `checkoutCommit()`, `merge()`
+**Signals:** `copySha()`, `newBranchFromHere()`, `checkoutCommit()`, `merge()`,
+`reword()`
 
 | Item | Rule |
 |------|------|
@@ -170,6 +171,7 @@ of this menu item to avoid duplication.
 | — separator — | |
 | **New branch from here** | Always enabled |
 | **Checkout commit** | Disabled when `isHead` |
+| **Reword…** | **Hidden** unless `isHead` (reword of older commits is deferred to the rebase engine — see [history-editing](history-editing.md)) |
 | — separator — | |
 | **Merge `<localBranchName>` into current** | **Hidden** when `localBranchName` is empty |
 
@@ -178,7 +180,14 @@ Replaces the existing inline `commitContextMenu` AppMenu in `HistoryPane.qml`.
 Wiring: `onCopySha → repoVm.copyToClipboard(oid)`,
 `onNewBranchFromHere → newBranchDialog.fromOid = oid; newBranchDialog.open()`,
 `onCheckoutCommit → repoVm.checkoutCommit(oid)`,
-`onMerge → repoVm.startMerge(localBranchName)`.
+`onMerge → repoVm.startMerge(localBranchName)`,
+`onReword → rewordDialog.openFor(oid, fullMessage)`.
+
+**Multi-select & combined diff.** The History graph supports multi-selection
+(Shift-click for a contiguous range, Ctrl-click to toggle); a contiguous
+selection of ≥2 commits shows a **combined diff** in the detail pane. This is a
+selection/detail behaviour, not a menu item — see
+[history-editing](history-editing.md).
 
 ### 4.4 `RepoContextMenu.qml`
 

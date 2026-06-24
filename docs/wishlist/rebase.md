@@ -6,6 +6,12 @@
 | **Status** | `idea` |
 | **Touches** | product (rebase action + in-progress flow), engineering (core: rebase driver + conflict state on `GitRepo`), design (rebase-in-progress UI, per-step conflict resolution) |
 
+> **Read-only slice graduated** (2026-06-24): combined range-diff over a
+> contiguous commit selection ships in
+> [spec/product/history-editing.md](../spec/product/history-editing.md). The
+> rebase **driver** itself (plain rebase + continue/skip/abort, then interactive
+> reorder/squash/reword-older) is still `idea`.
+
 ## What
 
 Replay the current branch's commits onto a new base. Per repo:

@@ -22,7 +22,7 @@ and it links out to them.
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
 | [Stash management — stackable](stash-management.md) | 2026-06-17 | `idea` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `idea` | product, engineering, design |
-| [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `idea` | product, engineering, design |
+| [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `partly designed` | product, engineering, design |
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [Author avatars in commit history](author-avatars.md) | 2026-06-17 | `idea` | product, design, engineering |
 | [API docs via Doxygen (CMake-driven)](doxygen-api-docs.md) | 2026-06-17 | `idea` | engineering |

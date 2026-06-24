@@ -52,6 +52,23 @@ an entry with a newer one if it changes.
   already has, matches a UI users know, and keeps the first cut scoped. →
   [`product`](spec/product/product.md), [`design`](spec/design/design.md)
 
+- **D32 — History editing ships its rebase-free slices first; combined diff is
+  contiguous-only.** The history-editing/rebase wishes graduate in two cuts. Round
+  one ships only the parts needing **no** interactive-rebase engine: a **combined
+  range diff** and **reword of the tip** (`git_commit_amend`, tree unchanged).
+  Reword-of-older, squash, and reorder are deferred — each rewrites descendants
+  and is interactive rebase under the hood (driver + todo-list editor + per-step
+  conflict UI). Combined diff is offered **only for a contiguous selection**
+  (`tree(parent(oldest))` vs `tree(newest)`); a non-contiguous (Ctrl-click)
+  selection has no single tree-vs-tree diff that represents only the chosen
+  commits, so the pane prompts for a contiguous range instead of showing a
+  misleading span. *Rejected:* building the interactive-rebase engine now (the
+  "big, separate iteration" both wishes warn against — YAGNI); span-the-bounds or
+  sum-per-commit diffs for holey selections (semantically loose / unreadable).
+  *Why:* fast, safe wins that stand alone, leaving the multi-select model and
+  commit menu as the home for the deferred verbs. →
+  [`product`](spec/product/history-editing.md)
+
 ## Engineering
 
 - **D6 — C++23 + Qt 6 Widgets (not QML).** Native desktop; the graph uses

@@ -107,7 +107,11 @@ three-part **commit detail** flow: (1) the **changed-files list** of that commit
 (read-only, no checkboxes) fills the detail pane; (2) picking a file shows its
 **diff** read-only (no per-line checkboxes); and (3) a **Checkout** button detaches
 HEAD at the selected commit. A 2px `accent` left border and a row-wide highlight
-mark the selected history row.
+mark the selected history row. **Multi-select** (Shift-click for a contiguous
+range, Ctrl-click to toggle) shows the **combined diff** of a contiguous range —
+the net changes across those commits — in the same detail pane; the tip commit
+can be **reworded** from its context menu. See
+[history-editing](history-editing.md).
 
 ### Syncing
 
