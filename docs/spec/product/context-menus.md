@@ -181,7 +181,8 @@ Wiring: `onCopySha → repoVm.copyToClipboard(oid)`,
 `onNewBranchFromHere → newBranchDialog.fromOid = oid; newBranchDialog.open()`,
 `onCheckoutCommit → repoVm.checkoutCommit(oid)`,
 `onMerge → repoVm.startMerge(localBranchName)`,
-`onReword → rewordDialog.openFor(oid, fullMessage)`.
+`onReword → rewordDialog.openFor(oid)` (the dialog lazy-fetches the full message
+via `repoVm.requestCommitMessage`).
 
 **Multi-select & combined diff.** The History graph supports multi-selection
 (Shift-click for a contiguous range, Ctrl-click to toggle); a contiguous
