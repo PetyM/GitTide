@@ -37,6 +37,8 @@ class RebaseStub : public QObject
     Q_PROPERTY(QString rebaseStepSummary      READ rebaseStepSummary         NOTIFY stubChanged)
     Q_PROPERTY(int rebaseConflictedCount      READ rebaseConflictedCount     NOTIFY stubChanged)
     Q_PROPERTY(bool rebaseHasSubmoduleConflicts READ rebaseHasSubmoduleConflicts NOTIFY stubChanged)
+    Q_PROPERTY(QString rebasePauseReason      READ rebasePauseReason         NOTIFY stubChanged)
+    Q_PROPERTY(QString rebaseMessagePrefill   READ rebaseMessagePrefill      NOTIFY stubChanged)
     Q_PROPERTY(QString currentBranch          READ currentBranch             NOTIFY stubChanged)
     // Minimal no-op invokables so the banner's button handlers don't crash.
     Q_INVOKABLE void continueRebase() {}
@@ -75,6 +77,8 @@ public:
     QString rebaseStepSummary() const { return m_rebaseStepSummary; }
     int rebaseConflictedCount() const { return m_rebaseConflictedCount; }
     bool rebaseHasSubmoduleConflicts() const { return m_rebaseHasSubmoduleConflicts; }
+    QString rebasePauseReason() const { return {}; }
+    QString rebaseMessagePrefill() const { return {}; }
     QString currentBranch() const { return QStringLiteral("main"); }
     QObject* changedFiles() const { return nullptr; }
     QObject* diffLines() const { return nullptr; }
