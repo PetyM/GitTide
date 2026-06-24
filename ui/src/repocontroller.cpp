@@ -829,12 +829,12 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
     co_await refreshAfterRebase();
 }
 
-QCoro::Task<void> RepoController::continueRebase()
+QCoro::Task<void> RepoController::continueRebase(QString message)
 {
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
-    auto out = co_await m_repo->continueRebase();
+    auto out = co_await m_repo->continueRebase(message);
     if (!self)
         co_return;
     if (!out)

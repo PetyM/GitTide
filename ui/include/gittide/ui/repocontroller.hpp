@@ -99,8 +99,9 @@ public slots:
     /// drives the first run; on a clean finish emits rebaseFinished + pops the stash,
     /// on conflict leaves the repo mid-rebase (pop deferred to continue/abort).
     QCoro::Task<void> startRebase(QString ontoRef);
-    /// Continue after resolving the current step's conflicts.
-    QCoro::Task<void> continueRebase();
+    /// Continue after resolving the current step's conflicts, optionally supplying
+    /// a commit message for a Message pause (reword/squash). Empty string → nullopt.
+    QCoro::Task<void> continueRebase(QString message = QString());
     /// Skip the current step.
     QCoro::Task<void> skipRebase();
     /// Abort the rebase, restoring the pre-rebase state, and pop the auto-stash.

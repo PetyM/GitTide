@@ -83,6 +83,12 @@ class RepoViewModel : public QObject
     Q_PROPERTY(int     rebaseConflictedCount       READ rebaseConflictedCount       NOTIFY rebaseStateChanged)
     /// True when at least one conflicted file is a submodule (gitlink).
     Q_PROPERTY(bool    rebaseHasSubmoduleConflicts READ rebaseHasSubmoduleConflicts NOTIFY rebaseStateChanged)
+    /// True while the in-progress rebase is interactive (manual engine).
+    Q_PROPERTY(bool    rebaseInteractive    READ rebaseInteractive    NOTIFY rebaseStateChanged)
+    /// Pause reason: "none" | "conflict" | "message".
+    Q_PROPERTY(QString rebasePauseReason    READ rebasePauseReason    NOTIFY rebaseStateChanged)
+    /// Prefilled text for a Message pause (reword/squash); empty otherwise.
+    Q_PROPERTY(QString rebaseMessagePrefill READ rebaseMessagePrefill NOTIFY rebaseStateChanged)
 
 public:
     explicit RepoViewModel(QObject* parent = nullptr);
@@ -123,6 +129,17 @@ public:
     QString rebaseStepSummary() const { return QString::fromStdString(m_rebase.stepSummary); }
     int     rebaseConflictedCount() const { return int(m_rebase.conflictedPaths.size()); }
     bool    rebaseHasSubmoduleConflicts() const { return !m_rebase.conflictedSubmodules.empty(); }
+    bool    rebaseInteractive() const { return m_rebase.interactive; }
+    QString rebasePauseReason() const
+    {
+        switch (m_rebase.pause)
+        {
+            case gittide::RebasePause::Conflict: return "conflict";
+            case gittide::RebasePause::Message:  return "message";
+            default:                             return "none";
+        }
+    }
+    QString rebaseMessagePrefill() const { return QString::fromStdString(m_rebase.messagePrefill); }
 
     Q_INVOKABLE void open(const QString& path);
     /// Reset to the no-repo state: clears the file/diff/branch/history models and
@@ -182,8 +199,11 @@ public:
 
     /// Begin rebasing the current branch onto @p ref.
     Q_INVOKABLE void startRebase(const QString& ref);
-    /// Continue the in-progress rebase after resolving conflicts.
-    Q_INVOKABLE void continueRebase();
+    Q_INVOKABLE void startInteractiveRebase(QString base, QStringList actions, QStringList oids);
+    /// Ask the controller for the editable plan fromOid..HEAD; reply on rebaseTodoReady.
+    Q_INVOKABLE void requestRebaseTodo(QString fromOid);
+    /// Continue the in-progress rebase after resolving conflicts or with a commit message.
+    Q_INVOKABLE void continueRebase(const QString& message = QString());
     /// Skip the current conflicting commit and advance to the next step.
     Q_INVOKABLE void skipRebase();
     /// Abort the in-progress rebase and restore the pre-rebase state.
@@ -217,6 +237,9 @@ signals:
     /// Emitted whenever the RebaseState changes (rebase started, conflict resolved,
     /// step applied, rebase finished or aborted). All rebase-related Q_PROPERTYs use this NOTIFY.
     void rebaseStateChanged();
+    /// Forwarded from the controller: seed plan for the interactive editor.
+    /// `entries` is a list of QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
+    void rebaseTodoReady(QString base, QVariantList entries);
 
 private:
     struct FileSel
