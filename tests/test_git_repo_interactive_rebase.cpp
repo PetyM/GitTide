@@ -398,3 +398,41 @@ TEST_CASE("interactive rebase rejects invalid plans", "[rebase-i]")
         REQUIRE_FALSE(repo->startInteractiveRebase(bad).has_value());
     }
 }
+
+TEST_CASE("interactive rebase rejects squash/fixup as the first kept entry", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B");
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+    const auto tipBefore = repo->head();
+    REQUIRE(tipBefore.has_value());
+
+    // Dropping the oldest commit makes squash the FIRST kept entry — there is no
+    // prior in-range commit to fold into. Folding into `base` would rewrite a
+    // commit outside the rebase range, so this must be rejected (git refuses it
+    // with "cannot squash without a previous commit").
+    for (auto bad : {RebaseAction::Squash, RebaseAction::Fixup})
+    {
+        gittide::RebaseTodo todo;
+        todo.base = base;
+        todo.entries = { {RebaseAction::Drop, oidA}, {bad, oidB} };
+        REQUIRE_FALSE(repo->startInteractiveRebase(todo).has_value());
+        // Nothing started: no state dir, tip untouched.
+        REQUIRE_FALSE(repo->rebaseState().inProgress);
+        auto tipAfter = repo->head();
+        REQUIRE(tipAfter.has_value());
+        REQUIRE(tipAfter->oid == tipBefore->oid);
+    }
+}

@@ -2444,14 +2444,17 @@ Expected<RebaseOutcome> GitRepo::startInteractiveRebase(RebaseTodo todo)
         return std::unexpected(GitError{-1, "cannot rebase: HEAD is detached"});
     if (todo.entries.empty())
         return std::unexpected(GitError{-1, "cannot rebase: empty plan"});
-    if (todo.entries.front().action == RebaseAction::Squash
-        || todo.entries.front().action == RebaseAction::Fixup)
-        return std::unexpected(GitError{-1, "cannot rebase: first entry cannot be squash/fixup"});
-    bool anyKeep = false;
+    // The first *kept* entry cannot squash/fixup: there is no prior in-range
+    // commit to fold into (folding into `base` would rewrite a commit outside the
+    // range). Leading drops do not change this — find the first non-drop entry.
+    const RebaseTodoEntry* firstKept = nullptr;
     for (const auto& e : todo.entries)
-        if (e.action != RebaseAction::Drop) { anyKeep = true; break; }
-    if (!anyKeep)
+        if (e.action != RebaseAction::Drop) { firstKept = &e; break; }
+    if (!firstKept)
         return std::unexpected(GitError{-1, "cannot rebase: all entries dropped"});
+    if (firstKept->action == RebaseAction::Squash
+        || firstKept->action == RebaseAction::Fixup)
+        return std::unexpected(GitError{-1, "cannot rebase: first kept entry cannot be squash/fixup"});
 
     // Current branch + tip.
     git_reference* head_ref = nullptr;

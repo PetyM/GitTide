@@ -5,13 +5,13 @@ import QtQuick.Layouts
 // Interactive-rebase todo editor (spec rebase-interactive.md §3.2).
 // Rows are listed oldest at top (git order). Reorder via up/down buttons;
 // per-row action dropdown. Start is disabled while the plan is invalid
-// (first row squash/fixup, or all rows drop).
+// (first kept row squash/fixup, or all rows drop).
 //
 // API:
 //   seed(base, entries)           — populate from [{oid, summary}] list
 //   setActionForTest(i, action)   — test helper: set action for row i
-//   property bool planValid       — false when first row is squash/fixup
-//                                   or all rows are drop
+//   property bool planValid       — false when the first kept (non-drop) row is
+//                                   squash/fixup, or all rows are drop
 //
 // On Start → repoVm.startInteractiveRebase(base, actions[], oids[])
 // Listens to repoVm.rebaseTodoReady(base, entries) and opens itself.
@@ -35,19 +35,20 @@ Dialog {
 
     // planValid mirrors the core guards:
     //  - empty → false
-    //  - first row squash/fixup → false
     //  - all rows drop → false
+    //  - first KEPT (non-drop) row squash/fixup → false (leading drops included)
     //  - otherwise → true
     property bool planValid: {
         if (todoModel.count === 0)
             return false
-        var first = todoModel.get(0).action
-        if (first === "squash" || first === "fixup")
-            return false
-        for (var i = 0; i < todoModel.count; ++i)
-            if (todoModel.get(i).action !== "drop")
-                return true
-        return false
+        for (var i = 0; i < todoModel.count; ++i) {
+            var action = todoModel.get(i).action
+            if (action === "drop")
+                continue
+            // First non-drop row found → valid unless it is squash/fixup.
+            return action !== "squash" && action !== "fixup"
+        }
+        return false // all rows drop
     }
 
     // ----- Public API -----
@@ -177,7 +178,7 @@ Dialog {
             wrapMode: Text.Wrap
             color: theme.stateConflict
             font.pixelSize: 11
-            text: "First entry can't be squash/fixup, and at least one commit must be kept."
+            text: "The first kept commit can't be squash/fixup, and at least one commit must be kept."
         }
 
         Item { Layout.preferredHeight: 8 }

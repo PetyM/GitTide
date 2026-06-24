@@ -120,6 +120,55 @@ private slots:
     }
 
     // -----------------------------------------------------------------
+    // planValid is false when the first KEPT row is squash/fixup, even when
+    // earlier rows are dropped (leading drops don't make squash legal — there
+    // is no prior in-range commit to fold into).
+    // -----------------------------------------------------------------
+    void start_disabled_when_first_kept_row_is_squash()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RebaseTodoStub stub;
+
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        engine.rootContext()->setContextProperty(QStringLiteral("repoVm"), &stub);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/RebaseTodoDialog.qml")));
+        QVERIFY2(comp.isReady(), qPrintable(comp.errorString()));
+        QObject* dlg = comp.create();
+        QVERIFY(dlg);
+
+        QMetaObject::invokeMethod(dlg, "seed",
+            Q_ARG(QVariant, QStringLiteral("base0")),
+            Q_ARG(QVariant, QVariant::fromValue(QVariantList{
+                QVariantMap{{QStringLiteral("oid"), QStringLiteral("a")},
+                            {QStringLiteral("summary"), QStringLiteral("A")}},
+                QVariantMap{{QStringLiteral("oid"), QStringLiteral("b")},
+                            {QStringLiteral("summary"), QStringLiteral("B")}}})));
+
+        // Drop the oldest row, squash the next → first kept row is squash → invalid.
+        QMetaObject::invokeMethod(dlg, "setActionForTest",
+            Q_ARG(QVariant, 0), Q_ARG(QVariant, QStringLiteral("drop")));
+        QMetaObject::invokeMethod(dlg, "setActionForTest",
+            Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("squash")));
+        QVERIFY(!dlg->property("planValid").toBool());
+
+        // Same with fixup.
+        QMetaObject::invokeMethod(dlg, "setActionForTest",
+            Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("fixup")));
+        QVERIFY(!dlg->property("planValid").toBool());
+
+        // Flip the kept row to pick → now valid (a drop before a pick is fine).
+        QMetaObject::invokeMethod(dlg, "setActionForTest",
+            Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("pick")));
+        QVERIFY(dlg->property("planValid").toBool());
+
+        delete dlg;
+    }
+
+    // -----------------------------------------------------------------
     // planValid is true when first row is "pick" and not all are drop
     // -----------------------------------------------------------------
     void start_enabled_when_plan_valid()

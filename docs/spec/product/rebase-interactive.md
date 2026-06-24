@@ -219,8 +219,9 @@ commit. `continueRebase` is re-entrant and re-derives the current pause from dis
 Unborn `HEAD`; detached `HEAD`; `base` not an ancestor of `HEAD`; the clicked
 commit is a **root commit** (no first parent to detach onto — disallowed in the
 first cut; revisit if rewriting the initial commit is wanted); a rebase already in
-progress; a **merge** in progress (mutual exclusion, D33); first-entry
-squash/fixup; all-drop plan.
+progress; a **merge** in progress (mutual exclusion, D33); the first *kept*
+(non-drop) entry is squash/fixup (no prior in-range commit to fold into — leading
+drops do not make squash legal); all-drop plan.
 
 ### 2.7 Tests (`TempRepo`, Catch2, test-first)
 
@@ -273,8 +274,8 @@ each row shows:
 Reorder is buttons, not drag-and-drop — simpler, keyboard-reachable, and avoids a
 custom QML drag delegate for the first cut. A dropped row renders struck-through /
 dimmed (paired with the action label, never colour alone — D19). Footer: **Start
-rebase** / **Cancel**. *Start* is disabled while the plan is invalid (first-entry
-squash/fixup, or all-drop) with an inline hint. *Start* →
+rebase** / **Cancel**. *Start* is disabled while the plan is invalid (first kept
+entry squash/fixup, or all-drop) with an inline hint. *Start* →
 `repoVm.startInteractiveRebase(base, actions, oids)`.
 
 ### 3.3 ViewModel state
