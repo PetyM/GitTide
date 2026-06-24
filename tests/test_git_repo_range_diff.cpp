@@ -70,3 +70,50 @@ TEST_CASE("rangeFiles of a single commit equals that commit's files", "[range]")
     REQUIRE(has(*single, "b.txt"));
     REQUIRE_FALSE(has(*single, "a.txt"));
 }
+
+TEST_CASE("rangeFiles starting from the root commit includes the root's own files", "[range]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("root.txt", "root content\n"); tmp.commitAll("root");
+    tmp.writeFile("second.txt", "second content\n"); tmp.commitAll("second");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto h = repo->log();
+    REQUIRE(h.has_value());
+    REQUIRE(h->size() == 2);
+
+    const std::string newest = (*h)[0].oid;
+    const std::string root   = (*h)[1].oid;
+
+    // Range from the root commit: root.txt (added by root) and second.txt (added by second).
+    auto files = repo->rangeFiles(root, newest);
+    REQUIRE(files.has_value());
+    REQUIRE(has(*files, "root.txt"));   // root commit's own file is present
+    REQUIRE(has(*files, "second.txt")); // second commit adds this too
+}
+
+TEST_CASE("single-commit rangeDiff equals commitDiff for the same file", "[range]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("a.txt", "line1\n");              tmp.commitAll("c1");
+    tmp.writeFile("a.txt", "line1\nline2\n");        tmp.commitAll("c2");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto h = repo->log();
+    REQUIRE(h.has_value());
+    const std::string c2 = h->front().oid;
+
+    auto rd = repo->rangeDiff(c2, c2, "a.txt");
+    auto cd = repo->commitDiff(c2, "a.txt");
+    REQUIRE(rd.has_value());
+    REQUIRE(cd.has_value());
+
+    // Both must produce the same number of hunks.
+    REQUIRE(rd->hunks.size() == cd->hunks.size());
+    REQUIRE_FALSE(rd->hunks.empty());
+
+    // The first hunk's line count must also match.
+    REQUIRE(rd->hunks[0].lines.size() == cd->hunks[0].lines.size());
+}
