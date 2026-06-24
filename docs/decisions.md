@@ -171,23 +171,6 @@ an entry with a newer one if it changes.
   than the first cut needs) and structured/JSON logging, log shipping, and a log
   viewer UI (later wishes). *Why:* the cheapest path that makes the app observable
   and bug reports attachable. → [`engineering`](spec/engineering/engineering.md)
-
-## Design
-
-- **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand
-  coherence. → [`design`](spec/design/design.md)
-- **D18 — Colour comes only from tokens; both themes define every token.** *Why:*
-  adding a theme is adding one column, and no widget hard-codes a hex. →
-  [`design`](spec/design/design.md)
-- **D25 — Tokens drive a `QPalette` over Fusion, not a full QSS skin.** Supersedes
-  the "ThemeManager produces a full QSS string" approach: with Fusion as the base
-  style (D24), tokens resolve into a `QPalette` plus a small accent stylesheet for
-  the few cues a palette can't express (selection border, tab underline, focus
-  ring, diff gutter). *Why:* less hand-maintained QSS, a more native look, while
-  the token-only colour rule (D18) still holds. → [`design`](spec/design/design.md)
-- **D19 — Never signal state by colour alone** — always pair with an icon/letter.
-  *Why:* accessibility. → [`design`](spec/design/design.md)
-
 - **D33 — Rebase and merge are mutually exclusive; rebase auto-stash follows D31;
   interactive todo-editor is deferred (YAGNI).** Every rebase verb guards on
   `git_repository_state() != GIT_REPOSITORY_STATE_NONE` and refuses to start a
@@ -206,6 +189,22 @@ an entry with a newer one if it changes.
   conflict UI and merge machinery). *Why:* fast, safe wins that stand alone, per the
   YAGNI rule stated in D32. → [`engineering`](spec/engineering/engineering.md),
   [`product`](spec/product/rebase.md)
+
+## Design
+
+- **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand
+  coherence. → [`design`](spec/design/design.md)
+- **D18 — Colour comes only from tokens; both themes define every token.** *Why:*
+  adding a theme is adding one column, and no widget hard-codes a hex. →
+  [`design`](spec/design/design.md)
+- **D25 — Tokens drive a `QPalette` over Fusion, not a full QSS skin.** Supersedes
+  the "ThemeManager produces a full QSS string" approach: with Fusion as the base
+  style (D24), tokens resolve into a `QPalette` plus a small accent stylesheet for
+  the few cues a palette can't express (selection border, tab underline, focus
+  ring, diff gutter). *Why:* less hand-maintained QSS, a more native look, while
+  the token-only colour rule (D18) still holds. → [`design`](spec/design/design.md)
+- **D19 — Never signal state by colour alone** — always pair with an icon/letter.
+  *Why:* accessibility. → [`design`](spec/design/design.md)
 
 ## Process
 
