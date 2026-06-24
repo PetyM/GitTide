@@ -46,7 +46,12 @@ public:
 
     QCoro::Task<gittide::Expected<void>> resetIndexToHead();
     QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> commitFiles(QString oid);
-    QCoro::Task<gittide::Expected<gittide::DiffResult>> commitDiff(QString oid, std::filesystem::path file);
+    QCoro::Task<gittide::Expected<gittide::DiffResult>>              commitDiff(QString oid, std::filesystem::path file);
+
+    QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> rangeFiles(QString oldOid, QString newOid);
+    QCoro::Task<gittide::Expected<gittide::DiffResult>>              rangeDiff(QString oldOid, QString newOid, std::filesystem::path file);
+    QCoro::Task<gittide::Expected<std::string>>                      rewordHead(QString message);
+    QCoro::Task<gittide::Expected<std::string>>                      commitMessage(QString oid);
 
     QCoro::Task<gittide::Expected<std::vector<gittide::BranchInfo>>> branches();
     QCoro::Task<gittide::Expected<gittide::HeadState>>               head();
