@@ -89,7 +89,8 @@ RowLayout {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
                         if (mouse.button === Qt.RightButton) {
-                            historyList.currentIndex = index
+                            historyList.currentIndex   = index
+                            historyList.selectedRows   = [index]
                             commitMenu.oid             = model.oid
                             commitMenu.shortOid        = model.shortOid
                             commitMenu.localBranchName = model.localBranchName ?? ""
@@ -98,7 +99,7 @@ RowLayout {
                         } else {
                             if (mouse.modifiers & Qt.ShiftModifier) {
                                 var anchor = historyList.currentIndex
-                                var lo = Math.min(anchor, index)
+                                var lo = Math.max(0, Math.min(anchor, index))
                                 var hi = Math.max(anchor, index)
                                 var range = []
                                 for (var r = lo; r <= hi; ++r) range.push(r)
