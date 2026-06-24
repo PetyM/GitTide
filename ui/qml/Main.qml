@@ -69,6 +69,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             onOptionsRequested: optionsDialog.open()
             onAboutRequested: aboutDialog.open()
+            onRebaseRequested: rebaseTargetDialog.open()
         }
 
         RowLayout {
@@ -189,6 +190,11 @@ ApplicationWindow {
         appSettings: appSettings
     }
     AboutDialog { id: aboutDialog }
+    RebaseTargetDialog {
+        id: rebaseTargetDialog
+        repo: repoVm
+        onAccepted: if (repoVm) repoVm.startRebase(rebaseTargetDialog.selectedRef)
+    }
 
     // ---- Repo-management dialogs (window-scoped so they centre on the whole window) ----
     InitRepoDialog { id: initRepoDialog }

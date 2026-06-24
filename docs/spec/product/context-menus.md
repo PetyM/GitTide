@@ -144,13 +144,15 @@ The menu stores `rowIndex` so `setFileChecked` can address the model row.
 | **Delete** *(destructive)* | **Hidden** when `isRemote`; disabled when `isHead` |
 | — separator — | |
 | **Merge into current** | **Hidden** when `isHead` |
+| **Rebase `<current>` onto `<name>`** | **Hidden** when `isHead` |
 
 Wiring in `BranchDropdown.qml`: `onSwitchBranch → repoVm.switchBranch(name)`,
 `onNewBranchFromHere → newBranchDialog.sourceBranch = branchMenu.branchName; newBranchDialog.open()`
 (`NewBranchDialog` already supports a `sourceBranch` string that maps to `createBranch(name, from, checkout)`
 via the ViewModel — if it currently only accepts an OID, extend it to also accept a branch name),
 `onRename → renameBranchDialog.open()`,
-`onDeleteBranch → deleteBranchDialog.open()`, `onMerge → repoVm.startMerge(name)`.
+`onDeleteBranch → deleteBranchDialog.open()`, `onMerge → repoVm.startMerge(name)`,
+`onRebase → repoVm.startRebase(name)`.
 
 The existing inline "Merge into current" button on branch rows is removed in favour
 of this menu item to avoid duplication.

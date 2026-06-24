@@ -39,5 +39,6 @@
     <file>OptionsDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
+    <file>RebaseTargetDialog.qml</file>
   </qresource>
 </RCC>

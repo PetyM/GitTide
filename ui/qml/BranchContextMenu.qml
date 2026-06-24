@@ -7,6 +7,7 @@ import QtQuick.Controls.Basic
 //   - Rename/Delete: hidden when isRemote (structurally inapplicable — can't mutate remotes locally).
 //   - Delete: disabled when isHead (can't delete current branch).
 //   - Merge: hidden when isHead (no sense merging a branch into itself).
+//   - Rebase: hidden when isHead (can't rebase a branch onto itself).
 AppMenu {
     id: menu
     objectName: "branchContextMenu"
@@ -20,6 +21,7 @@ AppMenu {
     signal rename()
     signal deleteBranch()
     signal merge()
+    signal rebase()
 
     AppMenuItem {
         text: "Switch to branch"
@@ -54,5 +56,12 @@ AppMenu {
         text: repoVm ? ("Merge into " + repoVm.currentBranch) : "Merge into current"
         visible: !menu.isHead
         onTriggered: menu.merge()
+    }
+    AppMenuItem {
+        objectName: "rebaseBranchItem"
+        text: repoVm ? ("Rebase " + repoVm.currentBranch + " onto " + menu.branchName)
+                     : "Rebase onto branch"
+        visible: !menu.isHead
+        onTriggered: menu.rebase()
     }
 }
