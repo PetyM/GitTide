@@ -16,6 +16,21 @@ Item {
     signal initRequested()
     signal newProjectRequested()
 
+    // Fired when Tab moves focus out of this pane (either direction) — the host
+    // routes it back to the sidebar repo tree, closing the global Tab cycle.
+    signal focusSidebar()
+
+    // Entry points for the global Tab cycle: forward lands on the active tab's
+    // primary list, reverse lands on its last element.
+    function takeFocus() {
+        if (tabs.currentIndex === 0) changesTabBody.takeFocus()
+        else historyTabBody.takeFocus()
+    }
+    function takeFocusLast() {
+        if (tabs.currentIndex === 0) changesTabBody.takeFocusLast()
+        else historyTabBody.takeFocusLast()
+    }
+
     // ---- Empty state (no repo open) ----
     EmptyState {
         anchors.fill: parent
@@ -138,12 +153,16 @@ Item {
             ChangesPane {
                 id: changesTabBody
                 objectName: "changesTabBody"
+                onTabNext: workingPane.focusSidebar()
+                onTabPrev: workingPane.focusSidebar()
             }
 
             // Index 1: History — commit list + graph + read-only commit detail.
             HistoryPane {
                 id: historyTabBody
                 objectName: "historyTabBody"
+                onTabNext: workingPane.focusSidebar()
+                onTabPrev: workingPane.focusSidebar()
             }
         }
     }

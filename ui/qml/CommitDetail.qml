@@ -7,6 +7,7 @@ ColumnLayout {
     spacing: 0
 
     signal tabBackward()
+    signal tabForward()
     function takeFocus() { commitFilesList.forceActiveFocus() }
 
     // Range header / hint shown when a multi-commit selection is active.
@@ -72,6 +73,8 @@ ColumnLayout {
             clip: true
             model: repoVm ? repoVm.commitFiles : null
 
+            ScrollBar.vertical: AppScrollBar {}
+
             activeFocusOnTab: true
             Keys.onUpPressed: {
                 if (currentIndex > 0) {
@@ -86,6 +89,10 @@ ColumnLayout {
                 }
             }
             Keys.onTabPressed: {
+                commitDetail.tabForward()
+                event.accepted = true
+            }
+            Keys.onBacktabPressed: {
                 commitDetail.tabBackward()
                 event.accepted = true
             }
@@ -150,6 +157,8 @@ ColumnLayout {
         Layout.fillHeight: true
         clip: true
         model: repoVm ? repoVm.commitDiff : null
+
+        ScrollBar.vertical: AppScrollBar {}
 
         delegate: Rectangle {
             width: ListView.view.width

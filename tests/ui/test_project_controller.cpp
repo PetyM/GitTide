@@ -52,6 +52,27 @@ private slots:
         QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("id-a"));
     }
 
+    void activate_persists_active_project_to_disk()
+    {
+        const auto storePath = std::filesystem::temp_directory_path() /
+                               ("gittide-pc-active-" +
+                                QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString() + ".json");
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects().push_back(Project{.id = "id-b", .name = "Play"});
+
+        ProjectController controller(&store, storePath);
+        controller.activate(QStringLiteral("id-b"));
+
+        // Reloading the on-disk store must remember id-b as the active project.
+        auto reloaded = ProjectStore::load(storePath);
+        QVERIFY(reloaded.has_value());
+        QCOMPARE(QString::fromStdString(reloaded->activeProject()), QStringLiteral("id-b"));
+
+        std::filesystem::remove(storePath);
+    }
+
     void activate_unknown_id_is_ignored()
     {
         ProjectStore store;

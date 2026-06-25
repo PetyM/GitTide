@@ -16,27 +16,53 @@ activation of flows that already exist — no new git capability. Pure `ui/` wor
 
 ## 1. Focus model
 
+The sidebar `repoTree` is the first stop in the cycle, shared by both tabs, so
+Tab walks **sidebar → working pane → back to sidebar**. Because `repoTree` lives
+in `Sidebar` and the lists live in `WorkingPane`, the wrap is plumbed through
+signals: `Sidebar.tabNext`/`tabPrev` and `WorkingPane.focusSidebar`, wired in
+`Main.qml`. Tab order is driven by explicit `Keys.onTabPressed` /
+`Keys.onBacktabPressed` handlers (not `KeyNavigation`) so the multi-line
+`commitDescription` `TextArea` cannot swallow Tab and trap focus — the text
+fields set `Keys.priority: Keys.BeforeItem` to guarantee this.
+
 ### 1.1 Changes tab
 
 ```
-fileList  →(Tab)→  commitSummary  →(Tab)→  commitDescription  →(Tab)→  fileList
+repoTree  →(Tab)→  fileList  →(Tab)→  commitSummary  →(Tab)→  commitDescription  →(Tab)→  repoTree
 ```
 
-- `fileList.activeFocusOnTab: true` enters the Tab chain.
+- `fileList.activeFocusOnTab: true` enters the working-pane portion of the chain.
 - Focus lands on `fileList` when a repo first opens (via `Connections` on
   `repoVm.repoOpen` → `fileList.forceActiveFocus()`, only when no text field is
   already active).
 - The diff pane is excluded — read-only today, nothing to activate.
+- Shift+Tab walks the same cycle in reverse.
 
 ### 1.2 History tab
 
 ```
-historyList  →(Tab)→  commitFilesList  →(Tab)→  historyList
+repoTree  →(Tab)→  historyList  →(Tab)→  commitFilesList  →(Tab)→  repoTree
 ```
 
 - `historyList` receives focus when the History tab is activated.
 - `commitFilesList` (in `CommitDetail`) is included; navigating it calls
   `selectCommitFile`. The read-only diff list below it is excluded.
+
+### 1.2a Sidebar repo tree
+
+`repoTree` (`Sidebar.qml`) is keyboard-navigable while focused (an own `navRow`
+cursor, painted with the `focusBorder` ring on the cursor row):
+
+| Key | Action |
+|-----|--------|
+| ↑ / ↓ | Move the cursor between visible rows |
+| ← / → | Collapse / expand the cursor row's subtree |
+| Enter / Space | Open the repo under the cursor (`repoVm.open`) |
+| Tab / Shift+Tab | Hand off to the working pane (forward) / its last element (reverse) |
+
+Activation reuses the delegate's `activate()` (shared with mouse clicks);
+`itemAtCell` resolves the cursor row's delegate so no model-row→path mapping is
+needed in the view.
 
 ### 1.3 Focus-ring affordance
 

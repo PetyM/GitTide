@@ -12,8 +12,15 @@ SplitView {
 
     // Public API used by WorkingPane global shortcuts (spec §2.2).
     function takeFocus() { fileList.forceActiveFocus() }
+    // Entry from the Tab chain in reverse — land on the last element.
+    function takeFocusLast() { commitDescription.forceActiveFocus() }
     readonly property bool commitSummaryActive:     commitSummary.activeFocus
     readonly property bool commitDescriptionActive: commitDescription.activeFocus
+
+    // Tab handoff to the surrounding chain (sidebar repo tree). tabNext fires when
+    // Tab moves past the last element; tabPrev when Shift+Tab moves before the first.
+    signal tabNext()
+    signal tabPrev()
 
     handle: Rectangle {
         implicitWidth: 3
@@ -77,9 +84,14 @@ SplitView {
                 clip: true
                 model: repoVm ? repoVm.changedFiles : null
 
-                // Keyboard navigation (spec §2.3).
+                ScrollBar.vertical: AppScrollBar {}
+
+                // Keyboard navigation (spec §2.3). Tab order is driven by explicit
+                // Keys handlers (not KeyNavigation) so the multi-line description
+                // TextArea can't swallow Tab and trap focus.
                 activeFocusOnTab: true
-                KeyNavigation.tab: commitSummary
+                Keys.onTabPressed: { commitSummary.forceActiveFocus(); event.accepted = true }
+                Keys.onBacktabPressed: { changesPane.tabPrev(); event.accepted = true }
                 Keys.onUpPressed: {
                     if (currentIndex > 0) {
                         currentIndex--
@@ -103,7 +115,14 @@ SplitView {
 
                     width: ListView.view.width
                     height: 30
-                    color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+                    // Current row uses the selection highlight; otherwise a faint
+                    // status tint — green for added/untracked, red for deleted.
+                    color: ListView.isCurrentItem ? theme.surfaceOverlay
+                         : (model.statusKind === "added" || model.statusKind === "untracked")
+                           ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.12)
+                         : model.statusKind === "deleted"
+                           ? Qt.rgba(theme.stateDeleted.r, theme.stateDeleted.g, theme.stateDeleted.b, 0.12)
+                         : "transparent"
 
                     MouseArea {
                         anchors.fill: parent
@@ -146,17 +165,24 @@ SplitView {
                             font.family: "monospace"
                             font.pixelSize: 12
                             textFormat: Text.StyledText
+                            // File name tinted by status — added/untracked green,
+                            // deleted red — so the change kind reads at a glance;
+                            // the directory prefix stays muted.
+                            readonly property color nameColor:
+                                  (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
+                                : model.statusKind === "deleted"   ? theme.stateDeleted
+                                : theme.textPrimary
                             text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
-                                  + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+                                  + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                         }
                         Label {
                             text: model.statusLetter
                             font.family: "monospace"
                             font.pixelSize: 12
                             font.weight: Font.Bold
-                            color: model.statusKind === "added" ? theme.stateAdded
+                            // Untracked reads as a new file → green, same as added.
+                            color: (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                                    : model.statusKind === "deleted" ? theme.stateDeleted
-                                   : model.statusKind === "untracked" ? theme.stateUntracked
                                    : theme.stateModified
                         }
                     }
@@ -193,6 +219,10 @@ SplitView {
                     border.color: theme.border
                     border.width: 1
                 }
+                // BeforeItem so our Tab handling wins over the editor's own.
+                Keys.priority: Keys.BeforeItem
+                Keys.onTabPressed: { commitDescription.forceActiveFocus(); event.accepted = true }
+                Keys.onBacktabPressed: { fileList.forceActiveFocus(); event.accepted = true }
                 Keys.onReturnPressed: {
                     if ((event.modifiers & Qt.ControlModifier) && commitButton.enabled) {
                         repoVm.commit(commitSummary.text, commitDescription.text)
@@ -214,7 +244,11 @@ SplitView {
                     border.color: theme.border
                     border.width: 1
                 }
-                KeyNavigation.tab: fileList
+                // BeforeItem so Tab leaves the multi-line field instead of being
+                // swallowed as input — the focus-trap bug this fixes.
+                Keys.priority: Keys.BeforeItem
+                Keys.onTabPressed: { changesPane.tabNext(); event.accepted = true }
+                Keys.onBacktabPressed: { commitSummary.forceActiveFocus(); event.accepted = true }
                 Keys.onReturnPressed: {
                     if ((event.modifiers & Qt.ControlModifier) && commitButton.enabled) {
                         repoVm.commit(commitSummary.text, commitDescription.text)

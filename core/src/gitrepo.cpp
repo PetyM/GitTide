@@ -241,7 +241,12 @@ Expected<DiffResult> GitRepo::diff(DiffTarget target, const std::filesystem::pat
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     opts.pathspec.strings = paths;
     opts.pathspec.count   = 1;
-    opts.flags            = GIT_DIFF_INCLUDE_UNTRACKED | GIT_DIFF_SHOW_UNTRACKED_CONTENT;
+    // RECURSE_UNTRACKED_DIRS so a file inside a brand-new untracked directory is
+    // diffed individually — without it libgit2 collapses the whole new directory
+    // into one untracked entry and a per-file pathspec matches nothing (status
+    // already recurses, so the file shows as "U" but its diff came back empty).
+    opts.flags = GIT_DIFF_INCLUDE_UNTRACKED | GIT_DIFF_SHOW_UNTRACKED_CONTENT |
+                 GIT_DIFF_RECURSE_UNTRACKED_DIRS;
 
     git_diff* raw = nullptr;
     int rc;

@@ -132,9 +132,13 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 - **Changed-files list** (`changedFilesList`). One row per changed file: a
   leading **tri-state checkbox** (checked / unchecked / partial), the path, and a
   trailing `state.*`-coloured **letter** (A / M / D / U / C) — state paired with a
-  cue, never colour alone. Selected row = `surface.raised` + 2px `accent` left
-  border. The same widget renders a commit's files in **read-only** mode (no
-  checkboxes) under the History tab.
+  cue, never colour alone. The **letter, the file name, and a faint row
+  background** are all tinted by status — `state.added` green for added *and*
+  untracked (a new file reads as green, not the muted `state.untracked` grey),
+  `state.deleted` red for deleted, else neutral; the row background uses the same
+  hue at ~0.12α and the directory prefix stays `text.muted`. Selected row =
+  `surface.raised` + 2px `accent` left border. The same widget renders a commit's
+  files in **read-only** mode (no checkboxes) under the History tab.
 - **Diff gutter & line checkboxes.** Added lines `state.added`, deleted
   `state.deleted` at low-alpha background with a full-strength sign in the gutter;
   mono font. In working-changes (editable) mode each line carries a leading
@@ -200,6 +204,11 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   hover, disabled items `text.muted`. Checkable items keep a plain row so the tick
   survives.
 - **Context menus.** `AppMenu` + `AppMenuItem` rows with `AppMenuSeparator` between groups. Destructive actions (discard, delete, remove) set `AppMenuItem { destructive: true }`, which renders text in `state.deleted` — same hover highlight, just the label colour changes. Each entity type has a dedicated QML component (`FileContextMenu`, `BranchContextMenu`, `CommitContextMenu`, `RepoContextMenu`); see [spec/product/context-menus.md](../product/context-menus.md) for the per-entity action tables and disabled/hidden rules.
+- **Scrollbars.** Scrollable lists (history, changed files, diff, commit files,
+  the sidebar repo tree) attach the shared `AppScrollBar` (`ScrollBar.vertical`).
+  It is **visible whenever the content overflows** (`policy: AsNeeded`) and does
+  not auto-fade — the handle only re-tints on hover/press (`border` → `text.muted`
+  → `text.secondary`). The track is transparent; colour comes from tokens.
 - **Progress over spinners.** Any operation that can report quantitative progress
   shows a **determinate** bar (`accent` fill on `surface.overlay`) with a
   `received / total` (or percent) caption — fetch/pull/push in the branch bar,

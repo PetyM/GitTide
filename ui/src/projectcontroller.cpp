@@ -121,6 +121,8 @@ void ProjectController::activate(const QString& projectId)
             m_store->setActiveProject(id);
             m_repoModel->setRepos(p.repos);
             m_activeId = projectId;
+            // Persist the active-project hint so the next launch reopens it.
+            saveStore();
             emit activeProjectChanged();
             emit projectActivated(projectId);
             return;

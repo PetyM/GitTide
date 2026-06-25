@@ -60,7 +60,10 @@ public:
     /// watcher after the tree's directory layout changes.
     Expected<WatchTargets> watchTargets() const;
 
-    // Diff a single file against the chosen target.
+    /// Diff a single file against the chosen target. Untracked files are included
+    /// with their full content (rendered as all-added), recursing into brand-new
+    /// untracked directories so a file inside one still diffs individually rather
+    /// than collapsing to a single directory entry.
     Expected<DiffResult> diff(DiffTarget target, const std::filesystem::path& file) const;
 
     // Stage / unstage the selection (whole file, hunk, or specific lines).

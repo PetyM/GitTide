@@ -9,6 +9,12 @@ RowLayout {
     spacing: 0
 
     function takeFocus() { historyList.forceActiveFocus() }
+    // Entry from the Tab chain in reverse — land on the last element (file list).
+    function takeFocusLast() { commitDetail.takeFocus() }
+
+    // Tab handoff to the surrounding chain (sidebar repo tree).
+    signal tabNext()
+    signal tabPrev()
 
     // ---- Commit context menu (right-click on a history row) ----
     CommitContextMenu {
@@ -52,6 +58,8 @@ RowLayout {
             clip: true
             model: repoVm ? repoVm.history : null
 
+            ScrollBar.vertical: AppScrollBar {}
+
             // Selected row indices. Always includes currentIndex.
             property var selectedRows: []
 
@@ -76,6 +84,10 @@ RowLayout {
             }
             Keys.onTabPressed: {
                 commitDetail.takeFocus()
+                event.accepted = true
+            }
+            Keys.onBacktabPressed: {
+                historyPane.tabPrev()
                 event.accepted = true
             }
 
@@ -258,5 +270,6 @@ RowLayout {
     Connections {
         target: commitDetail
         function onTabBackward() { historyList.forceActiveFocus() }
+        function onTabForward() { historyPane.tabNext() }
     }
 }

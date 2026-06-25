@@ -15,6 +15,12 @@ Rectangle {
     signal newProjectRequested()
     signal deleteProjectRequested()
 
+    // Tab handoff with the working pane — repoTree is the sidebar's single stop in
+    // the global Tab cycle. tabNext fires on Tab, tabPrev on Shift+Tab.
+    signal tabNext()
+    signal tabPrev()
+    function takeFocus() { repoTree.forceActiveFocus() }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -22,17 +28,6 @@ Rectangle {
         RowLayout {
             Layout.margins: 16
             spacing: 10
-            Image {
-                source: theme.iconSource
-                sourceSize.width: 26
-                sourceSize.height: 26
-            }
-            Label {
-                text: "GitTide"
-                color: theme.textPrimary
-                font.pixelSize: 16
-                font.weight: Font.Bold
-            }
 
             Item { Layout.fillWidth: true }
 
@@ -158,11 +153,41 @@ Rectangle {
             clip: true
             model: repoModel
 
+            ScrollBar.vertical: AppScrollBar {}
+
             // TreeView sizes its column to content by default, which leaves the
             // row (and its active-repo highlight) only as wide as the text. Force
             // the single column to span the full view width instead.
             columnWidthProvider: function (column) { return width }
             onWidthChanged: forceLayout()
+
+            // ---- Keyboard navigation (Tab focus chain + arrows/Enter) ----
+            // navRow is the keyboard cursor over visible (flattened) rows; the
+            // delegate paints a focus ring on it while the tree holds focus.
+            activeFocusOnTab: true
+            property int navRow: -1
+
+            onActiveFocusChanged: if (activeFocus && navRow < 0 && rows > 0) navRow = 0
+
+            // Open the repo under the cursor — same effect as clicking the row.
+            function activateNav() {
+                if (navRow < 0 || navRow >= rows)
+                    return
+                positionViewAtRow(navRow, TableView.Contain)
+                var item = itemAtCell(Qt.point(0, navRow))
+                if (item)
+                    item.activate()
+            }
+
+            Keys.onUpPressed: if (navRow > 0) { navRow--; positionViewAtRow(navRow, TableView.Contain) }
+            Keys.onDownPressed: if (navRow < rows - 1) { navRow++; positionViewAtRow(navRow, TableView.Contain) }
+            Keys.onLeftPressed: if (navRow >= 0 && isExpanded(navRow)) collapse(navRow)
+            Keys.onRightPressed: if (navRow >= 0 && !isExpanded(navRow)) expand(navRow)
+            Keys.onReturnPressed: activateNav()
+            Keys.onEnterPressed: activateNav()
+            Keys.onSpacePressed: activateNav()
+            Keys.onTabPressed: { sidebar.tabNext(); event.accepted = true }
+            Keys.onBacktabPressed: { sidebar.tabPrev(); event.accepted = true }
 
             // Rows start collapsed; opening a repo (row click) expands it, and the
             // chevron toggles any subtree manually.
@@ -180,12 +205,17 @@ Rectangle {
                 // first-class repo and expands its subtree (rows are collapsed by
                 // default). The chevron still toggles it manually afterwards. An
                 // uninitialised submodule has no repo on disk, so it does nothing.
-                onClicked: {
+                // Shared by mouse clicks and keyboard activation (Enter/Space).
+                function activate() {
                     if (!repoVm || row.uninit)
                         return
                     repoVm.open(model.repoPath)
                     if (row.hasChildren)
                         repoTree.expand(row.row)
+                }
+                onClicked: {
+                    repoTree.navRow = row.row
+                    row.activate()
                 }
 
                 readonly property bool isSub: model.isSubmodule === true
@@ -295,6 +325,15 @@ Rectangle {
                     color: row.activeRepo ? theme.surfaceBase
                          : row.hovered ? theme.surfaceOverlay : "transparent"
                     radius: 10
+                    // Keyboard-cursor focus ring — only while the tree holds focus.
+                    Rectangle {
+                        visible: repoTree.activeFocus && repoTree.navRow === row.row
+                        anchors.fill: parent
+                        color: "transparent"
+                        radius: parent.radius
+                        border.color: theme.focusBorder
+                        border.width: 1
+                    }
                     // Divider above each top-level repo after the first.
                     Rectangle {
                         visible: !row.isSub && row.row > 0

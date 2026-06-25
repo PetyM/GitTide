@@ -43,6 +43,8 @@ ColumnLayout {
         clip: true
         model: repoVm ? repoVm.diffLines : null
 
+        ScrollBar.vertical: AppScrollBar {}
+
         delegate: Rectangle {
             id: diffRow
             width: ListView.view.width

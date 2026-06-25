@@ -96,15 +96,23 @@ ApplicationWindow {
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
                 onDeleteProjectRequested: deleteProjectDialog.open()
+                // Tab cycle: repo tree → working pane (forward) / its last element
+                // (reverse).
+                onTabNext: workingPane.takeFocus()
+                onTabPrev: workingPane.takeFocusLast()
             }
 
             WorkingPane {
+                id: workingPane
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 onAddExistingRequested: addExistingFolder.open()
                 onCloneRequested: cloneRepoDialog.openDialog()
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
+                // Tab cycle: leaving the pane in either direction wraps to the
+                // sidebar repo tree.
+                onFocusSidebar: sidebar.takeFocus()
             }
         }
     }
