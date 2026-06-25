@@ -141,6 +141,60 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    // A refresh must not silently grow a partial selection: if the user has
+    // unchecked something, new files/changes arrive unchecked and prior unchecks
+    // survive the refresh.
+    void refresh_keeps_unchecks_and_leaves_new_files_unchecked()
+    {
+        using Check = gittide::ui::ChangedFilesModel;
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
+
+        // Uncheck the one file → selection is now partial (not "all checked").
+        vm.setFileChecked(vm.changedFiles()->rowForPath(QStringLiteral("a.txt")), false);
+        QCOMPARE(vm.checkedCount(), 0);
+
+        // A new file appears and a refresh runs.
+        std::ofstream(dir / "external.txt") << "new\n";
+        vm.resync();
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+
+        // The prior uncheck survived and the new file came in unchecked.
+        QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("a.txt"))), Check::Unchecked);
+        QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("external.txt"))), Check::Unchecked);
+        QCOMPARE(vm.checkedCount(), 0);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    // When everything is checked, new files/changes inherit that and come in
+    // checked, so an "all-in" selection stays all-in across refreshes.
+    void refresh_auto_checks_new_files_when_all_checked()
+    {
+        using Check = gittide::ui::ChangedFilesModel;
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.checkedCount(), 1); // the one file is checked by default
+
+        std::ofstream(dir / "external.txt") << "new\n";
+        vm.resync();
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+
+        QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("external.txt"))), Check::Checked);
+        QCOMPARE(vm.checkedCount(), 2);
+
+        std::filesystem::remove_all(dir);
+    }
+
     void resync_when_closed_is_safe_noop()
     {
         RepoViewModel vm;

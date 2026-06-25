@@ -428,10 +428,42 @@ void RepoViewModel::reorderCommits(int fromRow, int toRow)
 
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
 {
-    m_files->setFiles(files);
+    // Preserve the user's per-file selection across refreshes. The live watcher
+    // fires status often, so blindly re-checking everything would keep undoing the
+    // user's unchecks. Rule the user asked for: a refresh never silently grows a
+    // partial selection — only when *everything* was checked do new files/changes
+    // come in checked; otherwise new entries arrive unchecked. Files already known
+    // keep their prior state (and any per-line map).
+    const std::map<QString, FileSel> prev = m_sel;
+    bool prevAllChecked = !prev.empty();
+    for (const auto& [path, fs] : prev)
+    {
+        if (fs.state != ChangedFilesModel::Checked)
+        {
+            prevAllChecked = false;
+            break;
+        }
+    }
+    // First load (no prior selection) defaults to checked, matching a fresh open.
+    const bool defaultChecked = prev.empty() || prevAllChecked;
+
+    m_files->setFiles(files); // rebuilds rows, each defaulting to Checked
+
     m_sel.clear();
-    for (const auto& f : files)
-        m_sel[pathToQString(f.path)] = FileSel{ChangedFilesModel::Checked, {}};
+    for (int row = 0; row < m_files->rowCount(QModelIndex()); ++row)
+    {
+        const QString path = m_files->pathAt(row);
+        const auto    it   = prev.find(path);
+        FileSel       fs   = (it != prev.end())
+                                 ? it->second
+                                 : FileSel{defaultChecked ? ChangedFilesModel::Checked
+                                                          : ChangedFilesModel::Unchecked,
+                                           {}};
+        m_sel[path] = fs;
+        // setFiles defaulted the row to Checked; only push a non-Checked state.
+        if (fs.state != ChangedFilesModel::Checked)
+            m_files->setCheckState(row, fs.state);
+    }
 
     // I-1 fix: When a file is selected (e.g. mid-conflict resolution), preserve
     // it if it still appears in the refreshed file list — clearing unconditionally

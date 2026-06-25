@@ -141,6 +141,12 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   hue at ~0.12α and the directory prefix stays `text.muted`. Selected row =
   `surface.raised` + 2px `accent` left border. The same widget renders a commit's
   files in **read-only** mode (no checkboxes) under the History tab.
+  - **Selection is the user's.** A status refresh (the live watcher fires often)
+    preserves each file's existing check state — it never re-checks what the user
+    unchecked. New files/changes inherit the current intent: checked only when
+    *everything* was already checked, otherwise unchecked, so a refresh never
+    silently grows a partial selection. A fresh open (no prior selection) defaults
+    to all-checked.
 - **Diff gutter & line checkboxes.** Added lines `state.added`, deleted
   `state.deleted` at low-alpha background with a full-strength sign in the gutter;
   mono font. In working-changes (editable) mode each line carries a leading
