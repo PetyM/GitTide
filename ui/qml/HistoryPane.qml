@@ -36,6 +36,22 @@ RowLayout {
             return "squash"
         }
 
+        // Live drop-target tracking — updated on every centroid move during an
+        // active armed drag; cleared on release so indicators disappear.
+        property int dropTargetIndex: -1
+        property string dropTargetZone: ""
+        readonly property int rowHeight: 48
+
+        function updateDropTarget(globalPt) {
+            var to = historyList.indexAt(globalPt.x, globalPt.y)
+            if (to < 0 || !repoVm || to >= repoVm.reorderableRunLength) {
+                dropTargetIndex = -1; dropTargetZone = ""; return
+            }
+            var localY = globalPt.y - to * rowHeight
+            dropTargetIndex = to
+            dropTargetZone = dropZoneAt(localY, rowHeight)
+        }
+
         // Route a released drag: squash folds the dragged commit into the target;
         // reorder (above/below) goes through the existing confirmation dialog. Both
         // source and target must lie in the reorderable run and differ.
@@ -270,6 +286,33 @@ RowLayout {
                     }
                 }
 
+                // Reorder insertion line on the hovered target row (above / below bands).
+                Rectangle {
+                    visible: dropLogic.dropTargetIndex === index
+                             && (dropLogic.dropTargetZone === "above" || dropLogic.dropTargetZone === "below")
+                    width: parent.width
+                    height: 2
+                    color: theme.accent
+                    y: dropLogic.dropTargetZone === "above" ? 0 : parent.height - height
+                    z: 1
+                }
+
+                // Squash highlight + badge on the hovered target row (squash band).
+                Rectangle {
+                    visible: dropLogic.dropTargetIndex === index && dropLogic.dropTargetZone === "squash"
+                    anchors.fill: parent
+                    color: theme.surfaceOverlay
+                    z: 1
+                    Label {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "◆ squash"
+                        color: theme.accent
+                        font.pixelSize: 11
+                    }
+                }
+
                 // Whole-row drag, armed by a press-and-hold so a quick click still selects.
                 // Only rows in the reorderable run participate.
                 DragHandler {
@@ -298,6 +341,16 @@ RowLayout {
                                 }
                             }
                             dragArmed = false
+                            dropLogic.dropTargetIndex = -1
+                            dropLogic.dropTargetZone = ""
+                        }
+                    }
+                    onCentroidChanged: {
+                        if (active && dragArmed) {
+                            var p = mapToItem(historyList.contentItem,
+                                              rowDrag.centroid.position.x,
+                                              rowDrag.centroid.position.y)
+                            dropLogic.updateDropTarget(p)
                         }
                     }
                 }
