@@ -37,6 +37,20 @@ Configure / build / test commands — including how to run a single test — liv
 structured (the `TempRepo` helper, the headless UI runner) and how to add one:
 [`docs/spec/engineering/testing.md`](docs/spec/engineering/testing.md).
 
+## Finishing a change
+
+Before you call an implementation done, close it out per
+[`docs/workflow.md`](docs/workflow.md) ("Close" / Definition of Done):
+
+- **Documentation is true.** The spec reflects the new behaviour, symbol-level
+  facts live in Doxygen comments, the plan's checkboxes are ticked and its
+  **Outcome** is filled, and `decisions.md` records any significant choice.
+- **The wish is closed.** If the change realised a wish, flip its **Status** to
+  `done`, move the file into [`docs/wishlist/shipped/`](docs/wishlist/index.md),
+  set its **Shipped** date, and move its row to the Shipped table in
+  `wishlist/index.md` (update the links). For a `partly shipped` wish, only mark
+  the delivered part.
+
 ## Architecture in one breath
 
 `app → ui → core → libgit2`, dependencies downward only. `core/` is pure C++23
