@@ -37,6 +37,22 @@ bool isWholeFile(const gittide::StageSelection& sel)
     return !sel.hunkIndex.has_value();
 }
 
+// True if `p` (repo-relative, forward slashes) has an entry in the committed
+// HEAD tree. False on an unborn branch (nothing committed yet).
+bool pathInHead(git_repository* repo, const std::string& p)
+{
+    git_object* obj = nullptr;
+    if (git_revparse_single(&obj, repo, "HEAD^{tree}") != 0)
+        return false;
+    std::unique_ptr<git_object, decltype(&git_object_free)> obj_guard(obj, git_object_free);
+
+    git_tree_entry* entry = nullptr;
+    int rc                = git_tree_entry_bypath(&entry, reinterpret_cast<git_tree*>(obj), p.c_str());
+    if (rc == 0)
+        git_tree_entry_free(entry);
+    return rc == 0;
+}
+
 gittide::StatusFlag mapStatus(unsigned int s)
 {
     using gittide::StatusFlag;
@@ -448,6 +464,29 @@ Expected<void> GitRepo::discard(const StageSelection& sel)
 
     if (isWholeFile(sel))
     {
+        // A file with no committed (HEAD) version is "new" (untracked or just
+        // staged): there is nothing to restore, so discarding means removing it.
+        // Drop any staged entry and delete it from the worktree.
+        if (!pathInHead(m_repo, p))
+        {
+            git_index* index = nullptr;
+            int rc           = git_repository_index(&index, m_repo);
+            if (rc < 0)
+                return std::unexpected(lastGitError(rc));
+            std::unique_ptr<git_index, decltype(&git_index_free)> idx_guard(index, git_index_free);
+            git_index_remove_bypath(index, p.c_str()); // no-op if not staged
+            rc = git_index_write(index);
+            if (rc < 0)
+                return std::unexpected(lastGitError(rc));
+
+            std::filesystem::path abs = sel.path.is_absolute() ? sel.path : workdir() / sel.path;
+            std::error_code       ec;
+            std::filesystem::remove(abs, ec);
+            if (ec)
+                return std::unexpected(GitError{-1, "failed to delete '" + p + "': " + ec.message()});
+            return {};
+        }
+
         // Force-checkout the file from the index/HEAD, overwriting the worktree.
         git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
         opts.checkout_strategy    = GIT_CHECKOUT_FORCE;

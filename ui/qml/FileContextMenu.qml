@@ -6,7 +6,8 @@ import QtQuick.Controls.Basic
 // Disabled vs. hidden rule (spec §1.3):
 //   - Stage: disabled when already fully staged (checkState 2).
 //   - Unstage: hidden for untracked files; disabled when not staged (checkState 0).
-//   - Discard: hidden for untracked files (structurally inapplicable — nothing to discard).
+//   - Discard: always shown. For a tracked file it restores the committed
+//     content; for a new (untracked/added) file it deletes the file.
 AppMenu {
     id: menu
     objectName: "fileContextMenu"
@@ -51,12 +52,9 @@ AppMenu {
         onTriggered: menu.copyPath()
     }
 
-    AppMenuSeparator {
-        visible: menu.statusKind !== "untracked"
-    }
+    AppMenuSeparator {}
     AppMenuItem {
         text: "Discard changes"
-        visible: menu.statusKind !== "untracked"
         destructive: true
         onTriggered: menu.discard()
     }

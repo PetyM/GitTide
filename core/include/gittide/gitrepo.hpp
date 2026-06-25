@@ -86,6 +86,9 @@ public:
     Expected<std::string> commitMerge(CommitRequest req);
 
     // Revert worktree changes for the selection (whole file or hunk/lines).
+    // A whole-file selection on a file with no committed (HEAD) version — i.e. a
+    // new untracked or staged file — has nothing to restore, so it is removed:
+    // dropped from the index (if staged) and deleted from the worktree.
     Expected<void> discard(const StageSelection& sel);
 
     // Walk commits reachable from HEAD, newest first (topological + time).

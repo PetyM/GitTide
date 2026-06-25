@@ -27,6 +27,41 @@ TEST_CASE("discard whole file restores committed content", "[discard]")
     REQUIRE(read_file(tmp.path() / "a.txt") == "orig\n");
 }
 
+TEST_CASE("discard untracked file removes it from the worktree", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("keep.txt", "x\n");
+    tmp.commitAll("init");
+    tmp.writeFile("new.txt", "fresh\n"); // untracked, never staged
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->discard(gittide::StageSelection{"new.txt", std::nullopt, {}}).has_value());
+
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "new.txt"));
+    REQUIRE(std::filesystem::exists(tmp.path() / "keep.txt")); // untouched
+}
+
+TEST_CASE("discard staged new file unstages and removes it", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("keep.txt", "x\n");
+    tmp.commitAll("init");
+    tmp.writeFile("added.txt", "fresh\n");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->stage(gittide::StageSelection{"added.txt", std::nullopt, {}}).has_value());
+    REQUIRE(repo->discard(gittide::StageSelection{"added.txt", std::nullopt, {}}).has_value());
+
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "added.txt"));
+
+    auto st = repo->status();
+    REQUIRE(st.has_value());
+    for (const auto& fs : *st)
+        REQUIRE(fs.path != std::filesystem::path("added.txt")); // gone from index too
+}
+
 TEST_CASE("discard a hunk reverts only that region", "[discard]")
 {
     gittide::test::TempRepo tmp;

@@ -103,7 +103,7 @@ value: `0`=Unchecked, `1`=Partial, `2`=Checked)
 | **Reveal in file manager** | Always enabled |
 | **Copy path** | Always enabled |
 | — separator — | |
-| **Discard changes** *(destructive)* | **Hidden** when `statusKind === "untracked"` |
+| **Discard changes** *(destructive)* | Always shown. For a tracked file it restores the committed content; for a new file (`untracked`/`added`) it deletes the file from the worktree (and drops any staged entry). |
 
 Wiring in `ChangesPane.qml`:
 
