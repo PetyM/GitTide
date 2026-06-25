@@ -23,6 +23,7 @@
     <file>OverlayCard.qml</file>
     <file>AppCheckBox.qml</file>
     <file>AppScrollBar.qml</file>
+    <file>WheelScroller.qml</file>
     <file>AppRadioButton.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>

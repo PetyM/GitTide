@@ -63,6 +63,7 @@ private:
     struct Row
     {
         QString dir;
+        QString dirShort;
         QString name;
         QString path;
         QString letter;

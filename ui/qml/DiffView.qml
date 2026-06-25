@@ -44,6 +44,7 @@ ColumnLayout {
         model: repoVm ? repoVm.diffLines : null
 
         ScrollBar.vertical: AppScrollBar {}
+        WheelScroller {}
 
         delegate: Rectangle {
             id: diffRow

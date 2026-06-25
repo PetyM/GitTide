@@ -59,6 +59,7 @@ RowLayout {
             model: repoVm ? repoVm.history : null
 
             ScrollBar.vertical: AppScrollBar {}
+            WheelScroller {}
 
             // Selected row indices. Always includes currentIndex.
             property var selectedRows: []

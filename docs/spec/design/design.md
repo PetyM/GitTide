@@ -208,7 +208,10 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   the sidebar repo tree) attach the shared `AppScrollBar` (`ScrollBar.vertical`).
   It is **visible whenever the content overflows** (`policy: AsNeeded`) and does
   not auto-fade — the handle only re-tints on hover/press (`border` → `text.muted`
-  → `text.secondary`). The track is transparent; colour comes from tokens.
+  → `text.secondary`). The track is transparent; colour comes from tokens. The
+  same lists add `WheelScroller`, which jumps `contentY` by the wheel delta on a
+  **mouse** wheel (replacing the Flickable's sluggish decelerating flick);
+  touchpads keep their native smooth pixel-delta scrolling.
 - **Progress over spinners.** Any operation that can report quantitative progress
   shows a **determinate** bar (`accent` fill on `surface.overlay`) with a
   `received / total` (or percent) caption — fetch/pull/push in the branch bar,

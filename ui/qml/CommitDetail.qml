@@ -74,6 +74,7 @@ ColumnLayout {
             model: repoVm ? repoVm.commitFiles : null
 
             ScrollBar.vertical: AppScrollBar {}
+            WheelScroller {}
 
             activeFocusOnTab: true
             Keys.onUpPressed: {
@@ -122,7 +123,7 @@ ColumnLayout {
                         font.family: "monospace"
                         font.pixelSize: 12
                         textFormat: Text.RichText
-                        text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
+                        text: "<font color='" + theme.textMuted + "'>" + model.fileDirShort + "</font>"
                               + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                     }
                     Label {
@@ -160,6 +161,7 @@ ColumnLayout {
         model: repoVm ? repoVm.commitDiff : null
 
         ScrollBar.vertical: AppScrollBar {}
+        WheelScroller {}
 
         delegate: Rectangle {
             width: ListView.view.width

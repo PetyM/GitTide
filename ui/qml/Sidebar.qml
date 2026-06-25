@@ -154,6 +154,7 @@ Rectangle {
             model: repoModel
 
             ScrollBar.vertical: AppScrollBar {}
+            WheelScroller {}
 
             // TreeView sizes its column to content by default, which leaves the
             // row (and its active-repo highlight) only as wide as the text. Force

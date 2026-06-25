@@ -85,6 +85,7 @@ SplitView {
                 model: repoVm ? repoVm.changedFiles : null
 
                 ScrollBar.vertical: AppScrollBar {}
+                WheelScroller {}
 
                 // Keyboard navigation (spec §2.3). Tab order is driven by explicit
                 // Keys handlers (not KeyNavigation) so the multi-line description
@@ -168,12 +169,13 @@ SplitView {
                             textFormat: Text.StyledText
                             // File name tinted by status — added/untracked green,
                             // deleted red — so the change kind reads at a glance;
-                            // the directory prefix stays muted.
+                            // the directory prefix stays muted and is collapsed to
+                            // first-letter segments ("s/l/p/t/") so the name shows.
                             readonly property color nameColor:
                                   (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                                 : model.statusKind === "deleted"   ? theme.stateDeleted
                                 : theme.textPrimary
-                            text: "<font color='" + theme.textMuted + "'>" + model.fileDir + "</font>"
+                            text: "<font color='" + theme.textMuted + "'>" + model.fileDirShort + "</font>"
                                   + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                         }
                         Label {
