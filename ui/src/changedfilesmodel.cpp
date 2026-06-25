@@ -17,29 +17,16 @@ QString ChangedFilesModel::letterForFlags(gittide::StatusFlag flags)
         return QStringLiteral("M");
     if (gittide::hasFlag(flags, F::IndexDeleted))
         return QStringLiteral("D");
+    // A new file in the working tree reads as "A" (same as a staged new file):
+    // the row checkbox already conveys staged-or-not, so a separate "U" letter
+    // would only duplicate that. kindForFlags still returns "untracked" for it.
     if (gittide::hasFlag(flags, F::WtNew))
-        return QStringLiteral("U");
+        return QStringLiteral("A");
     if (gittide::hasFlag(flags, F::WtModified))
         return QStringLiteral("M");
     if (gittide::hasFlag(flags, F::WtDeleted))
         return QStringLiteral("D");
     return QStringLiteral("?");
-}
-
-QString ChangedFilesModel::abbreviateDir(const QString& dir)
-{
-    if (dir.isEmpty())
-        return {};
-    // Keep the trailing slash from full.left(slash + 1); split drops the empty
-    // tail segment it produces, so rebuild it explicitly.
-    const QStringList segments = dir.split(QLatin1Char('/'), Qt::SkipEmptyParts);
-    QString out;
-    for (const QString& seg : segments)
-    {
-        out += seg.front();
-        out += QLatin1Char('/');
-    }
-    return out;
 }
 
 QString ChangedFilesModel::kindForFlags(gittide::StatusFlag flags)
@@ -78,8 +65,6 @@ QVariant ChangedFilesModel::data(const QModelIndex& index, int role) const
     {
     case DirRole:
         return r.dir;
-    case DirShortRole:
-        return r.dirShort;
     case NameRole:
         return r.name;
     case PathRole:
@@ -99,7 +84,6 @@ QHash<int, QByteArray> ChangedFilesModel::roleNames() const
 {
     return {
         {DirRole, "fileDir"},
-        {DirShortRole, "fileDirShort"},
         {NameRole, "fileName"},
         {PathRole, "filePath"},
         {LetterRole, "statusLetter"},
@@ -118,9 +102,8 @@ void ChangedFilesModel::setFiles(const std::vector<gittide::FileStatus>& files)
         const QString full = pathToQString(f.path);
         const int slash    = full.lastIndexOf(QLatin1Char('/'));
         Row r;
-        r.dir      = slash >= 0 ? full.left(slash + 1) : QString();
-        r.dirShort = abbreviateDir(r.dir);
-        r.name     = slash >= 0 ? full.mid(slash + 1) : full;
+        r.dir    = slash >= 0 ? full.left(slash + 1) : QString();
+        r.name   = slash >= 0 ? full.mid(slash + 1) : full;
         r.path   = full;
         r.letter = letterForFlags(f.flags);
         r.kind   = kindForFlags(f.flags);

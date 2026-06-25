@@ -50,7 +50,10 @@ private slots:
         QCOMPARE(m.data(m.index(1, 0), kind).toString(), QStringLiteral("modified"));
         QCOMPARE(m.data(m.index(1, 0), dir).toString(), QString());
 
-        QCOMPARE(m.data(m.index(2, 0), letter).toString(), QStringLiteral("U"));
+        // A new file reads as "A" whether staged (IndexNew) or untracked (WtNew) —
+        // the checkbox already conveys staged-or-not, so the letter need not. The
+        // kind stays "untracked" so discard/colour logic can still distinguish it.
+        QCOMPARE(m.data(m.index(2, 0), letter).toString(), QStringLiteral("A"));
         QCOMPARE(m.data(m.index(2, 0), kind).toString(), QStringLiteral("untracked"));
     }
 
@@ -88,23 +91,6 @@ private slots:
     {
         QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::Conflicted), QStringLiteral("C"));
         QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::Conflicted), QStringLiteral("conflict"));
-    }
-
-    void abbreviate_dir_collapses_segments_to_first_char()
-    {
-        QCOMPARE(ChangedFilesModel::abbreviateDir(QStringLiteral("some/long/path/to/")),
-                 QStringLiteral("s/l/p/t/"));
-        QCOMPARE(ChangedFilesModel::abbreviateDir(QStringLiteral("src/")), QStringLiteral("s/"));
-        QCOMPARE(ChangedFilesModel::abbreviateDir(QString()), QString());
-    }
-
-    void model_exposes_abbreviated_dir_role()
-    {
-        ChangedFilesModel m;
-        m.setFiles({{std::filesystem::path("some/long/path/to/file.txt"), StatusFlag::WtModified}});
-        const int shortDir = roleKey(m, "fileDirShort");
-        QVERIFY(shortDir != -1);
-        QCOMPARE(m.data(m.index(0, 0), shortDir).toString(), QStringLiteral("s/l/p/t/"));
     }
 };
 

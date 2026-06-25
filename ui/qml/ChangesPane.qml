@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import "PathElide.js" as PathElide
 
 // Resizable two-pane layout: drag the handle to trade width between the
 // file/commit column and the diff. The diff keeps a generous minimum so it
@@ -160,6 +161,7 @@ SplitView {
                             onClicked: if (repoVm) repoVm.setFileChecked(index, model.checkState !== 2)
                         }
                         Label {
+                            id: pathLabel
                             Layout.fillWidth: true
                             // StyledText (unlike RichText) honours elide, so a long
                             // path truncates instead of overrunning the status letter.
@@ -169,13 +171,19 @@ SplitView {
                             textFormat: Text.StyledText
                             // File name tinted by status — added/untracked green,
                             // deleted red — so the change kind reads at a glance;
-                            // the directory prefix stays muted and is collapsed to
-                            // first-letter segments ("s/l/p/t/") so the name shows.
+                            // the directory prefix stays muted.
                             readonly property color nameColor:
                                   (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                                 : model.statusKind === "deleted"   ? theme.stateDeleted
                                 : theme.textPrimary
-                            text: "<font color='" + theme.textMuted + "'>" + model.fileDirShort + "</font>"
+                            // Hidden ruler: measures candidate strings in the same
+                            // font so the dir prefix is abbreviated only as much as
+                            // the available width demands (full path when it fits).
+                            TextMetrics { id: pathRuler; font: pathLabel.font }
+                            readonly property string shortDir: PathElide.fit(
+                                model.fileDir, model.fileName, width,
+                                function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
+                            text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
                                   + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                         }
                         Label {

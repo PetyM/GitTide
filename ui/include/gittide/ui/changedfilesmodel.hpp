@@ -11,8 +11,10 @@ namespace gittide::ui {
 /// QML list model of changed files. One row per FileStatus. Carries a whole-file
 /// tri-state check (Unchecked/Partial/Checked) used to build StageSelections at
 /// commit time. Knows nothing about themes: it exposes a status letter
-/// ("A"/"M"/"D"/"U"/"?") and a status kind ("added"/"modified"/"deleted"/
-/// "untracked") and lets the QML delegate pick the colour token.
+/// ("A"/"M"/"D"/"C"/"?" — a new file is "A" whether staged or untracked, since
+/// the checkbox already conveys staged-or-not) and a status kind ("added"/
+/// "modified"/"deleted"/"untracked"/"conflict") and lets the QML delegate pick
+/// the colour token.
 class ChangedFilesModel : public QAbstractListModel
 {
     Q_OBJECT

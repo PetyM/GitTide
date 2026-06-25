@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import "PathElide.js" as PathElide
 
 ColumnLayout {
     id: commitDetail
@@ -118,12 +119,19 @@ ColumnLayout {
                     anchors.rightMargin: 12
                     spacing: 8
                     Label {
+                        id: pathLabel
                         Layout.fillWidth: true
                         elide: Text.ElideMiddle
                         font.family: "monospace"
                         font.pixelSize: 12
                         textFormat: Text.RichText
-                        text: "<font color='" + theme.textMuted + "'>" + model.fileDirShort + "</font>"
+                        // Abbreviate dir segments only as much as the width needs;
+                        // see PathElide.js. Hidden ruler measures in the same font.
+                        TextMetrics { id: pathRuler; font: pathLabel.font }
+                        readonly property string shortDir: PathElide.fit(
+                            model.fileDir, model.fileName, width,
+                            function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
+                        text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
                               + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                     }
                     Label {

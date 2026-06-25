@@ -55,7 +55,7 @@ Identical across themes (tuned for contrast on both surfaces).
 | `state.incoming`  | `#388BFD` | Merge "Incoming (theirs)" conflict band |
 
 State is **never** signalled by colour alone — always pair it with an icon or a
-letter (A / M / D / U / C). The inline merge-conflict bands reuse this git-state
+letter (A / M / D / C). The inline merge-conflict bands reuse this git-state
 palette — *Current (ours)* tints from `state.added` (green), *Incoming (theirs)*
 from `state.incoming` (blue) — at low alpha as backgrounds, each paired with its
 text label. These are state signalling like the diff gutter and lane colours, not
@@ -131,8 +131,10 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
 - **Changed-files list** (`changedFilesList`). One row per changed file: a
   leading **tri-state checkbox** (checked / unchecked / partial), the path, and a
-  trailing `state.*`-coloured **letter** (A / M / D / U / C) — state paired with a
-  cue, never colour alone. The **letter, the file name, and a faint row
+  trailing `state.*`-coloured **letter** (A / M / D / C) — state paired with a
+  cue, never colour alone. A **new file is always `A`** whether staged or
+  untracked: the checkbox already conveys staged-or-not, so a separate `U` letter
+  would only duplicate it. The **letter, the file name, and a faint row
   background** are all tinted by status — `state.added` green for added *and*
   untracked (a new file reads as green, not the muted `state.untracked` grey),
   `state.deleted` red for deleted, else neutral; the row background uses the same

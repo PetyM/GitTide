@@ -44,5 +44,6 @@
     <file>RebaseTargetDialog.qml</file>
     <file>RebaseTodoDialog.qml</file>
     <file>ReorderConfirmDialog.qml</file>
+    <file>PathElide.js</file>
   </qresource>
 </RCC>
