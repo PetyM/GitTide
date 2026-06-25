@@ -107,10 +107,10 @@ private slots:
         QSignalSpy mergeSpy(&vm, &RepoViewModel::mergeStateChanged);
         vm.startMerge(QStringLiteral("feature"));
 
-        // Wait for the merge state signal from the controller
-        QTRY_VERIFY_WITH_TIMEOUT(mergeSpy.count() >= 1, 5000);
-
-        QVERIFY(vm.property("mergeInProgress").toBool());
+        // Wait until the merge actually registers as in-progress. An early
+        // mergeStateChanged emission can precede the in-progress state, so poll
+        // the property itself rather than the first signal (avoids a race).
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 5000);
         QCOMPARE(vm.property("conflictedCount").toInt(), 1);
         QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
 
@@ -148,11 +148,10 @@ private slots:
         vm.open(QString::fromStdString(dir.generic_string()));
         QVERIFY(openSpy.wait(3000));
 
-        // Start the conflicting merge and wait until conflicted.
-        QSignalSpy mergeSpy(&vm, &RepoViewModel::mergeStateChanged);
+        // Start the conflicting merge and wait until it registers as in-progress
+        // (poll the property, not the first signal — see the note above).
         vm.startMerge(QStringLiteral("feature"));
-        QTRY_VERIFY_WITH_TIMEOUT(mergeSpy.count() >= 1, 5000);
-        QVERIFY(vm.property("mergeInProgress").toBool());
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 5000);
         QCOMPARE(vm.property("conflictedCount").toInt(), 1);
 
         // Select the conflicted file — this should load conflict content into diffLines.

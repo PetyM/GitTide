@@ -267,16 +267,37 @@ An `OverlayCard` following the existing dialog pattern. The ViewModel exposes th
 seeded plan as a list model (`base..HEAD`, **oldest at top** per git convention);
 each row shows:
 
-- the short oid + commit summary,
+- a **drag grip** (⠿) to reorder the row by dragging,
 - an **action dropdown**: Pick · Reword · Squash · Fixup · Drop,
 - **up / down reorder buttons** (move the row within the list).
 
-Reorder is buttons, not drag-and-drop — simpler, keyboard-reachable, and avoids a
-custom QML drag delegate for the first cut. A dropped row renders struck-through /
-dimmed (paired with the action label, never colour alone — D19). Footer: **Start
-rebase** / **Cancel**. *Start* is disabled while the plan is invalid (first kept
-entry squash/fixup, or all-drop) with an inline hint. *Start* →
+Reorder offers both **drag-and-drop** (drag the grip; the list reorders live via the
+same `moveRow` verb) **and** the ↑/↓ buttons. The buttons are retained for keyboard
+reachability; drag is the discoverable default (D36). A dropped row renders
+struck-through / dimmed (paired with the action label, never colour alone — D19).
+Footer: **Start rebase** / **Cancel**. *Start* is disabled while the plan is invalid
+(first kept entry squash/fixup, or all-drop) with an inline hint. *Start* →
 `repoVm.startInteractiveRebase(base, actions, oids)`.
+
+#### Squash from history (multi-select)
+
+Selecting a contiguous range of commits in the history list and choosing **“Squash
+N commits…”** seeds this same dialog with the oldest selected commit as `pick` and
+the rest as `squash` (oldest-first), `base` = parent of the oldest selected. The
+controller's `buildSquashTodo(oids)` validates the selection is a contiguous,
+non-merge run (else `operationFailed`) and emits the usual `rebaseTodoReady`; the
+seed honours a per-entry default `action`. The user then confirms / edits the
+combined message through the normal message-pause flow.
+
+#### Reorder directly in the history view
+
+Each history row in the **reorderable run** — the contiguous single-parent
+(non-merge) span from HEAD, exposed as `RepoViewModel::reorderableRunLength` — shows
+a drag grip. Dragging a row onto another run row opens a **confirmation**
+(`ReorderConfirmDialog`), then `reorderCommits(fromRow, toRow)` replays the run in
+the new order through the interactive engine (all `pick`s on the run's fixed base).
+Merges and the root are not draggable, and the already-pushed warning is deferred to
+network-sync (D36).
 
 ### 3.3 ViewModel state
 

@@ -225,6 +225,36 @@ an entry with a newer one if it changes.
   active repo on a timer (lag + churn). →
   [`engineering`](spec/engineering/engineering.md)
 
+- **D36 — History reorder has two gestures over one engine; direct-in-history drag
+  is gated to the linear single-parent run from HEAD and confirmed.** Reordering is
+  expressed entirely through the D34 interactive engine (a reorder is a plan of all
+  `pick`s in a new order on a fixed base). Two front-ends feed it: drag-the-grip in
+  the todo editor (alongside the kept ↑/↓ buttons, which stay for keyboard reach),
+  and drag a commit row directly in the history view. The direct gesture is fenced
+  to the **reorderable run** — the contiguous span of single-parent (non-merge)
+  commits from HEAD down — because a merge (≥2 parents) or the root (0 parents)
+  cannot be replayed by a plain cherry-pick; only those rows are draggable. Because
+  a drag silently rewrites history, the direct gesture routes through an explicit
+  confirmation, and the abortable rebase banner remains the escape hatch. The
+  already-pushed-commit warning stays **deferred** to network-sync (consistent with
+  the existing interactive-rebase deferral). *Rejected:* a bespoke reorder engine
+  (the interactive engine already expresses it); free drag across merges (the
+  cherry-pick reorder can't honour a merge's two parents); reordering with no
+  confirmation (too easy to rewrite history from a stray drag). →
+  [`product`](spec/product/rebase-interactive.md), [`product`](spec/product/history-editing.md)
+
+- **D37 — Undo last commit is a soft reset to the first parent (keep changes
+  staged), a core verb guarded by mutual exclusion.** "Undo last commit" runs
+  `git reset --soft HEAD~1`: the branch moves to HEAD's first parent and the index
+  and working tree are left intact, so the undone commit's changes stay staged
+  ready to re-commit. It errors on an unborn branch, a detached HEAD, a root commit
+  (no parent), or while a merge/rebase is in progress (D33). It is offered on the
+  HEAD commit's context menu and in the app menu (disabled mid-merge/-rebase).
+  *Rejected:* mixed/hard reset as the default (soft is the safe, common "oops"
+  that loses nothing — hard is destructive); a generic reflog-based multi-step
+  undo (out of scope; this is the focused last-commit case). →
+  [`product`](spec/product/history-editing.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

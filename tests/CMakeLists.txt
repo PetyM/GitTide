@@ -24,6 +24,7 @@ add_executable(gittide_core_tests
   test_git_repo_checkout.cpp
   test_git_repo_reset.cpp
   test_git_repo_reword.cpp
+  test_git_repo_undo.cpp
   test_git_repo_range_diff.cpp
   test_git_repo_submodules.cpp
   test_git_repo_submodule_merge.cpp
@@ -76,6 +77,8 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_banner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_entrypoints.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_undo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_squash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner.cpp

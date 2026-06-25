@@ -48,6 +48,10 @@ class RepoViewModel : public QObject
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
     Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
     Q_PROPERTY(QString historyDetailHint READ historyDetailHint NOTIFY historyDetailChanged)
+    // Number of newest commits (from HEAD down) that form a reorderable run: a
+    // contiguous span of single-parent (non-merge) commits. < 2 means no drag
+    // reorder is offered. Drives which history rows are draggable.
+    Q_PROPERTY(int reorderableRunLength READ reorderableRunLength NOTIFY reorderableRunChanged)
     Q_PROPERTY(int aheadCount READ aheadCount NOTIFY syncStatusChanged)
     Q_PROPERTY(int behindCount READ behindCount NOTIFY syncStatusChanged)
     Q_PROPERTY(bool hasUpstream READ hasUpstream NOTIFY syncStatusChanged)
@@ -108,6 +112,7 @@ public:
     QString activeCommitFile() const;
     QString historyDetailHeader() const { return m_detailHeader; }
     QString historyDetailHint() const { return m_detailHint; }
+    int reorderableRunLength() const { return m_reorderableRunLength; }
     int aheadCount() const { return m_sync.ahead; }
     int behindCount() const { return m_sync.behind; }
     bool hasUpstream() const { return m_sync.hasUpstream; }
@@ -163,6 +168,7 @@ public:
     Q_INVOKABLE void selectCommitRows(const QVariantList& rows);
     Q_INVOKABLE void checkoutCommit(const QString& oid);
     Q_INVOKABLE void rewordHead(const QString& message);
+    Q_INVOKABLE void undoLastCommit();
     Q_INVOKABLE void requestCommitMessage(const QString& oid);
 
     Q_INVOKABLE void switchBranch(const QString& name);
@@ -204,8 +210,15 @@ public:
     /// Begin rebasing the current branch onto @p ref.
     Q_INVOKABLE void startRebase(const QString& ref);
     Q_INVOKABLE void startInteractiveRebase(QString base, QStringList actions, QStringList oids);
+    /// Squash the selected history rows: map them to oids and ask the controller to
+    /// build a contiguous squash plan; reply on rebaseTodoReady (opens the editor).
+    Q_INVOKABLE void requestSquashTodo(const QVariantList& rows);
     /// Ask the controller for the editable plan fromOid..HEAD; reply on rebaseTodoReady.
     Q_INVOKABLE void requestRebaseTodo(QString fromOid);
+    /// Reorder the commit at history row @p fromRow to @p toRow within the
+    /// reorderable run (both must be < reorderableRunLength). Replays the run in the
+    /// new order via an interactive rebase (all picks). No-op if out of range.
+    Q_INVOKABLE void reorderCommits(int fromRow, int toRow);
     /// Continue the in-progress rebase after resolving conflicts or with a commit message.
     Q_INVOKABLE void continueRebase(const QString& message = QString());
     /// Skip the current conflicting commit and advance to the next step.
@@ -229,6 +242,7 @@ signals:
     void selectedCommitChanged();
     void activeCommitFileChanged();
     void historyDetailChanged();
+    void reorderableRunChanged();
     void commitMessageReady(const QString& oid, const QString& message);
     void syncStatusChanged();
     void syncingChanged();
@@ -258,6 +272,7 @@ private:
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
     void onHistory(const gittide::GraphLayout& layout);
     void applyHistoryIfReady();
+    void updateReorderableRun();
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
     void onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files);
@@ -307,6 +322,7 @@ private:
     // "not yet received" from "received but empty" (an unborn HEAD has an empty oid).
     QString                    m_headOid;
     gittide::GraphLayout       m_lastLayout;
+    int                        m_reorderableRunLength = 0;
     bool                       m_headArrived    = false;
     bool                       m_historyArrived = false;
     QString                    m_branch;

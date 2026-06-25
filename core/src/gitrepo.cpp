@@ -565,6 +565,52 @@ Expected<std::string> GitRepo::rewordHead(std::string newMessage)
     return std::string(buf);
 }
 
+Expected<void> GitRepo::undoLastCommit()
+{
+    // Refuse while any other operation owns the worktree (merge / plain rebase /
+    // cherry-pick), or while our manual interactive engine is mid-flight — moving
+    // HEAD underneath them would corrupt their state (mutual exclusion, D33).
+    if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE || interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot undo: another operation is in progress"});
+
+    git_reference* head = nullptr;
+    int rc              = git_repository_head(&head, m_repo);
+    if (rc == GIT_EUNBORNBRANCH || rc == GIT_ENOTFOUND)
+        return std::unexpected(GitError{-1, "cannot undo: no commit on this branch"});
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+
+    if (git_reference_is_branch(head) != 1)
+        return std::unexpected(GitError{-1, "cannot undo on a detached HEAD"});
+
+    git_oid head_oid;
+    rc = git_reference_name_to_id(&head_oid, m_repo, "HEAD");
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    git_commit* commit = nullptr;
+    rc                 = git_commit_lookup(&commit, m_repo, &head_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    if (git_commit_parentcount(commit) == 0)
+        return std::unexpected(GitError{-1, "cannot undo a root commit"});
+
+    git_commit* parent = nullptr;
+    rc                 = git_commit_parent(&parent, commit, 0);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> parent_guard(parent, git_commit_free);
+
+    // SOFT moves the branch ref to the parent but leaves the index and working
+    // tree untouched, so the undone commit's changes remain staged.
+    rc = git_reset(m_repo, reinterpret_cast<const git_object*>(parent), GIT_RESET_SOFT, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
 Expected<std::string> GitRepo::commitMessage(std::string oidHex) const
 {
     git_oid oid;

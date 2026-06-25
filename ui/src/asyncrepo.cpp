@@ -184,6 +184,17 @@ QCoro::Task<gittide::Expected<std::string>> AsyncRepo::rewordHead(QString messag
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::undoLastCommit()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.undoLastCommit();
+        });
+}
+
 QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMessage(QString oid)
 {
     auto impl = m_impl;

@@ -18,6 +18,11 @@
 > reword-older ships in
 > [spec/product/rebase-interactive.md](../spec/product/rebase-interactive.md) and
 > [plans/2026-06-24-plan20-interactive-rebase.md](../plans/2026-06-24-plan20-interactive-rebase.md).
+>
+> **Drag reorder + squash-from-history** (Plan 22, 2026-06-25): the deferred
+> drag-and-drop reorder now ships in the todo editor and directly in the history
+> view, plus multi-select **Squash N commits** — see
+> [plans/2026-06-25-plan22-history-editing-ux.md](../plans/2026-06-25-plan22-history-editing-ux.md).
 
 ## What
 

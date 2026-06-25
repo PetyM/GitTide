@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <utility>
 
 #include <QPointer>
@@ -490,6 +491,26 @@ QCoro::Task<void> RepoController::rewordHead(QString message)
         co_return;
     }
     emit committed(QString::fromStdString(*r));
+    co_await refreshStatus();
+    co_await refreshHistory();
+    co_await refreshBranches();
+}
+
+QCoro::Task<void> RepoController::undoLastCommit()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->undoLastCommit();
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
+    // The undone commit's changes are now staged: refresh the working-tree status,
+    // the history (tip removed), and branch tips.
     co_await refreshStatus();
     co_await refreshHistory();
     co_await refreshBranches();
@@ -1049,6 +1070,77 @@ QCoro::Task<void> RepoController::buildRebaseTodo(QString fromOid)
         QVariantMap m;
         m.insert(QStringLiteral("oid"), it->first);
         m.insert(QStringLiteral("summary"), it->second);
+        entries.push_back(m);
+    }
+    emit rebaseTodoReady(base, entries);
+}
+
+QCoro::Task<void> RepoController::buildSquashTodo(QStringList oids)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    if (oids.size() < 2)
+    {
+        emit operationFailed(QStringLiteral("select at least two commits to squash"));
+        co_return;
+    }
+
+    auto hist = co_await m_repo->log(1000);
+    if (!self)
+        co_return;
+    if (!hist)
+    {
+        emit operationFailed(QString::fromStdString(hist.error().message));
+        co_return;
+    }
+
+    // Locate each selected oid in the history (newest-first). The selection must
+    // be a single contiguous block (indices lo..hi with no gaps) — squash folds
+    // each commit into the previous one, which only makes sense for a run.
+    std::set<std::string> want;
+    for (const auto& o : oids)
+        want.insert(o.toStdString());
+
+    int lo = -1, hi = -1, found = 0;
+    for (int i = 0; i < static_cast<int>(hist->size()); ++i)
+    {
+        if (want.count((*hist)[i].oid))
+        {
+            if (lo < 0)
+                lo = i;
+            hi = i;
+            ++found;
+        }
+    }
+    if (found != static_cast<int>(want.size()) || (hi - lo + 1) != found)
+    {
+        emit operationFailed(QStringLiteral("can only squash a contiguous range of commits"));
+        co_return;
+    }
+
+    // Oldest selected commit sits at the deepest index (hi). Detach onto its parent.
+    const QString oldest = QString::fromStdString((*hist)[hi].oid);
+    auto baseOid = co_await m_repo->firstParent(oldest);
+    if (!self)
+        co_return;
+    if (!baseOid)
+    {
+        emit operationFailed(QString::fromStdString(baseOid.error().message));
+        co_return;
+    }
+    const QString base = QString::fromStdString(*baseOid);
+
+    // Entries oldest-first: the oldest is the pick everything folds into; the rest
+    // are squash (combined message, with a pause to edit it).
+    QVariantList entries;
+    for (int i = hi; i >= lo; --i)
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("oid"), QString::fromStdString((*hist)[i].oid));
+        m.insert(QStringLiteral("summary"), QString::fromStdString((*hist)[i].summary));
+        m.insert(QStringLiteral("action"), i == hi ? QStringLiteral("pick") : QStringLiteral("squash"));
         entries.push_back(m);
     }
     emit rebaseTodoReady(base, entries);

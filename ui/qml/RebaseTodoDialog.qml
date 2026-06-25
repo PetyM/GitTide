@@ -57,7 +57,10 @@ Dialog {
         rebaseBase = b
         todoModel.clear()
         for (var i = 0; i < entries.length; ++i)
-            todoModel.append({ oid: entries[i].oid, summary: entries[i].summary, action: "pick" })
+            todoModel.append({ oid: entries[i].oid, summary: entries[i].summary,
+                               // Honour a per-entry default action (squash seeding);
+                               // plain "edit history" seeds leave it undefined → pick.
+                               action: entries[i].action !== undefined ? entries[i].action : "pick" })
     }
 
     function setActionForTest(i, a) {
@@ -125,45 +128,112 @@ Dialog {
             model: root.todoModel
             spacing: 2
 
-            delegate: RowLayout {
+            // Each row is a drag target (DropArea) wrapping a draggable content
+            // strip. Dragging the grip reorders live via moveRow (the same verb the
+            // ↑/↓ buttons use, so both paths stay keyboard-reachable and testable).
+            delegate: Item {
+                id: rowItem
                 width: ListView.view.width
                 height: 40
-                spacing: 6
+                property int visualIndex: index
 
-                ComboBox {
-                    objectName: "actionCombo"
-                    model: root.actions
-                    currentIndex: root.actions.indexOf(action)
-                    onActivated: root.todoModel.setProperty(index, "action", root.actions[currentIndex])
-                    Layout.preferredWidth: 96
-                    Layout.alignment: Qt.AlignVCenter
+                DropArea {
+                    anchors.fill: parent
+                    onEntered: function(drag) {
+                        const from = drag.source.visualIndex
+                        const to   = rowItem.visualIndex
+                        if (from !== to)
+                            root.moveRow(from, to)
+                    }
                 }
 
-                Label {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    // Dropped rows: dimmed text + strikeout (D18/D19: not colour-only)
-                    color: action === "drop" ? theme.textMuted : theme.textPrimary
-                    font.strikeout: action === "drop"
-                    font.pixelSize: 12
-                    font.family: "monospace"
-                    text: oid.substring(0, 7) + "  " + summary
-                    Layout.alignment: Qt.AlignVCenter
-                }
+                Rectangle {
+                    id: rowContent
+                    width: rowItem.width
+                    height: rowItem.height
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: 6
+                    color: dragHandler.active ? theme.surfaceOverlay : "transparent"
 
-                Button {
-                    text: "↑"
-                    enabled: index > 0
-                    onClicked: root.moveRow(index, index - 1)
-                    Layout.preferredWidth: 28
-                    Layout.alignment: Qt.AlignVCenter
-                }
-                Button {
-                    text: "↓"
-                    enabled: index < root.todoModel.count - 1
-                    onClicked: root.moveRow(index, index + 1)
-                    Layout.preferredWidth: 28
-                    Layout.alignment: Qt.AlignVCenter
+                    Drag.active: dragHandler.active
+                    Drag.source: rowItem
+                    Drag.hotSpot.x: width / 2
+                    Drag.hotSpot.y: height / 2
+
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 6
+
+                        // Drag grip — an affordance (not a colour-only state, D19).
+                        Label {
+                            objectName: "dragHandle"
+                            text: "⠿"
+                            color: theme.textMuted
+                            font.pixelSize: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            Layout.preferredWidth: 22
+                            Layout.alignment: Qt.AlignVCenter
+                            ToolTip.text: "Drag to reorder"
+                            ToolTip.visible: gripHover.hovered
+                            HoverHandler { id: gripHover }
+                            DragHandler {
+                                id: dragHandler
+                                target: rowContent
+                                // Vertical-only drag from the grip; release snaps back.
+                                xAxis.enabled: false
+                                onActiveChanged: if (!active) rowContent.Drag.drop()
+                            }
+                        }
+
+                        ComboBox {
+                            objectName: "actionCombo"
+                            model: root.actions
+                            currentIndex: root.actions.indexOf(action)
+                            onActivated: root.todoModel.setProperty(index, "action", root.actions[currentIndex])
+                            Layout.preferredWidth: 96
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            // Dropped rows: dimmed text + strikeout (D18/D19: not colour-only)
+                            color: action === "drop" ? theme.textMuted : theme.textPrimary
+                            font.strikeout: action === "drop"
+                            font.pixelSize: 12
+                            font.family: "monospace"
+                            text: oid.substring(0, 7) + "  " + summary
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Button {
+                            text: "↑"
+                            enabled: index > 0
+                            onClicked: root.moveRow(index, index - 1)
+                            Layout.preferredWidth: 28
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                        Button {
+                            text: "↓"
+                            enabled: index < root.todoModel.count - 1
+                            onClicked: root.moveRow(index, index + 1)
+                            Layout.preferredWidth: 28
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                    }
+
+                    // While dragging, lift the strip out of the row so it follows
+                    // the cursor; on release it returns to its (new) slot.
+                    states: State {
+                        when: dragHandler.active
+                        ParentChange { target: rowContent; parent: todoList }
+                        AnchorChanges {
+                            target: rowContent
+                            anchors.horizontalCenter: undefined
+                            anchors.verticalCenter: undefined
+                        }
+                    }
                 }
             }
         }

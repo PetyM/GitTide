@@ -367,7 +367,63 @@ void RepoViewModel::applyHistoryIfReady()
     // last triggers the single setLayout. Works for empty/unborn repos too
     // (empty layout + empty oid → model reset to zero rows).
     if (m_headArrived && m_historyArrived)
+    {
         m_history->setLayout(m_lastLayout, m_headOid);
+        updateReorderableRun();
+    }
+}
+
+void RepoViewModel::updateReorderableRun()
+{
+    // Count newest commits (from HEAD down) that have exactly one parent. A merge
+    // (≥2 parents) or the root (0 parents) ends the run: neither can be replayed
+    // by a simple cherry-pick reorder. Need ≥2 to reorder anything.
+    int run = 0;
+    for (const auto& row : m_lastLayout.rows)
+    {
+        if (row.commit.parents.size() == 1)
+            ++run;
+        else
+            break;
+    }
+    const int next = run >= 2 ? run : 0;
+    if (next != m_reorderableRunLength)
+    {
+        m_reorderableRunLength = next;
+        emit reorderableRunChanged();
+    }
+}
+
+void RepoViewModel::reorderCommits(int fromRow, int toRow)
+{
+    const int n = m_reorderableRunLength;
+    if (n < 2 || fromRow == toRow)
+        return;
+    if (fromRow < 0 || fromRow >= n || toRow < 0 || toRow >= n)
+        return;
+
+    // Build the run newest-first, then apply the move.
+    QList<QString> run;
+    run.reserve(n);
+    for (int i = 0; i < n; ++i)
+        run << QString::fromStdString(m_lastLayout.rows[i].commit.oid);
+
+    // Detach onto the parent of the run's (original) oldest commit.
+    const auto& deepest = m_lastLayout.rows[n - 1].commit;
+    if (deepest.parents.empty())
+        return; // defensive: run members always have one parent
+    const QString base = QString::fromStdString(deepest.parents[0]);
+
+    run.move(fromRow, toRow);
+
+    // The engine wants the plan oldest-first, all picks (pure reorder).
+    QStringList oids, actions;
+    for (auto it = run.rbegin(); it != run.rend(); ++it)
+    {
+        oids << *it;
+        actions << QStringLiteral("pick");
+    }
+    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
 }
 
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
@@ -557,6 +613,11 @@ void RepoViewModel::checkoutCommit(const QString& oid)
 void RepoViewModel::rewordHead(const QString& message)
 {
     QCoro::connect(m_controller->rewordHead(message), this, [] {});
+}
+
+void RepoViewModel::undoLastCommit()
+{
+    QCoro::connect(m_controller->undoLastCommit(), this, [] {});
 }
 
 void RepoViewModel::requestCommitMessage(const QString& oid)
@@ -750,6 +811,19 @@ void RepoViewModel::startRebase(const QString& ref)
 void RepoViewModel::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
 {
     QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+}
+
+void RepoViewModel::requestSquashTodo(const QVariantList& rows)
+{
+    QStringList oids;
+    for (const auto& r : rows)
+    {
+        const int row = r.toInt();
+        if (!m_history || row < 0 || row >= m_history->rowCount())
+            continue;
+        oids << m_history->data(m_history->index(row, 0), HistoryListModel::OidRole).toString();
+    }
+    QCoro::connect(m_controller->buildSquashTodo(oids), this, [] {});
 }
 
 void RepoViewModel::requestRebaseTodo(QString fromOid)

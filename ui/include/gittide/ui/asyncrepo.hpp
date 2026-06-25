@@ -56,6 +56,8 @@ public:
     QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> rangeFiles(QString oldOid, QString newOid);
     QCoro::Task<gittide::Expected<gittide::DiffResult>>              rangeDiff(QString oldOid, QString newOid, std::filesystem::path file);
     QCoro::Task<gittide::Expected<std::string>>                      rewordHead(QString message);
+    /// Undo the last commit (soft reset to its first parent; changes stay staged).
+    QCoro::Task<gittide::Expected<void>>                             undoLastCommit();
     QCoro::Task<gittide::Expected<std::string>>                      commitMessage(QString oid);
 
     /// First-parent oid (40-char hex) of `oid`. Errors if `oid` is a root commit.

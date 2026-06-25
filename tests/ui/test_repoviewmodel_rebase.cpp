@@ -103,6 +103,59 @@ inline std::filesystem::path makeCleanRebaseRepo()
     return dir;
 }
 
+/// Build a repo with `n` linear commits (c0 root, then c1..c(n-1)), each adding a
+/// distinct file so a reorder never conflicts. HEAD is on master at c(n-1).
+inline std::filesystem::path makeLinearRepo(int n)
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path()
+               / ("gittide-vmreorder-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr; git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    for (int i = 0; i < n; ++i)
+    {
+        const std::string name = "f" + std::to_string(i) + ".txt";
+        std::ofstream(dir / name) << "x\n";
+        git_index* idx = nullptr; git_repository_index(&idx, raw);
+        git_index_add_bypath(idx, name.c_str()); git_index_write(idx);
+        git_oid tree_oid; git_index_write_tree(&tree_oid, idx);
+        git_tree* tree = nullptr; git_tree_lookup(&tree, raw, &tree_oid);
+        git_signature* sig = nullptr; git_signature_now(&sig, "T", "t@e.x");
+        git_commit* parent = nullptr; git_oid parent_oid;
+        git_commit* parents[1] = { nullptr }; size_t pc = 0;
+        if (git_reference_name_to_id(&parent_oid, raw, "HEAD") == 0
+            && git_commit_lookup(&parent, raw, &parent_oid) == 0)
+        {
+            parents[0] = parent; pc = 1;
+        }
+        git_oid commit_oid;
+        const std::string msg = "c" + std::to_string(i) + "\n";
+        git_commit_create(&commit_oid, raw, "HEAD", sig, sig, nullptr, msg.c_str(), tree, pc, parents);
+        if (parent) git_commit_free(parent);
+        git_signature_free(sig); git_tree_free(tree); git_index_free(idx);
+    }
+    git_repository_free(raw); git_libgit2_shutdown();
+    return dir;
+}
+
+inline std::string headMessage(const std::filesystem::path& dir)
+{
+    git_libgit2_init();
+    git_repository* raw = nullptr;
+    git_repository_open(&raw, dir.generic_string().c_str());
+    git_oid head; git_reference_name_to_id(&head, raw, "HEAD");
+    git_commit* c = nullptr; git_commit_lookup(&c, raw, &head);
+    std::string msg = git_commit_message(c) ? git_commit_message(c) : "";
+    git_commit_free(c); git_repository_free(raw); git_libgit2_shutdown();
+    return msg;
+}
+
 } // namespace repo_view_model_rebase_test
 
 class TestRepoViewModelRebase : public QObject
@@ -144,6 +197,40 @@ private slots:
 
         QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
         QVERIFY(!vm.rebaseInProgress());
+
+        std::filesystem::remove_all(dir);
+    }
+
+    /// reorderableRunLength counts the linear single-parent run from HEAD. For a
+    /// fully linear history of n commits, the run is n-1 (the root has no parent).
+    void reorderable_run_counts_linear_run()
+    {
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(3); // c0(root), c1, c2
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    /// reorderCommits replays the run in the new order: swapping the two newest
+    /// commits makes the former second-newest the new HEAD.
+    void reorder_commits_rewrites_history_order()
+    {
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(3); // newest-first: c2, c1, c0
+        QCOMPARE(repo_view_model_rebase_test::headMessage(dir), std::string("c2\n"));
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
+        // Move row 0 (c2) below row 1 (c1) → new order newest-first: c1, c2, c0.
+        QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 0), Q_ARG(int, 1));
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY(!vm.rebaseInProgress());
+
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 3000);
 
         std::filesystem::remove_all(dir);
     }

@@ -263,3 +263,20 @@ test list.
 Reword-older, squash/fixup, and reorder shipped in
 [rebase-interactive.md](rebase-interactive.md) (Plan 20). The multi-select model
 and the commit context menu built here are the surfaces the engine hangs off.
+
+## 8. Shipped — direct history gestures + undo (Plan 22)
+
+Layered on the engine, three gestures graduate from the wishes:
+
+- **Squash from history (multi-select).** Selecting a contiguous range and
+  choosing **“Squash N commits…”** seeds the todo editor pre-filled (oldest `pick`,
+  rest `squash`). The multi-select model from §2.1 now drives an *action*, not just a
+  combined diff. Validation (contiguous, non-merge) lives in the controller's
+  `buildSquashTodo`. See [rebase-interactive.md](rebase-interactive.md) §3.2.
+- **Drag-to-reorder**, both in the todo editor (grip alongside ↑/↓) and directly in
+  the history view (gated to the linear single-parent run from HEAD, behind a
+  confirmation). See [rebase-interactive.md](rebase-interactive.md) §3.2 and **D36**.
+- **Undo last commit** — `git reset --soft HEAD~1`: drops the tip and leaves its
+  changes **staged**. Core verb `GitRepo::undoLastCommit()`, offered on the HEAD
+  commit context menu and the app menu, disabled mid-merge/-rebase (mutual
+  exclusion). Guards: unborn / detached / root / op-in-progress. See **D37**.

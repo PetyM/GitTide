@@ -79,6 +79,7 @@ ApplicationWindow {
             onOptionsRequested: optionsDialog.open()
             onAboutRequested: aboutDialog.open()
             onRebaseRequested: rebaseTargetDialog.open()
+            onUndoLastCommitRequested: if (repoVm) repoVm.undoLastCommit()
         }
 
         RowLayout {

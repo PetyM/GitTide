@@ -41,5 +41,6 @@
     <file>RewordDialog.qml</file>
     <file>RebaseTargetDialog.qml</file>
     <file>RebaseTodoDialog.qml</file>
+    <file>ReorderConfirmDialog.qml</file>
   </qresource>
 </RCC>

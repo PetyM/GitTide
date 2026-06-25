@@ -75,6 +75,8 @@ public slots:
     QCoro::Task<void> refreshRangeDiff(QString oldOid, QString newOid, QString path);
     // Reword HEAD commit message; emits committed then refreshes status/history/branches.
     QCoro::Task<void> rewordHead(QString message);
+    // Undo the last commit (soft reset, keep changes staged); refreshes status/history/branches.
+    QCoro::Task<void> undoLastCommit();
     // Fetch the commit message for a given OID; emits commitMessageReady on success.
     QCoro::Task<void> requestCommitMessage(QString oid);
 
@@ -121,6 +123,12 @@ public slots:
     /// Build the interactive-rebase todo for fromOid..HEAD (oldest first) and emit
     /// rebaseTodoReady with the detach base (fromOid's first parent).
     QCoro::Task<void> buildRebaseTodo(QString fromOid);
+
+    /// Build a squash plan from a set of selected commit oids. The oids must form a
+    /// contiguous range in the current history (else operationFailed). Emits
+    /// rebaseTodoReady with the oldest selected commit as `pick` and the rest as
+    /// `squash` (oldest-first), base = parent of the oldest selected.
+    QCoro::Task<void> buildSquashTodo(QStringList oids);
 
     /// Start an interactive rebase from a seed plan. Auto-stashes (D31), drives the
     /// first run; clean finish emits rebaseFinished + pops the stash; a pause leaves

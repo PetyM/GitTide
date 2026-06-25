@@ -174,6 +174,8 @@ of this menu item to avoid duplication.
 | **New branch from here** | Always enabled |
 | **Checkout commit** | Disabled when `isHead` |
 | **Reword…** | **Hidden** unless `isHead` (reword of older commits is deferred to the rebase engine — see [history-editing](history-editing.md)) |
+| **Undo last commit** | **Hidden** unless `isHead`; soft-resets to the parent, keeping changes staged (D37). |
+| **Squash `<N>` commits…** | **Hidden** unless ≥2 rows are selected; seeds `RebaseTodoDialog` pre-filled (oldest `pick`, rest `squash`) via `repoVm.requestSquashTodo(rows)`. |
 | **Edit history from here…** | **Hidden** when `isHead` (the clicked commit is the tip — nothing to rebase onto it); opens `RebaseTodoDialog` via `repoVm.startInteractiveRebase(oid)` |
 | — separator — | |
 | **Merge `<localBranchName>` into current** | **Hidden** when `localBranchName` is empty |
@@ -185,7 +187,9 @@ Wiring: `onCopySha → repoVm.copyToClipboard(oid)`,
 `onCheckoutCommit → repoVm.checkoutCommit(oid)`,
 `onMerge → repoVm.startMerge(localBranchName)`,
 `onReword → rewordDialog.openFor(oid)` (the dialog lazy-fetches the full message
-via `repoVm.requestCommitMessage`).
+via `repoVm.requestCommitMessage`),
+`onUndoLastCommit → repoVm.undoLastCommit()`,
+`onSquashSelected → repoVm.requestSquashTodo(historyList.selectedRows)`.
 
 **Multi-select & combined diff.** The History graph supports multi-selection
 (Shift-click for a contiguous range, Ctrl-click to toggle); a contiguous

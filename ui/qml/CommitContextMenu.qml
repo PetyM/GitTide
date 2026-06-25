@@ -14,11 +14,15 @@ AppMenu {
     property string shortOid:        ""
     property string localBranchName: ""
     property bool   isHead:          false
+    // Number of selected history rows (≥2 enables "Squash N commits…").
+    property int    selectionCount:  1
 
     signal copySha()
     signal newBranchFromHere()
     signal checkoutCommit()
     signal reword()
+    signal undoLastCommit()
+    signal squashSelected()
     signal editHistory()
     signal merge()
 
@@ -43,6 +47,20 @@ AppMenu {
         text: "Reword…"
         visible: menu.isHead
         onTriggered: menu.reword()
+    }
+    AppMenuItem {
+        objectName: "undoLastCommitItem"
+        text: "Undo last commit"
+        // Only HEAD can be undone (soft reset to its parent keeps changes staged).
+        visible: menu.isHead
+        onTriggered: menu.undoLastCommit()
+    }
+    AppMenuItem {
+        objectName: "squashSelectedItem"
+        text: "Squash " + menu.selectionCount + " commits…"
+        // Only when a multi-commit range is selected (squash needs ≥2).
+        visible: menu.selectionCount >= 2
+        onTriggered: menu.squashSelected()
     }
     AppMenuItem {
         objectName: "editHistoryItem"

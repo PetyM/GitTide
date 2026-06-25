@@ -14,6 +14,7 @@ Rectangle {
     signal optionsRequested()
     signal aboutRequested()
     signal rebaseRequested()
+    signal undoLastCommitRequested()
 
     readonly property bool isMac: Qt.platform.os === "osx"
 
@@ -114,6 +115,14 @@ Rectangle {
                     objectName: "rebaseMenuItem"
                     text: "Rebase current branch…"
                     onTriggered: titleBar.rebaseRequested()
+                }
+                AppMenuItem {
+                    objectName: "undoLastCommitMenuItem"
+                    text: "Undo last commit"
+                    // Disabled mid-merge/-rebase (mutual exclusion); core also
+                    // guards unborn/detached/root.
+                    enabled: !!repoVm && !repoVm.rebaseInProgress && !repoVm.mergeInProgress
+                    onTriggered: titleBar.undoLastCommitRequested()
                 }
                 MenuSeparator {
                     padding: 6

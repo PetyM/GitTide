@@ -237,6 +237,13 @@ public:
     // Errors on an unborn or detached HEAD. Returns the new commit's hex oid.
     Expected<std::string> rewordHead(std::string newMessage);
 
+    // Undo the most recent commit (git reset --soft HEAD~1): move the current
+    // branch to HEAD's first parent, leaving the index and working tree intact so
+    // the undone commit's changes stay staged. Errors on an unborn branch, a
+    // detached HEAD, a root commit (no parent), or while another operation
+    // (merge / rebase / cherry-pick) is in progress.
+    Expected<void> undoLastCommit();
+
     // Full commit message (summary + body) of the 40-char hex oid. Used to
     // pre-fill the reword dialog. Errors on a bad oid.
     Expected<std::string> commitMessage(std::string oid) const;

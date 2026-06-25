@@ -17,6 +17,8 @@ RowLayout {
         onNewBranchFromHere: commitNewBranchDialog.openFromCommit(commitMenu.oid)
         onCheckoutCommit:    if (repoVm) repoVm.checkoutCommit(commitMenu.oid)
         onReword:            rewordDialog.openFor(commitMenu.oid)
+        onUndoLastCommit:    if (repoVm) repoVm.undoLastCommit()
+        onSquashSelected:    if (repoVm) repoVm.requestSquashTodo(historyList.selectedRows)
         onEditHistory:       if (repoVm) repoVm.requestRebaseTodo(commitMenu.oid)
         onMerge:             if (repoVm) repoVm.startMerge(commitMenu.localBranchName)
     }
@@ -32,6 +34,10 @@ RowLayout {
 
     RebaseTodoDialog {
         id: rebaseTodoDialog
+    }
+
+    ReorderConfirmDialog {
+        id: reorderConfirm
     }
 
     // ---- Commit list (graph + avatar + summary/author/date) ----
@@ -94,12 +100,20 @@ RowLayout {
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
                         if (mouse.button === Qt.RightButton) {
-                            historyList.currentIndex   = index
-                            historyList.selectedRows   = [index]
+                            // Right-clicking inside an existing multi-selection keeps
+                            // it (so "Squash N commits…" applies to the whole range);
+                            // otherwise collapse to the clicked row.
+                            var inMulti = historyList.selectedRows.length >= 2
+                                          && historyList.selectedRows.indexOf(index) >= 0
+                            if (!inMulti) {
+                                historyList.currentIndex = index
+                                historyList.selectedRows = [index]
+                            }
                             commitMenu.oid             = model.oid
                             commitMenu.shortOid        = model.shortOid
                             commitMenu.localBranchName = model.localBranchName ?? ""
                             commitMenu.isHead          = model.isHead
+                            commitMenu.selectionCount  = historyList.selectedRows.length
                             commitMenu.popup()
                         } else {
                             if (mouse.modifiers & Qt.ShiftModifier) {
@@ -177,6 +191,39 @@ RowLayout {
                                 text: model.date
                                 color: theme.textMuted
                                 font.pixelSize: 11
+                            }
+                        }
+                    }
+
+                    // Drag-to-reorder grip — only for commits in the reorderable run
+                    // (linear single-parent span from HEAD). Dragging onto another run
+                    // row opens a confirmation, then rewrites history via rebase.
+                    Label {
+                        id: reorderGrip
+                        objectName: "reorderGrip"
+                        visible: !!repoVm && index < repoVm.reorderableRunLength
+                        text: "⠿"
+                        color: reorderDrag.active ? theme.accent : theme.textMuted
+                        font.pixelSize: 15
+                        Layout.preferredWidth: 16
+                        Layout.alignment: Qt.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        ToolTip.text: "Drag to reorder"
+                        ToolTip.visible: gripHover.hovered
+                        HoverHandler { id: gripHover }
+                        DragHandler {
+                            id: reorderDrag
+                            target: null
+                            xAxis.enabled: false
+                            onActiveChanged: {
+                                if (!active && repoVm) {
+                                    var p = reorderGrip.mapToItem(historyList.contentItem,
+                                                                  reorderDrag.centroid.position.x,
+                                                                  reorderDrag.centroid.position.y)
+                                    var to = historyList.indexAt(p.x, p.y)
+                                    if (to >= 0 && to < repoVm.reorderableRunLength && to !== index)
+                                        reorderConfirm.openFor(index, to)
+                                }
                             }
                         }
                     }

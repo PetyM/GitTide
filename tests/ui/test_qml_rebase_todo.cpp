@@ -169,6 +169,51 @@ private slots:
     }
 
     // -----------------------------------------------------------------
+    // Seeding with per-entry actions (squash flow) pre-fills the rows: oldest
+    // pick, the rest squash → valid plan, and collectActions reflects it.
+    // -----------------------------------------------------------------
+    void seed_with_actions_prefills_squash()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RebaseTodoStub stub;
+
+        QQmlApplicationEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        engine.rootContext()->setContextProperty(QStringLiteral("repoVm"), &stub);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/RebaseTodoDialog.qml")));
+        QVERIFY2(comp.isReady(), qPrintable(comp.errorString()));
+        QObject* dlg = comp.create();
+        QVERIFY(dlg);
+
+        // Oldest-first: a (pick), b (squash) — as buildSquashTodo emits.
+        QMetaObject::invokeMethod(dlg, "seed",
+            Q_ARG(QVariant, QStringLiteral("base0")),
+            Q_ARG(QVariant, QVariant::fromValue(QVariantList{
+                QVariantMap{{QStringLiteral("oid"), QStringLiteral("a")},
+                            {QStringLiteral("summary"), QStringLiteral("A")},
+                            {QStringLiteral("action"), QStringLiteral("pick")}},
+                QVariantMap{{QStringLiteral("oid"), QStringLiteral("b")},
+                            {QStringLiteral("summary"), QStringLiteral("B")},
+                            {QStringLiteral("action"), QStringLiteral("squash")}}})));
+
+        // First kept row is pick → valid.
+        QVERIFY(dlg->property("planValid").toBool());
+
+        // collectActions round-trips the seeded actions.
+        QVariant ret;
+        QMetaObject::invokeMethod(dlg, "collectActions", Q_RETURN_ARG(QVariant, ret));
+        const QVariantList actions = ret.toList();
+        QCOMPARE(actions.size(), 2);
+        QCOMPARE(actions.at(0).toString(), QStringLiteral("pick"));
+        QCOMPARE(actions.at(1).toString(), QStringLiteral("squash"));
+
+        delete dlg;
+    }
+
+    // -----------------------------------------------------------------
     // planValid is true when first row is "pick" and not all are drop
     // -----------------------------------------------------------------
     void start_enabled_when_plan_valid()

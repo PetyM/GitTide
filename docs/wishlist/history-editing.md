@@ -11,6 +11,11 @@
 > combined range-diff. Amend remains `idea`; reword-of-older, squash/fixup, and
 > reorder now ship via the interactive rebase engine in
 > [spec/product/rebase-interactive.md](../spec/product/rebase-interactive.md).
+>
+> **Direct gestures + undo shipped** (Plan 22, 2026-06-25):
+> [multi-select **Squash N commits**](../spec/product/history-editing.md#8-shipped--direct-history-gestures--undo-plan-22),
+> **drag-to-reorder** (todo editor + directly in history), and **Undo last commit**
+> (`git reset --soft HEAD~1`, keep changes staged). Amend remains `idea`.
 
 ## What
 

@@ -44,6 +44,8 @@
 #include "test_qml_merge_banner.cpp"
 #include "test_qml_merge_entrypoints.cpp"
 #include "test_repocontroller_reword.cpp"
+#include "test_repocontroller_undo.cpp"
+#include "test_repocontroller_squash.cpp"
 #include "test_repocontroller_rebase.cpp"
 #include "test_repoviewmodel_rebase.cpp"
 #include "test_repocontroller_interactive_rebase.cpp"
@@ -108,6 +110,8 @@ int main(int argc, char** argv)
     RUN(TestQmlMergeBanner);
     RUN(TestQmlMergeEntrypoints);
     RUN(TestRepoControllerReword);
+    RUN(TestRepoControllerUndo);
+    RUN(TestRepoControllerSquash);
     RUN(TestRepoControllerRebase);
     RUN(TestRepoViewModelRebase);
     RUN(TestRepoControllerInteractiveRebase);
