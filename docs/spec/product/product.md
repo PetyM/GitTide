@@ -268,8 +268,10 @@ Two separate files, so window juggling never rewrites the project registry:
 - **Project registry** (`projects.json`) — the source of truth for projects and
   their repos: ids, names, repo path+alias lists, `activeProject` as a
   last-focused hint, and each project's `lastActiveRepo` — the repo (or submodule)
-  the user had open, persisted on open and reopened on next launch (a stale path
-  whose folder is gone is ignored, falling back to the first repo). Repos are
+  the user had open, persisted on open and reopened on next launch — and revealed
+  in the sidebar tree (its ancestors expanded so a restored submodule shows as the
+  active row, not hidden under a collapsed parent). A stale path whose folder is
+  gone is ignored, falling back to the first repo. Repos are
   references to disk; a deleted directory is marked "missing", never a crash.
 - **Window session** (`session.json`) — which projects had windows open and their
   geometry, for restore on next launch.

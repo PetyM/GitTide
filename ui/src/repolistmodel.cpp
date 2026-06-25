@@ -35,6 +35,34 @@ QString RepoListModel::firstRepoPath() const
     return m_roots.front()->path;
 }
 
+QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
+{
+    if (path.isEmpty())
+        return {};
+    // Depth-first search for the node carrying this exact path.
+    const Node* match = nullptr;
+    auto search = [&](auto&& self, const std::vector<std::unique_ptr<Node>>& nodes) -> void
+    {
+        for (const auto& n : nodes)
+        {
+            if (match)
+                return;
+            if (n->path == path)
+            {
+                match = n.get();
+                return;
+            }
+            self(self, n->children);
+        }
+    };
+    search(search, m_roots);
+    if (!match)
+        return {};
+    // createIndex with the node pointer mirrors how index() builds indices, so
+    // parent() resolves the ancestor chain for expandToIndex().
+    return createIndex(rowOf(match), 0, const_cast<Node*>(match));
+}
+
 void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
 {
     beginResetModel();

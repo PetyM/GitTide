@@ -21,6 +21,31 @@ Rectangle {
     signal tabPrev()
     function takeFocus() { repoTree.forceActiveFocus() }
 
+    // Reveal the active repo/subrepo in the tree when it changes — e.g. the repo
+    // restored on launch, or a submodule that sits collapsed under its parent.
+    // Tracks the last revealed path so an ordinary status refresh (which also
+    // fires repoVm.changed) doesn't fight a manual collapse of the active subtree.
+    property string revealedRepoPath: ""
+    function revealActiveRepo() {
+        if (!repoVm || !repoVm.repoOpen || repoVm.repoPath.length === 0)
+            return
+        var idx = repoModel.indexForRepoPath(repoVm.repoPath)
+        if (idx.row < 0)
+            return
+        repoTree.expandToIndex(idx)
+        repoTree.forceLayout()
+    }
+    Connections {
+        target: repoVm
+        enabled: repoVm !== null
+        function onChanged() {
+            if (!repoVm || !repoVm.repoOpen || repoVm.repoPath === sidebar.revealedRepoPath)
+                return
+            sidebar.revealedRepoPath = repoVm.repoPath
+            Qt.callLater(sidebar.revealActiveRepo)
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0

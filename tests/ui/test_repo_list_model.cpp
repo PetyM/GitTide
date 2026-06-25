@@ -117,6 +117,15 @@ private slots:
         QCOMPARE(model.data(sub, RepoListModel::ShortOidRole).toString().size(), 7);
         QCOMPARE(model.data(sub, RepoListModel::StatusRole).toInt(),
                  static_cast<int>(gittide::SubmoduleStatus::Clean));
+
+        // indexForRepoPath resolves both the top-level repo and a nested submodule
+        // to their index (so the sidebar can expandToIndex a restored subrepo), and
+        // returns an invalid index for an unknown path.
+        const QString subPath = model.data(sub, RepoListModel::PathRole).toString();
+        QCOMPARE(model.indexForRepoPath(QString::fromStdString(parent.path().generic_string())), top);
+        QCOMPARE(model.indexForRepoPath(subPath), sub);
+        QVERIFY(!model.indexForRepoPath(QStringLiteral("/no/such/subrepo")).isValid());
+        QVERIFY(!model.indexForRepoPath(QString()).isValid());
     }
 
     void fetchState_roundtrips_and_resets()

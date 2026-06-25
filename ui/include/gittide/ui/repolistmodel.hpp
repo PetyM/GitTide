@@ -52,6 +52,12 @@ public:
     /// main area shows working state rather than the empty page.
     Q_INVOKABLE QString firstRepoPath() const;
 
+    /// Index of the repo or submodule node whose path matches `path` (exact
+    /// match), searching the whole tree; an invalid index when not found. Lets the
+    /// sidebar expand/reveal the active repo — e.g. a restored submodule that sits
+    /// collapsed under its parent on launch.
+    Q_INVOKABLE QModelIndex indexForRepoPath(const QString& path) const;
+
     int  topLevelCount() const;
     void resetFetchStates();
     void setFetchState(int rootRow, FetchState state, const QString& error = {});
