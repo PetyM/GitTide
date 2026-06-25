@@ -171,6 +171,10 @@ public:
     Q_INVOKABLE void deleteBranch(const QString& name, bool force);
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
     Q_INVOKABLE void refreshHistory();
+    /// Re-sync the whole active repo from disk (status + branches + history +
+    /// sync). Called on window focus-in (D35) to catch changes the directory
+    /// watcher can miss (in-place edits of an existing file while backgrounded).
+    Q_INVOKABLE void resync();
 
     Q_INVOKABLE void fetch();
     Q_INVOKABLE void pull();

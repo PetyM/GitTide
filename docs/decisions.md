@@ -206,6 +206,25 @@ an entry with a newer one if it changes.
   up-front message collection (the user chose git-faithful mid-rebase pausing). →
   [`engineering`](spec/engineering/engineering.md), [`product`](spec/product/rebase-interactive.md)
 
+- **D35 — Auto-refresh by watching working-tree directories + the git dir, not
+  per-file and not by polling the active repo.** The active repo is kept current
+  with a `QFileSystemWatcher` over every non-ignored working-tree directory plus
+  the git dir, debounced and classified into a status-only vs. full-cascade
+  refresh; other repos in the project are refreshed by a low-frequency, window-
+  active-gated poll. *Why:* per-file watching does not scale (OS watch-descriptor
+  limits) and constantly polling the active repo both lags and wastes work.
+  Directory-level watching catches git's atomic `*.lock`→rename rewrites
+  (`index`/`HEAD`/`refs`/`MERGE_HEAD`/rebase dirs) and tree add/remove/rename;
+  the residual gap — an in-place edit of an existing file that touches no
+  directory entry — is closed by a window-focus re-sync. The watch set is computed
+  by a core `watchTargets()` so libgit2's ignore rules stay in `core/` (invariant
+  #1/#2). Refreshes are read-only, so the watcher has no feedback loop; self-
+  induced events are muted around the controller's own mutations. *Rejected:*
+  watching every file (unscalable, hits inotify/FSEvents limits); hand-rolling a
+  recursive FSEvents/inotify watcher (re-implements Qt, non-portable); polling the
+  active repo on a timer (lag + churn). →
+  [`engineering`](spec/engineering/engineering.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

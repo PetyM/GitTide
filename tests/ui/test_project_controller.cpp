@@ -376,6 +376,46 @@ private slots:
         QCOMPARE(m->data(m->index(2, 0), RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Failed));
     }
 
+    // D35: while the window is active, the poll re-reads each repo's local sync
+    // counts (no network) and updates the sidebar — so a commit made in a
+    // non-active repo shows up without any user action.
+    void poll_refreshes_repo_sync_counts_when_window_active()
+    {
+        using gittide::ui::RepoListModel;
+
+        const QString ahead = makeRepoAheadBy1();
+        ProjectStore  store;
+        store.projects().push_back(
+            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = ahead.toStdString()}}});
+
+        ProjectController controller(&store, {}, nullptr, 80); // fast poll for the test
+        controller.activate(QStringLiteral("p1"));
+        RepoListModel* m = controller.repos();
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0); // not polled yet
+
+        controller.setWindowActive(true);
+        QTRY_VERIFY_WITH_TIMEOUT(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt() == 1, 5000);
+        controller.setWindowActive(false);
+    }
+
+    // The poll must not run while the window is inactive.
+    void poll_does_not_run_when_window_inactive()
+    {
+        using gittide::ui::RepoListModel;
+
+        const QString ahead = makeRepoAheadBy1();
+        ProjectStore  store;
+        store.projects().push_back(
+            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = ahead.toStdString()}}});
+
+        ProjectController controller(&store, {}, nullptr, 80);
+        controller.activate(QStringLiteral("p1"));
+        RepoListModel* m = controller.repos();
+
+        QTest::qWait(400); // window never activated → no poll
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0);
+    }
+
     void fetchAll_no_active_project_is_noop()
     {
         ProjectStore store;
@@ -460,6 +500,25 @@ private:
         const QString p = QString::fromStdString(repo->path().generic_string());
         m_temps.push_back(std::move(repo));
         m_temps.push_back(std::move(other));
+        return p;
+    }
+
+    // Returns the path of a working repo whose local HEAD is one commit AHEAD of
+    // its (already-known) tracking ref — so syncStatus reports ahead=1 with no
+    // fetch. Kept alive in m_temps.
+    QString makeRepoAheadBy1()
+    {
+        auto repo = std::make_unique<gittide::test::TempRepo>();
+        repo->setIdentity("Test", "test@example.com");
+        repo->writeFile("a.txt", "one");
+        repo->commitAll("c1");
+        const auto bare = repo->addBareRemote("origin");
+        repo->pushBranch("origin", "master"); // origin/master = c1, upstream set
+        repo->writeFile("a.txt", "two");
+        repo->commitAll("c2"); // HEAD = c2 while origin/master = c1 → ahead by 1
+
+        const QString p = QString::fromStdString(repo->path().generic_string());
+        m_temps.push_back(std::move(repo));
         return p;
     }
 

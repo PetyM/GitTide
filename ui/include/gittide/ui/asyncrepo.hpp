@@ -38,6 +38,10 @@ public:
     ~AsyncRepo();
 
     QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> status();
+
+    /// Directories to watch to keep this repo's view current (D35). See
+    /// gittide::WatchTargets and GitRepo::watchTargets.
+    QCoro::Task<gittide::Expected<gittide::WatchTargets>> watchTargets();
     QCoro::Task<gittide::Expected<gittide::DiffResult>> diff(gittide::DiffTarget target, std::filesystem::path file);
     QCoro::Task<gittide::Expected<void>> stage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);

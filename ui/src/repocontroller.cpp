@@ -11,12 +11,43 @@
 #include "gittide/log.hpp"
 #include "gittide/ui/autherror.hpp"
 #include "gittide/ui/metatypes.hpp"
+#include "gittide/ui/repowatcher.hpp"
 
 namespace gittide::ui {
 
-RepoController::RepoController(QObject* parent)
-    : QObject(parent)
+namespace {
+// RAII: mute the live-refresh watcher for the duration of a controller mutation
+// so our own disk writes do not trigger a redundant refresh (D35). Holds a
+// QPointer so a controller destroyed mid-coroutine never dereferences a freed
+// watcher when the guard unwinds.
+struct WatchMute
 {
+    explicit WatchMute(RepoWatcher* w)
+        : m_w(w)
+    {
+        if (m_w)
+            m_w->mute();
+    }
+    ~WatchMute()
+    {
+        if (m_w)
+            m_w->unmute();
+    }
+    WatchMute(const WatchMute&)            = delete;
+    WatchMute& operator=(const WatchMute&) = delete;
+
+private:
+    QPointer<RepoWatcher> m_w;
+};
+} // namespace
+
+RepoController::RepoController(QObject* parent, int watchDebounceMs)
+    : QObject(parent)
+    , m_watcher(new RepoWatcher(watchDebounceMs, this))
+{
+    connect(m_watcher, &RepoWatcher::worktreeChanged, this, [this]() { QCoro::connect(onWatchWorktree(), this, []() {}); });
+    connect(m_watcher, &RepoWatcher::gitDirChanged, this, [this]() { QCoro::connect(onWatchGitDir(), this, []() {}); });
+
     qRegisterMetaType<std::vector<gittide::FileStatus>>();
     qRegisterMetaType<gittide::DiffResult>();
     qRegisterMetaType<gittide::StageSelection>();
@@ -39,6 +70,7 @@ void RepoController::open(const QString& path)
     {
         m_repo.reset();
         m_path.clear();
+        m_watcher->clear();
         logf(LogLevel::Warning, logcat::UI, "open repo '{}' failed: {}", path.toStdString(), result.error().message);
         emit repoFailed(path, QString::fromStdString(result.error().message));
         return;
@@ -46,6 +78,8 @@ void RepoController::open(const QString& path)
     m_repo.emplace(std::move(*result));
     m_path = path;
     emit repoOpened(path);
+    // Arm the live-refresh watcher for the newly-opened repo (D35).
+    QCoro::connect(rearmWatch(), this, []() {});
 }
 
 QCoro::Task<void> RepoController::refreshStatus()
@@ -101,6 +135,7 @@ QCoro::Task<void> RepoController::stage(gittide::StageSelection sel)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
     auto result = co_await m_repo->stage(sel);
     if (!self)
         co_return;
@@ -117,6 +152,7 @@ QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
     auto result = co_await m_repo->unstage(sel);
     if (!self)
         co_return;
@@ -133,6 +169,7 @@ QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
     auto result = co_await m_repo->discard(sel);
     if (!self)
         co_return;
@@ -149,6 +186,7 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
     auto result = co_await m_repo->commit(req);
     if (!self)
         co_return;
@@ -338,6 +376,7 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
         co_return;
     }
     QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
     auto reset = co_await m_repo->resetIndexToHead();
     if (!self)
         co_return;
@@ -486,6 +525,55 @@ QCoro::Task<void> RepoController::refreshSyncStatus()
         co_return;
     }
     emit syncStatusChanged(*r);
+}
+
+QCoro::Task<void> RepoController::refreshAll()
+{
+    QPointer<RepoController> self = this;
+    co_await refreshStatus();
+    if (!self)
+        co_return;
+    co_await refreshBranches();
+    if (!self)
+        co_return;
+    co_await refreshHistory();
+    if (!self)
+        co_return;
+    co_await refreshSyncStatus();
+}
+
+QCoro::Task<void> RepoController::rearmWatch()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto t = co_await m_repo->watchTargets();
+    if (!self || !m_watcher)
+        co_return;
+    if (t)
+        m_watcher->watch(*t);
+}
+
+QCoro::Task<void> RepoController::onWatchWorktree()
+{
+    QPointer<RepoController> self = this;
+    // Mute while we refresh: libgit2 reads (status, ref lookups) can touch on-disk
+    // caches under .git, which would otherwise re-trigger the watcher in a loop.
+    WatchMute mute(m_watcher);
+    co_await refreshStatus();
+    if (!self)
+        co_return;
+    co_await rearmWatch();
+}
+
+QCoro::Task<void> RepoController::onWatchGitDir()
+{
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    co_await refreshAll();
+    if (!self)
+        co_return;
+    co_await rearmWatch();
 }
 
 gittide::ProgressCallback RepoController::progressSink()

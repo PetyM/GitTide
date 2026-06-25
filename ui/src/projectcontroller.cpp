@@ -1,5 +1,7 @@
 #include "gittide/ui/projectcontroller.hpp"
 
+#include <QPointer>
+#include <QTimer>
 #include <QtConcurrent>
 #include <core/qcorofuture.h>
 #include <filesystem>
@@ -13,13 +15,57 @@
 
 namespace gittide::ui {
 
-ProjectController::ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath, QObject* parent)
+ProjectController::ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath, QObject* parent,
+                                    int pollIntervalMs)
     : QObject(parent)
     , m_store(store)
     , m_storePath(std::move(storePath))
     , m_projectModel(new ProjectListModel(store, this))
     , m_repoModel(new RepoListModel(this))
+    , m_pollTimer(new QTimer(this))
 {
+    // Live refresh of non-active repos (D35): a low-frequency poll, gated on the
+    // window being active (started/stopped via setWindowActive).
+    m_pollTimer->setInterval(pollIntervalMs);
+    connect(m_pollTimer, &QTimer::timeout, this, [this]() { QCoro::connect(pollRepos(), this, []() {}); });
+}
+
+void ProjectController::setWindowActive(bool active)
+{
+    if (active)
+        m_pollTimer->start();
+    else
+        m_pollTimer->stop();
+}
+
+QCoro::Task<void> ProjectController::pollRepos()
+{
+    if (m_activeId.isEmpty())
+        co_return;
+
+    QPointer<ProjectController> self = this;
+    // Copy the refs: activeRepos() returns a reference into the store, which may
+    // change across a co_await below.
+    const std::vector<gittide::RepoRef> repos = activeRepos();
+    for (int row = 0; row < static_cast<int>(repos.size()); ++row)
+    {
+        const std::filesystem::path p(repos[row].path);
+        std::error_code             ec;
+        if (!std::filesystem::exists(p, ec) || ec)
+            continue; // missing repo: leave its row as-is
+
+        // Each repo gets its OWN handle (one-owner invariant); syncStatus is a
+        // read-only, local comparison (HEAD vs tracking ref) — no network.
+        auto opened = AsyncRepo::open(p);
+        if (!opened)
+            continue;
+        AsyncRepo repo = std::move(*opened);
+        auto      st   = co_await repo.syncStatus();
+        if (!self)
+            co_return;
+        if (st)
+            m_repoModel->setSyncCounts(row, st->ahead, st->behind);
+    }
 }
 
 QString ProjectController::activeProjectName() const

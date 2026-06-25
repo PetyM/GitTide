@@ -54,6 +54,8 @@ TempRepo::~TempRepo()
 void TempRepo::writeFile(std::string_view rel_path, std::string_view contents)
 {
     std::filesystem::path file = m_dir / std::filesystem::path(rel_path);
+    if (file.has_parent_path())
+        std::filesystem::create_directories(file.parent_path());
     std::ofstream out(file, std::ios::binary);
     if (!out)
         throw std::runtime_error("writeFile: could not open " + file.string());

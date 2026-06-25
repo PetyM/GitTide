@@ -110,6 +110,54 @@ The UI thread never blocks; git work runs off it.
 - **Rendering** of graph/log/diff is lazy and virtualized — only visible rows
   render — so a very large history never stalls the UI.
 
+### Live refresh — watching the working tree and `.git`
+
+GitTide keeps the view current automatically: an external change — your editor,
+`git` in a terminal, another tool — appears without any manual refresh. (Earlier,
+the UI refreshed only after its *own* actions; see [D35](../../decisions.md).)
+
+- **The active repo is watched live.** `RepoController` owns a `RepoWatcher`
+  (`ui/` — a `QFileSystemWatcher` plus a debounce `QTimer`), re-pointed at the
+  repository on each `open()`. It watches a flat set of **directories**: every
+  non-ignored working-tree directory plus every directory inside the git dir.
+  Watching directories (not individual files) is what makes this scale and stay
+  portable: it catches files added / removed / renamed in the tree, and git's
+  **atomic rewrites** of `index`, `HEAD`, `refs/*`, `packed-refs`, `MERGE_HEAD`,
+  and the rebase state dirs — each writes a `*.lock` and renames it into place, so
+  the containing watched directory fires. The watch set comes from one core
+  primitive, **`GitRepo::watchTargets()`**, which walks the tree under libgit2's
+  ignore rules (so `node_modules` / `build` are pruned) and enumerates the git
+  dir — keeping libgit2 in `core/` (invariants #1/#2). The controller re-arms the
+  set after each batch, so newly created subdirectories start being watched.
+- **Events are debounced and classified.** Bursty FS events (a build, a multi-file
+  save, a multi-step git op) are coalesced by a short timer (injectable for
+  tests). On fire the watcher emits the **scope**: a worktree-only change triggers
+  `refreshStatus` (plus the active diff); any change under the git dir triggers the
+  **full cascade** (`refreshAll` = status + history + branches + sync) — the same
+  cascade a checkout uses. Self-induced churn is suppressed by **muting** the
+  watcher around the controller's own work: both its mutations *and* the
+  watch-driven refresh handlers are bracketed by a mute (held for one debounce tail
+  after they finish). The handlers must mute too because libgit2 "reads" are not
+  inert — `status` and ref lookups update on-disk caches under `.git`, which would
+  otherwise re-trigger the watcher in a tight loop. Muting closes that loop.
+- **Window focus is the safety net.** The one gap in directory-level watching is
+  an in-place content edit of an *existing* tracked file (e.g. `echo >> f` in a
+  terminal) that changes no directory entry. `Main.qml` re-syncs the active repo
+  on window activation (`onActiveChanged`), so anything missed while GitTide was in
+  the background is picked up the moment it regains focus.
+- **Other repos in the project are polled, not watched.** Watching every repo in a
+  large fleet would mean thousands of OS watches. Instead `ProjectController` runs
+  a low-frequency `QTimer` — **only while the window is active** — that re-reads
+  each non-missing top-level repo's local sync counts (HEAD vs its tracking ref —
+  no network) and updates the sidebar rows, reusing the per-row roles the
+  [fleet fetch](#fleet-fetch-all) already feeds. This refreshes the *sidebar* view
+  of every repo; the **active** repo additionally gets the deep, per-edit live
+  refresh of its main view from the `RepoWatcher` above. The poll opens its own
+  short-lived `AsyncRepo` per repo (one-owner invariant), so it never shares the
+  active repo's handle.
+
+Per-symbol contracts live in the `RepoWatcher` / `watchTargets` Doxygen.
+
 ### Network operations & credentials
 
 Fetch, pull, and push run through the same `AsyncRepo` / `QtConcurrent::run`

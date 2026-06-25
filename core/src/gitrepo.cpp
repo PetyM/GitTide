@@ -10,6 +10,7 @@
 #include <git2/config.h>
 #include <git2/credential.h>
 #include <git2/graph.h>
+#include <git2/ignore.h>
 #include <git2/merge.h>
 #include <git2/rebase.h>
 #include <git2/remote.h>
@@ -279,6 +280,65 @@ std::filesystem::path GitRepo::workdir() const
 {
     const char* wd = git_repository_workdir(m_repo);
     return wd ? fromGitPath(wd) : std::filesystem::path{};
+}
+
+Expected<WatchTargets> GitRepo::watchTargets() const
+{
+    namespace fs = std::filesystem;
+    WatchTargets t;
+
+    if (const char* gd = git_repository_path(m_repo))
+        t.gitDir = fromGitPath(gd);
+
+    // Enumerate the git dir's directory subtree: every directory under it is a
+    // place where libgit2's atomic *.lock → rename rewrites land.
+    std::error_code ec;
+    if (!t.gitDir.empty() && fs::exists(t.gitDir, ec))
+    {
+        t.dirs.push_back(t.gitDir);
+        for (auto it = fs::recursive_directory_iterator(t.gitDir, fs::directory_options::skip_permission_denied, ec);
+             !ec && it != fs::recursive_directory_iterator();
+             it.increment(ec))
+        {
+            if (it->is_directory(ec))
+                t.dirs.push_back(it->path());
+        }
+    }
+
+    // Walk the working tree, watching each directory and pruning gitignored
+    // subtrees (so node_modules / build never flood the watcher) and the .git dir.
+    if (const char* wd = git_repository_workdir(m_repo))
+    {
+        t.workdir = fromGitPath(wd);
+        t.dirs.push_back(t.workdir);
+
+        std::error_code wec;
+        auto       it  = fs::recursive_directory_iterator(t.workdir, fs::directory_options::skip_permission_denied, wec);
+        const auto end = fs::recursive_directory_iterator();
+        for (; !wec && it != end; it.increment(wec))
+        {
+            if (!it->is_directory(wec))
+                continue;
+            const fs::path& dir = it->path();
+            if (dir.filename() == ".git")
+            {
+                it.disable_recursion_pending(); // the git dir is enumerated above
+                continue;
+            }
+            // libgit2 ignore rules want a workdir-relative, forward-slash path; a
+            // trailing slash makes a directory match a "build/"-style rule.
+            const std::string rel = toGitPath(fs::relative(dir, t.workdir, wec)) + "/";
+            int               ignored = 0;
+            if (git_ignore_path_is_ignored(&ignored, m_repo, rel.c_str()) == 0 && ignored)
+            {
+                it.disable_recursion_pending();
+                continue;
+            }
+            t.dirs.push_back(dir);
+        }
+    }
+
+    return t;
 }
 
 Expected<void> GitRepo::stage(const StageSelection& sel)

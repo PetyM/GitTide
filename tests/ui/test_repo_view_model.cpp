@@ -121,6 +121,33 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    // D35: resync() re-reads the working tree, so an external change (made while
+    // GitTide was backgrounded) shows up on focus-in.
+    void resync_picks_up_external_change()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
+
+        // A second file appears outside GitTide; an explicit resync must see it.
+        std::ofstream(dir / "external.txt") << "made outside\n";
+        vm.resync();
+
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+        std::filesystem::remove_all(dir);
+    }
+
+    void resync_when_closed_is_safe_noop()
+    {
+        RepoViewModel vm;
+        vm.resync(); // nothing open → must be a safe no-op
+        QVERIFY(!vm.repoOpen());
+    }
+
     // A submodule's working directory is a real git repo; selecting it in the
     // tree opens it as a first-class repo (its own Changes/History).
     void open_submodule_workdir_as_first_class_repo()

@@ -40,6 +40,15 @@ ApplicationWindow {
         }
         if (repoVm) repoVm.applyPullDefault(appSettings.pullRebase)
         openFirstRepo()
+        // Start the non-active-repo poll if we launch focused (D35).
+        if (projectController) projectController.setWindowActive(window.active)
+    }
+
+    // Live refresh on focus-in (D35): re-sync the active repo (catches in-place
+    // edits the directory watcher can miss) and gate the fleet poll on focus.
+    onActiveChanged: {
+        if (active && repoVm) repoVm.resync()
+        if (projectController) projectController.setWindowActive(active)
     }
 
     // Persist geometry (skip Minimized so closing while minimised doesn't restore tiny)

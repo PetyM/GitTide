@@ -39,6 +39,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 18 — History range-diff & reword-tip](2026-06-24-plan18-history-range-reword.md) | 2026-06-24 | done | product · engineering · core |
 | [Plan 19 — Plain rebase driver (Tier 1)](2026-06-24-plan19-rebase-driver.md) | 2026-06-24 | shipped | product · engineering · core |
 | [Plan 20 — Interactive rebase engine (Tier 2)](2026-06-24-plan20-interactive-rebase.md) | 2026-06-24 | shipped | product · engineering · core |
+| [Plan 21 — Live refresh (file watching + fleet poll)](2026-06-25-plan21-live-refresh.md) | 2026-06-25 | done | engineering |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

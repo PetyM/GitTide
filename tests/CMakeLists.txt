@@ -28,6 +28,7 @@ add_executable(gittide_core_tests
   test_git_repo_submodules.cpp
   test_git_repo_submodule_merge.cpp
   test_git_repo_sync.cpp
+  test_git_repo_watch.cpp
   test_graph_builder.cpp
   support/temprepo.cpp
   support/git_config_isolation.cpp
@@ -54,6 +55,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_repo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_watcher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_merge.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_async_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_theme.cpp

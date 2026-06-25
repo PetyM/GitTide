@@ -14,6 +14,7 @@
 #include "gittide/rebase.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
+#include "gittide/watch.hpp"
 
 struct git_repository;
 struct git_oid;
@@ -51,6 +52,13 @@ public:
 
     // Working-tree + index status (DEFINED in Task 7).
     Expected<std::vector<FileStatus>> status() const;
+
+    /// Directories to watch to keep this repository's view current (D35): every
+    /// non-ignored working-tree directory plus every directory inside the git
+    /// dir, with the working-tree and git-dir roots for classification. See
+    /// gittide::WatchTargets. Read-only; safe to call repeatedly to re-arm a
+    /// watcher after the tree's directory layout changes.
+    Expected<WatchTargets> watchTargets() const;
 
     // Diff a single file against the chosen target.
     Expected<DiffResult> diff(DiffTarget target, const std::filesystem::path& file) const;

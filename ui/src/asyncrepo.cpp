@@ -41,6 +41,17 @@ QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::stat
         });
 }
 
+QCoro::Task<gittide::Expected<gittide::WatchTargets>> AsyncRepo::watchTargets()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.watchTargets();
+        });
+}
+
 QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::diff(gittide::DiffTarget target, std::filesystem::path file)
 {
     auto impl = m_impl;

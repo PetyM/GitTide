@@ -369,6 +369,40 @@ private slots:
         QCOMPARE(spy.count(), 1);
         std::filesystem::remove_all(dir);
     }
+
+    // D35: an external working-tree change refreshes status with no explicit call.
+    void external_worktree_change_auto_refreshes_status()
+    {
+        const auto dir  = repo_controller_test::make_repo_with_commit();
+        const auto root = std::filesystem::canonical(dir); // match libgit2's canonical workdir
+        RepoController controller(nullptr, 30);            // small debounce for the test
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QTest::qWait(300); // let the initial rearmWatch arm the watcher
+
+        QSignalSpy spy(&controller, &RepoController::statusChanged);
+        std::ofstream(root / "external.txt") << "made outside GitTide\n";
+
+        QVERIFY(spy.wait(3000));
+        const auto files = spy.last().at(0).value<std::vector<gittide::FileStatus>>();
+        QVERIFY(!files.empty());
+        std::filesystem::remove_all(dir);
+    }
+
+    // D35: an external git-dir change runs the full cascade (history refreshes).
+    void external_gitdir_change_auto_refreshes_history()
+    {
+        const auto dir  = repo_controller_test::make_repo_with_commit();
+        const auto root = std::filesystem::canonical(dir);
+        RepoController controller(nullptr, 30);
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QTest::qWait(300);
+
+        QSignalSpy spy(&controller, &RepoController::historyReady);
+        std::ofstream(root / ".git" / "gittide-probe") << "x\n";
+
+        QVERIFY(spy.wait(3000));
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repo_controller.moc"

@@ -1,5 +1,6 @@
 #include <QObject>
 #include <QtTest/QtTest>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <git2.h>
@@ -185,6 +186,24 @@ private slots:
         auto list = QCoro::waitFor(repo->branches());
         QVERIFY(list.has_value());
         QVERIFY(list->size() == 2);
+        std::filesystem::remove_all(dir);
+    }
+
+    void watch_targets_runs_on_pool()
+    {
+        const auto dir = make_dirty_repo();
+        auto repo      = AsyncRepo::open(dir);
+        QVERIFY(repo.has_value());
+
+        auto t = QCoro::waitFor(repo->watchTargets());
+        QVERIFY(t.has_value());
+        QVERIFY(!t->workdir.empty());
+        QVERIFY(!t->gitDir.empty());
+        const bool hasGitDir = std::find(t->dirs.begin(), t->dirs.end(), t->gitDir) != t->dirs.end();
+        const bool hasWorkdir = std::find(t->dirs.begin(), t->dirs.end(), t->workdir) != t->dirs.end();
+        QVERIFY(hasGitDir);
+        QVERIFY(hasWorkdir);
+
         std::filesystem::remove_all(dir);
     }
 

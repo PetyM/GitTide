@@ -9,6 +9,8 @@
 #include "gittide/projectstore.hpp"
 #include "gittide/sync.hpp"
 
+class QTimer;
+
 namespace gittide::ui {
 
 class ProjectListModel;
@@ -33,7 +35,10 @@ class ProjectController : public QObject
     /// Human-readable result of the last fleet fetch, e.g. "12 fetched, 1 failed".
     Q_PROPERTY(QString fetchSummary READ fetchSummary NOTIFY fetchingAllChanged)
 public:
-    explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr);
+    /// @param pollIntervalMs how often, while the window is active, to re-read each
+    /// repo's local sync counts (D35). Injectable so tests can poll fast.
+    explicit ProjectController(gittide::ProjectStore* store, std::filesystem::path storePath = {}, QObject* parent = nullptr,
+                               int pollIntervalMs = 5000);
 
     ProjectListModel* projects() const
     {
@@ -76,6 +81,9 @@ public slots:
     // Fetch every non-missing repo in the active project in parallel. No-op when
     // there is no active project, no repos, or a fetch is already running.
     Q_INVOKABLE void fetchAll();
+    // Start/stop the low-frequency poll that keeps non-active repos' sidebar sync
+    // counts current (D35). Driven by the window's active state from QML.
+    Q_INVOKABLE void setWindowActive(bool active);
     // Store the credentials and re-fetch any repos that failed on auth. No-op
     // when no auth failures are pending or a fetch is already running.
     Q_INVOKABLE void submitFleetCredentials(const QString& username, const QString& token);
@@ -113,6 +121,11 @@ private:
     void refreshRepoModel();
     QCoro::Task<void> fetchOne(int row, gittide::RepoRef ref);
     void              finishOneFetch();                // counter bookkeeping + finalize
+
+    // One poll pass: re-read each non-missing top-level repo's local sync counts
+    // (HEAD vs its tracking ref — no network) and update the sidebar rows (D35).
+    QCoro::Task<void> pollRepos();
+    QTimer*           m_pollTimer = nullptr;
 };
 
 } // namespace gittide::ui

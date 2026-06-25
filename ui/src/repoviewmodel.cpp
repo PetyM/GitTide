@@ -347,6 +347,13 @@ void RepoViewModel::refreshHistory()
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
 }
 
+void RepoViewModel::resync()
+{
+    if (!m_open)
+        return;
+    QCoro::connect(m_controller->refreshAll(), this, [] {});
+}
+
 void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
 {
     m_lastLayout     = layout;

@@ -21,14 +21,22 @@ Q_DECLARE_METATYPE(gittide::RebaseState)
 
 namespace gittide::ui {
 
+class RepoWatcher;
+
 // Holds the active repository for a window and drives it asynchronously. open()
 // is synchronous (cheap); all git work runs through AsyncRepo on the thread pool.
 // Coroutine slots take args BY VALUE so they survive a co_await suspension.
+//
+// Live refresh (D35): the controller owns a RepoWatcher pointed at the open repo;
+// a working-tree change re-runs refreshStatus, a git-dir change re-runs the full
+// cascade (refreshAll), and the watch set is re-armed after each batch.
 class RepoController : public QObject
 {
     Q_OBJECT
 public:
-    explicit RepoController(QObject* parent = nullptr);
+    /// @param watchDebounceMs coalescing window for the live-refresh watcher
+    /// (injectable so tests can run fast).
+    explicit RepoController(QObject* parent = nullptr, int watchDebounceMs = 300);
 
     bool isOpen() const
     {
@@ -71,6 +79,9 @@ public slots:
     QCoro::Task<void> requestCommitMessage(QString oid);
 
     QCoro::Task<void> refreshSyncStatus();
+    /// Full refresh cascade: status + branches + history + sync. Used on open, on
+    /// a watcher-detected git-dir change, and on window-focus resync (D35).
+    QCoro::Task<void> refreshAll();
     QCoro::Task<void> fetch(gittide::Credentials cred);
     QCoro::Task<void> pull(gittide::Credentials cred);
     QCoro::Task<void> push(QString branch, bool setUpstream, gittide::Credentials cred);
@@ -187,11 +198,22 @@ private:
     // Re-init every path in m_pendingSubmoduleReinit, then clear the list.
     QCoro::Task<void> reinitPendingSubmodules();
 
+    // Re-fetch the watch set from the repo and re-arm the RepoWatcher (D35).
+    QCoro::Task<void> rearmWatch();
+    // Watcher-driven handlers: worktree change → status + re-arm; git-dir change
+    // → full cascade + re-arm.
+    QCoro::Task<void> onWatchWorktree();
+    QCoro::Task<void> onWatchGitDir();
+
     // Return the short HEAD branch name, or "HEAD" when detached.
     std::string currentBranchName();
 
     std::optional<AsyncRepo> m_repo;
     QString m_path;
+
+    // Live-refresh watcher for the open repo (D35); child QObject, owns its own
+    // QFileSystemWatcher + debounce timer.
+    RepoWatcher* m_watcher = nullptr;
 
     // Orchestration bookkeeping (D31) — NOT merge-state; D30 governs that.
     bool m_pendingStashPop = false;
