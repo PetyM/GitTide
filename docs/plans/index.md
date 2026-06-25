@@ -41,6 +41,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 20 — Interactive rebase engine (Tier 2)](2026-06-24-plan20-interactive-rebase.md) | 2026-06-24 | shipped | product · engineering · core |
 | [Plan 21 — Live refresh (file watching + fleet poll)](2026-06-25-plan21-live-refresh.md) | 2026-06-25 | done | engineering |
 | [Plan 22 — History-editing UX (squash · drag reorder · undo)](2026-06-25-plan22-history-editing-ux.md) | 2026-06-25 | done | product · design |
+| [Plan 23 — Whole-row drag + drag-to-squash](2026-06-25-plan23-history-drag-squash.md) | 2026-06-25 | done | product · design |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

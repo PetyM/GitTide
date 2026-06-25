@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-25 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [spec/product/2026-06-25-history-drag-squash-design.md](../spec/product/2026-06-25-history-drag-squash-design.md); extends [spec/product/rebase-interactive.md](../spec/product/rebase-interactive.md) §3.2, **D36** |
 | **Depends on** | Plan 20 (interactive-rebase engine), Plan 22 (history-editing UX: `reorderCommits`, `ReorderConfirmDialog`, `reorderableRunLength`) |
 
@@ -681,9 +681,23 @@ git commit -m "docs: record whole-row drag + drag-to-squash (D38, Plan 23, spec 
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <whole-row hold-to-drag + drag-to-squash in the history view>.
-> - Spec updated: rebase-interactive.md §3.2; decision D38.
-> - Code: `RepoViewModel::squashCommitInto`; `HistoryPane.qml` gesture +
->   `dropZoneAt` / `performDrop` / drop indicators.
+- **Shipped:** whole-row hold-to-drag (250 ms press-and-hold arms a `DragHandler`;
+  quick click still selects) + drag-to-squash via three-band drop zone in the history
+  view. Top/bottom third of the target row reorders (existing `ReorderConfirmDialog`
+  → `reorderCommits`); middle third squashes the dragged commit into the target
+  (`squashCommitInto` → combined-message `RewordDialog`). The `⠿` grip remains as a
+  discoverability hint. Live drop indicators: 2 px accent insertion line for
+  reorder, `surfaceOverlay` fill + "◆ squash" badge for squash.
+- **Spec updated:** `rebase-interactive.md` §3.2 (whole-row drag + three-band drop
+  zone); decision D38.
+- **Code:**
+  - `RepoViewModel::squashCommitInto(int fromRow, int toRow)` — new invokable,
+    sibling of `reorderCommits`; builds a `pick…/squash` plan and drives the engine.
+  - `HistoryPane.qml` — `QtObject { id: dropLogic; objectName: "historyPane" }`
+    anchor holding `dropZoneAt`, `performDrop`, `updateDropTarget`, and live
+    `dropTargetIndex`/`dropTargetZone` state; delegate-level `DragHandler#rowDrag`
+    armed by `Timer#holdTimer`; lifted-row visual (opacity 0.7 + accent border);
+    reorder-line and squash-highlight overlay items; updated grip tooltip.
+  - Crash hardening: `open()` and `close()` in `repoviewmodel.cpp` now call
+    `updateReorderableRun()` after clearing `m_lastLayout = {}`, preventing a stale
+    `reorderableRunLength` from indexing an empty rows vector (SIGSEGV).

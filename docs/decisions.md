@@ -255,6 +255,29 @@ an entry with a newer one if it changes.
   undo (out of scope; this is the focused last-commit case). →
   [`product`](spec/product/history-editing.md)
 
+- **D38 — Whole-row long-press drag + three-band drop zone disambiguates reorder
+  from squash in the history view.** History drag was grip-only (a 16 px `⠿` target
+  easy to miss) and squash had no direct-manipulation path. The whole commit row in
+  the reorderable run is now a drag source armed by a 250 ms press-and-hold (a quick
+  click still selects — no accidental reorder). A three-band drop zone on the target
+  row disambiguates: top/bottom thirds reorder (insert above/below, existing
+  confirmation), the middle third squashes the dragged commit into the target via
+  `squashCommitInto` → the combined-message `RewordDialog`. *Hold-to-drag over
+  grip-only:* the grip was undiscoverable; whole-row hold is the platform-standard
+  reorder gesture and keeps click-select intact — the grip stays as a hint.
+  *Drop-zone thirds over a modifier key:* Shift/Ctrl-to-squash is invisible; live
+  band indicators (insertion line vs. squash fill + "◆ squash" badge) show the
+  outcome before release (shape-differentiates, not colour-only — D19).
+  *Drag-squash opens the combined-message editor (no fixup via drag):* the
+  `RewordDialog` pause mirrors menu-driven squash; message-discarding fixup stays in
+  the todo editor; direction is fixed — the dragged commit folds into the target,
+  which keeps its slot. Hardening: `repoviewmodel.cpp` now calls
+  `updateReorderableRun()` after clearing `m_lastLayout` in both `open()` and
+  `close()`, preventing a stale `reorderableRunLength` from indexing an empty rows
+  vector (SIGSEGV). No core change: the D34 engine already squashes and pauses for
+  the message. Extends D36. →
+  [`product`](spec/product/rebase-interactive.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

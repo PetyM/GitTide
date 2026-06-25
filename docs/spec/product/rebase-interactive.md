@@ -291,13 +291,24 @@ combined message through the normal message-pause flow.
 
 #### Reorder directly in the history view
 
-Each history row in the **reorderable run** — the contiguous single-parent
-(non-merge) span from HEAD, exposed as `RepoViewModel::reorderableRunLength` — shows
-a drag grip. Dragging a row onto another run row opens a **confirmation**
-(`ReorderConfirmDialog`), then `reorderCommits(fromRow, toRow)` replays the run in
-the new order through the interactive engine (all `pick`s on the run's fixed base).
-Merges and the root are not draggable, and the already-pushed warning is deferred to
-network-sync (D36).
+Each row in the **reorderable run** — the contiguous single-parent (non-merge) span
+from HEAD, exposed as `RepoViewModel::reorderableRunLength` — is a drag source armed
+by a **250 ms press-and-hold** (a quick click still selects; no accidental reorder).
+The `⠿` grip is retained as a discoverability hint but the whole row is draggable.
+
+A **three-band drop zone** on the target row routes the release:
+- **Top/bottom third** → reorder: a 2 px accent insertion line previews the new
+  position; releasing opens the existing `ReorderConfirmDialog`, which drives
+  `reorderCommits(fromRow, toRow)` through the interactive engine (all `pick`s on the
+  run's fixed base).
+- **Middle third** → squash: a `surfaceOverlay` fill + "◆ squash" badge previews the
+  action; releasing calls `RepoViewModel::squashCommitInto(fromRow, toRow)`, which
+  folds the dragged commit into the target through the engine and pauses on the
+  combined-message `RewordDialog` — the same confirmation gate as menu-driven squash.
+
+Merges and the root are not draggable. The already-pushed warning is deferred to
+network-sync (D36). The whole-row gesture and drop-zone disambiguation are recorded
+in D38.
 
 ### 3.3 ViewModel state
 
