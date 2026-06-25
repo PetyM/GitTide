@@ -73,6 +73,42 @@ private slots:
         std::filesystem::remove(storePath);
     }
 
+    void setActiveRepo_persists_and_restores_with_stale_guard()
+    {
+        const auto base = std::filesystem::temp_directory_path() /
+                          ("gittide-pc-lar-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        const auto repoDir  = base / "repo";
+        const auto storePath = base / "projects.json";
+        std::filesystem::create_directories(repoDir);
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+
+        {
+            ProjectController controller(&store, storePath);
+            controller.activate(QStringLiteral("id-a"));
+            controller.setActiveRepo(QString::fromStdString(repoDir.generic_string()));
+            // Persisted to disk under the active project.
+            auto reloaded = ProjectStore::load(storePath);
+            QVERIFY(reloaded.has_value());
+            QCOMPARE(QString::fromStdString(reloaded->projects().front().lastActiveRepo),
+                     QString::fromStdString(repoDir.generic_string()));
+            // Live accessor returns it while the folder exists.
+            QCOMPARE(controller.lastActiveRepo(), QString::fromStdString(repoDir.generic_string()));
+        }
+
+        // Stale guard: once the folder is gone, the accessor reports empty so the
+        // caller falls back to the first repo.
+        std::filesystem::remove_all(repoDir);
+        {
+            ProjectController controller(&store, storePath);
+            controller.activate(QStringLiteral("id-a"));
+            QCOMPARE(controller.lastActiveRepo(), QString());
+        }
+
+        std::filesystem::remove_all(base);
+    }
+
     void activate_unknown_id_is_ignored()
     {
         ProjectStore store;

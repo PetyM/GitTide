@@ -260,9 +260,56 @@ void ProjectController::removeRepo(const QString& path)
     auto result = m_store->removeRepo(m_activeId.toStdString(), path.toStdString());
     if (!result)
         return; // silently ignore (shouldn't happen via UI)
+    // Drop the last-active hint if it pointed at the repo just removed, so the
+    // next launch doesn't try to reopen a repo no longer in the project.
+    for (auto& p : m_store->projects())
+    {
+        if (QString::fromStdString(p.id) == m_activeId && p.lastActiveRepo == path.toStdString())
+        {
+            p.lastActiveRepo.clear();
+            break;
+        }
+    }
     saveStore();
     refreshRepoModel();
     emit repoRemoved(path);
+}
+
+void ProjectController::setActiveRepo(const QString& path)
+{
+    if (m_activeId.isEmpty())
+        return;
+    const std::string id = m_activeId.toStdString();
+    const std::string s  = path.toStdString();
+    for (auto& p : m_store->projects())
+    {
+        if (p.id == id)
+        {
+            if (p.lastActiveRepo == s)
+                return; // unchanged — avoid a redundant disk write on every open
+            p.lastActiveRepo = s;
+            saveStore();
+            return;
+        }
+    }
+}
+
+QString ProjectController::lastActiveRepo() const
+{
+    const std::string id = m_activeId.toStdString();
+    for (const auto& p : m_store->projects())
+    {
+        if (p.id == id)
+        {
+            if (p.lastActiveRepo.empty())
+                return {};
+            std::error_code ec;
+            if (!std::filesystem::exists(std::filesystem::path(p.lastActiveRepo), ec) || ec)
+                return {}; // stale (folder gone) — caller falls back to first repo
+            return QString::fromStdString(p.lastActiveRepo);
+        }
+    }
+    return {};
 }
 
 void ProjectController::removeProject()

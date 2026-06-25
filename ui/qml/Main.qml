@@ -273,10 +273,14 @@ ApplicationWindow {
     function openFirstRepo() {
         if (!repoVm) return
         if (projectController && projectController.activeProjectId.length > 0
-                && repoModel && repoModel.rowCount() > 0)
-            repoVm.open(repoModel.firstRepoPath())
-        else
+                && repoModel && repoModel.rowCount() > 0) {
+            // Reopen the repo/subrepo left active last session; fall back to the
+            // first repo when there is no (valid) stored hint.
+            var last = projectController.lastActiveRepo()
+            repoVm.open(last.length > 0 ? last : repoModel.firstRepoPath())
+        } else {
             repoVm.close()
+        }
     }
 
     Connections {
@@ -292,5 +296,10 @@ ApplicationWindow {
         enabled: repoVm !== null
         function onAuthRequired() { credentialDialog.openDialog() }
         function onOperationFailed(message) { errorBanner.show(message) }
+        // Remember the open repo/subrepo so the next launch restores it.
+        function onChanged() {
+            if (projectController && repoVm.repoOpen && repoVm.repoPath.length > 0)
+                projectController.setActiveRepo(repoVm.repoPath)
+        }
     }
 }

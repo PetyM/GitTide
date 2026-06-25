@@ -88,6 +88,14 @@ public slots:
     // when no auth failures are pending or a fetch is already running.
     Q_INVOKABLE void submitFleetCredentials(const QString& username, const QString& token);
 
+    // Record the repo (or submodule) the user has open as the active project's
+    // "last active" hint and persist it, so the next launch reopens it. No-op when
+    // unchanged or with no active project. `path` empty clears the hint.
+    Q_INVOKABLE void setActiveRepo(const QString& path);
+    // The active project's last-active repo path, or empty when none is stored or
+    // the stored path no longer exists on disk (stale → caller falls back).
+    Q_INVOKABLE QString lastActiveRepo() const;
+
 signals:
     void activeProjectChanged();
     void projectActivated(const QString& projectId);

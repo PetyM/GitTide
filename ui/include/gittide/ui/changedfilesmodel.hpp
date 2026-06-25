@@ -28,7 +28,6 @@ public:
     enum Roles
     {
         DirRole = Qt::UserRole + 1,
-        DirShortRole,
         NameRole,
         PathRole,
         LetterRole,
@@ -54,16 +53,10 @@ public:
     static QString letterForFlags(gittide::StatusFlag flags);
     static QString kindForFlags(gittide::StatusFlag flags);
 
-    /// Collapse each directory segment of a "dir/" prefix to its first
-    /// character so the file name stays readable in narrow lists:
-    /// "some/long/path/to/" becomes "s/l/p/t/". Empty in, empty out.
-    static QString abbreviateDir(const QString& dir);
-
 private:
     struct Row
     {
         QString dir;
-        QString dirShort;
         QString name;
         QString path;
         QString letter;

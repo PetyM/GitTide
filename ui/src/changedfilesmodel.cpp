@@ -2,8 +2,6 @@
 
 #include <algorithm>
 
-#include <QStringList>
-
 #include "gittide/ui/metatypes.hpp"
 
 namespace gittide::ui {
