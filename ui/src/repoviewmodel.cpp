@@ -433,6 +433,50 @@ void RepoViewModel::reorderCommits(int fromRow, int toRow)
     QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
 }
 
+void RepoViewModel::squashCommitInto(int fromRow, int toRow)
+{
+    const int n = m_reorderableRunLength;
+    if (n < 2 || fromRow == toRow)
+        return;
+    if (fromRow < 0 || fromRow >= n || toRow < 0 || toRow >= n)
+        return;
+
+    // Build the run newest-first (index 0 == HEAD), same as reorderCommits.
+    QList<QString> run;
+    run.reserve(n);
+    for (int i = 0; i < n; ++i)
+        run << QString::fromStdString(m_lastLayout.rows[i].commit.oid);
+
+    // Detach onto the parent of the run's (original) oldest commit.
+    const auto& deepest = m_lastLayout.rows[n - 1].commit;
+    if (deepest.parents.empty())
+        return; // defensive: run members always have one parent
+    const QString base = QString::fromStdString(deepest.parents[0]);
+
+    const QString dragged = run[fromRow];
+    const QString target  = run[toRow];
+
+    // Place the dragged commit immediately *newer-adjacent* to the target, then
+    // mark it squash. The engine reads the plan oldest-first and folds a squash
+    // entry into the preceding kept commit; placing dragged directly after target
+    // in oldest-first order folds dragged into target. In this newest-first list,
+    // "directly after target oldest-first" == "directly before target here", i.e.
+    // insert at the target's index so dragged sits one slot newer than target.
+    run.removeAt(fromRow);
+    const int t = run.indexOf(target);
+    run.insert(t, dragged);
+
+    // Hand the engine the plan oldest-first: all picks, except the dragged commit
+    // is squash.
+    QStringList oids, actions;
+    for (auto it = run.rbegin(); it != run.rend(); ++it)
+    {
+        oids << *it;
+        actions << (*it == dragged ? QStringLiteral("squash") : QStringLiteral("pick"));
+    }
+    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+}
+
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
 {
     // Preserve the user's per-file selection across refreshes. The live watcher

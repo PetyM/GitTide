@@ -219,6 +219,12 @@ public:
     /// reorderable run (both must be < reorderableRunLength). Replays the run in the
     /// new order via an interactive rebase (all picks). No-op if out of range.
     Q_INVOKABLE void reorderCommits(int fromRow, int toRow);
+    /// Squash the commit at @p fromRow into the commit at @p toRow (both
+    /// newest-first indices into the reorderable run). The dragged commit folds
+    /// into the target; the combined commit keeps the target's slot. Drives the
+    /// interactive engine, which pauses on the combined message (RewordDialog).
+    /// No-op unless both rows are in [0, reorderableRunLength) and differ.
+    Q_INVOKABLE void squashCommitInto(int fromRow, int toRow);
     /// Continue the in-progress rebase after resolving conflicts or with a commit message.
     Q_INVOKABLE void continueRebase(const QString& message = QString());
     /// Skip the current conflicting commit and advance to the next step.

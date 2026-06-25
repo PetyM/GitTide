@@ -234,6 +234,39 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    /// squashCommitInto folds the dragged commit into the target: squashing the
+    /// newest commit (row 0) into the second-newest (row 1) yields one combined
+    /// commit at the target's slot, carrying both commits' changes.
+    void squash_commit_into_folds_dragged_into_target()
+    {
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(3); // newest-first: c2, c1, c0
+        QCOMPARE(repo_view_model_rebase_test::headMessage(dir), std::string("c2\n"));
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        // Drag c2 (row 0) onto c1 (row 1) → squash c2 into c1.
+        QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
+
+        // The engine pauses for the combined message (squash), prefilled target-then-dragged.
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 5000);
+        QVERIFY(vm.property("rebaseMessagePrefill").toString().contains(QStringLiteral("c1")));
+        QVERIFY(vm.property("rebaseMessagePrefill").toString().contains(QStringLiteral("c2")));
+
+        // Confirm the combined message → rebase completes.
+        QMetaObject::invokeMethod(&vm, "continueRebase", Q_ARG(QString, QStringLiteral("c1+c2\n")));
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.rebaseInProgress(), 5000);
+
+        // HEAD is the combined commit (target's identity, new message), and it carries
+        // the dragged commit's file (f2.txt from c2) folded in.
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1+c2\n"), 3000);
+        QVERIFY(std::filesystem::exists(dir / "f2.txt"));
+        QVERIFY(std::filesystem::exists(dir / "f1.txt"));
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_repoviewmodel_rebase.moc"
