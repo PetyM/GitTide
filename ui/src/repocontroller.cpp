@@ -5,6 +5,7 @@
 #include <set>
 #include <utility>
 
+#include <QDir>
 #include <QPointer>
 #include <QVariant>
 
@@ -71,6 +72,7 @@ void RepoController::open(const QString& path)
     {
         m_repo.reset();
         m_path.clear();
+        m_watcher->setActiveFile(QString());
         m_watcher->clear();
         logf(LogLevel::Warning, logcat::UI, "open repo '{}' failed: {}", path.toStdString(), result.error().message);
         emit repoFailed(path, QString::fromStdString(result.error().message));
@@ -78,6 +80,8 @@ void RepoController::open(const QString& path)
     }
     m_repo.emplace(std::move(*result));
     m_path = path;
+    // New repo: no file on screen yet — drop the previous repo's per-file watch.
+    m_watcher->setActiveFile(QString());
     emit repoOpened(path);
     // Arm the live-refresh watcher for the newly-opened repo (D35).
     QCoro::connect(rearmWatch(), this, []() {});
@@ -119,6 +123,10 @@ QCoro::Task<void> RepoController::refreshDiff(QString path, gittide::DiffTarget 
 {
     if (!m_repo)
         co_return;
+    // Watch the on-screen file so in-place content edits (which directory watches
+    // miss) refresh its diff. Absolute path = workdir + repo-relative path.
+    if (m_watcher && !path.isEmpty())
+        m_watcher->setActiveFile(QDir(m_path).filePath(path));
     QPointer<RepoController> self = this;
     auto result = co_await m_repo->diff(target, qstringToPath(path));
     if (!self)

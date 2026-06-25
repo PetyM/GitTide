@@ -129,6 +129,14 @@ the UI refreshed only after its *own* actions; see [D35](../../decisions.md).)
   ignore rules (so `node_modules` / `build` are pruned) and enumerates the git
   dir — keeping libgit2 in `core/` (invariants #1/#2). The controller re-arms the
   set after each batch, so newly created subdirectories start being watched.
+  - **Plus the on-screen file.** Directory watches catch listing changes but miss
+    an **in-place content edit** of an existing file (Linux inotify dir-watches
+    ignore child `IN_MODIFY`), which would leave the open diff stale. So
+    `refreshDiff` also calls `RepoWatcher::setActiveFile(absPath)` to add a single
+    **per-file** watch for the file currently shown; its change reports the
+    worktree scope, refreshing status and re-loading that file's diff. The per-file
+    watch survives `watch()` re-arms and is recovered when a rename-on-save editor
+    drops the inotify watch; it is reset on `open()`.
 - **Events are debounced and classified.** Bursty FS events (a build, a multi-file
   save, a multi-step git op) are coalesced by a short timer (injectable for
   tests). On fire the watcher emits the **scope**: a worktree-only change triggers

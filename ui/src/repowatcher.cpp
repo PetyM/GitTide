@@ -41,6 +41,24 @@ void RepoWatcher::watch(const gittide::WatchTargets& targets)
             logf(LogLevel::Debug, logcat::ASYNC, "RepoWatcher: {} of {} paths could not be watched",
                  failed.size(), paths.size());
     }
+
+    // Re-arm the per-file watch: watch() rebuilds the whole set, but the on-screen
+    // file's watch must persist across re-arms (and editors that rename-on-save
+    // drop their inotify watch, so re-adding here recovers it).
+    if (!m_activeFile.isEmpty())
+        m_fsw->addPath(m_activeFile);
+}
+
+void RepoWatcher::setActiveFile(const QString& absPath)
+{
+    const QString clean = absPath.isEmpty() ? QString() : QDir::cleanPath(absPath);
+    if (clean == m_activeFile)
+        return;
+    if (!m_activeFile.isEmpty())
+        m_fsw->removePath(m_activeFile);
+    m_activeFile = clean;
+    if (!m_activeFile.isEmpty())
+        m_fsw->addPath(m_activeFile);
 }
 
 void RepoWatcher::clear()

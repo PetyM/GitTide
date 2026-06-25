@@ -46,6 +46,28 @@ private slots:
         QVERIFY(workSpy.wait(3000));
     }
 
+    // An in-place content edit of an existing file is missed by directory watches
+    // (Linux inotify dir-watch ignores child IN_MODIFY). setActiveFile adds a
+    // per-file watch so the on-screen diff still refreshes.
+    void active_file_content_edit_emits_worktree_scope()
+    {
+        gittide::test::TempRepo repo;
+        const auto targets = targetsFor(repo); // commits a.txt
+
+        RepoWatcher watcher(30);
+        watcher.watch(targets);
+        watcher.setActiveFile(QString::fromStdString((targets.workdir / "a.txt").generic_string()));
+        QTest::qWait(400); // drain residual setup FSEvents
+        QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
+
+        // Overwrite a.txt in place — no directory-listing change, pure content edit.
+        {
+            std::ofstream(targets.workdir / "a.txt") << "hello changed\n";
+        }
+
+        QVERIFY(workSpy.wait(3000));
+    }
+
     void gitdir_change_emits_gitdir_scope()
     {
         gittide::test::TempRepo repo;

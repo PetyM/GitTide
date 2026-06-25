@@ -35,6 +35,12 @@ public:
     /// Stop watching everything and drop any pending batch.
     void clear();
 
+    /// Additionally watch a single file by absolute path (the diff currently on
+    /// screen). Directory watches miss in-place content edits of an existing file
+    /// — a per-file watch catches them so the open diff refreshes. Empty clears it.
+    /// Survives watch() re-arming. A change is reported as worktreeChanged().
+    void setActiveFile(const QString& absPath);
+
     /// Drop filesystem events (call around the controller's own mutations).
     void mute();
     /// Resume watching. Trailing events within one debounce window are still
@@ -53,6 +59,7 @@ private:
     QFileSystemWatcher* m_fsw;
     QTimer*             m_timer;
     QString             m_gitDirPrefix;       ///< cleaned git-dir path (no trailing slash)
+    QString             m_activeFile;         ///< cleaned abs path of the on-screen file, or empty
     int                 m_debounceMs;
     bool                m_muted       = false;
     bool                m_pendingWork = false;
