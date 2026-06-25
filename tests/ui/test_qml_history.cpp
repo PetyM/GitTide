@@ -77,6 +77,46 @@ inline std::filesystem::path make_empty_repo()
     git_libgit2_shutdown();
     return dir;
 }
+/// Build a linear repo with N commits, each adding a distinct file f0..fN-1.
+/// reorderableRunLength will be N-1 (all commits except the root are reorderable).
+inline std::filesystem::path makeLinearRepo(int n)
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path()
+               / ("gittide-qhlin-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr; git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+
+    for (int i = 0; i < n; ++i)
+    {
+        const std::string name = "f" + std::to_string(i) + ".txt";
+        std::ofstream(dir / name) << "x\n";
+        git_index* idx = nullptr; git_repository_index(&idx, raw);
+        git_index_add_bypath(idx, name.c_str()); git_index_write(idx);
+        git_oid tree_oid; git_index_write_tree(&tree_oid, idx);
+        git_tree* tree = nullptr; git_tree_lookup(&tree, raw, &tree_oid);
+        git_signature* sig = nullptr; git_signature_now(&sig, "T", "t@e.x");
+        git_commit* parent = nullptr; git_oid parent_oid;
+        git_commit* parents[1] = { nullptr }; size_t pc = 0;
+        if (git_reference_name_to_id(&parent_oid, raw, "HEAD") == 0
+            && git_commit_lookup(&parent, raw, &parent_oid) == 0)
+        {
+            parents[0] = parent; pc = 1;
+        }
+        git_oid commit_oid;
+        const std::string msg = "c" + std::to_string(i) + "\n";
+        git_commit_create(&commit_oid, raw, "HEAD", sig, sig, nullptr, msg.c_str(), tree, pc, parents);
+        if (parent) git_commit_free(parent);
+        git_signature_free(sig); git_tree_free(tree); git_index_free(idx);
+    }
+    git_repository_free(raw); git_libgit2_shutdown();
+    return dir;
+}
 } // namespace qml_history_test
 
 namespace {
@@ -373,6 +413,85 @@ private slots:
         QMetaObject::invokeMethod(pane, "dropZoneAt", Q_RETURN_ARG(QString, zone),
                                   Q_ARG(QVariant, 44.0), Q_ARG(QVariant, h));
         QCOMPARE(zone, QStringLiteral("below"));
+    }
+
+    void perform_drop_squash_routes_to_squash_commit_into()
+    {
+        const auto dir = qml_history_test::makeLinearRepo(3); // run length 2
+
+        ThemeManager mgr; mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        // Main.qml's Component.onCompleted calls openFirstRepo() → repoVm.close()
+        // (no projectController in test). m_lastLayout is now empty but
+        // m_reorderableRunLength is stale (still 2). Re-open and wait for a real
+        // modelReset so m_lastLayout is repopulated before squashCommitInto runs.
+        {
+            QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historyReady2.wait(3000));
+        }
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QObject* pane = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("historyPane"));
+        QVERIFY(pane != nullptr);
+
+        // Squash row 0 into row 1 → engine pauses for the combined message.
+        QMetaObject::invokeMethod(pane, "performDrop",
+                                  Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("squash")));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 5000);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void perform_drop_reorder_opens_confirm_dialog()
+    {
+        const auto dir = qml_history_test::makeLinearRepo(3);
+
+        ThemeManager mgr; mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        // Main.qml's Component.onCompleted calls openFirstRepo() → repoVm.close()
+        // (no projectController in test). m_lastLayout is now empty but
+        // m_reorderableRunLength is stale (still 2). Re-open and wait for a real
+        // modelReset so m_lastLayout is repopulated before performDrop runs.
+        {
+            QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historyReady2.wait(3000));
+        }
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QObject* root = engine.rootObjects().first();
+        QObject* pane = root->findChild<QObject*>(QStringLiteral("historyPane"));
+        QVERIFY(pane != nullptr);
+
+        // Reorder (below) row 0 onto row 1 → the confirm dialog opens (no engine drive yet).
+        QMetaObject::invokeMethod(pane, "performDrop",
+                                  Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("below")));
+        QObject* dlg = root->findChild<QObject*>(QStringLiteral("reorderConfirmDialog"));
+        QVERIFY(dlg != nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(dlg->property("visible").toBool(), 3000);
+        // Reorder must NOT have driven the engine directly.
+        QCOMPARE(vm.property("rebaseInProgress").toBool(), false);
+
+        std::filesystem::remove_all(dir);
     }
 };
 

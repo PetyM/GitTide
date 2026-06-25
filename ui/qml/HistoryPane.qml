@@ -35,6 +35,20 @@ RowLayout {
                 return "below"
             return "squash"
         }
+
+        // Route a released drag: squash folds the dragged commit into the target;
+        // reorder (above/below) goes through the existing confirmation dialog. Both
+        // source and target must lie in the reorderable run and differ.
+        function performDrop(fromIndex: var, toIndex: var, zone: var) {
+            if (!repoVm)
+                return
+            if (toIndex < 0 || toIndex >= repoVm.reorderableRunLength || toIndex === fromIndex)
+                return
+            if (zone === "squash")
+                repoVm.squashCommitInto(fromIndex, toIndex)
+            else
+                reorderConfirm.openFor(fromIndex, toIndex)
+        }
     }
 
     // ---- Commit context menu (right-click on a history row) ----
