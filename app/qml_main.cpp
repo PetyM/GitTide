@@ -1,4 +1,5 @@
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDir>
@@ -26,6 +27,12 @@ int main(int argc, char** argv)
     QGuiApplication app(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("gittide"));
     QGuiApplication::setOrganizationName(QStringLiteral("gittide"));
+
+    // Dock / taskbar icon. Without this the window manager falls back to a
+    // generic icon; setDesktopFileName ties the running window to the installed
+    // .desktop entry so the WM groups them under the same icon.
+    QGuiApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/gittide-icon.svg")));
+    QGuiApplication::setDesktopFileName(QStringLiteral("gittide"));
 
     // Wire diagnostics first: bridge core's Qt-free log facade onto Qt's category
     // machinery and start logging to the console + a rotating file. Verbosity is
