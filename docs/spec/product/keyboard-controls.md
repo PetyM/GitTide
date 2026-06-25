@@ -16,6 +16,10 @@ activation of flows that already exist — no new git capability. Pure `ui/` wor
 
 ## 1. Focus model
 
+Clicking a row in any navigable list (`fileList`, `historyList`,
+`commitFilesList`) also gives that list active focus, so the arrow keys drive it
+immediately without a separate Tab — mouse and keyboard share one cursor.
+
 The sidebar `repoTree` is the first stop in the cycle, shared by both tabs, so
 Tab walks **sidebar → working pane → back to sidebar**. Because `repoTree` lives
 in `Sidebar` and the lists live in `WorkingPane`, the wrap is plumbed through

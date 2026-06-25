@@ -89,6 +89,23 @@ private slots:
         QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::Conflicted), QStringLiteral("C"));
         QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::Conflicted), QStringLiteral("conflict"));
     }
+
+    void abbreviate_dir_collapses_segments_to_first_char()
+    {
+        QCOMPARE(ChangedFilesModel::abbreviateDir(QStringLiteral("some/long/path/to/")),
+                 QStringLiteral("s/l/p/t/"));
+        QCOMPARE(ChangedFilesModel::abbreviateDir(QStringLiteral("src/")), QStringLiteral("s/"));
+        QCOMPARE(ChangedFilesModel::abbreviateDir(QString()), QString());
+    }
+
+    void model_exposes_abbreviated_dir_role()
+    {
+        ChangedFilesModel m;
+        m.setFiles({{std::filesystem::path("some/long/path/to/file.txt"), StatusFlag::WtModified}});
+        const int shortDir = roleKey(m, "fileDirShort");
+        QVERIFY(shortDir != -1);
+        QCOMPARE(m.data(m.index(0, 0), shortDir).toString(), QStringLiteral("s/l/p/t/"));
+    }
 };
 
 #include "test_changed_files_model.moc"

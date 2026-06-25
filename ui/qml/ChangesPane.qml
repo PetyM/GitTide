@@ -128,6 +128,7 @@ SplitView {
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton
                         onClicked: {
+                            fileList.forceActiveFocus()   // arrows work right after a click
                             fileList.currentIndex = index
                             if (repoVm) repoVm.selectFile(model.filePath)
                         }

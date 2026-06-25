@@ -105,6 +105,7 @@ ColumnLayout {
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
+                        commitFilesList.forceActiveFocus()   // arrows work right after a click
                         commitFilesList.currentIndex = index
                         if (repoVm) repoVm.selectCommitFile(model.filePath)
                     }

@@ -111,6 +111,7 @@ RowLayout {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
+                        historyList.forceActiveFocus()   // arrows work right after a click
                         if (mouse.button === Qt.RightButton) {
                             // Right-clicking inside an existing multi-selection keeps
                             // it (so "Squash N commits…" applies to the whole range);
