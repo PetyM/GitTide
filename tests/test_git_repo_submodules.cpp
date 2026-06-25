@@ -1,12 +1,69 @@
 #include "gittide/gitrepo.hpp"
 #include "gittide/submodule.hpp"
 #include "support/temprepo.hpp"
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <fstream>
 
 using gittide::GitRepo;
 using gittide::SubmoduleStatus;
+
+TEST_CASE("status tags a changed submodule and splits pointer-move from dirtiness", "[submodules][status]")
+{
+    gittide::test::TempRepo child;
+    child.writeFile("a.txt", "x\n");
+    child.commitAll("c1");
+    child.writeFile("a.txt", "x2\n");
+    child.commitAll("c2"); // child HEAD = c2
+
+    gittide::test::TempRepo parent;
+    parent.writeFile("top.txt", "p\n");
+    parent.commitAll("parent");
+    parent.addSubmodule("libchild", child.path()); // pins c2, checks out c2
+    parent.commitAll("add submodule");
+
+    auto childRepo = GitRepo::open(parent.path() / "libchild");
+    REQUIRE(childRepo.has_value());
+    auto commits = childRepo->log();
+    REQUIRE(commits.has_value());
+    REQUIRE(commits->size() == 2);
+    const std::string c1 = commits->back().oid; // oldest
+
+    const auto submoduleRow = [](const std::vector<gittide::FileStatus>& st)
+    {
+        return std::find_if(st.begin(), st.end(),
+                            [](const gittide::FileStatus& f) { return f.path == "libchild"; });
+    };
+
+    SECTION("clean pointer move: submodule HEAD != pin, working tree clean")
+    {
+        REQUIRE(childRepo->checkoutCommit(c1).has_value()); // HEAD = c1, clean
+
+        auto repo = GitRepo::open(parent.path());
+        REQUIRE(repo.has_value());
+        auto st = repo->status();
+        REQUIRE(st.has_value());
+        auto it = submoduleRow(*st);
+        REQUIRE(it != st->end());
+        REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::Submodule));
+        REQUIRE_FALSE(gittide::hasFlag(it->flags, gittide::StatusFlag::SubmoduleDirty));
+    }
+
+    SECTION("dirty: uncommitted work inside the submodule working tree")
+    {
+        std::ofstream(parent.path() / "libchild" / "a.txt", std::ios::binary) << "x2\nlocal\n";
+
+        auto repo = GitRepo::open(parent.path());
+        REQUIRE(repo.has_value());
+        auto st = repo->status();
+        REQUIRE(st.has_value());
+        auto it = submoduleRow(*st);
+        REQUIRE(it != st->end());
+        REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::Submodule));
+        REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::SubmoduleDirty));
+    }
+}
 
 TEST_CASE("SubmoduleNode defaults are empty/clean", "[submodules]")
 {

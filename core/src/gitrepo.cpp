@@ -74,6 +74,30 @@ gittide::StatusFlag mapStatus(unsigned int s)
     return f;
 }
 
+// Submodule working-tree dirtiness (uncommitted work *inside* the submodule),
+// excluding the pointer-moved bit (WD_MODIFIED) which is a clean pointer change.
+constexpr unsigned kSubmoduleWorkdirDirtyMask =
+    GIT_SUBMODULE_STATUS_WD_INDEX_MODIFIED | GIT_SUBMODULE_STATUS_WD_WD_MODIFIED |
+    GIT_SUBMODULE_STATUS_WD_UNTRACKED | GIT_SUBMODULE_STATUS_WD_DELETED;
+
+// Submodule status bits for a changed gitlink at `path`: Submodule, plus
+// SubmoduleDirty when the submodule's own working tree carries uncommitted work.
+// Staging a submodule always records its HEAD (last commit), so dirtiness is a
+// warning, never recorded into the superproject.
+gittide::StatusFlag submoduleFlagsFor(git_repository* repo, const char* path)
+{
+    using gittide::StatusFlag;
+    unsigned sf = 0;
+    // git_submodule_status takes the submodule *name*; for the common case it
+    // equals the path. If it can't be read, the gitlink is still a submodule.
+    if (git_submodule_status(&sf, repo, path, GIT_SUBMODULE_IGNORE_UNSPECIFIED) != 0)
+        return StatusFlag::Submodule;
+    StatusFlag out = StatusFlag::Submodule;
+    if (sf & kSubmoduleWorkdirDirtyMask)
+        out |= StatusFlag::SubmoduleDirty;
+    return out;
+}
+
 // Maps each local branch checked out in a *linked* worktree to that worktree's
 // path. Branches not held by any linked worktree are absent from the map.
 std::map<std::string, std::string> worktreeBranchPaths(git_repository* repo)
@@ -233,12 +257,17 @@ Expected<std::vector<FileStatus>> GitRepo::status() const
     for (size_t i = 0; i < n; ++i)
     {
         const git_status_entry* e = git_status_byindex(list.get(), i);
-        const char* raw           = e->head_to_index      ? e->head_to_index->new_file.path
-                                    : e->index_to_workdir ? e->index_to_workdir->new_file.path
-                                                          : nullptr;
+        const git_diff_file* nf   = e->index_to_workdir ? &e->index_to_workdir->new_file
+                                    : e->head_to_index  ? &e->head_to_index->new_file
+                                                        : nullptr;
+        const char* raw           = nf ? nf->path : nullptr;
         if (!raw)
             continue;
         StatusFlag flags = mapStatus(e->status);
+        // A gitlink (mode 0160000) is a submodule pointer change; tag it (and its
+        // working-tree dirtiness) so the UI can offer the tri-state pointer update.
+        if (nf->mode == GIT_FILEMODE_COMMIT)
+            flags |= submoduleFlagsFor(m_repo, raw);
         // Skip statuses this milestone does not model (rename, typechange,
         // conflict, ignored) — emitting them with flags==None would mislead
         // callers. Add the corresponding StatusFlag values to represent them.

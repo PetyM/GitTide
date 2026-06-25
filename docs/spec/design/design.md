@@ -147,7 +147,15 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
     *everything* was already checked, otherwise unchecked, so a refresh never
     silently grows a partial selection. A fresh open (no prior selection) defaults
     to all-checked.
-- **Diff gutter & line checkboxes.** Added lines `state.added`, deleted
+  - **Submodule pointer rows.** A changed submodule (gitlink) carries a **tri-state**
+    checkbox, auto-derived from the submodule's state — unchecked = leave the pin;
+    full check = included and the submodule is clean; **partial (dash)** = included
+    but the submodule's working tree is *dirty* (uncommitted work). Either checked
+    form commits the same thing: the submodule's **HEAD (last commit)** is recorded
+    — git never pins the dirty content, so a superproject can't record a `-dirty`
+    pointer. The partial state is a warning (hover tooltip) that committing leaves
+    those uncommitted changes behind in the submodule. Submodule rows always stage
+    whole-file, never per-line. Added lines `state.added`, deleted
   `state.deleted` at low-alpha background with a full-strength sign in the gutter;
   mono font. In working-changes (editable) mode each line carries a leading
   checkbox; in history (read-only) mode no checkboxes appear.

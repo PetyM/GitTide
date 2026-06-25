@@ -50,7 +50,10 @@ public:
     // dest must not exist (libgit2 creates it). Returns error on failure or cancel.
     static Expected<GitRepo> clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb);
 
-    // Working-tree + index status (DEFINED in Task 7).
+    // Working-tree + index status. A changed submodule gitlink carries
+    // StatusFlag::Submodule, plus StatusFlag::SubmoduleDirty when the submodule's
+    // own working tree has uncommitted work (staging a submodule always records its
+    // HEAD, so dirtiness is surfaced, never pinned).
     Expected<std::vector<FileStatus>> status() const;
 
     /// Directories to watch to keep this repository's view current (D35): every

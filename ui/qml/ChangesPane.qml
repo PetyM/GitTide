@@ -155,10 +155,18 @@ SplitView {
                         spacing: 8
 
                         AppCheckBox {
-                            checkState: model.checkState === 2 ? Qt.Checked
+                            // A checked submodule whose working tree is dirty renders
+                            // as partial (a dash): committing moves its pointer to the
+                            // submodule's last commit, leaving the uncommitted changes
+                            // behind in the submodule. Clean/normal rows map directly.
+                            checkState: (model.isSubmodule && model.submoduleDirty && model.checkState === 2)
+                                          ? Qt.PartiallyChecked
+                                        : model.checkState === 2 ? Qt.Checked
                                         : model.checkState === 1 ? Qt.PartiallyChecked
                                         : Qt.Unchecked
                             onClicked: if (repoVm) repoVm.setFileChecked(index, model.checkState !== 2)
+                            ToolTip.visible: hovered && model.isSubmodule && model.submoduleDirty
+                            ToolTip.text: qsTr("Submodule has uncommitted changes — committing moves its pointer to the last commit; the changes stay in the submodule.")
                         }
                         Label {
                             id: pathLabel

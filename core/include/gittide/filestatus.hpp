@@ -14,6 +14,8 @@ enum class StatusFlag : std::uint32_t
     WtModified    = 1 << 4, // unstaged: modified
     WtDeleted     = 1 << 5, // unstaged: deleted
     Conflicted    = 1 << 6, // index has conflict stages (mid-merge)
+    Submodule      = 1 << 7, // entry is a submodule gitlink (pointer differs from pin)
+    SubmoduleDirty = 1 << 8, // submodule working tree has uncommitted work (only with Submodule)
 };
 
 constexpr StatusFlag operator|(StatusFlag a, StatusFlag b)

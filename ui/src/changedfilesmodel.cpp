@@ -75,6 +75,10 @@ QVariant ChangedFilesModel::data(const QModelIndex& index, int role) const
         return r.kind;
     case CheckRole:
         return static_cast<int>(r.check);
+    case IsSubmoduleRole:
+        return gittide::hasFlag(r.flags, gittide::StatusFlag::Submodule);
+    case SubmoduleDirtyRole:
+        return gittide::hasFlag(r.flags, gittide::StatusFlag::SubmoduleDirty);
     default:
         return {};
     }
@@ -89,6 +93,8 @@ QHash<int, QByteArray> ChangedFilesModel::roleNames() const
         {LetterRole, "statusLetter"},
         {KindRole, "statusKind"},
         {CheckRole, "checkState"},
+        {IsSubmoduleRole, "isSubmodule"},
+        {SubmoduleDirtyRole, "submoduleDirty"},
     };
 }
 
@@ -141,6 +147,13 @@ ChangedFilesModel::Check ChangedFilesModel::checkState(int row) const
     if (row < 0 || row >= static_cast<int>(m_rows.size()))
         return Unchecked;
     return m_rows[static_cast<std::size_t>(row)].check;
+}
+
+bool ChangedFilesModel::isSubmodule(int row) const
+{
+    if (row < 0 || row >= static_cast<int>(m_rows.size()))
+        return false;
+    return gittide::hasFlag(m_rows[static_cast<std::size_t>(row)].flags, gittide::StatusFlag::Submodule);
 }
 
 QString ChangedFilesModel::pathAt(int row) const

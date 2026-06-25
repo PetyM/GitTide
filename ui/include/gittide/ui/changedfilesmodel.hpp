@@ -35,6 +35,8 @@ public:
         LetterRole,
         KindRole,
         CheckRole,
+        IsSubmoduleRole,    ///< bool: row is a submodule pointer change
+        SubmoduleDirtyRole, ///< bool: submodule has uncommitted work (only with IsSubmodule)
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -48,6 +50,9 @@ public:
     Q_INVOKABLE void setChecked(int row, bool checked);
     void setCheckState(int row, Check state);
     Check checkState(int row) const;
+    /// True when the row is a submodule pointer change (gitlink). Such rows always
+    /// stage whole-file (recording the submodule's HEAD), never per-line.
+    bool isSubmodule(int row) const;
     QString pathAt(int row) const;
     int rowForPath(const QString& path) const;
     int checkedCount() const;

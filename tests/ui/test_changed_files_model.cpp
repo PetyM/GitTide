@@ -92,6 +92,33 @@ private slots:
         QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::Conflicted), QStringLiteral("C"));
         QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::Conflicted), QStringLiteral("conflict"));
     }
+
+    void submodule_rows_expose_pointer_and_dirty_flags()
+    {
+        ChangedFilesModel m;
+        m.setFiles({
+            {std::filesystem::path("clean.sub"), StatusFlag::WtModified | StatusFlag::Submodule},
+            {std::filesystem::path("dirty.sub"),
+             StatusFlag::WtModified | StatusFlag::Submodule | StatusFlag::SubmoduleDirty},
+            {std::filesystem::path("plain.txt"), StatusFlag::WtModified},
+        });
+
+        const int isSub  = roleKey(m, "isSubmodule");
+        const int dirty  = roleKey(m, "submoduleDirty");
+
+        // Clean submodule: pointer change, not dirty.
+        QCOMPARE(m.data(m.index(0, 0), isSub).toBool(), true);
+        QCOMPARE(m.data(m.index(0, 0), dirty).toBool(), false);
+        QVERIFY(m.isSubmodule(0));
+
+        // Dirty submodule: pointer change with uncommitted work.
+        QCOMPARE(m.data(m.index(1, 0), isSub).toBool(), true);
+        QCOMPARE(m.data(m.index(1, 0), dirty).toBool(), true);
+
+        // Plain file: neither.
+        QCOMPARE(m.data(m.index(2, 0), isSub).toBool(), false);
+        QVERIFY(!m.isSubmodule(2));
+    }
 };
 
 #include "test_changed_files_model.moc"

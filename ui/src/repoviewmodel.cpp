@@ -296,7 +296,14 @@ void RepoViewModel::commit(const QString& summary, const QString& description)
         if (rowState == ChangedFilesModel::Unchecked)
             continue;
         const std::filesystem::path fsPath = qstringToPath(path);
-        if (rowState == ChangedFilesModel::Partial)
+        // A submodule always stages whole-file: git records its HEAD (last commit),
+        // never the dirty working content, so the superproject can't pin a "-dirty"
+        // pointer. The dirty/partial UI state is a warning only — never line-staging.
+        if (m_files->isSubmodule(row))
+        {
+            selections.push_back(gittide::StageSelection{.path = fsPath, .hunkIndex = std::nullopt, .lineIndices = {}});
+        }
+        else if (rowState == ChangedFilesModel::Partial)
         {
             const auto it = m_sel.find(path);
             if (it != m_sel.end())
