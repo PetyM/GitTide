@@ -128,11 +128,18 @@ RowLayout {
             }
 
             delegate: Rectangle {
+                readonly property int rowHeight: 48
                 width: ListView.view.width
-                height: 48
+                height: rowHeight
                 color: (ListView.isCurrentItem
                         || historyList.selectedRows.indexOf(index) >= 0)
                        ? theme.surfaceOverlay : "transparent"
+
+                // Whole-row hold-to-drag gesture state.
+                property bool dragArmed: false
+                opacity: dragArmed ? 0.7 : 1.0
+                border.width: dragArmed ? 1 : 0
+                border.color: theme.accent
 
                 // Accent left border on the selected row (over the graph cell, x=0).
                 Rectangle {
@@ -252,30 +259,54 @@ RowLayout {
                         objectName: "reorderGrip"
                         visible: !!repoVm && index < repoVm.reorderableRunLength
                         text: "⠿"
-                        color: reorderDrag.active ? theme.accent : theme.textMuted
+                        color: rowDrag.active ? theme.accent : theme.textMuted
                         font.pixelSize: 15
                         Layout.preferredWidth: 16
                         Layout.alignment: Qt.AlignVCenter
                         horizontalAlignment: Text.AlignHCenter
-                        ToolTip.text: "Drag to reorder"
+                        ToolTip.text: "Drag to reorder or squash"
                         ToolTip.visible: gripHover.hovered
                         HoverHandler { id: gripHover }
-                        DragHandler {
-                            id: reorderDrag
-                            target: null
-                            xAxis.enabled: false
-                            onActiveChanged: {
-                                if (!active && repoVm) {
-                                    var p = reorderGrip.mapToItem(historyList.contentItem,
-                                                                  reorderDrag.centroid.position.x,
-                                                                  reorderDrag.centroid.position.y)
-                                    var to = historyList.indexAt(p.x, p.y)
-                                    if (to >= 0 && to < repoVm.reorderableRunLength && to !== index)
-                                        reorderConfirm.openFor(index, to)
+                    }
+                }
+
+                // Whole-row drag, armed by a press-and-hold so a quick click still selects.
+                // Only rows in the reorderable run participate.
+                DragHandler {
+                    id: rowDrag
+                    enabled: !!repoVm && index < repoVm.reorderableRunLength
+                    target: null                 // we move nothing; we read the centroid on release
+                    xAxis.enabled: false         // vertical only, matching the grip drag
+                    // Arm only after the hold timer fires. Until armed, a drag does nothing,
+                    // so a quick press-drag-release won't reorder.
+                    onActiveChanged: {
+                        if (active) {
+                            holdTimer.restart()
+                        } else {
+                            holdTimer.stop()
+                            if (dragArmed && repoVm) {
+                                var p = mapToItem(historyList.contentItem,
+                                                  rowDrag.centroid.position.x,
+                                                  rowDrag.centroid.position.y)
+                                var to = historyList.indexAt(p.x, p.y)
+                                if (to >= 0) {
+                                    // Local Y within the target row resolves the band.
+                                    var rowTop = to * rowHeight
+                                    var localY = p.y - rowTop
+                                    var zone = dropLogic.dropZoneAt(localY, rowHeight)
+                                    dropLogic.performDrop(index, to, zone)
                                 }
                             }
+                            dragArmed = false
                         }
                     }
+                }
+
+                Timer {
+                    id: holdTimer
+                    interval: 250
+                    repeat: false
+                    onTriggered: dragArmed = true   // row "lifts" via the binding above
                 }
             }
         }
