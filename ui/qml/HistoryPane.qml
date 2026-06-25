@@ -5,7 +5,6 @@ import GitTide 1.0
 
 RowLayout {
     id: historyPane
-    objectName: "historyPane"
     spacing: 0
 
     function takeFocus() { historyList.forceActiveFocus() }
@@ -15,6 +14,28 @@ RowLayout {
     // Tab handoff to the surrounding chain (sidebar repo tree).
     signal tabNext()
     signal tabPrev()
+
+    // Stable anchor for the drag-to-reorder/squash logic. The root's objectName is
+    // overridden to "historyTabBody" when instantiated inside WorkingPane, so pure
+    // helper functions live here where the name is always reachable via findChild
+    // (tests) and the `id` is reachable from the delegate (dropLogic.dropZoneAt(…)).
+    QtObject {
+        id: dropLogic
+        objectName: "historyPane"
+
+        // Resolve a drop position within a target row into one of three bands:
+        // top third inserts above, bottom third below (reorder), middle third squashes
+        // into the target. Pure — unit-tested in test_qml_history.cpp.
+        // Parameter types are `var` (QVariant) so Q_ARG(QVariant,…) matches;
+        // return type `string` (QString) so Q_RETURN_ARG(QString,…) matches.
+        function dropZoneAt(localY: var, rowHeight: var): string {
+            if (localY <= rowHeight / 3)
+                return "above"
+            if (localY >= rowHeight * 2 / 3)
+                return "below"
+            return "squash"
+        }
+    }
 
     // ---- Commit context menu (right-click on a history row) ----
     CommitContextMenu {

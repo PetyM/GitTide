@@ -342,6 +342,38 @@ private slots:
         QVERIFY(obj != nullptr);
         QVERIFY(obj->findChild<QObject *>("rangeHeaderLabel") != nullptr);
     }
+
+    void drop_zone_resolves_three_bands()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* pane = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("historyPane"));
+        QVERIFY(pane != nullptr);
+
+        QString zone;
+        const qreal h = 48.0;
+        // Top third → "above".
+        QMetaObject::invokeMethod(pane, "dropZoneAt", Q_RETURN_ARG(QString, zone),
+                                  Q_ARG(QVariant, 4.0), Q_ARG(QVariant, h));
+        QCOMPARE(zone, QStringLiteral("above"));
+        // Middle third → "squash".
+        QMetaObject::invokeMethod(pane, "dropZoneAt", Q_RETURN_ARG(QString, zone),
+                                  Q_ARG(QVariant, 24.0), Q_ARG(QVariant, h));
+        QCOMPARE(zone, QStringLiteral("squash"));
+        // Bottom third → "below".
+        QMetaObject::invokeMethod(pane, "dropZoneAt", Q_RETURN_ARG(QString, zone),
+                                  Q_ARG(QVariant, 44.0), Q_ARG(QVariant, h));
+        QCOMPARE(zone, QStringLiteral("below"));
+    }
 };
 
 #include "test_qml_history.moc"
