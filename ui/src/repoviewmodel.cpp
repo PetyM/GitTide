@@ -669,6 +669,9 @@ void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide:
     if (oid != m_selectedCommit)
         return;
     m_commitFiles->setFiles(files);
+    // Auto-select the first file so its diff loads without an extra click.
+    if (!files.empty())
+        selectCommitFile(m_commitFiles->pathAt(0));
 }
 
 void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result)
@@ -761,6 +764,9 @@ void RepoViewModel::onRangeFiles(const QString& oldOid, const QString& newOid,
     if (oldOid != m_rangeOld || newOid != m_rangeNew)
         return;
     m_commitFiles->setFiles(files);
+    // Auto-select the first file so its diff loads without an extra click.
+    if (!files.empty())
+        selectCommitFile(m_commitFiles->pathAt(0));
 }
 
 void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,

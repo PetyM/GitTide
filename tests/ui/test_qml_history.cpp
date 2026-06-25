@@ -239,6 +239,29 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    void selecting_a_commit_auto_selects_first_file_and_loads_diff()
+    {
+        const auto dir = qml_history_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+
+        const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
+        QSignalSpy diffSpy(vm.commitDiff(), &QAbstractItemModel::modelReset);
+        vm.selectCommit(oid);
+
+        // Selecting a commit alone must auto-select its first file and load that
+        // file's diff — no explicit selectCommitFile() call.
+        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(vm.commitFiles()->rowCount(QModelIndex()) >= 1);
+        QCOMPARE(vm.activeCommitFile(), vm.commitFiles()->pathAt(0));
+        QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
+
+        std::filesystem::remove_all(dir);
+    }
+
     void history_list_binds_to_history_model()
     {
         const auto dir = qml_history_test::make_dirty_repo();
