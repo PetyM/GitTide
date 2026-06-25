@@ -267,6 +267,40 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    /// Opening a new repo clears the reorderable run: a stale run length must not
+    /// survive a layout reset, or squashCommitInto/reorderCommits would index an
+    /// empty rows vector and crash.
+    void opening_new_repo_resets_reorderable_run()
+    {
+        const auto linear = repo_view_model_rebase_test::makeLinearRepo(3);
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(linear.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        // Open a fresh empty (unborn) repo → layout clears → run length must reset to 0
+        // synchronously at open() time (not wait for async history), so an immediately
+        // following squashCommitInto is a safe no-op rather than a crash.
+        git_libgit2_init();
+        auto empty = std::filesystem::temp_directory_path()
+                     / ("gittide-vmempty-" + std::to_string(::QRandomGenerator::global()->generate()));
+        std::filesystem::create_directories(empty);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, empty.generic_string().c_str(), 0);
+        git_repository_free(raw);
+        git_libgit2_shutdown();
+
+        vm.open(QString::fromStdString(empty.generic_string()));
+        // Synchronous: open() clears m_lastLayout and must reset the run immediately.
+        QCOMPARE(vm.property("reorderableRunLength").toInt(), 0);
+
+        // Must NOT crash — guarded no-op.
+        QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
+        QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 0), Q_ARG(int, 1));
+
+        std::filesystem::remove_all(linear);
+        std::filesystem::remove_all(empty);
+    }
 };
 
 #include "test_repoviewmodel_rebase.moc"

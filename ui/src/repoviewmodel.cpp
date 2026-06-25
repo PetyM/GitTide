@@ -125,6 +125,7 @@ void RepoViewModel::open(const QString& path)
 {
     m_headOid.clear();
     m_lastLayout     = {};
+    updateReorderableRun();
     m_headArrived    = false;
     m_historyArrived = false;
     m_controller->open(path);
@@ -153,6 +154,7 @@ void RepoViewModel::close()
     m_headBranch.clear();
     m_headOid.clear();
     m_lastLayout     = {};
+    updateReorderableRun();
     m_headArrived    = false;
     m_historyArrived = false;
     m_sync           = {};
