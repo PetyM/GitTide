@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Designed** | 2026-06-25 |
-| **Status** | `spec` |
+| **Status** | `shipped` |
 | **Extends** | [rebase-interactive.md](rebase-interactive.md) §3.2 ("Reorder directly in the history view"), **D36** |
 | **Touches** | ui: `HistoryPane.qml` delegate gesture rework, drop-zone hit-test + indicators; new `RepoViewModel::squashCommitInto`; reuse `RewordDialog` message pause. core: none (engine already squashes + pauses). |
 
