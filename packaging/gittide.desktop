@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=GitTide
+GenericName=Git Client
+Comment=A calm, visual Git client
+Exec=gittide_app
+Icon=gittide
+Terminal=false
+Categories=Development;RevisionControl;
+StartupWMClass=gittide
