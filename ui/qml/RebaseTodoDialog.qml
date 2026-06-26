@@ -186,7 +186,7 @@ Dialog {
                             }
                         }
 
-                        ComboBox {
+                        AppComboBox {
                             objectName: "actionCombo"
                             model: root.actions
                             currentIndex: root.actions.indexOf(action)
@@ -207,14 +207,18 @@ Dialog {
                             Layout.alignment: Qt.AlignVCenter
                         }
 
-                        Button {
+                        AppButton {
+                            variant: "secondary"
+                            compact: true
                             text: "↑"
                             enabled: index > 0
                             onClicked: root.moveRow(index, index - 1)
                             Layout.preferredWidth: 28
                             Layout.alignment: Qt.AlignVCenter
                         }
-                        Button {
+                        AppButton {
+                            variant: "secondary"
+                            compact: true
                             text: "↓"
                             enabled: index < root.todoModel.count - 1
                             onClicked: root.moveRow(index, index + 1)
@@ -258,12 +262,14 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: root.close()
         }
-        Button {
+        AppButton {
             objectName: "rebaseStartButton"
+            variant: "primary"
             text: "Start rebase"
             enabled: root.planValid
             onClicked: {
