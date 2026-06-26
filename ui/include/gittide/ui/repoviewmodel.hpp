@@ -265,6 +265,11 @@ signals:
     /// `entries` is a list of QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
     void rebaseTodoReady(QString base, QVariantList entries);
 
+    /// Emitted when the git-dir watcher fires a full refresh (gitDirRefreshed
+    /// from RepoController), indicating that repository structure may have changed
+    /// on disk (e.g. submodule init/deinit via an external terminal).
+    void repoStructureChanged();
+
 private:
     struct FileSel
     {

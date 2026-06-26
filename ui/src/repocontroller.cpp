@@ -603,6 +603,8 @@ QCoro::Task<void> RepoController::onWatchGitDir()
     if (!self)
         co_return;
     co_await rearmWatch();
+    if (self)
+        emit gitDirRefreshed();
 }
 
 gittide::ProgressCallback RepoController::progressSink()

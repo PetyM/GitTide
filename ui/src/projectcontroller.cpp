@@ -65,6 +65,11 @@ QCoro::Task<void> ProjectController::pollRepos()
             co_return;
         if (st)
             m_repoModel->setSyncCounts(row, st->ahead, st->behind);
+        auto tree = co_await repo.submoduleTree();
+        if (!self)
+            co_return;
+        if (tree)
+            m_repoModel->applySubmodules(QString::fromStdString(repos[row].path), *tree);
     }
 }
 

@@ -181,6 +181,11 @@ signals:
     /// QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
     void rebaseTodoReady(QString base, QVariantList entries);
 
+    /// Emitted at the end of a git-dir-watch refresh cycle (D35). Allows
+    /// upstream listeners to react to structural changes (e.g. submodule updates)
+    /// detected via the .git/modules/... watcher.
+    void gitDirRefreshed();
+
     void syncBusyChanged(bool busy);
     // Transfer progress for the in-flight fetch/pull/push: objects received of
     // total. total == 0 means the count is not yet known (indeterminate).
