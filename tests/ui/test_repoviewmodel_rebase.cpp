@@ -314,6 +314,26 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    /// A drag-squash pauses for the combined message; the ViewModel must fire
+    /// rebaseMessagePauseEntered exactly once on that rising edge.
+    void squash_emits_message_pause_entered_once()
+    {
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(3);
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+
+        QSignalSpy pauseSpy(&vm, &RepoViewModel::rebaseMessagePauseEntered);
+        QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
+
+        // The interactive rebase runs async on the pool; wait for the message pause.
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(),
+                                  QStringLiteral("message"), 5000);
+        QCOMPARE(pauseSpy.count(), 1);
+
+        std::filesystem::remove_all(dir);
+    }
+
     /// Opening a new repo clears the reorderable run: a stale run length must not
     /// survive a layout reset, or squashCommitInto/reorderCommits would index an
     /// empty rows vector and crash.
