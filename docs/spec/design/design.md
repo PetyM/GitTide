@@ -105,10 +105,24 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 
 ## Components
 
-- **Buttons.** Primary = filled `accent`, text = `surface.base` on dark; hover
-  `accent.hover`. Secondary = `border` outline, transparent fill, `text.primary`.
-  Ghost = no border, accent text (empty-state secondary links). Radius 6,
-  padding `8×16`.
+- **Action buttons (`AppButton`).** All plain action buttons use `AppButton` (not
+  raw Basic `Button`). Three variants: `primary` — filled `accent` / hover
+  `accentHover`, text `surfaceBase`; `secondary` — `border` outline, transparent
+  fill / hover `surfaceOverlay`, text `textPrimary`; `danger` — filled
+  `stateDeleted` / hover darker, text `surfaceBase`. `compact: true` cuts height
+  (30 → 22) and padding (14 → 8) for inline affordances such as the submodule
+  Init pill. Disabled: `surfaceOverlay` fill, `textMuted` text. Radius 6.
+  Ghost links (empty-state secondaries) remain bespoke — they are not plain action
+  buttons.
+- **Action dropdowns (`AppComboBox`).** All plain dropdowns use `AppComboBox`
+  (not raw Basic `ComboBox`). Field: `surfaceBase` fill + `border` outline → `accent`
+  ring on focus/press, radius 6, `textPrimary` label. Popup card: `surfaceRaised` +
+  `border`, radius 6; delegate rows highlight to `surfaceOverlay`; scroll via
+  `AppScrollBar`.
+- **Specialized controls (bespoke, not `AppButton`/`AppComboBox`).** `MainTab`
+  (accent-underline tab), `WindowButton` (title-bar chrome), `AppRadioButton` /
+  `AppCheckBox` (form toggles), and `EmptyState.Cta` (large empty-state CTA) each
+  keep their own styling — they are distinct from plain action controls.
 - **Project combo** (`projectSwitcher`). `surface.raised` with `border` outline;
   the "New project…" sentinel row is separated and shown in `text.secondary`.
 - **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
