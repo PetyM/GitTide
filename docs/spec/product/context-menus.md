@@ -159,10 +159,10 @@ of this menu item to avoid duplication.
 
 ### 4.3 `CommitContextMenu.qml`
 
-**Used in:** `HistoryPane.qml`
+**Used in:** `HistoryPane.qml`, `GraphPane.qml`
 
 **Properties:** `oid: string`, `shortOid: string`, `localBranchName: string`,
-`isHead: bool`
+`isHead: bool`, `allowHistoryEditing: bool` (default `true`)
 
 **Signals:** `copySha()`, `newBranchFromHere()`, `checkoutCommit()`, `merge()`,
 `reword()`
@@ -173,14 +173,17 @@ of this menu item to avoid duplication.
 | — separator — | |
 | **New branch from here** | Always enabled |
 | **Checkout commit** | Disabled when `isHead` |
-| **Reword…** | **Hidden** unless `isHead` (reword of older commits is deferred to the rebase engine — see [history-editing](history-editing.md)) |
-| **Undo last commit** | **Hidden** unless `isHead`; soft-resets to the parent, keeping changes staged (D37). |
-| **Squash `<N>` commits…** | **Hidden** unless ≥2 rows are selected; seeds `RebaseTodoDialog` pre-filled (oldest `pick`, rest `squash`) via `repoVm.requestSquashTodo(rows)`. |
-| **Edit history from here…** | **Hidden** when `isHead` (the clicked commit is the tip — nothing to rebase onto it); opens `RebaseTodoDialog` via `repoVm.startInteractiveRebase(oid)` |
+| **Reword…** | **Hidden** unless `isHead` **and** `allowHistoryEditing` |
+| **Undo last commit** | **Hidden** unless `isHead` **and** `allowHistoryEditing`; soft-resets to the parent, keeping changes staged (D37). |
+| **Squash `<N>` commits…** | **Hidden** unless ≥2 rows are selected **and** `allowHistoryEditing`; seeds `RebaseTodoDialog` pre-filled (oldest `pick`, rest `squash`) via `repoVm.requestSquashTodo(rows)`. |
+| **Edit history from here…** | **Hidden** when `!allowHistoryEditing`; opens `RebaseTodoDialog` via `repoVm.startInteractiveRebase(oid)` |
 | — separator — | |
 | **Merge `<localBranchName>` into current** | **Hidden** when `localBranchName` is empty |
 
 Replaces the existing inline `commitContextMenu` AppMenu in `HistoryPane.qml`.
+Also used in `GraphPane.qml` with `allowHistoryEditing: false` — this hides
+Reword, Undo, Squash, and Edit history, leaving only the cross-branch-safe
+actions (copy SHA, new branch from here, checkout commit, merge).
 
 Wiring: `onCopySha → repoVm.copyToClipboard(oid)`,
 `onNewBranchFromHere → newBranchDialog.fromOid = oid; newBranchDialog.open()`,

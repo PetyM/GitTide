@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-26 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [spec/product/2026-06-26-history-graph-tab-design.md](../spec/product/2026-06-26-history-graph-tab-design.md); touches [spec/product/rebase-interactive.md](../spec/product/rebase-interactive.md) §3.2 |
 | **Depends on** | Plan 22 (history-editing UX), Plan 23 (history drag/squash) |
 
@@ -45,6 +45,37 @@ QtTest headless runner.
   assert absence), `dropZoneAt` band test, `Ctrl+1`/`Ctrl+2` wiring.
 - **TDD:** failing test first for every task.
 
+### Build & test — REAL invocations (override every per-task `ctest -R` line below)
+
+The per-task steps say `ctest --test-dir build -R …` for brevity. **Use these instead:**
+
+```bash
+# Configure (once):
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/home/michal/Qt/6.8.3/gcc_64 -DGITGUI_BUILD_QML=ON
+# Build:
+cmake --build build --parallel
+# Core tests — Catch2 binary, filter by TAG (NOT ctest -R, which is case-sensitive regex):
+./build/tests/gittide_core_tests "[logallrefs]"
+# UI tests — ONE QtTest binary, all classes; run offscreen:
+QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests
+# Full suite:
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+**Test framework per layer — match the neighbour you extend:**
+- **core** tests (`tests/core/*.cpp`) → **Catch2** (`TEST_CASE`, `REQUIRE`). Give new
+  core cases a tag like `[logallrefs]`. `catch_discover_tests` auto-registers; no
+  CMake edit needed beyond adding the file to the `gittide_core_tests` source list
+  (lines ~1–39 of `tests/CMakeLists.txt`).
+- **ui** tests (`tests/ui/*.cpp`) → **QtTest** (`#include <QtTest>`, a `QObject`
+  class with `private slots`, `QTEST_…`/`QVERIFY`/`QCOMPARE`, registered via the
+  project's QtTest harness). **Mirror `tests/ui/test_qml_history.cpp` and
+  `tests/ui/test_repo_view_model.cpp` exactly** — same includes, same class shape,
+  same QML-load/`findChild`/`QSignalSpy` idioms. New ui test files MUST be added to
+  the `gittide_ui_tests` source list (lines ~51+ of `tests/CMakeLists.txt`).
+  The Catch2 `TEST_CASE` snippets in Tasks 3–6 below are pseudocode for *intent
+  only* — translate them into QtTest slots in the real harness.
+
 ---
 
 ## Task 1: `GitRepo::logAllRefs` — walk every branch and tag
@@ -60,7 +91,7 @@ QtTest headless runner.
   — same `CommitNode` shape as `log`, but reachable set is every ref.
 - Produces: `void TempRepo::tagHead(std::string_view name)` — lightweight tag at HEAD.
 
-- [ ] **Step 1: Add the `TempRepo::tagHead` helper (test support).**
+- [x] **Step 1: Add the `TempRepo::tagHead` helper (test support).**
 
 In `tests/support/temprepo.hpp`, declare under the existing helpers:
 
@@ -84,7 +115,7 @@ void TempRepo::tagHead(std::string_view name)
 }
 ```
 
-- [ ] **Step 2: Write the failing test.**
+- [x] **Step 2: Write the failing test.**
 
 Create `tests/core/test_gitrepo_logallrefs.cpp`:
 
@@ -172,12 +203,12 @@ Register in `tests/CMakeLists.txt` next to `test_graph_builder.cpp`:
   test_gitrepo_logallrefs.cpp
 ```
 
-- [ ] **Step 3: Run the test, verify it fails** (no `logAllRefs`):
+- [x] **Step 3: Run the test, verify it fails** (no `logAllRefs`):
 
 `cmake --build build --parallel && ctest --test-dir build -R logallrefs --output-on-failure`
 Expected: compile error / FAIL — `logAllRefs` undeclared.
 
-- [ ] **Step 4: Declare in `core/include/gittide/gitrepo.hpp`** (right after `log`):
+- [x] **Step 4: Declare in `core/include/gittide/gitrepo.hpp`** (right after `log`):
 
 ```cpp
     // Walk every ref (refs/heads/*, refs/remotes/*, refs/tags/*) topologically
@@ -186,7 +217,7 @@ Expected: compile error / FAIL — `logAllRefs` undeclared.
     Expected<std::vector<CommitNode>> logAllRefs(unsigned limit = 0) const;
 ```
 
-- [ ] **Step 5: Implement in `core/src/gitrepo.cpp`** (after `log`). Factor the
+- [x] **Step 5: Implement in `core/src/gitrepo.cpp`** (after `log`). Factor the
   per-commit fill so we don't duplicate `log`'s body — extract a static helper,
   then have both push differently:
 
@@ -256,12 +287,12 @@ Expected<std::vector<CommitNode>> GitRepo::logAllRefs(unsigned limit) const
 > `nodeFromCommit` too, removing the duplicated fill block. Keep `log`'s
 > `push_head` + unborn-branch handling unchanged.
 
-- [ ] **Step 6: Run the test, verify it passes.**
+- [x] **Step 6: Run the test, verify it passes.**
 
 `ctest --test-dir build -R logallrefs --output-on-failure`
 Expected: PASS (both cases).
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add core/include/gittide/gitrepo.hpp core/src/gitrepo.cpp \
@@ -287,7 +318,7 @@ git commit -m "feat(core): GitRepo::logAllRefs walks all refs for the graph view
   per local branch / remote-tracking branch / tag, `name` already shortened
   (`main`, `origin/main`, `v1.0`), `oid` = the commit it resolves to.
 
-- [ ] **Step 1: Add the struct to `core/include/gittide/graph.hpp`** (after `CommitNode`):
+- [x] **Step 1: Add the struct to `core/include/gittide/graph.hpp`** (after `CommitNode`):
 
 ```cpp
 // A ref tip for the graph's branch/tag chips. name is the short form
@@ -301,7 +332,7 @@ struct RefTip
 };
 ```
 
-- [ ] **Step 2: Write the failing test** (append to `test_gitrepo_logallrefs.cpp`):
+- [x] **Step 2: Write the failing test** (append to `test_gitrepo_logallrefs.cpp`):
 
 ```cpp
 TEST_CASE("refTips reports branch and tag labels with short names")
@@ -337,12 +368,12 @@ TEST_CASE("refTips reports branch and tag labels with short names")
 }
 ```
 
-- [ ] **Step 3: Run, verify it fails** (`refTips` undeclared):
+- [x] **Step 3: Run, verify it fails** (`refTips` undeclared):
 
 `cmake --build build --parallel && ctest --test-dir build -R logallrefs --output-on-failure`
 Expected: compile error / FAIL.
 
-- [ ] **Step 4: Declare in `gitrepo.hpp`** (near `branches`):
+- [x] **Step 4: Declare in `gitrepo.hpp`** (near `branches`):
 
 ```cpp
     // Enumerate ref tips (local + remote-tracking branches + tags) with short
@@ -350,7 +381,7 @@ Expected: compile error / FAIL.
     Expected<std::vector<RefTip>> refTips() const;
 ```
 
-- [ ] **Step 5: Implement in `gitrepo.cpp`** (include `<git2/refs.h>`):
+- [x] **Step 5: Implement in `gitrepo.cpp`** (include `<git2/refs.h>`):
 
 ```cpp
 Expected<std::vector<RefTip>> GitRepo::refTips() const
@@ -419,12 +450,12 @@ Expected<std::vector<RefTip>> GitRepo::refTips() const
 }
 ```
 
-- [ ] **Step 6: Run, verify it passes.**
+- [x] **Step 6: Run, verify it passes.**
 
 `ctest --test-dir build -R logallrefs --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add core/include/gittide/graph.hpp core/include/gittide/gitrepo.hpp \
@@ -449,7 +480,7 @@ git commit -m "feat(core): GitRepo::refTips enumerates branch/tag labels for gra
   `setRefTips` was never called (History model leaves it empty).
 - Produces: `void HistoryListModel::setRefTips(const QHash<QString, QStringList>& oidToLabels)`.
 
-- [ ] **Step 1: Write the failing test** `tests/ui/test_history_model_reflabels.cpp`:
+- [x] **Step 1: Write the failing test** `tests/ui/test_history_model_reflabels.cpp`:
 
 ```cpp
 #include <catch2/catch_test_macros.hpp>
@@ -483,12 +514,12 @@ TEST_CASE("HistoryListModel exposes refLabels per tip oid")
 
 Register in `tests/CMakeLists.txt` (UI test list).
 
-- [ ] **Step 2: Run, verify it fails** (`RefLabelsRole`/`setRefTips` missing):
+- [x] **Step 2: Run, verify it fails** (`RefLabelsRole`/`setRefTips` missing):
 
 `cmake --build build --parallel && ctest --test-dir build -R reflabels --output-on-failure`
 Expected: compile error / FAIL.
 
-- [ ] **Step 3: Extend `historylistmodel.hpp`** — add the enum value after
+- [x] **Step 3: Extend `historylistmodel.hpp`** — add the enum value after
   `LocalBranchNameRole`, declare the setter and member:
 
 ```cpp
@@ -504,7 +535,7 @@ Expected: compile error / FAIL.
     QHash<QString, QStringList> m_oidToRefLabels; // tip oid → [branch/tag names]
 ```
 
-- [ ] **Step 4: Implement in `historylistmodel.cpp`** — setter (mirrors
+- [x] **Step 4: Implement in `historylistmodel.cpp`** — setter (mirrors
   `setLocalBranchTips`), `data` case, and `roleNames` entry:
 
 ```cpp
@@ -527,12 +558,12 @@ Add to `roleNames`:
         {RefLabelsRole, QByteArrayLiteral("refLabels")},
 ```
 
-- [ ] **Step 5: Run, verify it passes.**
+- [x] **Step 5: Run, verify it passes.**
 
 `ctest --test-dir build -R reflabels --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/historylistmodel.hpp ui/src/historylistmodel.cpp \
@@ -558,7 +589,7 @@ git commit -m "feat(ui): HistoryListModel refLabels role for graph branch/tag ch
 - Produces (viewmodel): `HistoryListModel* RepoViewModel::graph() const`,
   `Q_PROPERTY(... graph READ graph CONSTANT)`, `Q_INVOKABLE void refreshGraph()`.
 
-- [ ] **Step 1: Write the failing test** `tests/ui/test_qml_graph.cpp`. Use the
+- [x] **Step 1: Write the failing test** `tests/ui/test_qml_graph.cpp`. Use the
   existing headless QML harness pattern (copy the include/setup block from
   `tests/ui/test_qml_history.cpp`). Minimal first assertion — the property exists
   and is a model:
@@ -582,12 +613,12 @@ TEST_CASE("repoVm.graph populates from all refs")
 
 Register `test_qml_graph.cpp` in `tests/CMakeLists.txt` (UI list).
 
-- [ ] **Step 2: Run, verify it fails** (`graph()` missing):
+- [x] **Step 2: Run, verify it fails** (`graph()` missing):
 
 `cmake --build build --parallel && ctest --test-dir build -R qml_graph --output-on-failure`
 Expected: compile error / FAIL.
 
-- [ ] **Step 3: Controller — declare** in `repocontroller.hpp` (near `refreshHistory`
+- [x] **Step 3: Controller — declare** in `repocontroller.hpp` (near `refreshHistory`
   and the `historyReady` signal):
 
 ```cpp
@@ -598,7 +629,7 @@ Expected: compile error / FAIL.
     void refTipsReady(QHash<QString, QStringList> oidToLabels);
 ```
 
-- [ ] **Step 4: Controller — implement** in `repocontroller.cpp` (mirror
+- [x] **Step 4: Controller — implement** in `repocontroller.cpp` (mirror
   `refreshHistory`, ~line 213):
 
 ```cpp
@@ -634,7 +665,7 @@ QCoro::Task<void> RepoController::refreshGraph(unsigned limit)
 > forwarder (same file as the other `m_repo->...` calls). Check how `log` is
 > bridged and copy that exact shape.
 
-- [ ] **Step 5: ViewModel — declare** in `repoviewmodel.hpp`:
+- [x] **Step 5: ViewModel — declare** in `repoviewmodel.hpp`:
 
 Property (next to the `history` one, line 44):
 ```cpp
@@ -658,7 +689,7 @@ Member (next to `m_history`):
     HistoryListModel* m_graph = nullptr;
 ```
 
-- [ ] **Step 6: ViewModel — implement** in `repoviewmodel.cpp`:
+- [x] **Step 6: ViewModel — implement** in `repoviewmodel.cpp`:
 
 Construct (next to `, m_history(new HistoryListModel(this))`, line 27):
 ```cpp
@@ -696,12 +727,12 @@ also clear the graph:
     m_graph->setLayout({}, {});
 ```
 
-- [ ] **Step 7: Run, verify it passes.**
+- [x] **Step 7: Run, verify it passes.**
 
 `cmake --build build --parallel && ctest --test-dir build -R qml_graph --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/repocontroller.hpp ui/src/repocontroller.cpp \
@@ -727,7 +758,7 @@ git commit -m "feat(ui): RepoViewModel.graph model + refreshGraph/refTips wiring
 - Produces: `GraphPane` with `objectName: "graphTabBody"`, `takeFocus()`,
   `takeFocusLast()`, signals `tabNext()`/`tabPrev()` (mirrors `HistoryPane`).
 
-- [ ] **Step 1: Write the failing test** (extend `test_qml_graph.cpp`): assert the
+- [x] **Step 1: Write the failing test** (extend `test_qml_graph.cpp`): assert the
   Graph tab body exists by object name and that selecting row 0 populates the
   commit detail. Mirror the selection assertions in `test_qml_history.cpp`:
 
@@ -742,12 +773,12 @@ TEST_CASE("Graph tab exists and selection drives commit detail")
 }
 ```
 
-- [ ] **Step 2: Run, verify it fails** (`graphTabBody` not found):
+- [x] **Step 2: Run, verify it fails** (`graphTabBody` not found):
 
 `ctest --test-dir build -R qml_graph --output-on-failure`
 Expected: FAIL.
 
-- [ ] **Step 3: Create `ui/qml/GraphPane.qml`** — a trimmed HistoryPane: graph +
+- [x] **Step 3: Create `ui/qml/GraphPane.qml`** — a trimmed HistoryPane: graph +
   chips + detail, selection via `TapHandler`, no drag, no grips:
 
 ```qml
@@ -909,7 +940,7 @@ RowLayout {
 > `AppScrollBar`, `WheelScroller`, `NewBranchDialog`, `CommitDetail` are existing
 > components used by `HistoryPane`.
 
-- [ ] **Step 4: Wire the third tab in `WorkingPane.qml`.**
+- [x] **Step 4: Wire the third tab in `WorkingPane.qml`.**
 
 Add after the `MainTab { text: "History" }` line (104):
 ```qml
@@ -957,12 +988,12 @@ Add the `Ctrl+3` shortcut after the `Ctrl+2` block (191):
     }
 ```
 
-- [ ] **Step 5: Run, verify it passes.**
+- [x] **Step 5: Run, verify it passes.**
 
 `cmake --build build --parallel && ctest --test-dir build -R qml_graph --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add ui/qml/GraphPane.qml ui/qml/WorkingPane.qml ui/CMakeLists.txt \
@@ -985,7 +1016,7 @@ git commit -m "feat(ui): Graph tab with full all-refs git graph + branch/tag chi
 - Produces: a History delegate whose left-click selection is driven by
   `TapHandler` (cooperates with `DragHandler`), with no graph column and no grip.
 
-- [ ] **Step 1: Update the test** in `test_qml_history.cpp`. Two changes:
+- [x] **Step 1: Update the test** in `test_qml_history.cpp`. Two changes:
   (a) the existing assertion that finds `reorderGrip` becomes an assertion that it
   is **absent**; (b) add a drag test that arms and drops. Mirror how the file
   currently drives the delegate (it already references `dropZoneAt`):
@@ -1008,17 +1039,17 @@ REQUIRE(historyRow->findChild<QObject*>("reorderGrip") == nullptr);
 > still routes correctly. The key regression guard is "the grab-stealing
 > `MouseArea` is gone."
 
-- [ ] **Step 2: Run, verify it fails** (grip still present / MouseArea still present):
+- [x] **Step 2: Run, verify it fails** (grip still present / MouseArea still present):
 
 `cmake --build build --parallel && ctest --test-dir build -R qml_history --output-on-failure`
 Expected: FAIL.
 
-- [ ] **Step 3: Remove the `GraphColumn` block** (current lines 223–231) from the
+- [x] **Step 3: Remove the `GraphColumn` block** (current lines 223–231) from the
   delegate's `RowLayout`. The first child becomes `Avatar`.
 
-- [ ] **Step 4: Remove the `reorderGrip` `Label` block** (current lines 274–287).
+- [x] **Step 4: Remove the `reorderGrip` `Label` block** (current lines 274–287).
 
-- [ ] **Step 5: Replace the `MouseArea` (lines 170–215) with two `TapHandler`s**
+- [x] **Step 5: Replace the `MouseArea` (lines 170–215) with two `TapHandler`s**
   that preserve the exact selection semantics and cooperate with `rowDrag`:
 
 ```qml
@@ -1074,18 +1105,18 @@ Keep `rowDrag` (`DragHandler`), `holdTimer`, the drop indicators, and
 `dropLogic` exactly as they are. With the `MouseArea` gone, `rowDrag` wins the
 grab after the 250 ms hold and the drag arms.
 
-- [ ] **Step 6: Run, verify it passes.**
+- [x] **Step 6: Run, verify it passes.**
 
 `cmake --build build --parallel && ctest --test-dir build -R qml_history --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 7: Manual smoke (per [run] skill or `cmake --build build --target run`).**
+- [x] **Step 7: Manual smoke (per [run] skill or `cmake --build build --target run`).**
   Open a repo, History tab: confirm a click selects, Shift/Ctrl multi-select work,
   right-click opens the menu, and **press-hold-drag a row onto another row**
   reorders/squashes (the bug is gone). Graph tab: confirm the full graph renders
   with branch/tag chips and selection shows the commit detail.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add ui/qml/HistoryPane.qml tests/ui/test_qml_history.cpp
@@ -1101,21 +1132,21 @@ git commit -m "fix(ui): history drag works (TapHandler over MouseArea); drop gra
 - Modify: `docs/plans/index.md` (add the Plan 25 row)
 - Modify: this plan's **Status** → `done` and fill **Outcome**
 
-- [ ] **Step 1: Update the living spec.** In the product spec describing the
+- [x] **Step 1: Update the living spec.** In the product spec describing the
   History view, record: the graph now lives in its own **Graph tab** (all refs:
   heads/remotes/tags, with branch/tag chips, read-only select+detail+menu); the
   History list no longer renders a graph column or drag grips; History drag uses
   `TapHandler` + `DragHandler`. Flip the design doc's **Status** to `shipped`.
 
-- [ ] **Step 2: Add the Plan 25 row** to `docs/plans/index.md` (mirror the Plan 24
+- [x] **Step 2: Add the Plan 25 row** to `docs/plans/index.md` (mirror the Plan 24
   row format, link this file).
 
-- [ ] **Step 3: Run the full suite** to confirm nothing regressed:
+- [x] **Step 3: Run the full suite** to confirm nothing regressed:
 
 `cmake --build build --parallel && ctest --test-dir build --output-on-failure`
 Expected: all PASS.
 
-- [ ] **Step 4: Fill this plan's Outcome, set Status `done`, commit.**
+- [x] **Step 4: Fill this plan's Outcome, set Status `done`, commit.**
 
 ```bash
 git add docs/
@@ -1126,9 +1157,26 @@ git commit -m "docs: close out Plan 25 (history graph tab) — spec + plan outco
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <main files/types — `logAllRefs`, `refTips`, `RepoViewModel::graph`,
->   `GraphPane.qml`, History `TapHandler` fix>.
+- Shipped: A new **Graph tab** (Ctrl+3) renders the full all-refs git graph
+  (local + remote branches + tags) with branch/tag chips, commit detail on
+  selection, and a read-only context menu (copy SHA, new branch, checkout,
+  merge). The History list is now graph-column-free and grip-free. The
+  drag-to-reorder/squash bug — where a `MouseArea` stole the grab from the
+  `DragHandler` — is fixed by replacing it with cooperating `TapHandler`s.
+  All 161 tests pass.
+- Spec updated: `spec/product/product.md` (History tab + new Graph tab
+  section, three-tab list column), `spec/product/history-editing.md` (drag
+  source is now the whole row, TapHandler fix), `spec/product/context-menus.md`
+  (`CommitContextMenu.allowHistoryEditing` gate, Graph tab usage),
+  `spec/product/keyboard-controls.md` (Ctrl+3), and the design doc
+  `2026-06-26-history-graph-tab-design.md` (Status → `shipped`).
+  Decision D39 appended to `decisions.md`.
+- Code: `core/` — `GitRepo::logAllRefs`, `GitRepo::refTips`, `RefTip` /
+  `RefTipKind` in `graph.hpp`; `ui/` — `AsyncRepo` forwarders,
+  `RepoController::refreshGraph` / `graphReady` / `refTipsReady`,
+  `RepoViewModel::graph` (`HistoryListModel*` second instance),
+  `RepoViewModel::refreshGraph`, `RepoViewModel::selectGraphCommitAtRow`,
+  `HistoryListModel::RefLabelsRole` / `setRefTips`; QML — `GraphPane.qml`
+  (new), `WorkingPane.qml` (third tab + Ctrl+3), `HistoryPane.qml`
+  (TapHandler replaces MouseArea; GraphColumn + grips removed),
+  `CommitContextMenu.qml` (`allowHistoryEditing` property).

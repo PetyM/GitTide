@@ -278,6 +278,22 @@ an entry with a newer one if it changes.
   the message. Extends D36. →
   [`product`](spec/product/rebase-interactive.md)
 
+- **D39 — The branch graph moved to its own all-refs Graph tab; the History drag
+  bug was a `MouseArea` grab-steal, fixed with `TapHandler`.** The in-history
+  graph column only walked HEAD (`git_revwalk_push_head`), yielding a near-linear
+  strip that earned its column width poorly. Moving it to a dedicated Graph tab
+  (fed by `logAllRefs` — all `refs/heads/*`, `refs/remotes/*`, `refs/tags/*`)
+  gives a real multi-branch graph with branch/tag chips and is cheaper to keep
+  off-screen when unused. The History drag regression (Plan 23 named `TapHandler`
+  in its tech stack but the implementation used `MouseArea`) was that a
+  `MouseArea` takes an *exclusive* grab on press, so the sibling `DragHandler`
+  never won the grab and the row could never be dragged. Replacing it with two
+  `TapHandler`s (left-click select, right-click menu) lets the `DragHandler` win
+  the grab after the 250 ms hold, with no conflicts. *Rejected:* keeping the graph
+  column and patching `log` to push more refs (would widen an already-cramped
+  column and still needed the `MouseArea` fix). → [`product`](spec/product/product.md),
+  [`history-editing`](spec/product/history-editing.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

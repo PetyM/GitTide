@@ -493,6 +493,41 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    // Regression guard for the drag fix (Plan 25, Task 6):
+    // - The grab-stealing MouseArea must be gone (it blocked DragHandler from ever winning).
+    // - A TapHandler must replace it (cooperates with DragHandler via shared grabs).
+    // - The visual reorderGrip Label must be removed from the delegate.
+    //
+    // ListView delegate items are not instantiated in the offscreen harness (the
+    // virtualized view never gets a real render frame, so no delegate QObjects appear
+    // in the child tree). Structural assertions therefore use the compiled QRC source
+    // rather than findChild. performDrop routing is covered by the two tests above.
+    void history_delegate_has_tap_handler_not_mouse_area()
+    {
+        // Read the compiled QML source from the QRC bundle.
+        QFile historyPaneSrc(QStringLiteral(":/qml/HistoryPane.qml"));
+        QVERIFY(historyPaneSrc.open(QIODevice::ReadOnly));
+        const QByteArray src = historyPaneSrc.readAll();
+
+        // (1) The reorderGrip Label must be removed from the delegate.
+        QVERIFY2(!src.contains("\"reorderGrip\""),
+                 "reorderGrip objectName must not exist in HistoryPane.qml");
+
+        // (2) The grab-stealing MouseArea element must be gone — it took an exclusive
+        //     pointer grab on press, preventing DragHandler from ever activating.
+        QVERIFY2(!src.contains("MouseArea {"),
+                 "HistoryPane.qml must not contain a MouseArea element; "
+                 "it steals pointer grabs from DragHandler");
+
+        // (3) A TapHandler must replace it — TapHandlers cooperate with DragHandler
+        //     via shared grabs, so the 250 ms hold can arm the drag.
+        QVERIFY2(src.contains("TapHandler {"),
+                 "HistoryPane.qml must contain a TapHandler element");
+        QVERIFY2(src.contains("\"leftTapHandler\""),
+                 "HistoryPane.qml must have objectName: \"leftTapHandler\" "
+                 "on the selection TapHandler (regression guard)");
+    }
 };
 
 #include "test_qml_history.moc"

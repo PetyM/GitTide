@@ -16,6 +16,7 @@
 #include <git2/remote.h>
 #include <git2/reset.h>
 #include <git2/revwalk.h>
+#include <git2/refs.h>
 #include <git2/stash.h>
 #include <git2/worktree.h>
 #include <map>
@@ -845,6 +846,40 @@ Expected<void> GitRepo::resetIndexToHead()
     return {};
 }
 
+namespace {
+// Fill a CommitNode from a looked-up commit object (shared by log/logAllRefs).
+// Returns std::nullopt when git_commit_lookup fails (unresolvable / corrupt OID).
+std::optional<gittide::CommitNode> nodeFromCommit(git_repository* repo, const git_oid& oid)
+{
+    git_commit* c = nullptr;
+    if (git_commit_lookup(&c, repo, &oid) < 0)
+        return std::nullopt;
+
+    gittide::CommitNode node;
+    char hex[GIT_OID_SHA1_HEXSIZE + 1];
+    git_oid_tostr(hex, sizeof(hex), &oid);
+    node.oid = hex;
+
+    const char* msg = git_commit_summary(c);
+    node.summary    = msg ? msg : "";
+    const git_signature* author = git_commit_author(c);
+    node.author = author ? author->name : "";
+    node.time   = author ? author->when.time : 0;
+
+    unsigned nparents = git_commit_parentcount(c);
+    node.parents.reserve(nparents);
+    for (unsigned i = 0; i < nparents; ++i)
+    {
+        const git_oid* pid = git_commit_parent_id(c, i);
+        char phex[GIT_OID_SHA1_HEXSIZE + 1];
+        git_oid_tostr(phex, sizeof(phex), pid);
+        node.parents.push_back(phex);
+    }
+    git_commit_free(c);
+    return node;
+}
+} // namespace
+
 Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
 {
     git_revwalk* walk = nullptr;
@@ -872,38 +907,43 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
 
     while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
     {
-        git_commit* c = nullptr;
-        if (git_commit_lookup(&c, m_repo, &oid) < 0)
+        auto node = nodeFromCommit(m_repo, oid);
+        if (!node)
             continue;
-
-        CommitNode node;
-
-        char hex[GIT_OID_SHA1_HEXSIZE + 1];
-        git_oid_tostr(hex, sizeof(hex), &oid);
-        node.oid = hex;
-
-        const char* msg = git_commit_summary(c);
-        node.summary    = msg ? msg : "";
-
-        const git_signature* author = git_commit_author(c);
-        node.author                 = author ? author->name : "";
-        node.time                   = author ? author->when.time : 0;
-
-        unsigned nparents = git_commit_parentcount(c);
-        node.parents.reserve(nparents);
-        for (unsigned i = 0; i < nparents; ++i)
-        {
-            const git_oid* pid = git_commit_parent_id(c, i);
-            char phex[GIT_OID_SHA1_HEXSIZE + 1];
-            git_oid_tostr(phex, sizeof(phex), pid);
-            node.parents.push_back(phex);
-        }
-
-        git_commit_free(c);
-        result.push_back(std::move(node));
+        result.push_back(std::move(*node));
         ++count;
     }
 
+    git_revwalk_free(walk);
+    return result;
+}
+
+Expected<std::vector<CommitNode>> GitRepo::logAllRefs(unsigned limit) const
+{
+    git_revwalk* walk = nullptr;
+    int rc            = git_revwalk_new(&walk, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_revwalk_sorting(walk, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
+
+    // Push every ref. Missing globs (e.g. no remotes) are not fatal — a repo
+    // with no matching refs simply contributes nothing.
+    git_revwalk_push_glob(walk, "refs/heads/*");
+    git_revwalk_push_glob(walk, "refs/remotes/*");
+    git_revwalk_push_glob(walk, "refs/tags/*");
+
+    std::vector<CommitNode> result;
+    git_oid oid;
+    unsigned count = 0;
+    while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
+    {
+        auto node = nodeFromCommit(m_repo, oid);
+        if (!node)
+            continue;
+        result.push_back(std::move(*node));
+        ++count;
+    }
     git_revwalk_free(walk);
     return result;
 }
@@ -1064,6 +1104,71 @@ Expected<void> GitRepo::updateSubmodules()
             return std::unexpected(lastGitError(rc));
     }
     return {};
+}
+
+Expected<std::vector<RefTip>> GitRepo::refTips() const
+{
+    git_reference_iterator* it = nullptr;
+    int rc = git_reference_iterator_new(&it, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    std::vector<RefTip> tips;
+    git_reference* ref = nullptr;
+    while (git_reference_next(&ref, it) == 0)
+    {
+        const char* name = git_reference_name(ref); // full, e.g. refs/heads/main
+        std::string full = name ? name : "";
+
+        // Peel to a commit; skip refs that don't resolve to one (e.g. annotated
+        // tag of a tree, symbolic HEAD).
+        git_object* obj = nullptr;
+        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0)
+        {
+            git_oid out;
+            git_oid_cpy(&out, git_object_id(obj));
+            char hex[GIT_OID_SHA1_HEXSIZE + 1];
+            git_oid_tostr(hex, sizeof(hex), &out);
+            git_object_free(obj);
+
+            RefTip tip;
+            tip.oid = hex;
+            if (full.rfind("refs/heads/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Branch;
+                tip.name = full.substr(std::string("refs/heads/").size());
+            }
+            else if (full.rfind("refs/remotes/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Remote;
+                tip.name = full.substr(std::string("refs/remotes/").size());
+                // Skip the synthetic origin/HEAD pointer.
+                if (tip.name.size() >= 5 &&
+                    tip.name.compare(tip.name.size() - 5, 5, "/HEAD") == 0)
+                {
+                    git_reference_free(ref);
+                    ref = nullptr;
+                    continue;
+                }
+            }
+            else if (full.rfind("refs/tags/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Tag;
+                tip.name = full.substr(std::string("refs/tags/").size());
+            }
+            else
+            {
+                git_reference_free(ref);
+                ref = nullptr;
+                continue; // ignore refs/stash, notes, etc.
+            }
+            tips.push_back(std::move(tip));
+        }
+        git_reference_free(ref);
+        ref = nullptr;
+    }
+    git_reference_iterator_free(it);
+    return tips;
 }
 
 Expected<std::vector<BranchInfo>> GitRepo::branches() const

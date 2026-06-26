@@ -16,6 +16,9 @@ AppMenu {
     property bool   isHead:          false
     // Number of selected history rows (≥2 enables "Squash N commits…").
     property int    selectionCount:  1
+    // Set to false in read-only contexts (e.g. the all-refs Graph tab) to hide
+    // history-editing items (Reword, Undo, Squash, Edit history from here).
+    property bool   allowHistoryEditing: true
 
     signal copySha()
     signal newBranchFromHere()
@@ -45,26 +48,27 @@ AppMenu {
     AppMenuItem {
         objectName: "rewordItem"
         text: "Reword…"
-        visible: menu.isHead
+        visible: menu.isHead && menu.allowHistoryEditing
         onTriggered: menu.reword()
     }
     AppMenuItem {
         objectName: "undoLastCommitItem"
         text: "Undo last commit"
         // Only HEAD can be undone (soft reset to its parent keeps changes staged).
-        visible: menu.isHead
+        visible: menu.isHead && menu.allowHistoryEditing
         onTriggered: menu.undoLastCommit()
     }
     AppMenuItem {
         objectName: "squashSelectedItem"
         text: "Squash " + menu.selectionCount + " commits…"
         // Only when a multi-commit range is selected (squash needs ≥2).
-        visible: menu.selectionCount >= 2
+        visible: menu.selectionCount >= 2 && menu.allowHistoryEditing
         onTriggered: menu.squashSelected()
     }
     AppMenuItem {
         objectName: "editHistoryItem"
         text: "Edit history from here…"
+        visible: menu.allowHistoryEditing
         onTriggered: menu.editHistory()
     }
 

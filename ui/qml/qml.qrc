@@ -18,6 +18,7 @@
     <file>DiffView.qml</file>
     <file>Avatar.qml</file>
     <file>HistoryPane.qml</file>
+    <file>GraphPane.qml</file>
     <file>CommitDetail.qml</file>
     <file>CredentialDialog.qml</file>
     <file>OverlayCard.qml</file>

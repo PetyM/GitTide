@@ -2,8 +2,10 @@
 #include <map>
 #include <vector>
 
+#include <QHash>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVariantList>
 
 #include "gittide/branchinfo.hpp"
@@ -42,6 +44,7 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::DiffLinesModel* diffLines READ diffLines CONSTANT)
     Q_PROPERTY(gittide::ui::BranchListModel* branches READ branches CONSTANT)
     Q_PROPERTY(gittide::ui::HistoryListModel* history READ history CONSTANT)
+    Q_PROPERTY(gittide::ui::HistoryListModel* graph READ graph CONSTANT)
     Q_PROPERTY(gittide::ui::ChangedFilesModel* commitFiles READ commitFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
@@ -106,6 +109,7 @@ public:
     DiffLinesModel* diffLines() const;
     BranchListModel*    branches() const;
     HistoryListModel*   history() const;
+    HistoryListModel*   graph() const;
     ChangedFilesModel* commitFiles() const;
     DiffLinesModel* commitDiff() const;
     QString selectedCommit() const;
@@ -154,6 +158,7 @@ public:
     Q_INVOKABLE void selectFile(const QString& path);
     Q_INVOKABLE void selectFileAtRow(int row);
     Q_INVOKABLE void selectCommitAtRow(int row);
+    Q_INVOKABLE void selectGraphCommitAtRow(int row);
     Q_INVOKABLE void selectCommitFileAtRow(int row);
     Q_INVOKABLE void setFileChecked(int row, bool checked);
     Q_INVOKABLE void setAllFilesChecked(bool checked);
@@ -177,6 +182,7 @@ public:
     Q_INVOKABLE void deleteBranch(const QString& name, bool force);
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
     Q_INVOKABLE void refreshHistory();
+    Q_INVOKABLE void refreshGraph();
     /// Re-sync the whole active repo from disk (status + branches + history +
     /// sync). Called on window focus-in (D35) to catch changes the directory
     /// watcher can miss (in-place edits of an existing file while backgrounded).
@@ -284,6 +290,8 @@ private:
     void onHead(const gittide::HeadState& head);
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
     void onHistory(const gittide::GraphLayout& layout);
+    void onGraph(const gittide::GraphLayout& layout);
+    void onRefTips(const QHash<QString, QStringList>& oidToLabels);
     void applyHistoryIfReady();
     void updateReorderableRun();
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
@@ -308,6 +316,7 @@ private:
     DiffLinesModel*    m_diff       = nullptr;
     BranchListModel*   m_branches   = nullptr;
     HistoryListModel*  m_history    = nullptr;
+    HistoryListModel*  m_graph      = nullptr;
     ChangedFilesModel* m_commitFiles = nullptr;
     DiffLinesModel*    m_commitDiff  = nullptr;
 

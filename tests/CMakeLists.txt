@@ -31,6 +31,7 @@ add_executable(gittide_core_tests
   test_git_repo_sync.cpp
   test_git_repo_watch.cpp
   test_graph_builder.cpp
+  core/test_gitrepo_logallrefs.cpp
   support/temprepo.cpp
   support/git_config_isolation.cpp
 )
@@ -86,6 +87,8 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_interactive_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_todo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_rebase_banner_message.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_model_reflabels.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_graph.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

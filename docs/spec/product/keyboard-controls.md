@@ -91,6 +91,7 @@ list content is not inset.
 | Ctrl/Cmd+Enter | `commitSummary` or `commitDescription` focused | Commit (when button enabled) |
 | Ctrl+1 | window | Switch to Changes tab; focus `fileList` |
 | Ctrl+2 | window | Switch to History tab; focus `historyList` |
+| Ctrl+3 | window | Switch to Graph tab; focus `graphList` |
 | Ctrl+R | window | Refresh: `repoVm.refreshHistory()` (status refresh is already triggered by the controller) |
 | ? | window (no text input focused) | Toggle shortcuts overlay |
 
@@ -147,6 +148,11 @@ Shortcut {
     sequence: "Ctrl+2"
     enabled: repoVm && repoVm.repoOpen
     onActivated: { tabs.currentIndex = 1; historyTabBody.takeFocus() }
+}
+Shortcut {
+    sequence: "Ctrl+3"
+    enabled: repoVm && repoVm.repoOpen
+    onActivated: { tabs.currentIndex = 2; graphTabBody.takeFocus() }
 }
 Shortcut {
     sequence: "Ctrl+R"

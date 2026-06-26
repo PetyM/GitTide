@@ -50,4 +50,14 @@ struct GraphLayout
     int laneCount = 0; // max lane index used + 1
 };
 
+// A ref tip for the graph's branch/tag chips. name is the short form
+// (main, origin/main, v1.0); oid is the commit it peels to.
+enum class RefTipKind { Branch, Remote, Tag };
+struct RefTip
+{
+    std::string oid;
+    std::string name;
+    RefTipKind  kind = RefTipKind::Branch;
+};
+
 } // namespace gittide

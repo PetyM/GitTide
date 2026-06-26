@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `approved` |
+| **Status** | `shipped` |
 | **Date** | 2026-06-26 |
 | **Supersedes** | The in-history graph column from earlier history specs |
 | **Related** | [rebase-interactive.md](rebase-interactive.md), [2026-06-25-history-drag-squash-design.md](2026-06-25-history-drag-squash-design.md) |
