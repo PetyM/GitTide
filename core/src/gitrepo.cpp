@@ -845,6 +845,39 @@ Expected<void> GitRepo::resetIndexToHead()
     return {};
 }
 
+namespace {
+// Fill a CommitNode from a looked-up commit object (shared by log/logAllRefs).
+gittide::CommitNode nodeFromCommit(git_repository* repo, const git_oid& oid)
+{
+    gittide::CommitNode node;
+    char hex[GIT_OID_SHA1_HEXSIZE + 1];
+    git_oid_tostr(hex, sizeof(hex), &oid);
+    node.oid = hex;
+
+    git_commit* c = nullptr;
+    if (git_commit_lookup(&c, repo, &oid) < 0)
+        return node;
+
+    const char* msg = git_commit_summary(c);
+    node.summary    = msg ? msg : "";
+    const git_signature* author = git_commit_author(c);
+    node.author = author ? author->name : "";
+    node.time   = author ? author->when.time : 0;
+
+    unsigned nparents = git_commit_parentcount(c);
+    node.parents.reserve(nparents);
+    for (unsigned i = 0; i < nparents; ++i)
+    {
+        const git_oid* pid = git_commit_parent_id(c, i);
+        char phex[GIT_OID_SHA1_HEXSIZE + 1];
+        git_oid_tostr(phex, sizeof(phex), pid);
+        node.parents.push_back(phex);
+    }
+    git_commit_free(c);
+    return node;
+}
+} // namespace
+
 Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
 {
     git_revwalk* walk = nullptr;
@@ -872,38 +905,37 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
 
     while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
     {
-        git_commit* c = nullptr;
-        if (git_commit_lookup(&c, m_repo, &oid) < 0)
-            continue;
-
-        CommitNode node;
-
-        char hex[GIT_OID_SHA1_HEXSIZE + 1];
-        git_oid_tostr(hex, sizeof(hex), &oid);
-        node.oid = hex;
-
-        const char* msg = git_commit_summary(c);
-        node.summary    = msg ? msg : "";
-
-        const git_signature* author = git_commit_author(c);
-        node.author                 = author ? author->name : "";
-        node.time                   = author ? author->when.time : 0;
-
-        unsigned nparents = git_commit_parentcount(c);
-        node.parents.reserve(nparents);
-        for (unsigned i = 0; i < nparents; ++i)
-        {
-            const git_oid* pid = git_commit_parent_id(c, i);
-            char phex[GIT_OID_SHA1_HEXSIZE + 1];
-            git_oid_tostr(phex, sizeof(phex), pid);
-            node.parents.push_back(phex);
-        }
-
-        git_commit_free(c);
-        result.push_back(std::move(node));
+        result.push_back(nodeFromCommit(m_repo, oid));
         ++count;
     }
 
+    git_revwalk_free(walk);
+    return result;
+}
+
+Expected<std::vector<CommitNode>> GitRepo::logAllRefs(unsigned limit) const
+{
+    git_revwalk* walk = nullptr;
+    int rc            = git_revwalk_new(&walk, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_revwalk_sorting(walk, GIT_SORT_TOPOLOGICAL | GIT_SORT_TIME);
+
+    // Push every ref. Missing globs (e.g. no remotes) are not fatal — a repo
+    // with no matching refs simply contributes nothing.
+    git_revwalk_push_glob(walk, "refs/heads/*");
+    git_revwalk_push_glob(walk, "refs/remotes/*");
+    git_revwalk_push_glob(walk, "refs/tags/*");
+
+    std::vector<CommitNode> result;
+    git_oid oid;
+    unsigned count = 0;
+    while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
+    {
+        result.push_back(nodeFromCommit(m_repo, oid));
+        ++count;
+    }
     git_revwalk_free(walk);
     return result;
 }

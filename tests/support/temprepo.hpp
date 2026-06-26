@@ -56,6 +56,9 @@ public:
     // barePath (file://). Registers origin automatically (libgit2 clone does).
     void cloneFrom(const std::filesystem::path& barePath);
 
+    // Create a lightweight tag named `name` pointing at current HEAD.
+    void tagHead(std::string_view name);
+
 private:
     LibGit2Context m_ctx;
     std::filesystem::path m_dir;

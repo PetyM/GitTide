@@ -98,6 +98,11 @@ public:
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
 
+    // Walk every ref (refs/heads/*, refs/remotes/*, refs/tags/*) topologically
+    // and by time, newest first. For the full-graph view. limit 0 = unbounded.
+    // Same CommitNode shape as log(), so GraphBuilder::build() consumes it.
+    Expected<std::vector<CommitNode>> logAllRefs(unsigned limit = 0) const;
+
     // Files changed by the commit identified by the 40-char hex oid, relative to its
     // first parent (root commit: relative to an empty tree). Flags use Index* to mean
     // added / modified / deleted, matching the working-changes display model.

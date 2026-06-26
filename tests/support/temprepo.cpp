@@ -234,4 +234,14 @@ void TempRepo::cloneFrom(const std::filesystem::path& barePath)
     check(git_clone(&m_repo, url.c_str(), toGitPath(m_dir).c_str(), nullptr), "git_clone failed");
 }
 
+void TempRepo::tagHead(std::string_view name)
+{
+    git_object* head = nullptr;
+    if (git_revparse_single(&head, m_repo, "HEAD") != 0)
+        return;
+    git_oid out;
+    git_tag_create_lightweight(&out, m_repo, std::string(name).c_str(), head, 0);
+    git_object_free(head);
+}
+
 } // namespace gittide::test
