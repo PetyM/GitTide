@@ -73,3 +73,35 @@ TEST_CASE("logAllRefs includes tagged commits", "[logallrefs]")
     REQUIRE(all.has_value());
     REQUIRE(hasSummary(*all, "tagged base"));
 }
+
+TEST_CASE("refTips reports branch and tag labels with short names", "[logallrefs]")
+{
+    test::TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "1");
+    repo.commitAll("base");
+    repo.tagHead("v1.0");
+
+    auto git = GitRepo::open(repo.path());
+    REQUIRE(git.has_value());
+    auto base = git->log(1);
+    REQUIRE(base.has_value());
+    REQUIRE(git->createBranch("feature", base->front().oid).has_value());
+
+    auto tips = git->refTips();
+    REQUIRE(tips.has_value());
+
+    auto find = [&](const std::string& n) -> const RefTip* {
+        for (const auto& t : *tips) if (t.name == n) return &t;
+        return nullptr;
+    };
+    const RefTip* master  = find("master");
+    const RefTip* feature = find("feature");
+    const RefTip* tag     = find("v1.0");
+    REQUIRE(master  != nullptr);
+    REQUIRE(feature != nullptr);
+    REQUIRE(tag     != nullptr);
+    REQUIRE(master->kind  == RefTipKind::Branch);
+    REQUIRE(tag->kind     == RefTipKind::Tag);
+    REQUIRE(feature->oid  == base->front().oid); // feature points at base
+}

@@ -16,6 +16,7 @@
 #include <git2/remote.h>
 #include <git2/reset.h>
 #include <git2/revwalk.h>
+#include <git2/refs.h>
 #include <git2/stash.h>
 #include <git2/worktree.h>
 #include <map>
@@ -1103,6 +1104,71 @@ Expected<void> GitRepo::updateSubmodules()
             return std::unexpected(lastGitError(rc));
     }
     return {};
+}
+
+Expected<std::vector<RefTip>> GitRepo::refTips() const
+{
+    git_reference_iterator* it = nullptr;
+    int rc = git_reference_iterator_new(&it, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    std::vector<RefTip> tips;
+    git_reference* ref = nullptr;
+    while (git_reference_next(&ref, it) == 0)
+    {
+        const char* name = git_reference_name(ref); // full, e.g. refs/heads/main
+        std::string full = name ? name : "";
+
+        // Peel to a commit; skip refs that don't resolve to one (e.g. annotated
+        // tag of a tree, symbolic HEAD).
+        git_object* obj = nullptr;
+        if (git_reference_peel(&obj, ref, GIT_OBJECT_COMMIT) == 0)
+        {
+            git_oid out;
+            git_oid_cpy(&out, git_object_id(obj));
+            char hex[GIT_OID_SHA1_HEXSIZE + 1];
+            git_oid_tostr(hex, sizeof(hex), &out);
+            git_object_free(obj);
+
+            RefTip tip;
+            tip.oid = hex;
+            if (full.rfind("refs/heads/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Branch;
+                tip.name = full.substr(std::string("refs/heads/").size());
+            }
+            else if (full.rfind("refs/remotes/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Remote;
+                tip.name = full.substr(std::string("refs/remotes/").size());
+                // Skip the synthetic origin/HEAD pointer.
+                if (tip.name.size() >= 5 &&
+                    tip.name.compare(tip.name.size() - 5, 5, "/HEAD") == 0)
+                {
+                    git_reference_free(ref);
+                    ref = nullptr;
+                    continue;
+                }
+            }
+            else if (full.rfind("refs/tags/", 0) == 0)
+            {
+                tip.kind = RefTipKind::Tag;
+                tip.name = full.substr(std::string("refs/tags/").size());
+            }
+            else
+            {
+                git_reference_free(ref);
+                ref = nullptr;
+                continue; // ignore refs/stash, notes, etc.
+            }
+            tips.push_back(std::move(tip));
+        }
+        git_reference_free(ref);
+        ref = nullptr;
+    }
+    git_reference_iterator_free(it);
+    return tips;
 }
 
 Expected<std::vector<BranchInfo>> GitRepo::branches() const

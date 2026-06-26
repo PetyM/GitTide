@@ -122,6 +122,10 @@ public:
     Expected<DiffResult> rangeDiff(std::string oldOid, std::string newOid,
                                    const std::filesystem::path& file) const;
 
+    // Enumerate ref tips (local + remote-tracking branches + tags) with short
+    // names, each resolved to the commit oid it points at. For graph chips.
+    Expected<std::vector<RefTip>> refTips() const;
+
     // List all local branches. BranchInfo::isHead is true for the current branch.
     Expected<std::vector<BranchInfo>> branches() const;
 
