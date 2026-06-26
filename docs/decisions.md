@@ -278,6 +278,22 @@ an entry with a newer one if it changes.
   the message. Extends D36. →
   [`product`](spec/product/rebase-interactive.md)
 
+- **D40 — Message-pause auto-surfaces the editor; drag feedback is a floating chip,
+  not a moved row.** A `RebasePause::Message` step (squash / reword) already has
+  the combined message prefilled in `rebaseMessagePrefill`; requiring the user to
+  also click Continue before the editor opens is pure friction. `RepoViewModel` now
+  detects the rising edge into each message step and emits `rebaseMessagePauseEntered()`
+  so `WorkingPane` opens the dialog immediately; the banner's Continue is the fallback
+  if the dialog is dismissed. For drag feedback, the `DragHandler` keeps `target:
+  null` (the row must not follow the cursor — the target-row indicators show the
+  outcome); instead a separate pane-level `dragChip` Item follows `dropLogic.dragPos`,
+  showing the dragged commit and a **"◆ Squash"** / **"Move"** label that makes the
+  drop intent legible before release without moving any list row. *Rejected:*
+  collecting messages before the rebase starts (loses the mid-rebase git-faithful
+  model and requires a new UI gate); moving the source row with the cursor (fights
+  the three-band drop zone and confuses where the commit currently sits). →
+  [`product`](spec/product/rebase-interactive.md)
+
 - **D39 — The branch graph moved to its own all-refs Graph tab; the History drag
   bug was a `MouseArea` grab-steal, fixed with `TapHandler`.** The in-history
   graph column only walked HEAD (`git_revwalk_push_head`), yielding a near-linear

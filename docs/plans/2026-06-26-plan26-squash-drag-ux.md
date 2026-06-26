@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-26 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [spec/product/2026-06-26-squash-drag-ux-design.md](../spec/product/2026-06-26-squash-drag-ux-design.md) |
 | **Depends on** | Plan 25 (history graph tab + drag fix), Plan 20 (interactive rebase) |
 
@@ -69,7 +69,7 @@ class needs none of those.
   time the rebase newly enters a `Message` pause (rising edge: pause becomes
   `Message`, or the step index advances while still `Message`).
 
-- [ ] **Step 1: Write the failing test.** Add a slot to `TestRepoViewModelRebase`
+- [x] **Step 1: Write the failing test.** Add a slot to `TestRepoViewModelRebase`
   in `tests/ui/test_repoviewmodel_rebase.cpp`, mirroring the existing
   `squash_commit_into_folds_dragged_into_target` slot (~line 284) which builds a
   TempRepo with ≥2 commits, opens it in a `RepoViewModel`, and calls
@@ -103,7 +103,7 @@ class needs none of those.
   essential assertions are the two `QCOMPARE`s: pause reason becomes `"message"`
   and `pauseSpy.count() == 1`.
 
-- [ ] **Step 2: Run it, verify it fails** (signal undeclared → compile error, or
+- [x] **Step 2: Run it, verify it fails** (signal undeclared → compile error, or
   `pauseSpy.count()` is 0):
 
 ```bash
@@ -111,7 +111,7 @@ cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittid
 ```
 Expected: FAIL.
 
-- [ ] **Step 3: Declare the signal** in `ui/include/gittide/ui/repoviewmodel.hpp`
+- [x] **Step 3: Declare the signal** in `ui/include/gittide/ui/repoviewmodel.hpp`
   next to `void rebaseStateChanged();` (~line 271):
 
 ```cpp
@@ -120,7 +120,7 @@ Expected: FAIL.
     void rebaseMessagePauseEntered();
 ```
 
-- [ ] **Step 4: Emit on the rising edge** in `ui/src/repoviewmodel.cpp`. Replace
+- [x] **Step 4: Emit on the rising edge** in `ui/src/repoviewmodel.cpp`. Replace
   the existing rebase-state lambda (currently lines 72–73):
 
 ```cpp
@@ -148,7 +148,7 @@ Expected: FAIL.
   (`gittide::RebasePause` is already visible via the `rebase.hpp` include used by
   the `rebasePauseReason()` accessor.)
 
-- [ ] **Step 5: Auto-open in `ui/qml/WorkingPane.qml`.** Refactor the
+- [x] **Step 5: Auto-open in `ui/qml/WorkingPane.qml`.** Refactor the
   `RebaseBanner.onRequestMessageEdit` body (currently ~lines 128–144) into a
   reusable function on the `workingPane` root, then call it from both the banner
   and a new `Connections`. Add this function near the other `workingPane`
@@ -190,14 +190,14 @@ Expected: FAIL.
     }
 ```
 
-- [ ] **Step 6: Run the suite, verify GREEN.**
+- [x] **Step 6: Run the suite, verify GREEN.**
 
 ```bash
 cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests
 ```
 Expected: the new slot passes; no regressions.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/repoviewmodel.hpp ui/src/repoviewmodel.cpp \
@@ -220,7 +220,7 @@ git commit -m "feat(ui): auto-open message dialog on interactive-rebase message 
   binds to `dropLogic.dragActive`; `dropLogic` gains `dragActive` (bool),
   `draggedSummary` (string), `draggedShortOid` (string), `dragPos` (point).
 
-- [ ] **Step 1: Write the failing test.** Add a slot to `TestQmlHistory` in
+- [x] **Step 1: Write the failing test.** Add a slot to `TestQmlHistory` in
   `tests/ui/test_qml_history.cpp`, mirroring how that file loads a QML component
   and uses `findChild`. The chip is a pane-level child (not inside the ListView
   delegate), so it IS reachable headlessly:
@@ -246,7 +246,7 @@ git commit -m "feat(ui): auto-open message dialog on interactive-rebase message 
   Match the file's actual QML-load helper (engine + component, or Main.qml +
   findChild) rather than inventing one.
 
-- [ ] **Step 2: Run it, verify it fails** (`dragChip` not found / `dragActive`
+- [x] **Step 2: Run it, verify it fails** (`dragChip` not found / `dragActive`
   property missing):
 
 ```bash
@@ -385,12 +385,12 @@ cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittid
 Expected: the new slot passes; existing `TestQmlHistory` (drag/grip/dropZone) and
 all other classes still pass.
 
-- [ ] **Step 8: Manual-smoke note for the report.** Headless cannot synthesise the
+- [x] **Step 8: Manual-smoke note for the report.** Headless cannot synthesise the
   live drag; state in the report: "open repo → History → press-hold-drag a row →
   a chip follows the cursor; the hint reads '◆ Squash' over a squash target and
   'Move' over a reorder target."
 
-- [ ] **Step 9: Commit.**
+- [x] **Step 9: Commit.**
 
 ```bash
 git add ui/qml/HistoryPane.qml tests/ui/test_qml_history.cpp
@@ -409,23 +409,23 @@ git commit -m "feat(ui): floating drag chip follows the cursor in history drag"
 - Modify: this plan's **Status** → `done`, fill **Outcome**
 - Modify: `docs/decisions.md` (optional one-liner)
 
-- [ ] **Step 1: Update the living spec.** In the history-editing / interactive-rebase
+- [x] **Step 1: Update the living spec.** In the history-editing / interactive-rebase
   product spec, record: (a) an interactive-rebase **message pause auto-opens** the
   message-edit dialog (squash and reword), with the banner Continue as a fallback;
   (b) the history drag shows a **floating chip** under the cursor with a move/squash
   hint. Flip the design doc **Status** to `shipped`.
 
-- [ ] **Step 2: Add the Plan 26 row** to `docs/plans/index.md` (mirror the Plan 25
+- [x] **Step 2: Add the Plan 26 row** to `docs/plans/index.md` (mirror the Plan 25
   row format, link this file).
 
-- [ ] **Step 3: Run the full suite** to confirm nothing regressed:
+- [x] **Step 3: Run the full suite** to confirm nothing regressed:
 
 ```bash
 cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
 Expected: all PASS.
 
-- [ ] **Step 4: Fill this plan's Outcome, set Status `done`, commit.**
+- [x] **Step 4: Fill this plan's Outcome, set Status `done`, commit.**
 
 ```bash
 git add docs/
@@ -436,9 +436,16 @@ git commit -m "docs: close out Plan 26 (squash/drag UX polish)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: `RepoViewModel::rebaseMessagePauseEntered`, `WorkingPane.openRebaseMessageDialog`,
->   the `dropLogic` drag-chip state + `dragChip` in `HistoryPane.qml`.
+- Shipped: Interactive-rebase message pauses (squash / reword steps) now
+  **auto-open** the commit-message editor — no Continue click required; the banner's
+  Continue remains a manual fallback. A **floating drag chip** follows the cursor
+  during history drags, showing the dragged commit's summary + short oid and a
+  **"◆ Squash"** / **"Move"** hint that reflects the current drop-zone.
+- Spec updated: `rebase-interactive.md` §3.2 (floating chip), §3.3 (signal), §3.4–3.5
+  (auto-open), §6 (files); design doc `2026-06-26-squash-drag-ux-design.md` status
+  → `shipped`; `decisions.md` **D40**.
+- Code: `RepoViewModel::rebaseMessagePauseEntered` (signal, rising-edge detection in
+  the rebase-state lambda), `WorkingPane.openRebaseMessageDialog()` (refactored
+  prefill + open, called by the new `Connections` and the banner fallback), `dropLogic`
+  drag-chip state (`dragActive`, `draggedSummary`, `draggedShortOid`, `dragPos`) +
+  pane-level `dragChip` `Item` in `HistoryPane.qml`.

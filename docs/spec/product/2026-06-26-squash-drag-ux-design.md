@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `approved` |
+| **Status** | `shipped` |
 | **Date** | 2026-06-26 |
 | **Related** | [2026-06-26-history-graph-tab-design.md](2026-06-26-history-graph-tab-design.md), [rebase-interactive.md](rebase-interactive.md), [2026-06-25-history-drag-squash-design.md](2026-06-25-history-drag-squash-design.md) |
 
