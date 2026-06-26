@@ -68,7 +68,7 @@ AppMenu {
     AppMenuItem {
         objectName: "editHistoryItem"
         text: "Edit history from here…"
-        visible: menu.localBranchName.length > 0 && menu.allowHistoryEditing
+        visible: menu.allowHistoryEditing
         onTriggered: menu.editHistory()
     }
 
