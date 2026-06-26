@@ -216,16 +216,68 @@ private slots:
 
         QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
         QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
         model.applySubmodules(QStringLiteral("/tmp/gittide-root/sub"), {nestedUpdated});
-        QVERIFY(removed.count() > 0);
-        QVERIFY(inserted.count() > 0);
+        // Same path → in-place update, NOT a destructive rebuild: node identity is
+        // preserved so an expanded subtree keeps its TreeView expansion.
+        QCOMPARE(removed.count(), 0);
+        QCOMPARE(inserted.count(), 0);
+        QVERIFY(changed.count() > 0);
 
         const QModelIndex nestedIdx2 = model.index(0, 0, subIdx);
         QVERIFY(nestedIdx2.isValid());
+        QCOMPARE(nestedIdx2, nestedIdx); // same node (same internalPointer) — identity kept
         QCOMPARE(model.data(nestedIdx2, RepoListModel::StatusRole).toInt(),
                  static_cast<int>(SubmoduleStatus::Dirty));
         QCOMPARE(model.data(nestedIdx2, RepoListModel::ShortOidRole).toString(),
                  QStringLiteral("ccc3333"));
+    }
+
+    void applySubmodules_inPlaceUpdate_preservesSiblingIdentity()
+    {
+        // Regression: switching branches changes submodule pins/status; the refresh
+        // must update fields in place, never remove+reinsert the whole subtree
+        // (which collapsed expanded submodules in the sidebar TreeView).
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        RepoListModel            model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos({RepoRef{.path = "/tmp/gittide-root", .alias = "root"}});
+
+        auto makeSub = [](const char* name, const char* path, SubmoduleStatus st, const char* oid)
+        {
+            SubmoduleNode s;
+            s.name     = name;
+            s.path     = path;
+            s.status   = st;
+            s.shortOid = oid;
+            return s;
+        };
+
+        const SubmoduleNode a  = makeSub("a", "/tmp/gittide-root/a", SubmoduleStatus::Clean, "aaa1111");
+        const SubmoduleNode b  = makeSub("b", "/tmp/gittide-root/b", SubmoduleStatus::Clean, "bbb1111");
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {a, b});
+
+        const QModelIndex topIdx = model.index(0, 0);
+        QCOMPARE(model.rowCount(topIdx), 2);
+        const QModelIndex aIdx = model.index(0, 0, topIdx);
+        const QModelIndex bIdx = model.index(1, 0, topIdx);
+
+        // Branch switch: same submodule set, a's pin moved (now Dirty), b unchanged.
+        const SubmoduleNode a2 = makeSub("a", "/tmp/gittide-root/a", SubmoduleStatus::Dirty, "ddd2222");
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {a2, b});
+
+        QCOMPARE(removed.count(), 0);   // no destructive rebuild
+        QCOMPARE(inserted.count(), 0);
+        // Indices (and node identity) preserved for both rows.
+        QCOMPARE(model.index(0, 0, topIdx), aIdx);
+        QCOMPARE(model.index(1, 0, topIdx), bIdx);
+        QCOMPARE(model.data(aIdx, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Dirty));
+        QCOMPARE(model.data(aIdx, RepoListModel::ShortOidRole).toString(), QStringLiteral("ddd2222"));
     }
 
     void applySubmodules_insertsThenNoOpsWhenUnchanged()

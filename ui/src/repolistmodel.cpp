@@ -287,18 +287,53 @@ void RepoListModel::applySubmodules(const QString& repoPath,
     if (!root || submodulesEqual(*root, subs))
         return;
 
-    const QModelIndex rootIdx = createIndex(rowOf(root), 0, root);
+    reconcileChildren(*root, createIndex(rowOf(root), 0, root), subs);
+}
 
-    if (!root->children.empty())
+void RepoListModel::reconcileChildren(Node& parent, const QModelIndex& parentIdx,
+                                      const std::vector<gittide::SubmoduleNode>& subs)
+{
+    // Same path-set in the same order → in-place field updates, preserving node
+    // identity so an expanded subtree does not collapse on a status/OID change
+    // (the common case when switching branches or navigating submodules).
+    bool sameShape = parent.children.size() == subs.size();
+    for (std::size_t i = 0; sameShape && i < subs.size(); ++i)
+        if (parent.children[i]->path != QString::fromStdString(subs[i].path.generic_string()))
+            sameShape = false;
+
+    if (sameShape)
     {
-        beginRemoveRows(rootIdx, 0, static_cast<int>(root->children.size()) - 1);
-        root->children.clear();
+        for (std::size_t i = 0; i < subs.size(); ++i)
+        {
+            Node&       c       = *parent.children[i];
+            const auto& s       = subs[i];
+            const QString oid     = QString::fromStdString(s.shortOid);
+            const bool    missing = s.status == gittide::SubmoduleStatus::Uninitialized;
+            if (c.status != s.status || c.shortOid != oid || c.missing != missing)
+            {
+                c.status              = s.status;
+                c.shortOid            = oid;
+                c.missing             = missing;
+                const QModelIndex idx = index(static_cast<int>(i), 0, parentIdx);
+                emit dataChanged(idx, idx, {StatusRole, ShortOidRole, MissingRole});
+            }
+            reconcileChildren(c, index(static_cast<int>(i), 0, parentIdx), s.children);
+        }
+        return;
+    }
+
+    // The submodule set or order genuinely changed (rare: .gitmodules edited) —
+    // rebuild just this level.
+    if (!parent.children.empty())
+    {
+        beginRemoveRows(parentIdx, 0, static_cast<int>(parent.children.size()) - 1);
+        parent.children.clear();
         endRemoveRows();
     }
     if (!subs.empty())
     {
-        beginInsertRows(rootIdx, 0, static_cast<int>(subs.size()) - 1);
-        appendSubmodules(*root, subs);
+        beginInsertRows(parentIdx, 0, static_cast<int>(subs.size()) - 1);
+        appendSubmodules(parent, subs);
         endInsertRows();
     }
 }

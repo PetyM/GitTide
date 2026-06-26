@@ -106,6 +106,13 @@ private:
                          const std::vector<gittide::SubmoduleNode>& subs) const;
     // Any node by exact path (depth-first), or nullptr.
     Node* findByPath(const QString& path);
+    // Minimally update `parent`'s submodule children to match `subs`: when the
+    // child path-set/order is unchanged, mutate changed fields in place and emit
+    // dataChanged, recursing into grandchildren — this preserves each node's
+    // identity (and so the TreeView's expansion state). Only when the set/order
+    // actually differs does it rebuild this one level (begin/endRemove+Insert).
+    void reconcileChildren(Node& parent, const QModelIndex& parentIdx,
+                           const std::vector<gittide::SubmoduleNode>& subs);
 
     std::vector<std::unique_ptr<Node>> m_roots;
 };
