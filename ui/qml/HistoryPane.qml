@@ -167,50 +167,59 @@ RowLayout {
                     color: theme.accent
                 }
 
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    onClicked: function(mouse) {
-                        historyList.forceActiveFocus()   // arrows work right after a click
-                        if (mouse.button === Qt.RightButton) {
-                            // Right-clicking inside an existing multi-selection keeps
-                            // it (so "Squash N commits…" applies to the whole range);
-                            // otherwise collapse to the clicked row.
-                            var inMulti = historyList.selectedRows.length >= 2
-                                          && historyList.selectedRows.indexOf(index) >= 0
-                            if (!inMulti) {
-                                historyList.currentIndex = index
-                                historyList.selectedRows = [index]
-                            }
-                            commitMenu.oid             = model.oid
-                            commitMenu.shortOid        = model.shortOid
-                            commitMenu.localBranchName = model.localBranchName ?? ""
-                            commitMenu.isHead          = model.isHead
-                            commitMenu.selectionCount  = historyList.selectedRows.length
-                            commitMenu.popup()
+                // TapHandler for left-click selection. Cooperates with the sibling
+                // DragHandler (rowDrag) via shared pointer grabs — unlike a MouseArea
+                // it does NOT take an exclusive grab on press, so DragHandler can win
+                // the grab after the hold timer fires.
+                TapHandler {
+                    id: leftTap
+                    objectName: "leftTapHandler"
+                    acceptedButtons: Qt.LeftButton
+                    onTapped: {
+                        historyList.forceActiveFocus()
+                        const mods = point.modifiers
+                        if (mods & Qt.ShiftModifier) {
+                            var anchor = historyList.currentIndex
+                            var lo = Math.max(0, Math.min(anchor, index))
+                            var hi = Math.max(anchor, index)
+                            var range = []
+                            for (var r = lo; r <= hi; ++r) range.push(r)
+                            historyList.selectedRows = range
+                            historyList.currentIndex = index
+                        } else if (mods & Qt.ControlModifier) {
+                            var set = historyList.selectedRows.slice()
+                            var at = set.indexOf(index)
+                            if (at >= 0) set.splice(at, 1); else set.push(index)
+                            if (set.indexOf(historyList.currentIndex) < 0)
+                                set.push(historyList.currentIndex)
+                            historyList.selectedRows = set
+                            historyList.currentIndex = index
                         } else {
-                            if (mouse.modifiers & Qt.ShiftModifier) {
-                                var anchor = historyList.currentIndex
-                                var lo = Math.max(0, Math.min(anchor, index))
-                                var hi = Math.max(anchor, index)
-                                var range = []
-                                for (var r = lo; r <= hi; ++r) range.push(r)
-                                historyList.selectedRows = range
-                                historyList.currentIndex = index
-                            } else if (mouse.modifiers & Qt.ControlModifier) {
-                                var set = historyList.selectedRows.slice()
-                                var at = set.indexOf(index)
-                                if (at >= 0) set.splice(at, 1); else set.push(index)
-                                if (set.indexOf(historyList.currentIndex) < 0)
-                                    set.push(historyList.currentIndex)
-                                historyList.selectedRows = set
-                                historyList.currentIndex = index
-                            } else {
-                                historyList.selectedRows = [index]
-                                historyList.currentIndex = index
-                            }
-                            if (repoVm) historyList.applySelection()
+                            historyList.selectedRows = [index]
+                            historyList.currentIndex = index
                         }
+                        if (repoVm) historyList.applySelection()
+                    }
+                }
+
+                // TapHandler for right-click context menu. Keeps an existing
+                // multi-selection so "Squash N commits…" applies to the whole range.
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: {
+                        historyList.forceActiveFocus()
+                        var inMulti = historyList.selectedRows.length >= 2
+                                      && historyList.selectedRows.indexOf(index) >= 0
+                        if (!inMulti) {
+                            historyList.currentIndex = index
+                            historyList.selectedRows = [index]
+                        }
+                        commitMenu.oid             = model.oid
+                        commitMenu.shortOid        = model.shortOid
+                        commitMenu.localBranchName = model.localBranchName ?? ""
+                        commitMenu.isHead          = model.isHead
+                        commitMenu.selectionCount  = historyList.selectedRows.length
+                        commitMenu.popup()
                     }
                 }
 
@@ -219,16 +228,6 @@ RowLayout {
                     anchors.leftMargin: 8
                     anchors.rightMargin: 12
                     spacing: 8
-
-                    GraphColumn {
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: implicitWidth
-                        graphRow: model.graphRow
-                        laneColors: theme.laneColors
-                        headColor: theme.head
-                        laneCount: repoVm && repoVm.history ? repoVm.history.laneCount : 1
-                        head: model.isHead
-                    }
 
                     Avatar {
                         name: model.author
@@ -268,23 +267,6 @@ RowLayout {
                         }
                     }
 
-                    // Drag-to-reorder grip — only for commits in the reorderable run
-                    // (linear single-parent span from HEAD). Dragging onto another run
-                    // row opens a confirmation, then rewrites history via rebase.
-                    Label {
-                        id: reorderGrip
-                        objectName: "reorderGrip"
-                        visible: !!repoVm && index < repoVm.reorderableRunLength
-                        text: "⠿"
-                        color: rowDrag.active ? theme.accent : theme.textMuted
-                        font.pixelSize: 15
-                        Layout.preferredWidth: 16
-                        Layout.alignment: Qt.AlignVCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        ToolTip.text: "Drag to reorder or squash"
-                        ToolTip.visible: gripHover.hovered
-                        HoverHandler { id: gripHover }
-                    }
                 }
 
                 // Reorder insertion line on the hovered target row (above / below bands).
