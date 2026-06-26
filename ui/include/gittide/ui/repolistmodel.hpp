@@ -33,6 +33,8 @@ public:
         FetchErrorRole,
         AheadRole,
         BehindRole,
+        BusyRole,
+        OwnerRepoPathRole,
     };
 
     explicit RepoListModel(QObject* parent = nullptr);
@@ -46,6 +48,17 @@ public:
     QHash<int, QByteArray> roleNames() const override;
 
     void setRepos(const std::vector<gittide::RepoRef>& repos);
+
+    /// Replace the submodule children of the top-level repo node identified by
+    /// `repoPath`. When the new subtree is structurally identical (path + status
+    /// + shortOid, recursively) to the existing one the call is a no-op and
+    /// emits nothing — safe to call from a periodic poll.
+    void applySubmodules(const QString& repoPath,
+                         const std::vector<gittide::SubmoduleNode>& subs);
+
+    /// Toggle a per-row spinner flag for the submodule identified by its
+    /// absolute `submodulePath` and emit `dataChanged` for `BusyRole`.
+    void setSubmoduleBusy(const QString& submodulePath, bool busy);
 
     /// Path of the first top-level repository, or an empty string when the
     /// active project has no repositories. Used to auto-open a repo so the
@@ -70,6 +83,7 @@ private:
         QString                            path;
         bool                               isSubmodule = false;
         bool                               missing     = false;
+        bool                               busy        = false;
         QString                            shortOid;
         gittide::SubmoduleStatus           status = gittide::SubmoduleStatus::Clean;
         FetchState                         fetchState = FetchState::Idle;
@@ -86,6 +100,16 @@ private:
     Node* nodeFor(const QModelIndex& index) const;
     // Row of `node` within its sibling list.
     int rowOf(const Node* node) const;
+    // True when `subs` matches `node`'s existing submodule children exactly
+    // (path + status + shortOid, recursively) — lets applySubmodules no-op.
+    bool submodulesEqual(const Node& node,
+                         const std::vector<gittide::SubmoduleNode>& subs) const;
+    // Top-level node by exact path, or nullptr.
+    Node* findRoot(const QString& repoPath);
+    // Any node by exact path (depth-first), or nullptr.
+    Node* findByPath(const QString& path);
+    // Walk parents to the top-level root.
+    Node* topLevelAncestor(Node* node) const;
 
     std::vector<std::unique_ptr<Node>> m_roots;
 };

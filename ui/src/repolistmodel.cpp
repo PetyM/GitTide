@@ -173,6 +173,10 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
         return node->ahead;
     case BehindRole:
         return node->behind;
+    case BusyRole:
+        return node->busy;
+    case OwnerRepoPathRole:
+        return topLevelAncestor(const_cast<Node*>(node))->path;
     default:
         return {};
     }
@@ -188,8 +192,10 @@ QHash<int, QByteArray> RepoListModel::roleNames() const
     roles[StatusRole]      = "status";
     roles[FetchStateRole]  = "fetchState";
     roles[FetchErrorRole]  = "fetchError";
-    roles[AheadRole]       = "ahead";
-    roles[BehindRole]      = "behind";
+    roles[AheadRole]          = "ahead";
+    roles[BehindRole]         = "behind";
+    roles[BusyRole]           = "submoduleBusy";
+    roles[OwnerRepoPathRole]  = "ownerRepoPath";
     return roles;
 }
 
@@ -232,6 +238,94 @@ void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind)
     n.behind = behind;
     const QModelIndex idx = createIndex(rootRow, 0, &n);
     emit dataChanged(idx, idx, {AheadRole, BehindRole});
+}
+
+RepoListModel::Node* RepoListModel::findRoot(const QString& repoPath)
+{
+    for (auto& r : m_roots)
+        if (r->path == repoPath)
+            return r.get();
+    return nullptr;
+}
+
+RepoListModel::Node* RepoListModel::findByPath(const QString& path)
+{
+    Node* match = nullptr;
+    auto walk = [&](auto&& self, std::vector<std::unique_ptr<Node>>& nodes) -> void
+    {
+        for (auto& n : nodes)
+        {
+            if (match)
+                return;
+            if (n->path == path)
+            {
+                match = n.get();
+                return;
+            }
+            self(self, n->children);
+        }
+    };
+    walk(walk, m_roots);
+    return match;
+}
+
+RepoListModel::Node* RepoListModel::topLevelAncestor(Node* node) const
+{
+    while (node && node->parent)
+        node = node->parent;
+    return node;
+}
+
+bool RepoListModel::submodulesEqual(const Node& node,
+                                    const std::vector<gittide::SubmoduleNode>& subs) const
+{
+    if (node.children.size() != subs.size())
+        return false;
+    for (std::size_t i = 0; i < subs.size(); ++i)
+    {
+        const Node& c = *node.children[i];
+        const auto& s = subs[i];
+        if (!c.isSubmodule
+            || c.path != QString::fromStdString(s.path.generic_string())
+            || c.status != s.status
+            || c.shortOid != QString::fromStdString(s.shortOid)
+            || !submodulesEqual(c, s.children))
+            return false;
+    }
+    return true;
+}
+
+void RepoListModel::applySubmodules(const QString& repoPath,
+                                    const std::vector<gittide::SubmoduleNode>& subs)
+{
+    Node* root = findRoot(repoPath);
+    if (!root || submodulesEqual(*root, subs))
+        return;
+
+    const QModelIndex rootIdx = createIndex(rowOf(root), 0, root);
+
+    if (!root->children.empty())
+    {
+        beginRemoveRows(rootIdx, 0, static_cast<int>(root->children.size()) - 1);
+        root->children.clear();
+        endRemoveRows();
+    }
+    if (!subs.empty())
+    {
+        beginInsertRows(rootIdx, 0, static_cast<int>(subs.size()) - 1);
+        appendSubmodules(*root, subs);
+        endInsertRows();
+    }
+}
+
+void RepoListModel::setSubmoduleBusy(const QString& submodulePath, bool busy)
+{
+    Node* n = findByPath(submodulePath);
+    if (!n || n->busy == busy)
+        return;
+    n->busy               = busy;
+    const QModelIndex idx = createIndex(rowOf(n), 0, n);
+    emit dataChanged(idx, idx, {BusyRole});
 }
 
 } // namespace gittide::ui

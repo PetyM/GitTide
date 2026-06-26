@@ -164,6 +164,50 @@ private slots:
         m.setFetchState(5, RepoListModel::FetchState::Running); // must not crash
         QCOMPARE(m.topLevelCount(), 1);
     }
+
+    void applySubmodules_insertsThenNoOpsWhenUnchanged()
+    {
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        // Path need not exist: setRepos builds no children for a missing path.
+        model.setRepos({RepoRef{.path = "/tmp/gittide-parent", .alias = "parent"}});
+        const QModelIndex top = model.index(0, 0);
+        QCOMPARE(model.rowCount(top), 0);
+
+        SubmoduleNode sub;
+        sub.name     = "sub";
+        sub.path     = "/tmp/gittide-parent/sub";
+        sub.status   = SubmoduleStatus::Clean;
+        sub.shortOid = "abc1234";
+
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.applySubmodules(QStringLiteral("/tmp/gittide-parent"), {sub});
+        QCOMPARE(model.rowCount(model.index(0, 0)), 1);
+        QCOMPARE(inserted.count(), 1);
+
+        const QModelIndex subIdx = model.index(0, 0, model.index(0, 0));
+        QCOMPARE(model.data(subIdx, RepoListModel::OwnerRepoPathRole).toString(),
+                 QStringLiteral("/tmp/gittide-parent"));
+
+        // Identical apply → no-op: no insert/remove/dataChanged.
+        QSignalSpy inserted2(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed2(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changed2(&model, &QAbstractItemModel::dataChanged);
+        model.applySubmodules(QStringLiteral("/tmp/gittide-parent"), {sub});
+        QCOMPARE(inserted2.count(), 0);
+        QCOMPARE(removed2.count(), 0);
+        QCOMPARE(changed2.count(), 0);
+
+        // Busy flag toggles and emits a dataChanged on the row.
+        QSignalSpy busySpy(&model, &QAbstractItemModel::dataChanged);
+        model.setSubmoduleBusy(QStringLiteral("/tmp/gittide-parent/sub"), true);
+        QCOMPARE(model.data(model.index(0, 0, model.index(0, 0)),
+                            RepoListModel::BusyRole).toBool(), true);
+        QCOMPARE(busySpy.count(), 1);
+    }
 };
 
 #include "test_repo_list_model.moc"
