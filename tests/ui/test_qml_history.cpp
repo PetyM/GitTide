@@ -494,6 +494,38 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    /// The floating drag chip exists as a pane-level child (not inside the
+    /// ListView delegate, so it IS reachable headlessly), is hidden until a drag
+    /// arms, and shows the dragged commit summary driven by dropLogic state.
+    void drag_chip_tracks_drag_state()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* root = engine.rootObjects().first();
+        QObject* chip = root->findChild<QObject*>(QStringLiteral("dragChip"));
+        QVERIFY(chip != nullptr);
+        // chipVisible is a dedicated QML bool property on dragChip — it mirrors
+        // dropLogic.dragActive without inheriting parent-chain effective-visibility
+        // (QQuickItem::isVisible() returns false when the history tab is not the
+        // active StackLayout child in a headless test run).
+        QCOMPARE(chip->property("chipVisible").toBool(), false);
+
+        QObject* dropLogic = root->findChild<QObject*>(QStringLiteral("historyPane"));
+        QVERIFY(dropLogic != nullptr);
+        dropLogic->setProperty("draggedSummary", QStringLiteral("fix: thing"));
+        dropLogic->setProperty("dragActive", true);
+        QCOMPARE(chip->property("chipVisible").toBool(), true);
+    }
+
     // Regression guard for the drag fix (Plan 25, Task 6):
     // - The grab-stealing MouseArea must be gone (it blocked DragHandler from ever winning).
     // - A TapHandler must replace it (cooperates with DragHandler via shared grabs).

@@ -42,6 +42,12 @@ RowLayout {
         property string dropTargetZone: ""
         readonly property int rowHeight: 48
 
+        // Floating-chip drag state (set when a row arms, cleared on release).
+        property bool   dragActive: false
+        property string draggedSummary: ""
+        property string draggedShortOid: ""
+        property point  dragPos: Qt.point(0, 0)
+
         // @p contentPt is in historyList.contentItem coordinates (the caller maps
         // the drag centroid through mapToItem before calling).
         function updateDropTarget(contentPt) {
@@ -101,6 +107,7 @@ RowLayout {
 
     // ---- Commit list (graph + avatar + summary/author/date) ----
     Item {
+        id: listColumn
         Layout.preferredWidth: 420
         Layout.fillHeight: true
 
@@ -324,6 +331,7 @@ RowLayout {
                                 }
                             }
                             dragArmed = false
+                            dropLogic.dragActive = false
                             dropLogic.dropTargetIndex = -1
                             dropLogic.dropTargetZone = ""
                         }
@@ -334,6 +342,9 @@ RowLayout {
                                               rowDrag.centroid.position.x,
                                               rowDrag.centroid.position.y)
                             dropLogic.updateDropTarget(p)
+                            dropLogic.dragPos = mapToItem(listColumn,
+                                              rowDrag.centroid.position.x,
+                                              rowDrag.centroid.position.y)
                         }
                     }
                 }
@@ -342,7 +353,12 @@ RowLayout {
                     id: holdTimer
                     interval: 250
                     repeat: false
-                    onTriggered: dragArmed = true   // row "lifts" via the binding above
+                    onTriggered: {
+                        dragArmed = true
+                        dropLogic.dragActive = true
+                        dropLogic.draggedSummary = model.summary
+                        dropLogic.draggedShortOid = model.shortOid
+                    }
                 }
             }
         }
@@ -353,6 +369,60 @@ RowLayout {
             border.color: historyList.activeFocus ? theme.focusBorder : "transparent"
             border.width: 1
             enabled: false
+        }
+
+        // Floating drag chip — follows the cursor during an armed drag, showing
+        // the dragged commit and whether the hovered drop is a move or a squash.
+        Item {
+            id: dragChip
+            objectName: "dragChip"
+            visible: dropLogic.dragActive
+            // Expose drag-active state for headless tests: QQuickItem.visible
+            // returns effective visibility (inherits from parents) so it reads as
+            // false when the history tab is not the active StackLayout child.
+            // chipVisible is a plain QML bool property, unaffected by that chain.
+            readonly property bool chipVisible: dropLogic.dragActive
+            z: 100
+            width: chipBg.implicitWidth
+            height: chipBg.implicitHeight
+            x: Math.max(0, Math.min(listColumn.width - width - 4, dropLogic.dragPos.x + 12))
+            y: Math.max(0, Math.min(listColumn.height - height - 4, dropLogic.dragPos.y + 12))
+
+            Rectangle {
+                id: chipBg
+                implicitWidth: chipRow.implicitWidth + 16
+                implicitHeight: chipRow.implicitHeight + 10
+                radius: 4
+                color: theme.surfaceRaised
+                border.width: 1
+                border.color: dropLogic.dropTargetZone === "squash" ? theme.accent : theme.border
+
+                RowLayout {
+                    id: chipRow
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Label {
+                        text: dropLogic.draggedShortOid
+                        color: theme.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: 11
+                    }
+                    Label {
+                        text: dropLogic.draggedSummary
+                        color: theme.textPrimary
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        Layout.maximumWidth: 220
+                    }
+                    Label {
+                        text: dropLogic.dropTargetZone === "squash" ? "◆ Squash"
+                              : (dropLogic.dropTargetIndex >= 0 ? "Move" : "")
+                        color: theme.accent
+                        font.pixelSize: 11
+                        visible: text.length > 0
+                    }
+                }
+            }
         }
     }
 
