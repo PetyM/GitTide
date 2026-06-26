@@ -52,9 +52,10 @@ Rectangle {
                   : ""
         }
 
-        Button
+        AppButton
         {
             objectName: "mergeRetryButton"
+            variant: "secondary"
             visible: repo && repo.hasSubmoduleConflicts
             text: "Deinit submodules & retry"
             onClicked: repo.retryMergeDeinitSubmodules()

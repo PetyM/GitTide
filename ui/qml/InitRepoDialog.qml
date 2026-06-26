@@ -41,7 +41,8 @@ Dialog {
                 elide: Text.ElideMiddle
                 font.pixelSize: 12
             }
-            Button {
+            AppButton {
+                variant: "secondary"
                 text: "Choose…"
                 onClicked: parentFolder.open()
             }

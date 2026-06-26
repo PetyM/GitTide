@@ -84,25 +84,25 @@ ColumnLayout {
                     Layout.leftMargin: 96
                     spacing: 6
 
-                    Button {
+                    AppButton {
                         objectName: "acceptCurrentButton"
+                        variant: "secondary"
+                        compact: true
                         text: qsTr("Accept Current")
-                        flat: true
-                        font.pixelSize: 11
                         onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 0)
                     }
-                    Button {
+                    AppButton {
                         objectName: "acceptIncomingButton"
+                        variant: "secondary"
+                        compact: true
                         text: qsTr("Accept Incoming")
-                        flat: true
-                        font.pixelSize: 11
                         onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 1)
                     }
-                    Button {
+                    AppButton {
                         objectName: "acceptBothButton"
+                        variant: "secondary"
+                        compact: true
                         text: qsTr("Accept Both")
-                        flat: true
-                        font.pixelSize: 11
                         onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 2)
                     }
                     Item { Layout.fillWidth: true }
