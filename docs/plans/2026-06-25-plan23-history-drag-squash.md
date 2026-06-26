@@ -709,9 +709,13 @@ git commit -m "docs: record whole-row drag + drag-to-squash (D38, Plan 23, spec 
   input simulation in the QML runner) and were verified by code review, not by an
   interactive run — a manual visual smoke check in the running app is still
   recommended before release.
-- **Follow-ups (non-blocking, from final review):** (1) reorder "above"/"below"
-  bands currently route identically — `reorderCommits` ignores the band; collapse to
-  one indicator or honour "below" by adjusting `toRow`, then reconcile design-doc §2.
-  (2) Tighten the squash test to assert prefill order (`c1` before `c2`). (3) Two
-  duplicate `rowHeight: 48` constants (delegate + `dropLogic`) — DRY to one source.
-  (4) `updateDropTarget(globalPt)` param is contentItem-space — rename.
+- **Follow-ups (all resolved 2026-06-26):** (1) ✅ reorder now honours the band —
+  `reorderCommits(fromRow, toRow, band)` inserts the dragged commit on the target's
+  newer ("above") or older ("below") side; the band threads QML →
+  `ReorderConfirmDialog.openFor(from, to, band)` → VM. Covered by
+  `reorder_commits_above_band_inserts_newer_side` /
+  `reorder_commits_below_band_inserts_older_side`. Design-doc §2 (distinct
+  above/below) is now matched by code. (2) ✅ squash test asserts prefill order
+  (`c1` before `c2`). (3) ✅ `rowHeight` is one source (`dropLogic.rowHeight`); the
+  delegate references it. (4) ✅ `updateDropTarget` param renamed `contentPt` with a
+  coordinate-space comment.

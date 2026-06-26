@@ -298,9 +298,11 @@ The `⠿` grip is retained as a discoverability hint but the whole row is dragga
 
 A **three-band drop zone** on the target row routes the release:
 - **Top/bottom third** → reorder: a 2 px accent insertion line previews the new
-  position; releasing opens the existing `ReorderConfirmDialog`, which drives
-  `reorderCommits(fromRow, toRow)` through the interactive engine (all `pick`s on the
-  run's fixed base).
+  position (top = newer/"above" side, bottom = older/"below" side); releasing opens
+  the existing `ReorderConfirmDialog`, which drives
+  `reorderCommits(fromRow, toRow, band)` through the interactive engine (all `pick`s
+  on the run's fixed base). The `band` lands the dragged commit on the previewed side
+  of the target.
 - **Middle third** → squash: a `surfaceOverlay` fill + "◆ squash" badge previews the
   action; releasing calls `RepoViewModel::squashCommitInto(fromRow, toRow)`, which
   folds the dragged commit into the target through the engine and pauses on the

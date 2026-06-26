@@ -235,6 +235,49 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    /// reorderCommits honours the "above" band: dropping the oldest run commit on
+    /// the newer side of the run tip inserts it one slot newer than the target, so
+    /// it becomes the new HEAD.
+    void reorder_commits_above_band_inserts_newer_side()
+    {
+        // newest-first: c3, c2, c1, c0(root); reorderable run = c3, c2, c1 (len 3).
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(4);
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 3000);
+
+        QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
+        // Drag c1 (row 2) onto c3 (row 0), band "above" → c1 lands newer than c3 → HEAD = c1.
+        QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 2), Q_ARG(int, 0),
+                                  Q_ARG(QString, QStringLiteral("above")));
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY(!vm.rebaseInProgress());
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    /// reorderCommits honours the "below" band: dropping the same commit on the
+    /// older side of the run tip inserts it one slot older than the target, so the
+    /// original tip stays HEAD.
+    void reorder_commits_below_band_inserts_older_side()
+    {
+        const auto dir = repo_view_model_rebase_test::makeLinearRepo(4);
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 3000);
+
+        QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
+        // Drag c1 (row 2) onto c3 (row 0), band "below" → c1 lands older than c3 → HEAD stays c3.
+        QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 2), Q_ARG(int, 0),
+                                  Q_ARG(QString, QStringLiteral("below")));
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY(!vm.rebaseInProgress());
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c3\n"), 3000);
+
+        std::filesystem::remove_all(dir);
+    }
+
     /// squashCommitInto folds the dragged commit into the target: squashing the
     /// newest commit (row 0) into the second-newest (row 1) yields one combined
     /// commit at the target's slot, carrying both commits' changes.
@@ -252,8 +295,11 @@ private slots:
 
         // The engine pauses for the combined message (squash), prefilled target-then-dragged.
         QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 5000);
-        QVERIFY(vm.property("rebaseMessagePrefill").toString().contains(QStringLiteral("c1")));
-        QVERIFY(vm.property("rebaseMessagePrefill").toString().contains(QStringLiteral("c2")));
+        const QString prefill = vm.property("rebaseMessagePrefill").toString();
+        QVERIFY(prefill.contains(QStringLiteral("c1")));
+        QVERIFY(prefill.contains(QStringLiteral("c2")));
+        // Combined message is target-then-dragged: c1 (target) before c2 (dragged).
+        QVERIFY(prefill.indexOf(QStringLiteral("c1")) < prefill.indexOf(QStringLiteral("c2")));
 
         // Confirm the combined message → rebase completes.
         QMetaObject::invokeMethod(&vm, "continueRebase", Q_ARG(QString, QStringLiteral("c1+c2\n")));

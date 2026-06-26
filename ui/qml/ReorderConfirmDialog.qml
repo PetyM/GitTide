@@ -6,7 +6,9 @@ import QtQuick.Layouts
 // affected commits via an interactive rebase, so it rewrites history — guard it
 // behind an explicit confirmation (spec rebase-interactive.md, D36).
 //
-// API: openFor(fromRow, toRow) → on accept calls repoVm.reorderCommits(from, to).
+// API: openFor(fromRow, toRow, band) → on accept calls
+// repoVm.reorderCommits(from, to, band). band ("above"/"below") selects the side
+// of the target the dragged commit lands on; defaults to "below".
 Dialog {
     id: dialog
     objectName: "reorderConfirmDialog"
@@ -19,12 +21,14 @@ Dialog {
 
     property int fromRow: -1
     property int toRow: -1
+    property string band: "below"
 
     background: OverlayCard {}
 
-    function openFor(from, to) {
+    function openFor(from, to, dropBand) {
         fromRow = from
         toRow = to
+        band = dropBand ?? "below"
         open()
     }
 
@@ -49,7 +53,7 @@ Dialog {
             text: "Reorder"
             onClicked: {
                 if (repoVm)
-                    repoVm.reorderCommits(dialog.fromRow, dialog.toRow)
+                    repoVm.reorderCommits(dialog.fromRow, dialog.toRow, dialog.band)
                 dialog.close()
             }
         }
