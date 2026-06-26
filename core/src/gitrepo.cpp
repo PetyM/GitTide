@@ -1035,6 +1035,37 @@ Expected<void> GitRepo::reinitSubmodule(std::filesystem::path path)
     return {};
 }
 
+Expected<void> GitRepo::updateSubmodules()
+{
+    // Collect direct submodule names first; updating inside git_submodule_foreach
+    // is unsafe while libgit2 holds the submodule cache (see submoduleTree).
+    std::vector<std::string> names;
+    auto cb = [](git_submodule*, const char* name, void* pl) -> int
+    {
+        static_cast<std::vector<std::string>*>(pl)->emplace_back(name ? name : "");
+        return 0;
+    };
+    int rc = git_submodule_foreach(m_repo, cb, &names);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    for (const std::string& name : names)
+    {
+        git_submodule* sm = nullptr;
+        rc                = git_submodule_lookup(&sm, m_repo, name.c_str());
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_submodule, decltype(&git_submodule_free)> guard(sm, git_submodule_free);
+
+        git_submodule_update_options opts    = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+        opts.checkout_opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+        rc                                   = git_submodule_update(sm, /*init=*/1, &opts);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
 Expected<std::vector<BranchInfo>> GitRepo::branches() const
 {
     std::vector<BranchInfo> result;

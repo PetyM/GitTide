@@ -1,6 +1,6 @@
 # Design — Submodule init / update from the GUI
 
-**Status:** designed (brainstorm output; awaiting plan)
+**Status:** shipped
 **Date:** 2026-06-26
 **Realises:** the deferred "full submodule support" wish noted in
 [`context-menus.md` §6](context-menus.md) and the deferred actions in

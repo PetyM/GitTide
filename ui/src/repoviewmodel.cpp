@@ -74,6 +74,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             this, &RepoViewModel::commitMessageReady);
     connect(m_controller, &RepoController::rebaseTodoReady,
             this, &RepoViewModel::rebaseTodoReady);
+    connect(m_controller, &RepoController::gitDirRefreshed,
+            this, &RepoViewModel::repoStructureChanged);
 }
 
 bool RepoViewModel::repoOpen() const

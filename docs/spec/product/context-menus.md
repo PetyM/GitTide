@@ -203,10 +203,12 @@ selection/detail behaviour, not a menu item — see
 
 **Properties:** `repoPath: string`
 
-**Signals:** `revealInFileManager()`, `removeFromProject()`
+**Signals:** `revealInFileManager()`, `updateAllSubmodules()`, `removeFromProject()`
 
 | Item | Rule |
 |------|------|
+| **Update all submodules** | Always enabled |
+| — separator — | |
 | **Reveal in file manager** | Always enabled |
 | — separator — | |
 | **Remove from project** *(destructive)* | Always enabled |
@@ -214,7 +216,36 @@ selection/detail behaviour, not a menu item — see
 Replaces the existing inline `repoContextMenu` AppMenu in `Sidebar.qml`.
 
 Wiring: `onRevealInFileManager → repoVm.revealInFileManager(repoPath)`,
+`onUpdateAllSubmodules → projectController.updateAllSubmodules(repoPath)`,
 `onRemoveFromProject → projectController.removeRepo(repoPath)`.
+
+### 4.5 `SubmoduleContextMenu.qml`
+
+**Used in:** `Sidebar.qml` (submodule tree rows)
+
+**Properties:** `ownerRepoPath: string`, `submodulePath: string`, `status: int`
+(`0`=Clean, `1`=Dirty, `2`=Uninitialized)
+
+**Signals:** `initRequested()`, `updateAllRequested()`, `deinitRequested()`
+
+| Item | Rule |
+|------|------|
+| **Initialize submodule** / **Update submodule** | Label adapts: *Initialize* when `status === 2`; *Update* otherwise. Always enabled. |
+| **Update all submodules** | **Disabled** when `status === 2` (no children to update on an uninitialised node) |
+| — separator — | |
+| **Deinitialize submodule** *(destructive)* | **Disabled** when `status === 2` (already uninitialised) |
+
+The right-click `TapHandler` in `Sidebar.qml` dispatches: submodule rows → this
+menu; top-level repo rows → `RepoContextMenu`.
+
+Wiring:
+`onInitRequested → projectController.initSubmodule(ownerRepoPath, submodulePath)`,
+`onUpdateAllRequested → projectController.updateAllSubmodules(submodulePath)`,
+`onDeinitRequested → projectController.deinitSubmodule(ownerRepoPath, submodulePath)`.
+
+> `updateAllRequested` passes the submodule's own path as the repo handle — that
+> is the "drill one level deeper" behaviour: once a submodule is initialised it
+> becomes a real repo whose direct submodules `updateAllSubmodules` can act on.
 
 ---
 
@@ -246,7 +277,6 @@ existing `repoContextMenu` and `commitContextMenu` patterns.
 | `ignoreFile` (add to .gitignore) | No core API yet |
 | Copy remote URL | No per-repo ViewModel access from Sidebar |
 | Fetch from repo context menu | Sidebar ViewModel is single-repo; cross-repo fetch is separate work |
-| Submodule context menu | Sidebar explicitly skips right-click on sub-rows; full submodule support is its own wish |
 | Open in terminal | Cross-platform terminal detection is non-trivial; deferred |
 | Revert commit, tags | Not yet implemented in core |
 | CommitDetail file list right-click | Low priority; commit files are read-only and don't need git ops |
@@ -261,6 +291,7 @@ existing `repoContextMenu` and `commitContextMenu` patterns.
 - `BranchContextMenu.qml`
 - `CommitContextMenu.qml`
 - `RepoContextMenu.qml`
+- `SubmoduleContextMenu.qml`
 - `DiscardChangesDialog.qml`
 
 **Modified `ui/qml/`:**
@@ -268,7 +299,7 @@ existing `repoContextMenu` and `commitContextMenu` patterns.
 - `ChangesPane.qml` — add right-click + FileContextMenu + DiscardChangesDialog
 - `BranchDropdown.qml` — add right-click + BranchContextMenu, remove inline merge button
 - `HistoryPane.qml` — replace inline commitContextMenu with CommitContextMenu
-- `Sidebar.qml` — replace inline repoContextMenu with RepoContextMenu
+- `Sidebar.qml` — replace inline repoContextMenu with RepoContextMenu; add SubmoduleContextMenu + inline Init button
 
 **Modified `ui/include/gittide/ui/repoviewmodel.hpp` + `ui/src/repoviewmodel.cpp`:**
 - Add `discardFile`, `openInEditor`, `revealInFileManager`, `copyToClipboard`

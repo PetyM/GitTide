@@ -388,6 +388,50 @@ private slots:
         QVERIFY(!spyFailed.at(0).at(0).toString().isEmpty());
     }
 
+    void initSubmodule_reinitialises_and_refreshes_tree()
+    {
+        using gittide::SubmoduleStatus;
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("seed child");
+
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("seed parent");
+        parent.addSubmodule("sub", child.path());
+        parent.commitAll("add submodule");
+        {
+            auto repo = gittide::GitRepo::open(parent.path());
+            QVERIFY(repo && repo->deinitSubmodule("sub"));
+        }
+
+        const QString repoPath = QString::fromStdString(parent.path().generic_string());
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id = "p", .name = "P", .repos = {RepoRef{.path = repoPath.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p"));
+
+        RepoListModel* model = controller.repos();
+        const QModelIndex top = model->index(0, 0);
+        QCOMPARE(model->rowCount(top), 1);
+        const QModelIndex sub = model->index(0, 0, top);
+        // deinitSubmodule keeps the .git gitlink; libgit2 reports Dirty (==1), not Uninitialized (==2)
+        QCOMPARE(model->data(sub, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Dirty));
+
+        const QString subPath = repoPath + QStringLiteral("/sub");
+        QCoro::waitFor(controller.initSubmodule(repoPath, subPath));
+
+        // Subtree was rebuilt; the (new) row is now Clean.
+        const QModelIndex sub2 = model->index(0, 0, model->index(0, 0));
+        QCOMPARE(model->data(sub2, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Clean));
+    }
+
     void cleanup()
     {
         m_temps.clear();
@@ -452,6 +496,50 @@ private slots:
 
         controller.setWindowActive(true);
         QTRY_VERIFY_WITH_TIMEOUT(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt() == 1, 5000);
+        controller.setWindowActive(false);
+    }
+
+    // D35 submodule refresh: while the window is active, the poll re-reads each
+    // repo's submodule tree and updates the sidebar — so an external
+    // `git submodule deinit` shows up without any user action.
+    void poll_refreshes_submodule_subtree_on_external_change()
+    {
+        using gittide::SubmoduleStatus;
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("seed child");
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("seed parent");
+        parent.addSubmodule("sub", child.path()); // initialised
+        parent.commitAll("add submodule");
+
+        const QString repoPath = QString::fromStdString(parent.path().generic_string());
+        ProjectStore  store;
+        store.projects().push_back(
+            Project{.id = "p", .name = "P", .repos = {RepoRef{.path = repoPath.toStdString()}}});
+
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/50);
+        controller.activate(QStringLiteral("p"));
+        RepoListModel*    model = controller.repos();
+        const QModelIndex sub   = model->index(0, 0, model->index(0, 0));
+        QCOMPARE(model->data(sub, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Clean));
+
+        // External change: deinit on disk behind the GUI's back.
+        // deinitSubmodule keeps the .git gitlink; libgit2 reports Dirty (==1).
+        {
+            auto repo = gittide::GitRepo::open(parent.path());
+            QVERIFY(repo && repo->deinitSubmodule("sub"));
+        }
+
+        controller.setWindowActive(true); // starts the poll
+        QTRY_VERIFY_WITH_TIMEOUT(
+            model->data(model->index(0, 0, model->index(0, 0)), RepoListModel::StatusRole).toInt()
+                == static_cast<int>(SubmoduleStatus::Dirty),
+            5000);
         controller.setWindowActive(false);
     }
 

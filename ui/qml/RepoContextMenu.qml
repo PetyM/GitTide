@@ -11,10 +11,15 @@ AppMenu {
 
     signal revealInFileManager()
     signal removeFromProject()
+    signal updateAllSubmodules()
 
     AppMenuItem {
         text: "Reveal in file manager"
         onTriggered: menu.revealInFileManager()
+    }
+    AppMenuItem {
+        text: "Update all submodules"
+        onTriggered: menu.updateAllSubmodules()
     }
 
     AppMenuSeparator {}

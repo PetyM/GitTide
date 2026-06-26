@@ -1,14 +1,14 @@
 # Plan 24 — Submodule init / update from the GUI
 
 > **For agentic workers:** implement this plan task-by-task, test-first. Each
-> task's steps use checkbox (`- [ ]`) syntax for tracking; tick them as you go.
+> task's steps use checkbox (`- [x]`) syntax for tracking; tick them as you go.
 > REQUIRED SUB-SKILL: superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans.
 
 | | |
 |--|--|
 | **Date** | 2026-06-26 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-06-26-submodule-init-update-design.md`](../spec/product/2026-06-26-submodule-init-update-design.md); updates [`spec/product/product.md` §Submodules](../spec/product/product.md) and [`spec/product/context-menus.md`](../spec/product/context-menus.md) |
 | **Depends on** | Plan 21 (live refresh / D35), Plan 16 (context menus) |
 
@@ -65,7 +65,7 @@ existing 5 s fleet poll.
   update **every direct** submodule of this repo to its pinned commit. One level
   only (no recursion). Stops and returns the first failure.
 
-- [ ] **Step 1: Write the failing test.** Append to
+- [x] **Step 1: Write the failing test.** Append to
   `tests/test_git_repo_submodules.cpp` (Catch2; this file already uses
   `gittide::test::TempRepo` with `writeFile` / `commitAll` / `addSubmodule` — copy
   its existing fixture style). Build a parent with one submodule, force it
@@ -107,11 +107,11 @@ TEST_CASE("updateSubmodules re-initialises all direct submodules", "[submodule]"
 }
 ```
 
-- [ ] **Step 2: Run it, verify it fails.**
+- [x] **Step 2: Run it, verify it fails.**
   `cmake --build build --parallel && ctest --test-dir build -R submodule --output-on-failure`
   Expected: FAIL — `updateSubmodules` undefined / link error.
 
-- [ ] **Step 3: Declare in `gitrepo.hpp`** beside the other submodule methods:
+- [x] **Step 3: Declare in `gitrepo.hpp`** beside the other submodule methods:
 
 ```cpp
 /// Initialise/update every DIRECT submodule of this repo to its pinned
@@ -121,7 +121,7 @@ TEST_CASE("updateSubmodules re-initialises all direct submodules", "[submodule]"
 Expected<void> updateSubmodules();
 ```
 
-- [ ] **Step 4: Implement in `gitrepo.cpp`** after `reinitSubmodule`. Collect
+- [x] **Step 4: Implement in `gitrepo.cpp`** after `reinitSubmodule`. Collect
   names inside the `foreach` (mutating the working tree *inside* the callback is
   unsafe — `submoduleTree` already documents this), then look up + update each
   afterwards, reusing the exact options `reinitSubmodule` uses:
@@ -159,11 +159,11 @@ Expected<void> GitRepo::updateSubmodules()
 }
 ```
 
-- [ ] **Step 5: Run the test, verify it passes.**
+- [x] **Step 5: Run the test, verify it passes.**
   `ctest --test-dir build -R submodule --output-on-failure` → PASS. No new
   warnings.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add core/include/gittide/gitrepo.hpp core/src/gitrepo.cpp tests/test_git_repo_submodules.cpp
@@ -186,7 +186,7 @@ git commit -m "feat(core): updateSubmodules() — init/update all direct submodu
   (no standalone test — matches how `reinitSubmodule`/`deinitSubmodule` wrappers
   are tested through their callers).
 
-- [ ] **Step 1: Declare in `asyncrepo.hpp`** (add `#include "gittide/submodule.hpp"`
+- [x] **Step 1: Declare in `asyncrepo.hpp`** (add `#include "gittide/submodule.hpp"`
   if not already transitively available):
 
 ```cpp
@@ -197,7 +197,7 @@ QCoro::Task<gittide::Expected<void>> updateSubmodules();
 QCoro::Task<gittide::Expected<std::vector<gittide::SubmoduleNode>>> submoduleTree();
 ```
 
-- [ ] **Step 2: Implement in `asyncrepo.cpp`** following the existing
+- [x] **Step 2: Implement in `asyncrepo.cpp`** following the existing
   `reinitSubmodule` shape exactly:
 
 ```cpp
@@ -224,10 +224,10 @@ QCoro::Task<gittide::Expected<std::vector<gittide::SubmoduleNode>>> AsyncRepo::s
 }
 ```
 
-- [ ] **Step 3: Build to verify it compiles.**
+- [x] **Step 3: Build to verify it compiles.**
   `cmake --build build --parallel` → no errors, no new warnings.
 
-- [ ] **Step 4: Commit.**
+- [x] **Step 4: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/asyncrepo.hpp ui/src/asyncrepo.cpp
@@ -258,7 +258,7 @@ git commit -m "feat(ui): AsyncRepo wrappers for updateSubmodules + submoduleTree
     ancestor — what the controller needs as the repo handle).
 - Consumes: `gittide::SubmoduleNode` (`core`), existing `Node` tree.
 
-- [ ] **Step 1: Write the failing test.** Add a private slot to the existing
+- [x] **Step 1: Write the failing test.** Add a private slot to the existing
   `TestRepoListModel` class in `tests/ui/test_repo_list_model.cpp`. Drive the
   model directly with hand-built `gittide::SubmoduleNode`s (no real repo needed for
   the model logic). Assert: applying a changed subtree inserts rows and emits;
@@ -311,11 +311,11 @@ git commit -m "feat(ui): AsyncRepo wrappers for updateSubmodules + submoduleTree
     }
 ```
 
-- [ ] **Step 2: Run it, verify it fails.**
+- [x] **Step 2: Run it, verify it fails.**
   `cmake --build build --parallel` → `applySubmodules` / `OwnerRepoPathRole`
   undefined.
 
-- [ ] **Step 3: Add roles + declarations** in `repolistmodel.hpp`. Extend the
+- [x] **Step 3: Add roles + declarations** in `repolistmodel.hpp`. Extend the
   `Roles` enum with `BusyRole` and `OwnerRepoPathRole`, add a `bool busy=false;`
   to `Node`, and declare the two methods (public) plus a private helper:
 
@@ -337,7 +337,7 @@ Node* findByPath(const QString& path);     // any node by exact path, or nullptr
 Node* topLevelAncestor(Node* node) const;  // walk parents to the root
 ```
 
-- [ ] **Step 4: Implement in `repolistmodel.cpp`.**
+- [x] **Step 4: Implement in `repolistmodel.cpp`.**
 
   Wire the new roles in `data()` and `roleNames()`:
 
@@ -449,12 +449,12 @@ void RepoListModel::setSubmoduleBusy(const QString& submodulePath, bool busy)
   > Note: `appendSubmodules` already sets `parent` pointers, so nested children
   > inserted here resolve `parent()` correctly.
 
-- [ ] **Step 5: Run the test, verify it passes.** The UI tests build into one
+- [x] **Step 5: Run the test, verify it passes.** The UI tests build into one
   binary; run it (the harness runs `TestRepoListModel` among others):
   `ctest --test-dir build -R ui --output-on-failure` (or run the ui test binary
   directly) → PASS.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/repolistmodel.hpp ui/src/repolistmodel.cpp tests/ui/test_repo_list_model.cpp
@@ -489,7 +489,7 @@ git commit -m "feat(ui): RepoListModel.applySubmodules diffing refresh + busy/ow
 - Path rule: `submodulePath` is **absolute**; convert with
   `std::filesystem::relative(submodulePath, repoPath)` before the core call.
 
-- [ ] **Step 1: Write the failing test.** Add this slot to
+- [x] **Step 1: Write the failing test.** Add this slot to
   `TestProjectController`. It builds a parent+submodule on disk, deinits the
   submodule, activates a project containing the parent, then awaits
   `initSubmodule` with `QCoro::waitFor` (the idiom this file already uses for
@@ -540,9 +540,9 @@ git commit -m "feat(ui): RepoListModel.applySubmodules diffing refresh + busy/ow
     }
 ```
 
-- [ ] **Step 2: Run it, verify it fails** — `initSubmodule` undefined.
+- [x] **Step 2: Run it, verify it fails** — `initSubmodule` undefined.
 
-- [ ] **Step 3: Declare** in `projectcontroller.hpp`. Add the signal under
+- [x] **Step 3: Declare** in `projectcontroller.hpp`. Add the signal under
   `signals:` and the slots under `public slots:`:
 
 ```cpp
@@ -560,7 +560,7 @@ Q_INVOKABLE QCoro::Task<void> deinitSubmodule(QString repoPath, QString submodul
   `#include "gittide/ui/asyncrepo.hpp"` and `#include "gittide/ui/repolistmodel.hpp"`
   in the `.cpp`).
 
-- [ ] **Step 4: Implement** in `projectcontroller.cpp`. A small helper keeps the
+- [x] **Step 4: Implement** in `projectcontroller.cpp`. A small helper keeps the
   three op slots DRY:
 
 ```cpp
@@ -669,11 +669,11 @@ QCoro::Task<void> ProjectController::runSubmoduleOp(QString repoPath, QString su
   > a `std::function<QCoro::Task<gittide::Expected<void>>(AsyncRepo&, std::filesystem::path)>`
   > parameter instead of a template.
 
-- [ ] **Step 5: Run the test, verify it passes.**
+- [x] **Step 5: Run the test, verify it passes.**
   `ctest --test-dir build -R ui --output-on-failure` → `TestProjectController`
   passes.
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -697,7 +697,7 @@ git commit -m "feat(ui): ProjectController submodule init/update/deinit ops + tr
   model roles `ownerRepoPath`, `repoPath`, `submoduleBusy`, `status`,
   `isSubmodule`.
 
-- [ ] **Step 1: New `SubmoduleContextMenu.qml`** — mirror `RepoContextMenu.qml`'s
+- [x] **Step 1: New `SubmoduleContextMenu.qml`** — mirror `RepoContextMenu.qml`'s
   structure (`AppMenu` + `AppMenuItem`). Items adapt to status (`status`: 0 Clean,
   1 Dirty, 2 Uninitialized):
 
@@ -737,7 +737,7 @@ AppMenu {
 }
 ```
 
-- [ ] **Step 2: Add "Update all submodules" to `RepoContextMenu.qml`** (top-level
+- [x] **Step 2: Add "Update all submodules" to `RepoContextMenu.qml`** (top-level
   repos). Add a signal and item before the separator:
 
 ```qml
@@ -750,11 +750,11 @@ AppMenuItem {
 AppMenuSeparator {}
 ```
 
-- [ ] **Step 3: Wire the repo menu in `Sidebar.qml`** where `repoContextMenu` is
+- [x] **Step 3: Wire the repo menu in `Sidebar.qml`** where `repoContextMenu` is
   instantiated (~456–461): add
   `onUpdateAllSubmodules: projectController.updateAllSubmodules(repoContextMenu.repoPath)`.
 
-- [ ] **Step 4: Add the inline Init button** in the row `contentItem` (after the
+- [x] **Step 4: Add the inline Init button** in the row `contentItem` (after the
   status dot, ~line 309), visible only on greyed/uninit rows:
 
 ```qml
@@ -778,7 +778,7 @@ BusyIndicator {
   > `model.ownerRepoPath` is its top-level repo — exactly the two args
   > `initSubmodule` expects.
 
-- [ ] **Step 5: Make submodule rows show the submodule menu.** Change the
+- [x] **Step 5: Make submodule rows show the submodule menu.** Change the
   right-click `TapHandler` (~400–408) so submodule rows open the new menu instead
   of bailing:
 
@@ -813,12 +813,12 @@ SubmoduleContextMenu {
   > `updateAllRequested` passes `submodulePath` (the node's own path) as the repo
   > handle — that is the "drill one level deeper" behaviour from the design.
 
-- [ ] **Step 6: Route the failure signal to the error overlay.** Find where
+- [x] **Step 6: Route the failure signal to the error overlay.** Find where
   existing controller error signals (e.g. `repoAddFailed`) connect to the
   error/toast overlay in `Main.qml` and connect `submoduleOpFailed` the same way
   (show `message`). Match the existing pattern; do not invent a new overlay.
 
-- [ ] **Step 7: Build + manual verify.** `cmake --build build --parallel`, run the
+- [x] **Step 7: Build + manual verify.** `cmake --build build --parallel`, run the
   app on a repo with an uninitialised submodule:
   - greyed row shows **Init**; click → row populates (oid + green dot), spinner
     shows during the op;
@@ -827,7 +827,7 @@ SubmoduleContextMenu {
   - Deinitialize greys the row back.
   No Qt runtime warnings in the console (a warning is a bug).
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add ui/qml/SubmoduleContextMenu.qml ui/qml/RepoContextMenu.qml ui/qml/Sidebar.qml ui/qml/Main.qml ui/qml/qml.qrc
@@ -853,7 +853,7 @@ git commit -m "feat(ui): submodule init/update/deinit affordances in the sidebar
   `onWatchGitDir`; `RepoViewModel` re-emits it as `repoStructureChanged()`.
 - Consumes: `ProjectController::refreshSubmodules` (Task 4).
 
-- [ ] **Step 1: Failing test — poll refreshes a repo's subtree on external
+- [x] **Step 1: Failing test — poll refreshes a repo's subtree on external
   change.** Add a slot to `TestProjectController`. Activate a project with a
   parent repo whose submodule is initialised; then deinit the submodule *on disk*
   (simulating an external change); start the poll with a fast interval and
@@ -904,7 +904,7 @@ git commit -m "feat(ui): submodule init/update/deinit affordances in the sidebar
     }
 ```
 
-- [ ] **Step 2: Extend `pollRepos`** — inside the existing per-repo loop, after
+- [x] **Step 2: Extend `pollRepos`** — inside the existing per-repo loop, after
   the `setSyncCounts` call, refresh that repo's submodules. Reuse the handle
   already opened in the loop rather than reopening:
 
@@ -921,7 +921,7 @@ if (tree)
   > one extra `submoduleTree()` per repo per 5 s poll. (Deeper optimisation —
   > skipping the scan when mtimes are unchanged — is out of scope; note it.)
 
-- [ ] **Step 3: Emit a structural-change signal from `RepoController`.** Declare
+- [x] **Step 3: Emit a structural-change signal from `RepoController`.** Declare
   `void gitDirRefreshed();` and emit it at the end of `onWatchGitDir` (after
   `rearmWatch`):
 
@@ -939,12 +939,12 @@ QCoro::Task<void> RepoController::onWatchGitDir()
 }
 ```
 
-- [ ] **Step 4: Re-expose via `RepoViewModel`.** Add signal
+- [x] **Step 4: Re-expose via `RepoViewModel`.** Add signal
   `void repoStructureChanged();`, and in the place where `RepoViewModel` connects
   the controller's other signals, forward it:
   `connect(m_controller, &RepoController::gitDirRefreshed, this, &RepoViewModel::repoStructureChanged);`
 
-- [ ] **Step 5: Connect in `Main.qml`.** Near the other `repoVm` connections:
+- [x] **Step 5: Connect in `Main.qml`.** Near the other `repoVm` connections:
 
 ```qml
 Connections {
@@ -960,11 +960,11 @@ Connections {
   (`.git/modules/…` write → git-dir watch → `gitDirRefreshed`). Non-active repos
   are covered by the Step 2 poll.
 
-- [ ] **Step 6: Run the test, verify it passes.** Build, run the extended test →
+- [x] **Step 6: Run the test, verify it passes.** Build, run the extended test →
   PASS. Manually: open repo A, in a terminal run `git submodule update --init`
   inside it → the sidebar subtree updates within the debounce window.
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add ui/src/projectcontroller.cpp ui/include/gittide/ui/repocontroller.hpp ui/src/repocontroller.cpp ui/include/gittide/ui/repoviewmodel.hpp ui/src/repoviewmodel.cpp ui/qml/Main.qml tests/ui/test_project_controller.cpp
@@ -982,7 +982,7 @@ git commit -m "feat(ui): refresh submodule tree on external change (git-dir watc
 - Modify: `docs/plans/index.md` (add the Plan 24 row)
 - Modify: this plan (tick boxes, fill **Outcome**, flip **Status** → `done`)
 
-- [ ] **Step 1: Update `product.md` §Submodules.** Replace the deferred-actions
+- [x] **Step 1: Update `product.md` §Submodules.** Replace the deferred-actions
   sentence ("Checkout actions on the parent's submodule pointer remain deferred.")
   with the shipped behaviour: submodules can be **initialised, updated (to the
   pinned commit), and deinitialised** from the sidebar — via an inline *Init*
@@ -991,21 +991,21 @@ git commit -m "feat(ui): refresh submodule tree on external change (git-dir watc
   GUI ops and on external change. Note the still-deferred items (`--remote`
   advance, add/remove submodule, `git submodule sync`).
 
-- [ ] **Step 2: Update `context-menus.md`.** Remove the "Submodule context menu"
+- [x] **Step 2: Update `context-menus.md`.** Remove the "Submodule context menu"
   row from §6 (Scope exclusions) and add the submodule menu + repo *Update all
   submodules* to the menus table.
 
-- [ ] **Step 3: Add the Plan 24 row** to `docs/plans/index.md` (status `done`,
+- [x] **Step 3: Add the Plan 24 row** to `docs/plans/index.md` (status `done`,
   realises `product · engineering · core`).
 
-- [ ] **Step 4: Mark the design doc shipped.** In
+- [x] **Step 4: Mark the design doc shipped.** In
   `spec/product/2026-06-26-submodule-init-update-design.md`, flip the Status line
   to `shipped`.
 
-- [ ] **Step 5: Full suite green.**
+- [x] **Step 5: Full suite green.**
   `ctest --test-dir build --output-on-failure` — all pass, no warnings.
 
-- [ ] **Step 6: Fill the Outcome below, tick all boxes, set Status `done`. Commit.**
+- [x] **Step 6: Fill the Outcome below, tick all boxes, set Status `done`. Commit.**
 
 ```bash
 git add docs/
@@ -1016,8 +1016,40 @@ git commit -m "docs(plan24): close DoD — submodule init/update shipped; spec +
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <main files/types that resulted>.
+- **Shipped:** GUI submodule init / update / deinit for any repo in the sidebar.
+  Inline *Init* button on uninitialised (greyed) rows; per-submodule right-click
+  menu (Initialize/Update · Update all · Deinitialize); *Update all submodules*
+  on top-level repo rows. "Update all" is one level — drill deeper by invoking it
+  on an initialised submodule node. The sidebar tree refreshes on every GUI op and
+  on external change (active-repo git-dir watch + 5-second fleet poll, no-opping
+  via `applySubmodules` when nothing has changed).
+- **Spec updated:**
+  - `spec/product/product.md` §Submodules — replaces the deferred sentence with
+    the full shipped behaviour and still-deferred list.
+  - `spec/product/context-menus.md` §4.4 — adds *Update all submodules* to
+    `RepoContextMenu`; new §4.5 documents `SubmoduleContextMenu`; removes the
+    "Submodule context menu" deferred row from §6.
+  - `spec/product/2026-06-26-submodule-init-update-design.md` — Status flipped
+    to `shipped`.
+- **Code:**
+  - `core/include/gittide/gitrepo.hpp` + `core/src/gitrepo.cpp` —
+    `GitRepo::updateSubmodules()` (one-level bulk init/update).
+  - `ui/include/gittide/ui/asyncrepo.hpp` + `ui/src/asyncrepo.cpp` —
+    `AsyncRepo::updateSubmodules()` + `AsyncRepo::submoduleTree()` wrappers.
+  - `ui/include/gittide/ui/repolistmodel.hpp` + `ui/src/repolistmodel.cpp` —
+    `RepoListModel::applySubmodules()` diffing refresh, `setSubmoduleBusy()`,
+    `BusyRole`, `OwnerRepoPathRole`.
+  - `ui/include/gittide/ui/projectcontroller.hpp` + `ui/src/projectcontroller.cpp`
+    — `initSubmodule`, `updateAllSubmodules`, `deinitSubmodule`,
+    `refreshSubmodules` coroutine slots; `submoduleOpFailed` signal;
+    `runSubmoduleOp` private template helper.
+  - `ui/include/gittide/ui/repocontroller.hpp` + `ui/src/repocontroller.cpp` —
+    `gitDirRefreshed` signal emitted after active-repo git-dir watch fires.
+  - `ui/include/gittide/ui/repoviewmodel.hpp` + `ui/src/repoviewmodel.cpp` —
+    `repoStructureChanged` re-exposed from `RepoController::gitDirRefreshed`.
+  - `ui/qml/SubmoduleContextMenu.qml` — new per-submodule context menu.
+  - `ui/qml/Sidebar.qml` — inline Init button, busy spinner, submodule right-click
+    wiring, `RepoContextMenu` extended with *Update all submodules*.
+  - `ui/qml/RepoContextMenu.qml` — `updateAllSubmodules` signal + menu item.
+  - `ui/qml/Main.qml` — `repoStructureChanged → refreshSubmodules` connection;
+    `submoduleOpFailed` routed to error overlay.

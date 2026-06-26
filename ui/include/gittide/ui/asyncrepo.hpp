@@ -15,6 +15,7 @@
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
 #include "gittide/rebase.hpp"
+#include "gittide/submodule.hpp"
 #include "gittide/sync.hpp"
 
 namespace gittide::ui {
@@ -123,6 +124,12 @@ public:
     /// Re-initialise and update a submodule to its pinned commit.
     /// path is repo-relative.
     QCoro::Task<gittide::Expected<void>> reinitSubmodule(std::filesystem::path path);
+
+    /// Initialise/update every direct submodule to its pinned commit (one level).
+    QCoro::Task<gittide::Expected<void>> updateSubmodules();
+
+    /// Enumerate this repo's recursive submodule tree off the UI thread.
+    QCoro::Task<gittide::Expected<std::vector<gittide::SubmoduleNode>>> submoduleTree();
 
 private:
     struct Impl;

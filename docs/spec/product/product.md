@@ -294,4 +294,29 @@ Selecting an initialised submodule **opens it as a first-class repo**: its
 working directory is a real git repo, so it becomes the active repo and reuses
 the same Changes / History machinery (and lights up in the tree like any other
 active repo). An uninitialised submodule has nothing on disk and is not openable.
-Checkout actions on the parent's submodule pointer remain deferred.
+
+Submodules can be **initialised, updated (to the pinned commit), and
+deinitialised** from the GUI without dropping to a terminal:
+
+- An inline **Init** button appears on uninitialised (greyed) rows in the sidebar.
+- Right-clicking a submodule row opens a **submodule context menu**: *Initialize /
+  Update submodule* (label adapts to current status), *Update all submodules*,
+  *Deinitialize submodule*.
+- Right-clicking a top-level repo row offers **Update all submodules** — one
+  level only; to go deeper, initialise a submodule node and invoke the action on
+  it (each initialised submodule node gets its own greyed children with the same
+  affordances).
+
+Operations run on any repo in the sidebar via a transient handle in
+`ProjectController` — not only the active repo — which preserves the
+one-owner-per-`GitRepo` invariant. A busy spinner on the row prevents
+double-triggering while an op is in flight.
+
+The sidebar tree refreshes after every GUI op and on external change: the active
+repo's git-dir watch (`gitDirRefreshed → repoStructureChanged → refreshSubmodules`)
+drives an immediate refresh; the 5-second fleet poll covers non-active repos and
+no-ops via `applySubmodules` when nothing has changed.
+
+Still deferred: `git submodule update --remote` (advance the pin to the
+submodule's upstream), adding or removing submodules (`.gitmodules` editing),
+forced full-depth recursive update in a single click, and `git submodule sync`.

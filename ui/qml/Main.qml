@@ -289,6 +289,7 @@ ApplicationWindow {
         function onRepoAdded(path) { if (repoVm) repoVm.open(path) }
         function onActiveProjectChanged() { window.openFirstRepo() }
         function onRepoAddFailed(message) { errorBanner.show(message) }
+        function onSubmoduleOpFailed(repoPath, submodulePath, message) { errorBanner.show(message) }
     }
 
     Connections {
@@ -300,6 +301,13 @@ ApplicationWindow {
         function onChanged() {
             if (projectController && repoVm.repoOpen && repoVm.repoPath.length > 0)
                 projectController.setActiveRepo(repoVm.repoPath)
+        }
+        // Refresh the sidebar submodule tree when the git-dir watcher fires a full
+        // refresh (e.g. external `git submodule update` in a terminal). Non-active
+        // repos are covered by the fleet poll in ProjectController::pollRepos.
+        function onRepoStructureChanged() {
+            if (repoVm.repoOpen && projectController)
+                projectController.refreshSubmodules(repoVm.repoPath)
         }
     }
 }
