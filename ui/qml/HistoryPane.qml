@@ -42,12 +42,14 @@ RowLayout {
         property string dropTargetZone: ""
         readonly property int rowHeight: 48
 
-        function updateDropTarget(globalPt) {
-            var to = historyList.indexAt(globalPt.x, globalPt.y)
+        // @p contentPt is in historyList.contentItem coordinates (the caller maps
+        // the drag centroid through mapToItem before calling).
+        function updateDropTarget(contentPt) {
+            var to = historyList.indexAt(contentPt.x, contentPt.y)
             if (to < 0 || !repoVm || to >= repoVm.reorderableRunLength) {
                 dropTargetIndex = -1; dropTargetZone = ""; return
             }
-            var localY = globalPt.y - to * rowHeight
+            var localY = contentPt.y - to * rowHeight
             dropTargetIndex = to
             dropTargetZone = dropZoneAt(localY, rowHeight)
         }
@@ -63,7 +65,7 @@ RowLayout {
             if (zone === "squash")
                 repoVm.squashCommitInto(fromIndex, toIndex)
             else
-                reorderConfirm.openFor(fromIndex, toIndex)
+                reorderConfirm.openFor(fromIndex, toIndex, zone)  // zone is "above"/"below"
         }
     }
 
@@ -144,9 +146,8 @@ RowLayout {
             }
 
             delegate: Rectangle {
-                readonly property int rowHeight: 48
                 width: ListView.view.width
-                height: rowHeight
+                height: dropLogic.rowHeight  // single source of truth (dropLogic.rowHeight)
                 color: (ListView.isCurrentItem
                         || historyList.selectedRows.indexOf(index) >= 0)
                        ? theme.surfaceOverlay : "transparent"
@@ -334,9 +335,9 @@ RowLayout {
                                 var to = historyList.indexAt(p.x, p.y)
                                 if (to >= 0) {
                                     // Local Y within the target row resolves the band.
-                                    var rowTop = to * rowHeight
+                                    var rowTop = to * dropLogic.rowHeight
                                     var localY = p.y - rowTop
-                                    var zone = dropLogic.dropZoneAt(localY, rowHeight)
+                                    var zone = dropLogic.dropZoneAt(localY, dropLogic.rowHeight)
                                     dropLogic.performDrop(index, to, zone)
                                 }
                             }

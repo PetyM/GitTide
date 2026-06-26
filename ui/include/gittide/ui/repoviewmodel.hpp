@@ -215,10 +215,12 @@ public:
     Q_INVOKABLE void requestSquashTodo(const QVariantList& rows);
     /// Ask the controller for the editable plan fromOid..HEAD; reply on rebaseTodoReady.
     Q_INVOKABLE void requestRebaseTodo(QString fromOid);
-    /// Reorder the commit at history row @p fromRow to @p toRow within the
-    /// reorderable run (both must be < reorderableRunLength). Replays the run in the
-    /// new order via an interactive rebase (all picks). No-op if out of range.
-    Q_INVOKABLE void reorderCommits(int fromRow, int toRow);
+    /// Reorder the commit at history row @p fromRow next to @p toRow within the
+    /// reorderable run (both must be < reorderableRunLength). @p band selects the
+    /// side of the target the dragged commit lands on: "above" inserts one slot
+    /// newer than the target, "below" (the default) one slot older. Replays the run
+    /// in the new order via an interactive rebase (all picks). No-op if out of range.
+    Q_INVOKABLE void reorderCommits(int fromRow, int toRow, const QString& band = QStringLiteral("below"));
     /// Squash the commit at @p fromRow into the commit at @p toRow (both
     /// newest-first indices into the reorderable run). The dragged commit folds
     /// into the target; the combined commit keeps the target's slot. Drives the

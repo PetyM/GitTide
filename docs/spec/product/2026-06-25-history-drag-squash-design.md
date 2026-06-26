@@ -83,8 +83,10 @@ Guards (a drop that fails any → no-op, snap back):
   never ambiguous at the moment of drop.
 
 Reorder keeps its existing confirmation (`ReorderConfirmDialog` →
-`reorderCommits(fromRow, toRow)`), unchanged. Squash routes to a new VM method (§3);
-its message editor is the confirmation gate, so no separate confirm dialog.
+`reorderCommits(fromRow, toRow, band)`); the `band` ("above"/"below") is threaded
+through so the dragged commit lands on the target's newer or older side as the
+indicator showed. Squash routes to a new VM method (§3); its message editor is the
+confirmation gate, so no separate confirm dialog.
 
 ## 3. Drag-to-squash wiring (QML → ViewModel → engine)
 

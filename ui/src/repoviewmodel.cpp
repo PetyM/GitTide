@@ -405,7 +405,7 @@ void RepoViewModel::updateReorderableRun()
     }
 }
 
-void RepoViewModel::reorderCommits(int fromRow, int toRow)
+void RepoViewModel::reorderCommits(int fromRow, int toRow, const QString& band)
 {
     const int n = m_reorderableRunLength;
     if (n < 2 || fromRow == toRow)
@@ -413,7 +413,7 @@ void RepoViewModel::reorderCommits(int fromRow, int toRow)
     if (fromRow < 0 || fromRow >= n || toRow < 0 || toRow >= n)
         return;
 
-    // Build the run newest-first, then apply the move.
+    // Build the run newest-first, then re-insert the dragged commit.
     QList<QString> run;
     run.reserve(n);
     for (int i = 0; i < n; ++i)
@@ -425,7 +425,14 @@ void RepoViewModel::reorderCommits(int fromRow, int toRow)
         return; // defensive: run members always have one parent
     const QString base = QString::fromStdString(deepest.parents[0]);
 
-    run.move(fromRow, toRow);
+    // Insert the dragged commit on the chosen side of the target. This list is
+    // newest-first, so "above" (newer) is the lower index and "below" (older) the
+    // higher one; resolve the target's index *after* removing the dragged commit.
+    const QString dragged = run[fromRow];
+    const QString target  = run[toRow];
+    run.removeAt(fromRow);
+    const int t = run.indexOf(target);
+    run.insert(band == QStringLiteral("above") ? t : t + 1, dragged);
 
     // The engine wants the plan oldest-first, all picks (pure reorder).
     QStringList oids, actions;
