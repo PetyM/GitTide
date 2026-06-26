@@ -45,6 +45,37 @@ QtTest headless runner.
   assert absence), `dropZoneAt` band test, `Ctrl+1`/`Ctrl+2` wiring.
 - **TDD:** failing test first for every task.
 
+### Build & test — REAL invocations (override every per-task `ctest -R` line below)
+
+The per-task steps say `ctest --test-dir build -R …` for brevity. **Use these instead:**
+
+```bash
+# Configure (once):
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/home/michal/Qt/6.8.3/gcc_64 -DGITGUI_BUILD_QML=ON
+# Build:
+cmake --build build --parallel
+# Core tests — Catch2 binary, filter by TAG (NOT ctest -R, which is case-sensitive regex):
+./build/tests/gittide_core_tests "[logallrefs]"
+# UI tests — ONE QtTest binary, all classes; run offscreen:
+QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests
+# Full suite:
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+```
+
+**Test framework per layer — match the neighbour you extend:**
+- **core** tests (`tests/core/*.cpp`) → **Catch2** (`TEST_CASE`, `REQUIRE`). Give new
+  core cases a tag like `[logallrefs]`. `catch_discover_tests` auto-registers; no
+  CMake edit needed beyond adding the file to the `gittide_core_tests` source list
+  (lines ~1–39 of `tests/CMakeLists.txt`).
+- **ui** tests (`tests/ui/*.cpp`) → **QtTest** (`#include <QtTest>`, a `QObject`
+  class with `private slots`, `QTEST_…`/`QVERIFY`/`QCOMPARE`, registered via the
+  project's QtTest harness). **Mirror `tests/ui/test_qml_history.cpp` and
+  `tests/ui/test_repo_view_model.cpp` exactly** — same includes, same class shape,
+  same QML-load/`findChild`/`QSignalSpy` idioms. New ui test files MUST be added to
+  the `gittide_ui_tests` source list (lines ~51+ of `tests/CMakeLists.txt`).
+  The Catch2 `TEST_CASE` snippets in Tasks 3–6 below are pseudocode for *intent
+  only* — translate them into QtTest slots in the real harness.
+
 ---
 
 ## Task 1: `GitRepo::logAllRefs` — walk every branch and tag
