@@ -275,7 +275,10 @@ Layered on the engine, three gestures graduate from the wishes:
   `buildSquashTodo`. See [rebase-interactive.md](rebase-interactive.md) §3.2.
 - **Drag-to-reorder**, both in the todo editor (grip alongside ↑/↓) and directly in
   the history view (gated to the linear single-parent run from HEAD, behind a
-  confirmation). See [rebase-interactive.md](rebase-interactive.md) §3.2 and **D36**.
+  confirmation). The **whole commit row** is the drag source — no grip icon. A
+  press-and-hold of 250 ms arms the drag; a quick click still selects (the
+  `TapHandler` + `DragHandler` pair cooperates without grab contention). See
+  [rebase-interactive.md](rebase-interactive.md) §3.2 and **D36**, **D38**, **D39**.
 - **Undo last commit** — `git reset --soft HEAD~1`: drops the tip and leaves its
   changes **staged**. Core verb `GitRepo::undoLastCommit()`, offered on the HEAD
   commit context menu and the app menu, disabled mid-merge/-rebase (mutual

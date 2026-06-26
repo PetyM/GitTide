@@ -30,7 +30,7 @@ parallel, and large histories/diffs render incrementally.
   commit.
 - Diff viewer (file / hunk / intra-line), shared between working changes and
   history.
-- Per-repo commit **history with a graph** (branches, merges).
+- Per-repo commit **History** list (virtualized; multi-select; drag-to-reorder/squash) and a dedicated **Graph tab** with the full all-refs git graph (local + remote branches + tags, with branch/tag chips).
 - **Multi-window** (hybrid): each window has the in-window project switcher, and
   any project can also be opened in a new top-level window. Window/session state
   persists for restore.
@@ -60,9 +60,9 @@ The window is GitHub-Desktop-like, with three zones left-to-right:
   reclaim width; expanding restores it. This zone is GitTide's multi-repo
   differentiator and is always present (collapsed or not).
 - **List column.** A **branch bar** across the top shows the current branch and
-  hosts branch actions (see [Branches](#branches)). Below it, two sub-tabs —
-  **Changes** and **History** — select what the list shows and what feeds the
-  diff panel.
+  hosts branch actions (see [Branches](#branches)). Below it, three sub-tabs —
+  **Changes**, **History**, and **Graph** — select what the list shows and what
+  feeds the diff panel.
 - **Diff panel.** One shared **diff view** on the right, driven by whatever is
   selected in the list column: a working file (editable, with checkboxes) or a
   file from a historical commit (read-only).
@@ -98,20 +98,38 @@ context menu on a file or a line selection.
 
 ### History tab
 
-Read history as a commit graph, then inspect any commit's diff in the same panel.
-The History tab is implemented in QML. The list column shows a virtualized
-**commit list** (graph lane column · initials avatar · summary · author · date)
-where each row's graph column paints branch/merge lanes in a multi-colour lane
-palette and marks the HEAD commit with a white dot. Selecting a row opens the
-three-part **commit detail** flow: (1) the **changed-files list** of that commit
-(read-only, no checkboxes) fills the detail pane; (2) picking a file shows its
-**diff** read-only (no per-line checkboxes); and (3) a **Checkout** button detaches
-HEAD at the selected commit. A 2px `accent` left border and a row-wide highlight
-mark the selected history row. **Multi-select** (Shift-click for a contiguous
-range, Ctrl-click to toggle) shows the **combined diff** of a contiguous range —
-the net changes across those commits — in the same detail pane; the tip commit
-can be **reworded** from its context menu. See
-[history-editing](history-editing.md).
+Read HEAD-branch commit history and inspect any commit's diff in the same panel.
+The list column shows a virtualized **commit list** (initials avatar · summary ·
+author · date) — no graph lane column. Selecting a row opens the three-part
+**commit detail** flow: (1) the **changed-files list** of that commit (read-only,
+no checkboxes) fills the detail pane; (2) picking a file shows its **diff**
+read-only (no per-line checkboxes); and (3) a **Checkout** button detaches HEAD
+at the selected commit. A 2px `accent` left border and a row-wide highlight mark
+the selected history row. **Multi-select** (Shift-click for a contiguous range,
+Ctrl-click to toggle) shows the **combined diff** of a contiguous range — the net
+changes across those commits — in the same detail pane; the tip commit can be
+**reworded** from its context menu. See [history-editing](history-editing.md).
+
+**Drag-to-reorder / squash** operates on the reorderable run (contiguous
+single-parent commits from HEAD): press-and-hold any row for 250 ms to arm the
+drag (the whole row is the drag source — no grip icon needed); the three-band drop
+zone (top / middle / bottom third) disambiguates reorder from squash. Selection
+(single click, Shift-range, Ctrl-toggle) is handled by `TapHandler`s that
+cooperate with the `DragHandler`, fixing the earlier `MouseArea` grab-steal bug.
+
+### Graph tab
+
+A read-only **full git graph** of all refs — local branches, remote-tracking
+branches, and tags — rendered in the same lane-based `GraphColumn` painter used
+by the old History graph. Each commit row shows branch/tag name chips for every
+ref tip that points at it. Selecting a row opens the same **commit detail** panel
+(changed files → per-file diff, read-only). A right-click context menu offers the
+cross-branch-safe subset of actions: copy SHA, new branch from here, checkout
+commit, merge. History-editing items (Reword, Undo, Squash, Edit history) are
+hidden via the `CommitContextMenu.allowHistoryEditing` property set to `false` in
+`GraphPane.qml`. **Ctrl+3** switches to this tab; `repoVm.refreshGraph()` is
+called on first switch and on live-refresh triggers while the tab is active. See
+[context-menus](context-menus.md) and [keyboard-controls](keyboard-controls.md).
 
 ### Syncing
 
