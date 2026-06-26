@@ -64,6 +64,23 @@ private slots:
                                 .arg(compactH)
                                 .arg(regularH)));
     }
+
+    void app_combobox_exposes_model_and_current()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/AppComboBox.qml")));
+        std::unique_ptr<QObject> obj(comp.create());
+        QVERIFY2(obj != nullptr, qPrintable(comp.errorString()));
+        obj->setProperty("model", QStringList{"a", "b", "c"});
+        QCOMPARE(obj->property("count").toInt(), 3);
+        obj->setProperty("currentIndex", 1);
+        QCOMPARE(obj->property("currentText").toString(), QStringLiteral("b"));
+    }
 };
 
 #include "test_qml_appcontrols.moc"
