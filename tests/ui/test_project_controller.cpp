@@ -388,6 +388,50 @@ private slots:
         QVERIFY(!spyFailed.at(0).at(0).toString().isEmpty());
     }
 
+    void initSubmodule_reinitialises_and_refreshes_tree()
+    {
+        using gittide::SubmoduleStatus;
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("seed child");
+
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("seed parent");
+        parent.addSubmodule("sub", child.path());
+        parent.commitAll("add submodule");
+        {
+            auto repo = gittide::GitRepo::open(parent.path());
+            QVERIFY(repo && repo->deinitSubmodule("sub"));
+        }
+
+        const QString repoPath = QString::fromStdString(parent.path().generic_string());
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id = "p", .name = "P", .repos = {RepoRef{.path = repoPath.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p"));
+
+        RepoListModel* model = controller.repos();
+        const QModelIndex top = model->index(0, 0);
+        QCOMPARE(model->rowCount(top), 1);
+        const QModelIndex sub = model->index(0, 0, top);
+        // deinitSubmodule keeps the .git gitlink; libgit2 reports Dirty (==1), not Uninitialized (==2)
+        QCOMPARE(model->data(sub, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Dirty));
+
+        const QString subPath = repoPath + QStringLiteral("/sub");
+        QCoro::waitFor(controller.initSubmodule(repoPath, subPath));
+
+        // Subtree was rebuilt; the (new) row is now Clean.
+        const QModelIndex sub2 = model->index(0, 0, model->index(0, 0));
+        QCOMPARE(model->data(sub2, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Clean));
+    }
+
     void cleanup()
     {
         m_temps.clear();

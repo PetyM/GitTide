@@ -463,4 +463,82 @@ void ProjectController::finishOneFetch()
         emit authRequired();
 }
 
+QCoro::Task<void> ProjectController::refreshSubmodules(QString repoPath)
+{
+    QPointer<ProjectController> self = this;
+    const std::filesystem::path p(repoPath.toStdString());
+    std::error_code ec;
+    if (!std::filesystem::exists(p, ec) || ec)
+        co_return;
+
+    auto opened = AsyncRepo::open(p);
+    if (!opened)
+        co_return;
+    AsyncRepo repo = std::move(*opened);
+    auto      tree = co_await repo.submoduleTree();
+    if (!self || !tree)
+        co_return;
+    m_repoModel->applySubmodules(repoPath, *tree);
+}
+
+template <class Op>
+QCoro::Task<void> ProjectController::runSubmoduleOp(QString repoPath, QString submodulePath, Op op)
+{
+    QPointer<ProjectController> self = this;
+    const std::filesystem::path root(repoPath.toStdString());
+    std::error_code ec;
+    if (!std::filesystem::exists(root, ec) || ec)
+        co_return;
+
+    std::filesystem::path rel;
+    if (!submodulePath.isEmpty())
+    {
+        rel = std::filesystem::relative(std::filesystem::path(submodulePath.toStdString()), root, ec);
+        if (ec)
+            rel = std::filesystem::path(submodulePath.toStdString());
+        m_repoModel->setSubmoduleBusy(submodulePath, true);
+    }
+
+    auto opened = AsyncRepo::open(root);
+    if (!opened)
+    {
+        if (self && !submodulePath.isEmpty())
+            m_repoModel->setSubmoduleBusy(submodulePath, false);
+        if (self)
+            emit submoduleOpFailed(repoPath, submodulePath, QStringLiteral("could not open repository"));
+        co_return;
+    }
+    AsyncRepo handle = std::move(*opened);
+    auto      result = co_await op(handle, rel);
+    if (!self)
+        co_return;
+    if (!submodulePath.isEmpty())
+        m_repoModel->setSubmoduleBusy(submodulePath, false);
+
+    if (!result)
+    {
+        emit submoduleOpFailed(repoPath, submodulePath, QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshSubmodules(repoPath);
+}
+
+QCoro::Task<void> ProjectController::initSubmodule(QString repoPath, QString submodulePath)
+{
+    co_await runSubmoduleOp(repoPath, submodulePath,
+        [](AsyncRepo& r, std::filesystem::path rel) { return r.reinitSubmodule(std::move(rel)); });
+}
+
+QCoro::Task<void> ProjectController::deinitSubmodule(QString repoPath, QString submodulePath)
+{
+    co_await runSubmoduleOp(repoPath, submodulePath,
+        [](AsyncRepo& r, std::filesystem::path rel) { return r.deinitSubmodule(std::move(rel)); });
+}
+
+QCoro::Task<void> ProjectController::updateAllSubmodules(QString repoPath)
+{
+    co_await runSubmoduleOp(repoPath, /*submodulePath=*/QString{},
+        [](AsyncRepo& r, std::filesystem::path) { return r.updateSubmodules(); });
+}
+
 } // namespace gittide::ui

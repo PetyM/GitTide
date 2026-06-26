@@ -96,9 +96,21 @@ public slots:
     // the stored path no longer exists on disk (stale → caller falls back).
     Q_INVOKABLE QString lastActiveRepo() const;
 
+    // Fetch the submodule tree for repoPath off-thread and refresh the model row.
+    Q_INVOKABLE QCoro::Task<void> refreshSubmodules(QString repoPath);
+    // Re-initialise the submodule at the absolute submodulePath and refresh the tree.
+    Q_INVOKABLE QCoro::Task<void> initSubmodule(QString repoPath, QString submodulePath);
+    // Initialise/update every direct submodule for repoPath and refresh the tree.
+    Q_INVOKABLE QCoro::Task<void> updateAllSubmodules(QString repoPath);
+    // De-initialise the submodule at the absolute submodulePath and refresh the tree.
+    Q_INVOKABLE QCoro::Task<void> deinitSubmodule(QString repoPath, QString submodulePath);
+
 signals:
     void activeProjectChanged();
     void projectActivated(const QString& projectId);
+    /// Emitted when a submodule op (init/update/deinit) fails. submodulePath is
+    /// empty for repo-wide ops (updateAllSubmodules).
+    void submoduleOpFailed(const QString& repoPath, const QString& submodulePath, const QString& message);
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
@@ -134,6 +146,13 @@ private:
     // (HEAD vs its tracking ref — no network) and update the sidebar rows (D35).
     QCoro::Task<void> pollRepos();
     QTimer*           m_pollTimer = nullptr;
+
+    // Shared body for the three mutating submodule ops. `op` performs the core call
+    // on a transient AsyncRepo handle; the busy flag, path conversion, and
+    // post-refresh are handled here. submodulePath may be empty for bulk ops.
+    // Defined in the .cpp; only instantiated there (not a cross-TU template).
+    template <class Op>
+    QCoro::Task<void> runSubmoduleOp(QString repoPath, QString submodulePath, Op op);
 };
 
 } // namespace gittide::ui
