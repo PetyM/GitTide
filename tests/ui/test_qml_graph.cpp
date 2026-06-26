@@ -2,6 +2,7 @@
 #include <QAbstractItemModel>
 #include <QRandomGenerator>
 #include <QSignalSpy>
+#include <QQmlApplicationEngine>
 
 #include <filesystem>
 #include <fstream>
@@ -10,9 +11,17 @@
 
 #include "gittide/ui/historylistmodel.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
+#include "gittide/ui/qmlcontext.hpp"
+#include "gittide/ui/qmltheme.hpp"
+#include "gittide/ui/thememanager.hpp"
+#include "gittide/ui/repolistmodel.hpp"
 
 using gittide::ui::HistoryListModel;
 using gittide::ui::RepoViewModel;
+using gittide::ui::QmlTheme;
+using gittide::ui::ThemeManager;
+using gittide::ui::RepoListModel;
+using gittide::ui::installQmlContext;
 
 namespace qml_graph_test {
 
@@ -152,6 +161,58 @@ private slots:
         // close() must reset the graph model.
         vm.close();
         QCOMPARE(vm.graph()->rowCount(QModelIndex()), 0);
+
+        std::filesystem::remove_all(dir);
+    }
+
+    void graph_tab_exists_and_selection_drives_commit_detail()
+    {
+        const auto dir = qml_graph_test::make_branched_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        // Open repo and wait for history to load.
+        {
+            QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historySpy.wait(3000));
+        }
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        // Main.qml's Component.onCompleted calls openFirstRepo() → repoVm.close().
+        // Re-open and wait for a real modelReset so history is populated.
+        {
+            QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historyReady2.wait(3000));
+        }
+
+        QObject* root = engine.rootObjects().first();
+
+        // Assert graphTabBody exists (fails until GraphPane.qml + WorkingPane tab 3 are added).
+        QObject* graphBody = root->findChild<QObject*>(QStringLiteral("graphTabBody"));
+        QVERIFY(graphBody != nullptr);
+
+        // Switch to Graph tab (index 2).
+        // WorkingPane's onCurrentIndexChanged calls repoVm.refreshGraph() automatically.
+        QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
+        QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
+        QVERIFY(tabBar != nullptr);
+        tabBar->setProperty("currentIndex", 2);
+        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(vm.graph()->rowCount(QModelIndex()) >= 1);
+
+        // Select row 0 via selectGraphCommitAtRow — selectedCommit becomes non-empty.
+        vm.selectGraphCommitAtRow(0);
+        QVERIFY(!vm.selectedCommit().isEmpty());
 
         std::filesystem::remove_all(dir);
     }

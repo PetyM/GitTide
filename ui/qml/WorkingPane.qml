@@ -24,11 +24,13 @@ Item {
     // primary list, reverse lands on its last element.
     function takeFocus() {
         if (tabs.currentIndex === 0) changesTabBody.takeFocus()
-        else historyTabBody.takeFocus()
+        else if (tabs.currentIndex === 1) historyTabBody.takeFocus()
+        else graphTabBody.takeFocus()
     }
     function takeFocusLast() {
         if (tabs.currentIndex === 0) changesTabBody.takeFocusLast()
-        else historyTabBody.takeFocusLast()
+        else if (tabs.currentIndex === 1) historyTabBody.takeFocusLast()
+        else graphTabBody.takeFocusLast()
     }
 
     // ---- Empty state (no repo open) ----
@@ -100,8 +102,13 @@ Item {
                     }
                 }
 
+                onCurrentIndexChanged: {
+                    if (currentIndex === 2 && repoVm) repoVm.refreshGraph()
+                }
+
                 MainTab { text: "Changes" }
                 MainTab { text: "History" }
+                MainTab { text: "Graph" }
             }
         }
 
@@ -164,6 +171,14 @@ Item {
                 onTabNext: workingPane.focusSidebar()
                 onTabPrev: workingPane.focusSidebar()
             }
+
+            // Index 2: Graph — full all-refs git graph + read-only commit detail.
+            GraphPane {
+                id: graphTabBody
+                objectName: "graphTabBody"
+                onTabNext: workingPane.focusSidebar()
+                onTabPrev: workingPane.focusSidebar()
+            }
         }
     }
 
@@ -187,6 +202,14 @@ Item {
         onActivated: {
             tabs.currentIndex = 1
             historyTabBody.takeFocus()
+        }
+    }
+    Shortcut {
+        sequence: "Ctrl+3"
+        enabled: repoVm !== null && repoVm.repoOpen
+        onActivated: {
+            tabs.currentIndex = 2
+            graphTabBody.takeFocus()
         }
     }
 

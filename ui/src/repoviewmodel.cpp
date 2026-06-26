@@ -229,6 +229,15 @@ void RepoViewModel::selectCommitAtRow(int row)
     selectCommit(oid);
 }
 
+void RepoViewModel::selectGraphCommitAtRow(int row)
+{
+    if (!m_graph || row < 0 || row >= m_graph->rowCount())
+        return;
+    const QString oid = m_graph->data(m_graph->index(row, 0),
+                                      HistoryListModel::OidRole).toString();
+    selectCommit(oid);
+}
+
 void RepoViewModel::selectCommitFileAtRow(int row)
 {
     if (row < 0 || row >= m_commitFiles->rowCount())

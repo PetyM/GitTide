@@ -158,6 +158,7 @@ public:
     Q_INVOKABLE void selectFile(const QString& path);
     Q_INVOKABLE void selectFileAtRow(int row);
     Q_INVOKABLE void selectCommitAtRow(int row);
+    Q_INVOKABLE void selectGraphCommitAtRow(int row);
     Q_INVOKABLE void selectCommitFileAtRow(int row);
     Q_INVOKABLE void setFileChecked(int row, bool checked);
     Q_INVOKABLE void setAllFilesChecked(bool checked);
