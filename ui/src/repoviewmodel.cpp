@@ -632,6 +632,7 @@ void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
             tips.insert(QString::fromStdString(b.tipOid), QString::fromStdString(b.name));
     }
     m_history->setLocalBranchTips(tips);
+    m_graph->setLocalBranchTips(tips);
 
     for (const auto& b : branches)
     {

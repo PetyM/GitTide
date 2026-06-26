@@ -165,6 +165,43 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    void graph_model_exposes_local_branch_name_for_tip_commits()
+    {
+        const auto dir = qml_graph_test::make_branched_repo();
+
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(3000));
+
+        QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
+        vm.refreshGraph();
+        QVERIFY(graphSpy.wait(3000));
+
+        // At least one row in the graph must have a non-empty LocalBranchNameRole —
+        // the "master" tip and the "feature" tip.
+        const int rows = vm.graph()->rowCount(QModelIndex());
+        QVERIFY(rows >= 3);
+
+        bool foundBranchTip = false;
+        for (int r = 0; r < rows; ++r)
+        {
+            const QModelIndex idx = vm.graph()->index(r, 0);
+            const QString branchName =
+                vm.graph()->data(idx, HistoryListModel::LocalBranchNameRole).toString();
+            if (!branchName.isEmpty())
+            {
+                foundBranchTip = true;
+                break;
+            }
+        }
+        QVERIFY2(foundBranchTip,
+                 "No graph row has a non-empty LocalBranchNameRole; "
+                 "setLocalBranchTips was not called on the graph model");
+
+        std::filesystem::remove_all(dir);
+    }
+
     void graph_tab_exists_and_selection_drives_commit_detail()
     {
         const auto dir = qml_graph_test::make_branched_repo();

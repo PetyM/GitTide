@@ -46,8 +46,6 @@ RowLayout {
             WheelScroller {}
             activeFocusOnTab: true
 
-            property int selectedRow: -1
-
             Keys.onUpPressed: {
                 if (currentIndex > 0) {
                     currentIndex--
@@ -70,7 +68,6 @@ RowLayout {
             }
 
             function selectRow(i) {
-                selectedRow = i
                 if (repoVm) repoVm.selectGraphCommitAtRow(i)
             }
 
