@@ -528,4 +528,26 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::reinitSubmodule(std::filesystem:
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::updateSubmodules()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.updateSubmodules();
+        });
+}
+
+QCoro::Task<gittide::Expected<std::vector<gittide::SubmoduleNode>>> AsyncRepo::submoduleTree()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.submoduleTree();
+        });
+}
+
 } // namespace gittide::ui
