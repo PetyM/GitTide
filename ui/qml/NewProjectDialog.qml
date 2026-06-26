@@ -47,13 +47,15 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             id: createButton
             objectName: "newProjectCreate"
+            variant: "primary"
             text: "Create"
             enabled: nameField.text.trim().length > 0
             onClicked: dialog.accept()

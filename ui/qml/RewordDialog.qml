@@ -101,13 +101,15 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.close()
         }
-        Button {
+        AppButton {
             id: saveButton
             objectName: "rewordSave"
+            variant: "primary"
             text: "Save"
             enabled: summaryField.text.trim().length > 0
             onClicked: dialog.accept()

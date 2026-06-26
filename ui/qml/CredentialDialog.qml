@@ -79,14 +79,16 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
             objectName: "credentialCancel"
+            variant: "secondary"
             text: "Cancel"
             onClicked: root.reject()
         }
-        Button {
+        AppButton {
             id: okButton
             objectName: "credentialOk"
+            variant: "primary"
             text: "Sign in"
             enabled: userField.text.length > 0 && tokenField.text.length > 0
             onClicked: root.accept()

@@ -251,9 +251,10 @@ ApplicationWindow {
             spacing: 8
             Layout.margins: 16
             Item { Layout.fillWidth: true }
-            Button { text: "Cancel"; onClicked: deleteProjectDialog.reject() }
-            Button {
+            AppButton { variant: "secondary"; text: "Cancel"; onClicked: deleteProjectDialog.reject() }
+            AppButton {
                 objectName: "deleteProjectConfirm"
+                variant: "danger"
                 text: "Delete"
                 onClicked: deleteProjectDialog.accept()
             }

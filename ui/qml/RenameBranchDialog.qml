@@ -58,13 +58,15 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             id: renameButton
             objectName: "renameBranchConfirm"
+            variant: "primary"
             text: "Rename"
             enabled: newField.text.trim().length > 0 && newField.text.trim() !== dialog.oldName
             onClicked: dialog.accept()

@@ -115,8 +115,9 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
             objectName: "optionsCloseButton"
+            variant: "secondary"
             text: "Close"
             onClicked: dialog.close()
         }

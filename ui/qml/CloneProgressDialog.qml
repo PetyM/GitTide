@@ -74,8 +74,9 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
             objectName: "cloneCancel"
+            variant: "secondary"
             text: "Cancel"
             onClicked: {
                 if (projectController)

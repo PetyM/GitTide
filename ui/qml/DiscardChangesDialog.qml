@@ -29,24 +29,15 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             objectName: "discardConfirmButton"
+            variant: "danger"
             text: "Discard"
-            contentItem: Label {
-                text: parent.text
-                color: theme.stateDeleted
-                horizontalAlignment: Text.AlignHCenter
-            }
-            background: Rectangle {
-                radius: 6
-                color: theme.surfaceOverlay
-                border.color: theme.stateDeleted
-                border.width: 1
-            }
             onClicked: dialog.accept()
         }
     }
