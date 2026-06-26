@@ -159,3 +159,37 @@ TEST_CASE("submoduleTree recurses and reports an uninitialised nested submodule"
     REQUIRE(lvl2.shortOid.empty());
     REQUIRE(lvl2.children.empty());
 }
+
+TEST_CASE("updateSubmodules re-initialises all direct submodules", "[submodule]")
+{
+    gittide::test::TempRepo child;
+    child.writeFile("a.txt", "hello\n");
+    child.commitAll("seed child");
+
+    gittide::test::TempRepo parent;
+    parent.writeFile("top.txt", "p\n");
+    parent.commitAll("seed parent");
+    parent.addSubmodule("sub", child.path());
+    parent.commitAll("add submodule");
+
+    auto repo = gittide::GitRepo::open(parent.path());
+    REQUIRE(repo);
+
+    // Force the submodule into a broken state via deinit: removes source files but
+    // keeps the .git gitlink, so libgit2 sees it as Dirty (not Uninitialized).
+    REQUIRE(repo->deinitSubmodule("sub"));
+    {
+        auto tree = repo->submoduleTree();
+        REQUIRE(tree);
+        REQUIRE(tree->size() == 1);
+        REQUIRE((*tree)[0].status == gittide::SubmoduleStatus::Dirty);
+    }
+
+    // Update all direct submodules → back to Clean.
+    REQUIRE(repo->updateSubmodules());
+
+    auto tree = repo->submoduleTree();
+    REQUIRE(tree);
+    REQUIRE(tree->size() == 1);
+    REQUIRE((*tree)[0].status == gittide::SubmoduleStatus::Clean);
+}

@@ -178,6 +178,12 @@ public:
     /// (`git_submodule_update` with init enabled). path is repo-relative.
     Expected<void> reinitSubmodule(std::filesystem::path path);
 
+    /// Initialise/update every DIRECT submodule of this repo to its pinned
+    /// commit (one level — does not recurse into nested submodules). Mirrors
+    /// `git submodule update --init` without `--recursive`. Returns the first
+    /// failure encountered; submodules processed before it stay updated.
+    Expected<void> updateSubmodules();
+
     // Switch HEAD to the named local branch. If the working tree is dirty the
     // changes are auto-stashed before the switch and re-applied afterwards.
     // Returns an error if the branch does not exist or the stash-pop conflicts.
