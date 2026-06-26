@@ -308,6 +308,21 @@ Rectangle {
                         opacity: model.status === 1 ? 1.0 : 0.55
                     }
 
+                    // Submodule: inline initialise affordance (uninitialised only).
+                    ToolButton {
+                        visible: row.uninit && !model.submoduleBusy
+                        text: "Init"
+                        font.pixelSize: 10
+                        onClicked: projectController.initSubmodule(model.ownerRepoPath, model.repoPath)
+                    }
+                    // Spinner while an op runs on this row.
+                    BusyIndicator {
+                        running: model.submoduleBusy === true
+                        visible: running
+                        implicitWidth: 14
+                        implicitHeight: 14
+                    }
+
                     // Repository: missing-on-disk warning.
                     Label {
                         visible: !row.isSub && model.missing === true
@@ -396,14 +411,20 @@ Rectangle {
                     }
                 }
 
-                // Right-click → remove-from-project menu (top-level repos only).
+                // Right-click → context menu (submodule rows open SubmoduleContextMenu;
+                // top-level repo rows open RepoContextMenu).
                 TapHandler {
                     acceptedButtons: Qt.RightButton
                     onTapped: {
-                        if (row.isSub)
-                            return
-                        repoContextMenu.repoPath = model.repoPath
-                        repoContextMenu.popup()
+                        if (row.isSub) {
+                            submoduleContextMenu.ownerRepoPath = model.ownerRepoPath
+                            submoduleContextMenu.submodulePath = model.repoPath
+                            submoduleContextMenu.status        = model.status
+                            submoduleContextMenu.popup()
+                        } else {
+                            repoContextMenu.repoPath = model.repoPath
+                            repoContextMenu.popup()
+                        }
                     }
                 }
             }
@@ -455,8 +476,17 @@ Rectangle {
     // ---- Remove-repo context menu ----
     RepoContextMenu {
         id: repoContextMenu
-        onRevealInFileManager: if (repoVm) repoVm.revealInFileManager(repoContextMenu.repoPath)
-        onRemoveFromProject:   if (projectController && repoContextMenu.repoPath.length > 0)
-                                  projectController.removeRepo(repoContextMenu.repoPath)
+        onRevealInFileManager:  if (repoVm) repoVm.revealInFileManager(repoContextMenu.repoPath)
+        onRemoveFromProject:    if (projectController && repoContextMenu.repoPath.length > 0)
+                                   projectController.removeRepo(repoContextMenu.repoPath)
+        onUpdateAllSubmodules:  if (projectController) projectController.updateAllSubmodules(repoContextMenu.repoPath)
+    }
+
+    // ---- Submodule context menu ----
+    SubmoduleContextMenu {
+        id: submoduleContextMenu
+        onInitRequested:      if (projectController) projectController.initSubmodule(ownerRepoPath, submodulePath)
+        onUpdateAllRequested: if (projectController) projectController.updateAllSubmodules(submodulePath)
+        onDeinitRequested:    if (projectController) projectController.deinitSubmodule(ownerRepoPath, submodulePath)
     }
 }

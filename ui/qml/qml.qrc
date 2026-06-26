@@ -31,6 +31,7 @@
     <file>BranchContextMenu.qml</file>
     <file>CommitContextMenu.qml</file>
     <file>RepoContextMenu.qml</file>
+    <file>SubmoduleContextMenu.qml</file>
     <file>FileContextMenu.qml</file>
     <file>MergeBanner.qml</file>
     <file>RebaseBanner.qml</file>

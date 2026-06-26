@@ -289,6 +289,7 @@ ApplicationWindow {
         function onRepoAdded(path) { if (repoVm) repoVm.open(path) }
         function onActiveProjectChanged() { window.openFirstRepo() }
         function onRepoAddFailed(message) { errorBanner.show(message) }
+        function onSubmoduleOpFailed(repoPath, submodulePath, message) { errorBanner.show(message) }
     }
 
     Connections {
