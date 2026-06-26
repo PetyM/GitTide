@@ -28,6 +28,7 @@ public:
         ShortOidRole,       // first 7 chars
         IsHeadRole,         // true when oid == the layout's HEAD oid
         LocalBranchNameRole, // short name of a local branch whose tip is this commit; empty otherwise
+        RefLabelsRole,       // QStringList of ref names (branch/tag) tipped here; graph chips
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -39,6 +40,9 @@ public:
     /// Update the oid → local-branch-name map used by LocalBranchNameRole.
     /// Call after setLayout or whenever branches change.
     void setLocalBranchTips(const QHash<QString, QString>& oidToName);
+
+    /// Update the oid → ref-label-list map used by RefLabelsRole (graph chips).
+    void setRefTips(const QHash<QString, QStringList>& oidToLabels);
 
     int laneCount() const
     {
@@ -53,9 +57,10 @@ signals:
     void changed();
 
 private:
-    gittide::GraphLayout     m_layout;
-    QString                  m_headOid;
-    QHash<QString, QString>  m_oidToLocalBranch; // tip oid → local branch name
+    gittide::GraphLayout      m_layout;
+    QString                   m_headOid;
+    QHash<QString, QString>   m_oidToLocalBranch; // tip oid → local branch name
+    QHash<QString, QStringList> m_oidToRefLabels; // tip oid → [branch/tag names]
 };
 
 } // namespace gittide::ui
