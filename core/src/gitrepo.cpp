@@ -847,16 +847,17 @@ Expected<void> GitRepo::resetIndexToHead()
 
 namespace {
 // Fill a CommitNode from a looked-up commit object (shared by log/logAllRefs).
-gittide::CommitNode nodeFromCommit(git_repository* repo, const git_oid& oid)
+// Returns std::nullopt when git_commit_lookup fails (unresolvable / corrupt OID).
+std::optional<gittide::CommitNode> nodeFromCommit(git_repository* repo, const git_oid& oid)
 {
+    git_commit* c = nullptr;
+    if (git_commit_lookup(&c, repo, &oid) < 0)
+        return std::nullopt;
+
     gittide::CommitNode node;
     char hex[GIT_OID_SHA1_HEXSIZE + 1];
     git_oid_tostr(hex, sizeof(hex), &oid);
     node.oid = hex;
-
-    git_commit* c = nullptr;
-    if (git_commit_lookup(&c, repo, &oid) < 0)
-        return node;
 
     const char* msg = git_commit_summary(c);
     node.summary    = msg ? msg : "";
@@ -905,7 +906,10 @@ Expected<std::vector<CommitNode>> GitRepo::log(unsigned limit) const
 
     while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
     {
-        result.push_back(nodeFromCommit(m_repo, oid));
+        auto node = nodeFromCommit(m_repo, oid);
+        if (!node)
+            continue;
+        result.push_back(std::move(*node));
         ++count;
     }
 
@@ -933,7 +937,10 @@ Expected<std::vector<CommitNode>> GitRepo::logAllRefs(unsigned limit) const
     unsigned count = 0;
     while ((limit == 0 || count < limit) && git_revwalk_next(&oid, walk) == 0)
     {
-        result.push_back(nodeFromCommit(m_repo, oid));
+        auto node = nodeFromCommit(m_repo, oid);
+        if (!node)
+            continue;
+        result.push_back(std::move(*node));
         ++count;
     }
     git_revwalk_free(walk);
