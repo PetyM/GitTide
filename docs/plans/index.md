@@ -42,6 +42,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 21 — Live refresh (file watching + fleet poll)](2026-06-25-plan21-live-refresh.md) | 2026-06-25 | done | engineering |
 | [Plan 22 — History-editing UX (squash · drag reorder · undo)](2026-06-25-plan22-history-editing-ux.md) | 2026-06-25 | done | product · design |
 | [Plan 23 — Whole-row drag + drag-to-squash](2026-06-25-plan23-history-drag-squash.md) | 2026-06-25 | done | product · design |
+| [Plan 24 — Submodule init / update from the GUI](2026-06-26-plan24-submodule-init-update.md) | 2026-06-26 | done | product · engineering · core |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises
