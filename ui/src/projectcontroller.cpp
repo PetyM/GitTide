@@ -495,7 +495,12 @@ QCoro::Task<void> ProjectController::runSubmoduleOp(QString repoPath, QString su
     {
         rel = std::filesystem::relative(std::filesystem::path(submodulePath.toStdString()), root, ec);
         if (ec)
-            rel = std::filesystem::path(submodulePath.toStdString());
+        {
+            m_repoModel->setSubmoduleBusy(submodulePath, false);
+            emit submoduleOpFailed(repoPath, submodulePath,
+                QStringLiteral("could not compute relative submodule path"));
+            co_return;
+        }
         m_repoModel->setSubmoduleBusy(submodulePath, true);
     }
 
