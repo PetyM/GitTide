@@ -226,6 +226,31 @@ QCoro::Task<void> RepoController::refreshHistory(unsigned limit)
     emit historyReady(gittide::GraphBuilder::build(std::move(*result)));
 }
 
+QCoro::Task<void> RepoController::refreshGraph(unsigned limit)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+
+    auto result = co_await m_repo->logAllRefs(limit);
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    emit graphReady(gittide::GraphBuilder::build(std::move(*result)));
+
+    auto tips = co_await m_repo->refTips();
+    if (!self || !tips)
+        co_return;
+    QHash<QString, QStringList> map;
+    for (const auto& t : *tips)
+        map[QString::fromStdString(t.oid)] << QString::fromStdString(t.name);
+    emit refTipsReady(std::move(map));
+}
+
 QCoro::Task<void> RepoController::refreshBranches()
 {
     if (!m_repo)

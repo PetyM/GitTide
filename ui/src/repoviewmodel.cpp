@@ -25,6 +25,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_diff(new DiffLinesModel(this))
     , m_branches(new BranchListModel(this))
     , m_history(new HistoryListModel(this))
+    , m_graph(new HistoryListModel(this))
     , m_commitFiles(new ChangedFilesModel(this))
     , m_commitDiff(new DiffLinesModel(this))
 {
@@ -33,6 +34,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
     connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
+    connect(m_controller, &RepoController::graphReady,   this, &RepoViewModel::onGraph);
+    connect(m_controller, &RepoController::refTipsReady, this, &RepoViewModel::onRefTips);
     connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
     connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::rangeFilesReady, this, &RepoViewModel::onRangeFiles);
@@ -123,6 +126,11 @@ HistoryListModel* RepoViewModel::history() const
     return m_history;
 }
 
+HistoryListModel* RepoViewModel::graph() const
+{
+    return m_graph;
+}
+
 void RepoViewModel::open(const QString& path)
 {
     m_headOid.clear();
@@ -152,6 +160,7 @@ void RepoViewModel::close()
     m_activeCommitFile.clear();
     m_branches->setBranches({});
     m_history->setLayout({}, {});
+    m_graph->setLayout({}, {});
     m_branch.clear();
     m_headBranch.clear();
     m_headOid.clear();
@@ -358,6 +367,11 @@ void RepoViewModel::refreshHistory()
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
 }
 
+void RepoViewModel::refreshGraph()
+{
+    QCoro::connect(m_controller->refreshGraph(), this, [] {});
+}
+
 void RepoViewModel::resync()
 {
     if (!m_open)
@@ -370,6 +384,16 @@ void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
     m_lastLayout     = layout;
     m_historyArrived = true;
     applyHistoryIfReady();
+}
+
+void RepoViewModel::onGraph(const gittide::GraphLayout& layout)
+{
+    m_graph->setLayout(layout, m_headOid);
+}
+
+void RepoViewModel::onRefTips(const QHash<QString, QStringList>& oidToLabels)
+{
+    m_graph->setRefTips(oidToLabels);
 }
 
 void RepoViewModel::applyHistoryIfReady()

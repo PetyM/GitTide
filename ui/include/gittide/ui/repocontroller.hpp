@@ -1,4 +1,5 @@
 #pragma once
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -56,6 +57,7 @@ public slots:
     QCoro::Task<void> discard(gittide::StageSelection sel);
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
+    QCoro::Task<void> refreshGraph(unsigned limit = 1000);
     QCoro::Task<void> refreshBranches();
     QCoro::Task<void> createBranch(QString name, QString fromOid, bool checkout);
     QCoro::Task<void> switchBranch(QString name);
@@ -151,6 +153,8 @@ signals:
     void diffReady(const QString& path, const gittide::DiffResult& result);
     void committed(const QString& oid);
     void historyReady(gittide::GraphLayout layout);
+    void graphReady(gittide::GraphLayout layout);
+    void refTipsReady(QHash<QString, QStringList> oidToLabels);
     void operationFailed(const QString& message);
     void deleteFailedUnmerged(const QString& name);
     void branchesChanged(std::vector<gittide::BranchInfo>);

@@ -118,6 +118,28 @@ QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::log(
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> AsyncRepo::logAllRefs(unsigned limit)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, limit]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.logAllRefs(limit);
+        });
+}
+
+QCoro::Task<gittide::Expected<std::vector<gittide::RefTip>>> AsyncRepo::refTips()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.refTips();
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::resetIndexToHead()
 {
     auto impl = m_impl;
