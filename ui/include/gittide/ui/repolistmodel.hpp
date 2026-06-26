@@ -104,12 +104,8 @@ private:
     // (path + status + shortOid, recursively) — lets applySubmodules no-op.
     bool submodulesEqual(const Node& node,
                          const std::vector<gittide::SubmoduleNode>& subs) const;
-    // Top-level node by exact path, or nullptr.
-    Node* findRoot(const QString& repoPath);
     // Any node by exact path (depth-first), or nullptr.
     Node* findByPath(const QString& path);
-    // Walk parents to the top-level root.
-    Node* topLevelAncestor(Node* node) const;
 
     std::vector<std::unique_ptr<Node>> m_roots;
 };

@@ -313,7 +313,7 @@ Rectangle {
                         visible: row.uninit && !model.submoduleBusy
                         text: "Init"
                         font.pixelSize: 10
-                        onClicked: projectController.initSubmodule(model.ownerRepoPath, model.repoPath)
+                        onClicked: { if (projectController) projectController.initSubmodule(model.ownerRepoPath, model.repoPath) }
                     }
                     // Spinner while an op runs on this row.
                     BusyIndicator {

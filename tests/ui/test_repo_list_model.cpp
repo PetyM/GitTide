@@ -165,6 +165,69 @@ private slots:
         QCOMPARE(m.topLevelCount(), 1);
     }
 
+    void depth2_submodule_owner_path_and_nontop_apply()
+    {
+        // Locks Fix 1 (OwnerRepoPathRole = immediate parent) and
+        // Fix 2 (applySubmodules works on a non-root node path).
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos({RepoRef{.path = "/tmp/gittide-root", .alias = "root"}});
+
+        // Build depth-2 tree: root → sub → nested.
+        SubmoduleNode nested;
+        nested.name     = "nested";
+        nested.path     = "/tmp/gittide-root/sub/nested";
+        nested.status   = SubmoduleStatus::Clean;
+        nested.shortOid = "aaa1111";
+
+        SubmoduleNode sub;
+        sub.name     = "sub";
+        sub.path     = "/tmp/gittide-root/sub";
+        sub.status   = SubmoduleStatus::Clean;
+        sub.shortOid = "bbb2222";
+        sub.children = {nested};
+
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {sub});
+
+        const QModelIndex topIdx    = model.index(0, 0);
+        QCOMPARE(model.rowCount(topIdx), 1);
+        const QModelIndex subIdx    = model.index(0, 0, topIdx);
+        QVERIFY(subIdx.isValid());
+        QCOMPARE(model.rowCount(subIdx), 1);
+        const QModelIndex nestedIdx = model.index(0, 0, subIdx);
+        QVERIFY(nestedIdx.isValid());
+
+        // Fix 1: grandchild OwnerRepoPathRole == immediate parent path (sub), not root.
+        QCOMPARE(model.data(nestedIdx, RepoListModel::OwnerRepoPathRole).toString(),
+                 QStringLiteral("/tmp/gittide-root/sub"));
+        // depth-1 sub still resolves to root (unchanged behaviour).
+        QCOMPARE(model.data(subIdx, RepoListModel::OwnerRepoPathRole).toString(),
+                 QStringLiteral("/tmp/gittide-root"));
+
+        // Fix 2: applySubmodules targeting the sub's own path refreshes its children.
+        SubmoduleNode nestedUpdated;
+        nestedUpdated.name     = "nested";
+        nestedUpdated.path     = "/tmp/gittide-root/sub/nested";
+        nestedUpdated.status   = SubmoduleStatus::Dirty;
+        nestedUpdated.shortOid = "ccc3333";
+
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root/sub"), {nestedUpdated});
+        QVERIFY(removed.count() > 0);
+        QVERIFY(inserted.count() > 0);
+
+        const QModelIndex nestedIdx2 = model.index(0, 0, subIdx);
+        QVERIFY(nestedIdx2.isValid());
+        QCOMPARE(model.data(nestedIdx2, RepoListModel::StatusRole).toInt(),
+                 static_cast<int>(SubmoduleStatus::Dirty));
+        QCOMPARE(model.data(nestedIdx2, RepoListModel::ShortOidRole).toString(),
+                 QStringLiteral("ccc3333"));
+    }
+
     void applySubmodules_insertsThenNoOpsWhenUnchanged()
     {
         using gittide::SubmoduleNode;

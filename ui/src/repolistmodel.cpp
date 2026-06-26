@@ -176,7 +176,7 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
     case BusyRole:
         return node->busy;
     case OwnerRepoPathRole:
-        return topLevelAncestor(const_cast<Node*>(node))->path;
+        return node->parent ? node->parent->path : node->path;
     default:
         return {};
     }
@@ -240,14 +240,6 @@ void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind)
     emit dataChanged(idx, idx, {AheadRole, BehindRole});
 }
 
-RepoListModel::Node* RepoListModel::findRoot(const QString& repoPath)
-{
-    for (auto& r : m_roots)
-        if (r->path == repoPath)
-            return r.get();
-    return nullptr;
-}
-
 RepoListModel::Node* RepoListModel::findByPath(const QString& path)
 {
     Node* match = nullptr;
@@ -267,13 +259,6 @@ RepoListModel::Node* RepoListModel::findByPath(const QString& path)
     };
     walk(walk, m_roots);
     return match;
-}
-
-RepoListModel::Node* RepoListModel::topLevelAncestor(Node* node) const
-{
-    while (node && node->parent)
-        node = node->parent;
-    return node;
 }
 
 bool RepoListModel::submodulesEqual(const Node& node,
@@ -298,7 +283,7 @@ bool RepoListModel::submodulesEqual(const Node& node,
 void RepoListModel::applySubmodules(const QString& repoPath,
                                     const std::vector<gittide::SubmoduleNode>& subs)
 {
-    Node* root = findRoot(repoPath);
+    Node* root = findByPath(repoPath);
     if (!root || submodulesEqual(*root, subs))
         return;
 
