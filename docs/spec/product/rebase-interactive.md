@@ -308,6 +308,16 @@ A **three-band drop zone** on the target row routes the release:
   folds the dragged commit into the target through the engine and pauses on the
   combined-message `RewordDialog` — the same confirmation gate as menu-driven squash.
 
+During an armed drag a **floating chip** follows the cursor: it shows the dragged
+commit's summary and short oid, plus a hint label — **"◆ Squash"** when hovering the
+middle-third zone, **"Move"** when hovering a top/bottom-third zone, and blank when
+there is no valid target. The chip (`objectName: "dragChip"`) is a pane-level overlay
+`Item` inside the list column, driven by state held on `dropLogic` (`dragActive`,
+`draggedSummary`, `draggedShortOid`, `dragPos`). The source row dims to
+`opacity 0.7` and stays in place (the `DragHandler` keeps `target: null`). Colours
+come from theme tokens (`surfaceRaised`, `border`, `accent`, `textPrimary`/`textMuted`).
+See **D40**.
+
 Merges and the root are not draggable. The already-pushed warning is deferred to
 network-sync (D36). The whole-row gesture and drop-zone disambiguation are recorded
 in D38.
@@ -319,6 +329,11 @@ extending Tier 1): the existing `rebaseInProgress`, `rebaseOnto`, `rebaseStep`,
 `rebaseTotal`, `rebaseStepSummary`, `rebaseConflictedCount`,
 `rebaseHasSubmoduleConflicts`, plus **`rebaseInteractive`**, **`rebasePauseReason`**
 (`"none"|"conflict"|"message"`), **`rebaseMessagePrefill`**.
+
+A one-shot signal **`rebaseMessagePauseEntered()`** fires on the rising edge into
+each `Message` step (the pause newly became `Message`, or the step index advanced
+while still `Message`); `WorkingPane` connects to it to auto-open the message editor
+(§3.5).
 
 Seeding the editor: `Q_INVOKABLE void requestRebaseTodo(QString fromOid)` asks the
 controller to build the `base..HEAD` entry list; result arrives via
@@ -337,8 +352,9 @@ conflict count + Continue/Skip/Abort*. Tier 2 extends it for the **Message** pau
 - `pause == "conflict"` → unchanged: Continue enabled only when
   `rebaseConflictedCount === 0`; Skip; Abort.
 - `pause == "message"` → headline *"step k/n — editing message (`<action>`)"*;
-  the **Continue** action opens the message editor (§3.5) instead of committing
-  directly; Skip and **Abort** remain. (A fixup never produces a Message pause, so
+  the message editor **auto-opens immediately** — no Continue click needed (see §3.5
+  and **D40**); Continue remains as a manual fallback to reopen the editor if
+  dismissed; Skip and **Abort** remain. (A fixup never produces a Message pause, so
   the editor never opens for it.)
 
 Step k/n progress and Abort are present in **both** pause states — the progress and
@@ -347,9 +363,11 @@ always-reachable-abort guarantee the user asked for.
 ### 3.5 Message pause surface — reuse `RewordDialog.qml`
 
 A Message pause reuses the history-editing round's `RewordDialog.qml` (summary +
-body, prefilled). It opens prefilled from `rebaseMessagePrefill`; *Save* →
-`repoVm.continueRebase(message)`; *Cancel* leaves the rebase paused (the banner
-still offers Continue/Skip/Abort). No new message-editor component.
+body, prefilled). The dialog **auto-opens** the moment `RepoViewModel` emits
+`rebaseMessagePauseEntered()` (§3.3); `WorkingPane.openRebaseMessageDialog()`
+splits `rebaseMessagePrefill` into summary/body and opens it. *Save* →
+`repoVm.continueRebase(message)`; *Cancel* leaves the rebase paused — the banner's
+Continue is the manual fallback to reopen the dialog. No new message-editor component.
 
 ### 3.6 Controller
 
@@ -410,16 +428,16 @@ cherry-pick/state-dir helpers. New tests in the core test list.
 
 **Modified `ui/qml/`:**
 - `CommitContextMenu.qml` — add *Edit history from here…*.
-- `RebaseBanner.qml` — Message-pause variant (open editor on Continue).
-- `HistoryPane.qml` — open the todo dialog; route `rebaseTodoReady`; open
-  `RewordDialog` on a Message pause.
+- `RebaseBanner.qml` — Message-pause variant; Continue is now a manual fallback (editor auto-opens via `rebaseMessagePauseEntered`).
+- `HistoryPane.qml` — open the todo dialog; route `rebaseTodoReady`; floating `dragChip` overlay + `dropLogic` drag-chip state (`dragActive`, `draggedSummary`, `draggedShortOid`, `dragPos`).
+- `WorkingPane.qml` — `openRebaseMessageDialog()` function + `Connections { onRebaseMessagePauseEntered }` for auto-open.
 
 **Modified `ui/`:**
 - `asyncrepo.hpp/.cpp` — wrappers for `startInteractiveRebase`, the extended verbs,
   `buildRebaseTodo`.
 - `repoviewmodel.hpp/.cpp` — new `RebaseState` properties (`rebaseInteractive`,
   `rebasePauseReason`, `rebaseMessagePrefill`), `requestRebaseTodo` +
-  `rebaseTodoReady`, the interactive verbs.
+  `rebaseTodoReady`, the interactive verbs; signal `rebaseMessagePauseEntered()`.
 - `repocontroller.hpp/.cpp` — async interactive tasks + `buildRebaseTodo` +
   `rebaseTodoReady`; reuse `refreshAfterRebase`, auto-stash, mutual-exclusion.
 - `ui/CMakeLists.txt` — register `RebaseTodoDialog.qml`.

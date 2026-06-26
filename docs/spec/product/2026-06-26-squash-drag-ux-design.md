@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `approved` |
+| **Status** | `shipped` |
 | **Date** | 2026-06-26 |
 | **Related** | [2026-06-26-history-graph-tab-design.md](2026-06-26-history-graph-tab-design.md), [rebase-interactive.md](rebase-interactive.md), [2026-06-25-history-drag-squash-design.md](2026-06-25-history-drag-squash-design.md) |
 
@@ -50,12 +50,13 @@ connect(m_controller, &RepoController::rebaseStateChanged, this,
 ```
 
 - Add a one-shot signal `void rebaseMessagePauseEntered()` to `RepoViewModel`.
-- In that lambda, detect the **rising edge** into a message pause: emit
-  `rebaseMessagePauseEntered()` when the new state has `pause == Message` AND
-  either the previous state's pause was not `Message` OR the step index
-  (`s.current`) advanced since the last message pause. Track the previous
-  `pause`/`current` in members (`m_lastRebasePause`, `m_lastRebaseStep`).
-  `rebaseStateChanged()` is still emitted as before.
+- In that lambda, detect the **rising edge** into a message pause: capture the
+  prior `m_rebase.pause`/`m_rebase.current` **before** overwriting `m_rebase` with
+  the incoming state, then emit `rebaseMessagePauseEntered()` when the new state
+  has `pause == Message` AND either the prior pause was not `Message` OR the step
+  index (`s.current`) advanced. No new members are needed — `m_rebase` already
+  holds the previous state until the assignment. `rebaseStateChanged()` is still
+  emitted as before.
 - The edge logic fires once per message step: an N-step interactive rebase with
   several reword/squash entries opens the dialog once per entry (after each
   `continueRebase`, the next message step is a fresh rising edge).

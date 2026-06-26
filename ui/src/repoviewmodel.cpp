@@ -70,7 +70,18 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::mergeFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
     connect(m_controller, &RepoController::rebaseStateChanged, this,
-            [this](const gittide::RebaseState& s) { m_rebase = s; emit rebaseStateChanged(); });
+            [this](const gittide::RebaseState& s)
+            {
+                const bool wasMessage = (m_rebase.pause == gittide::RebasePause::Message);
+                const int  prevStep   = m_rebase.current;
+                m_rebase = s;
+                emit rebaseStateChanged();
+                const bool isMessage = (s.pause == gittide::RebasePause::Message);
+                // Rising edge: just became a message pause, or advanced to a new
+                // message step. Re-emits of the same step (refreshes) do nothing.
+                if (isMessage && (!wasMessage || s.current != prevStep))
+                    emit rebaseMessagePauseEntered();
+            });
     connect(m_controller, &RepoController::rebaseFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
     connect(m_controller, &RepoController::commitMessageReady,

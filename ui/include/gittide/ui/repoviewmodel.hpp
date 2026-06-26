@@ -269,6 +269,9 @@ signals:
     /// Emitted whenever the RebaseState changes (rebase started, conflict resolved,
     /// step applied, rebase finished or aborted). All rebase-related Q_PROPERTYs use this NOTIFY.
     void rebaseStateChanged();
+    /// Emitted once when the rebase newly enters a Message pause (squash/reword
+    /// step). Drives WorkingPane to auto-open the commit-message dialog.
+    void rebaseMessagePauseEntered();
     /// Forwarded from the controller: seed plan for the interactive editor.
     /// `entries` is a list of QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
     void rebaseTodoReady(QString base, QVariantList entries);
