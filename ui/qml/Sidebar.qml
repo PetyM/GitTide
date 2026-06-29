@@ -68,6 +68,13 @@ Rectangle {
                 ToolTip.visible: hovered
                 ToolTip.text: "Fetch all repositories"
                 text: "⟳"
+                contentItem: Label {
+                    text: "⟳"
+                    color: theme.textSecondary
+                    font.pixelSize: 16
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
                 background: Rectangle {
                     radius: 6
                     color: parent.hovered ? theme.surfaceOverlay : "transparent"
