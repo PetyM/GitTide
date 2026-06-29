@@ -126,10 +126,12 @@ public slots:
     /// rebaseTodoReady with the detach base (fromOid's first parent).
     QCoro::Task<void> buildRebaseTodo(QString fromOid);
 
-    /// Build a squash plan from a set of selected commit oids. The oids must form a
-    /// contiguous range in the current history (else operationFailed). Emits
-    /// rebaseTodoReady with the oldest selected commit as `pick` and the rest as
-    /// `squash` (oldest-first), base = parent of the oldest selected.
+    /// Squash a set of selected commit oids. The oids must form a contiguous range
+    /// in the current history (else operationFailed). Builds the plan with the oldest
+    /// selected commit as `pick` and the rest as `squash` (oldest-first), base =
+    /// parent of the oldest selected, then starts the interactive rebase directly via
+    /// startInteractiveRebase — no todo editor; the engine pauses on the combined
+    /// message (RebasePause::Message).
     QCoro::Task<void> buildSquashTodo(QStringList oids);
 
     /// Start an interactive rebase from a seed plan. Auto-stashes (D31), drives the

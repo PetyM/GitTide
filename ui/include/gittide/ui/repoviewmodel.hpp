@@ -217,7 +217,8 @@ public:
     Q_INVOKABLE void startRebase(const QString& ref);
     Q_INVOKABLE void startInteractiveRebase(QString base, QStringList actions, QStringList oids);
     /// Squash the selected history rows: map them to oids and ask the controller to
-    /// build a contiguous squash plan; reply on rebaseTodoReady (opens the editor).
+    /// run a contiguous squash — starts the rebase directly and jumps to the
+    /// combined-message edit (no todo editor).
     Q_INVOKABLE void requestSquashTodo(const QVariantList& rows);
     /// Ask the controller for the editable plan fromOid..HEAD; reply on rebaseTodoReady.
     Q_INVOKABLE void requestRebaseTodo(QString fromOid);

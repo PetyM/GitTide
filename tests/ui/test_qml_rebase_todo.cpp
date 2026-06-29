@@ -188,7 +188,7 @@ private slots:
         QObject* dlg = comp.create();
         QVERIFY(dlg);
 
-        // Oldest-first: a (pick), b (squash) — as buildSquashTodo emits.
+        // Oldest-first: a (pick), b (squash) — a per-row action seed.
         QMetaObject::invokeMethod(dlg, "seed",
             Q_ARG(QVariant, QStringLiteral("base0")),
             Q_ARG(QVariant, QVariant::fromValue(QVariantList{

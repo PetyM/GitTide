@@ -46,6 +46,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 25 — History redesign + full git-graph tab](2026-06-26-plan25-history-graph-tab.md) | 2026-06-26 | done | product · core · ui |
 | [Plan 26 — Squash / drag UX polish](2026-06-26-plan26-squash-drag-ux.md) | 2026-06-26 | done | product · ui |
 | [Plan 27 — Themed controls (AppButton + AppComboBox)](2026-06-26-plan27-themed-controls.md) | 2026-06-26 | done | design · ui |
+| [Plan 28 — Multi-select squash skips the todo editor](2026-06-29-plan28-squash-skip-todo-editor.md) | 2026-06-29 | done | product · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

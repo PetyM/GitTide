@@ -282,12 +282,14 @@ Footer: **Start rebase** / **Cancel**. *Start* is disabled while the plan is inv
 #### Squash from history (multi-select)
 
 Selecting a contiguous range of commits in the history list and choosing **“Squash
-N commits…”** seeds this same dialog with the oldest selected commit as `pick` and
-the rest as `squash` (oldest-first), `base` = parent of the oldest selected. The
-controller's `buildSquashTodo(oids)` validates the selection is a contiguous,
-non-merge run (else `operationFailed`) and emits the usual `rebaseTodoReady`; the
-seed honours a per-entry default `action`. The user then confirms / edits the
-combined message through the normal message-pause flow.
+N commits…”** builds the plan with the oldest selected commit as `pick` and the rest
+as `squash` (oldest-first), `base` = parent of the oldest selected. The controller's
+`buildSquashTodo(oids)` validates the selection is a contiguous, non-merge run (else
+`operationFailed`) and then **starts the interactive rebase directly** — a plain
+multi-commit squash has nothing to edit in the todo editor, so the dialog is skipped
+and the user lands straight on the combined-message edit via the normal message-pause
+flow. The todo editor stays reserved for the explicit **“Edit history from here…”**
+reorder path (`buildRebaseTodo` → `rebaseTodoReady`).
 
 #### Reorder directly in the history view
 

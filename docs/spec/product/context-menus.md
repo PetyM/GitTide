@@ -175,7 +175,7 @@ of this menu item to avoid duplication.
 | **Checkout commit** | Disabled when `isHead` |
 | **Reword…** | **Hidden** unless `isHead` **and** `allowHistoryEditing` |
 | **Undo last commit** | **Hidden** unless `isHead` **and** `allowHistoryEditing`; soft-resets to the parent, keeping changes staged (D37). |
-| **Squash `<N>` commits…** | **Hidden** unless ≥2 rows are selected **and** `allowHistoryEditing`; seeds `RebaseTodoDialog` pre-filled (oldest `pick`, rest `squash`) via `repoVm.requestSquashTodo(rows)`. |
+| **Squash `<N>` commits…** | **Hidden** unless ≥2 rows are selected **and** `allowHistoryEditing`; starts the squash directly (oldest `pick`, rest `squash`) and jumps to the combined-message edit — no todo editor — via `repoVm.requestSquashTodo(rows)`. |
 | **Edit history from here…** | **Hidden** when `!allowHistoryEditing`; opens `RebaseTodoDialog` via `repoVm.startInteractiveRebase(oid)` |
 | — separator — | |
 | **Merge `<localBranchName>` into current** | **Hidden** when `localBranchName` is empty |

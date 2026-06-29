@@ -1167,18 +1167,18 @@ QCoro::Task<void> RepoController::buildSquashTodo(QStringList oids)
     }
     const QString base = QString::fromStdString(*baseOid);
 
-    // Entries oldest-first: the oldest is the pick everything folds into; the rest
-    // are squash (combined message, with a pause to edit it).
-    QVariantList entries;
+    // Plan oldest-first: the oldest is the pick everything folds into; the rest
+    // are squash. A plain multi-commit squash has nothing to edit in the todo
+    // editor, so skip it and start the rebase directly — the engine pauses on the
+    // combined-message edit (RebasePause::Message). The todo editor stays reserved
+    // for the explicit "Edit history" reorder path (buildRebaseTodo).
+    QStringList planOids, actions;
     for (int i = hi; i >= lo; --i)
     {
-        QVariantMap m;
-        m.insert(QStringLiteral("oid"), QString::fromStdString((*hist)[i].oid));
-        m.insert(QStringLiteral("summary"), QString::fromStdString((*hist)[i].summary));
-        m.insert(QStringLiteral("action"), i == hi ? QStringLiteral("pick") : QStringLiteral("squash"));
-        entries.push_back(m);
+        planOids << QString::fromStdString((*hist)[i].oid);
+        actions  << (i == hi ? QStringLiteral("pick") : QStringLiteral("squash"));
     }
-    emit rebaseTodoReady(base, entries);
+    co_await startInteractiveRebase(base, actions, planOids);
 }
 
 QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringList actions, QStringList oids)

@@ -62,9 +62,10 @@ class TestRepoControllerSquash : public QObject
 {
     Q_OBJECT
 private slots:
-    // Selecting a contiguous range emits a todo with the oldest as pick and the
-    // rest as squash, oldest-first, with base = parent of the oldest selected.
-    void contiguous_selection_seeds_pick_then_squash()
+    // Selecting a contiguous range starts the interactive rebase directly — no
+    // todo editor — and pauses on the combined-message edit (oldest = pick, the
+    // rest fold in as squash).
+    void contiguous_selection_starts_rebase_paused_on_message()
     {
         std::vector<std::string> oids; // newest-first: [c2, c1, c0]
         const auto dir = squash_ctrl_test::make_repo_with_commits(3, oids);
@@ -73,21 +74,36 @@ private slots:
         QVERIFY(c.isOpen());
 
         QSignalSpy ready(&c, &RepoController::rebaseTodoReady);
-        // Squash the two newest (c2 = HEAD, c1). Oldest selected is c1; base = c0.
-        c.buildSquashTodo(QStringList{ QString::fromStdString(oids[0]),
-                                       QString::fromStdString(oids[1]) });
-        QVERIFY(ready.wait(3000));
+        QSignalSpy stateSpy(&c, &RepoController::rebaseStateChanged);
+        QSignalSpy failed(&c, &RepoController::operationFailed);
 
-        const auto args    = ready.takeFirst();
-        const QString base = args.at(0).toString();
-        const auto entries = args.at(1).toList();
-        QCOMPARE(base, QString::fromStdString(oids[2]));        // c0
-        QCOMPARE(entries.size(), 2);
-        // Oldest-first: c1 (pick), then c2 (squash).
-        QCOMPARE(entries.at(0).toMap().value("oid").toString(), QString::fromStdString(oids[1]));
-        QCOMPARE(entries.at(0).toMap().value("action").toString(), QStringLiteral("pick"));
-        QCOMPARE(entries.at(1).toMap().value("oid").toString(), QString::fromStdString(oids[0]));
-        QCOMPARE(entries.at(1).toMap().value("action").toString(), QStringLiteral("squash"));
+        // Squash the two newest (c2 = HEAD, c1).
+        bool done = false;
+        [&]() -> QCoro::Task<void> {
+            co_await c.buildSquashTodo(QStringList{ QString::fromStdString(oids[0]),
+                                                    QString::fromStdString(oids[1]) });
+            done = true;
+        }();
+        QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+        QCOMPARE(failed.count(), 0);
+
+        // The todo editor is never offered for a plain squash.
+        QCOMPARE(ready.count(), 0);
+
+        // The engine paused on the combined-message edit, with a prefill.
+        gittide::RebaseState paused;
+        bool sawMessagePause = false;
+        for (const auto& a : stateSpy)
+        {
+            const auto s = a.at(0).value<gittide::RebaseState>();
+            if (s.inProgress && s.interactive && s.pause == gittide::RebasePause::Message)
+            {
+                paused = s;
+                sawMessagePause = true;
+            }
+        }
+        QVERIFY(sawMessagePause);
+        QVERIFY(!paused.messagePrefill.empty());
 
         std::filesystem::remove_all(dir);
     }

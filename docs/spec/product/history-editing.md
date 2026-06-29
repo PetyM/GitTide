@@ -269,8 +269,9 @@ and the commit context menu built here are the surfaces the engine hangs off.
 Layered on the engine, three gestures graduate from the wishes:
 
 - **Squash from history (multi-select).** Selecting a contiguous range and
-  choosing **“Squash N commits…”** seeds the todo editor pre-filled (oldest `pick`,
-  rest `squash`). The multi-select model from §2.1 now drives an *action*, not just a
+  choosing **“Squash N commits…”** starts the squash directly (oldest `pick`, rest
+  `squash`) and lands on the combined-message edit — the todo editor is skipped for a
+  plain squash. The multi-select model from §2.1 now drives an *action*, not just a
   combined diff. Validation (contiguous, non-merge) lives in the controller's
   `buildSquashTodo`. See [rebase-interactive.md](rebase-interactive.md) §3.2.
 - **Drag-to-reorder**, both in the todo editor (grip alongside ↑/↓) and directly in
