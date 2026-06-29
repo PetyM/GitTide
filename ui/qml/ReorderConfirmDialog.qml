@@ -44,12 +44,14 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.close()
         }
-        Button {
+        AppButton {
             objectName: "reorderConfirmButton"
+            variant: "primary"
             text: "Reorder"
             onClicked: {
                 if (repoVm)

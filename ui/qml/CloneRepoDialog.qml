@@ -63,7 +63,8 @@ Dialog {
                 elide: Text.ElideMiddle
                 font.pixelSize: 12
             }
-            Button {
+            AppButton {
+                variant: "secondary"
                 text: "Choose…"
                 onClicked: destFolder.open()
             }
@@ -74,12 +75,14 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             objectName: "cloneConfirm"
+            variant: "primary"
             text: "Clone"
             enabled: urlField.text.trim().length > 0 && dialog.destDir.length > 0
             onClicked: dialog.accept()

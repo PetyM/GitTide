@@ -40,24 +40,13 @@ ColumnLayout {
             font.family: "monospace"
             font.pixelSize: 12
         }
-        Button {
+        AppButton {
             objectName: "checkoutCommitButton"
+            variant: "secondary"
             visible: repoVm && repoVm.selectedCommit.length > 0
                      && repoVm.historyDetailHeader.length === 0
                      && repoVm.historyDetailHint.length === 0
             text: "Checkout"
-            contentItem: Label {
-                text: parent.text
-                color: theme.textPrimary
-                font.pixelSize: 12
-                horizontalAlignment: Text.AlignHCenter
-            }
-            background: Rectangle {
-                radius: 6
-                color: parent.hovered ? theme.surfaceOverlay : "transparent"
-                border.color: theme.border
-                border.width: 1
-            }
             onClicked: if (repoVm) repoVm.checkoutCommit(repoVm.selectedCommit)
         }
     }

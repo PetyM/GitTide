@@ -52,23 +52,26 @@ Rectangle {
                   : ""
         }
 
-        Button
+        AppButton
         {
             objectName: "mergeRetryButton"
+            variant: "secondary"
             visible: repo && repo.hasSubmoduleConflicts
             text: "Deinit submodules & retry"
             onClicked: repo.retryMergeDeinitSubmodules()
         }
 
-        Button
+        AppButton
         {
+            variant: "secondary"
             objectName: "mergeAbortButton"
             text: "Abort merge"
             onClicked: repo.abortMerge()
         }
 
-        Button
+        AppButton
         {
+            variant: "primary"
             objectName: "mergeCommitButton"
             text: "Commit merge"
             enabled: repo && repo.conflictedCount === 0

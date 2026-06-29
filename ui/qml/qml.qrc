@@ -22,7 +22,9 @@
     <file>CommitDetail.qml</file>
     <file>CredentialDialog.qml</file>
     <file>OverlayCard.qml</file>
+    <file>AppButton.qml</file>
     <file>AppCheckBox.qml</file>
+    <file>AppComboBox.qml</file>
     <file>AppScrollBar.qml</file>
     <file>WheelScroller.qml</file>
     <file>AppRadioButton.qml</file>

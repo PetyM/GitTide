@@ -41,7 +41,8 @@ Dialog {
                 elide: Text.ElideMiddle
                 font.pixelSize: 12
             }
-            Button {
+            AppButton {
+                variant: "secondary"
                 text: "Choose…"
                 onClicked: parentFolder.open()
             }
@@ -71,12 +72,14 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             objectName: "initRepoCreate"
+            variant: "primary"
             text: "Initialize"
             enabled: dialog.parentDir.length > 0 && nameField.text.trim().length > 0
             onClicked: dialog.accept()

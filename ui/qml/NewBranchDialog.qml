@@ -64,7 +64,7 @@ Dialog {
             font.pixelSize: 11
             visible: dialog.fromOid.length === 0
         }
-        ComboBox {
+        AppComboBox {
             id: baseCombo
             objectName: "newBranchBase"
             Layout.fillWidth: true
@@ -83,13 +83,15 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.reject()
         }
-        Button {
+        AppButton {
             id: createButton
             objectName: "newBranchCreate"
+            variant: "primary"
             text: "Create"
             enabled: nameField.text.trim().length > 0
             onClicked: dialog.accept()

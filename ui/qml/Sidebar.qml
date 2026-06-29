@@ -57,9 +57,9 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             // Fetch-all action: runs fetch on every repo in the active project.
-            Button {
+            AppButton {
                 objectName: "fetchAllButton"
-                flat: true
+                variant: "secondary"
                 implicitWidth: 28
                 implicitHeight: 28
                 enabled: projectController !== null
@@ -67,6 +67,7 @@ Rectangle {
                          && !projectController.fetchingAll
                 ToolTip.visible: hovered
                 ToolTip.text: "Fetch all repositories"
+                text: "⟳"
                 contentItem: Label {
                     text: "⟳"
                     color: theme.textSecondary
@@ -309,10 +310,12 @@ Rectangle {
                     }
 
                     // Submodule: inline initialise affordance (uninitialised only).
-                    ToolButton {
+                    AppButton {
+                        variant: "primary"
+                        compact: true
+                        Layout.alignment: Qt.AlignVCenter
                         visible: row.uninit && !model.submoduleBusy
                         text: "Init"
-                        font.pixelSize: 10
                         onClicked: { if (projectController) projectController.initSubmodule(model.ownerRepoPath, model.repoPath) }
                     }
                     // Spinner while an op runs on this row.
@@ -430,23 +433,12 @@ Rectangle {
             }
         }
 
-        Button {
+        AppButton {
             objectName: "addRepoButton"
+            variant: "secondary"
             Layout.fillWidth: true
             Layout.margins: 8
             text: "Add repository"
-            flat: true
-            contentItem: Label {
-                text: parent.text
-                color: theme.textSecondary
-                horizontalAlignment: Text.AlignHCenter
-            }
-            background: Rectangle {
-                radius: 10
-                color: "transparent"
-                border.color: theme.border
-                border.width: 1
-            }
             onClicked: addRepoMenu.popup()
         }
     }

@@ -55,6 +55,7 @@
 #include "test_qml_rebase_banner_message.cpp"
 #include "test_history_model_reflabels.cpp"
 #include "test_qml_graph.cpp"
+#include "test_qml_appcontrols.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -123,6 +124,7 @@ int main(int argc, char** argv)
     RUN(TestQmlRebaseBannerMessage);
     RUN(TestHistoryModelRefLabels);
     RUN(TestQmlGraph);
+    RUN(TestQmlAppControls);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

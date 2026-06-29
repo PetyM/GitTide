@@ -47,7 +47,8 @@ Dialog {
     footer: RowLayout {
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Close"
             onClicked: dialog.close()
         }

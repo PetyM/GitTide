@@ -1,6 +1,6 @@
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Controls.Basic
+import QtQuick.Layouts
 
 // Rebase-in-progress banner. Collapses to height 0 when not rebasing. Reads only
 // the VM's RebaseState properties (D30 — disk truth only). Mutually exclusive with
@@ -74,8 +74,9 @@ Rectangle {
                   : ""
         }
 
-        Button
+        AppButton
         {
+            variant: "primary"
             objectName: "rebaseContinueButton"
             text: "Continue"
             // Conflict pause: enabled only when nothing is unresolved.
@@ -91,15 +92,17 @@ Rectangle {
             }
         }
 
-        Button
+        AppButton
         {
+            variant: "secondary"
             objectName: "rebaseSkipButton"
             text: "Skip"
             onClicked: repo.skipRebase()
         }
 
-        Button
+        AppButton
         {
+            variant: "secondary"
             objectName: "rebaseAbortButton"
             text: "Abort rebase"
             onClicked: repo.abortRebase()

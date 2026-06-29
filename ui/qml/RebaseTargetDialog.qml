@@ -78,12 +78,14 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.close()
         }
-        Button {
+        AppButton {
             objectName: "rebaseTargetConfirm"
+            variant: "primary"
             text: "Rebase"
             enabled: dialog.selectedRef.length > 0
             onClicked: dialog.accept()

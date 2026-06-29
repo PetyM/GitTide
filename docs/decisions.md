@@ -326,6 +326,18 @@ an entry with a newer one if it changes.
 - **D19 — Never signal state by colour alone** — always pair with an icon/letter.
   *Why:* accessibility. → [`design`](spec/design/design.md)
 
+- **D41 — One themed `AppButton`/`AppComboBox` replaces per-call-site inline
+  styling; raw Basic controls are not used for plain actions or dropdowns.**
+  Every dialog footer button and in-pane action button uses `AppButton`
+  (`primary` / `secondary` / `danger` + `compact`); every plain dropdown uses
+  `AppComboBox`. The `danger` variant reuses the `stateDeleted` token (no new
+  token). *Rejected:* continuing to inline `contentItem`/`background` per call site
+  (duplicated, inconsistent, unthemeable at a glance); a fourth-party control
+  library. *Exceptions:* `MainTab`, `WindowButton`, `AppRadioButton`/`AppCheckBox`,
+  and `EmptyState.Cta` keep bespoke styling — they are distinct, non-action
+  controls. → [`design`](spec/design/design.md),
+  [`themed-controls design doc`](spec/product/2026-06-26-themed-controls-design.md)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

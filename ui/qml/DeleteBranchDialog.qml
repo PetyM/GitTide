@@ -57,7 +57,7 @@ Dialog {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
-        ComboBox {
+        AppComboBox {
             id: branchCombo
             objectName: "deleteBranchTarget"
             Layout.fillWidth: true
@@ -105,26 +105,19 @@ Dialog {
         spacing: 8
         Layout.margins: 16
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
+            variant: "secondary"
             text: "Cancel"
             onClicked: dialog.close()
         }
-        Button {
+        AppButton {
             id: dangerButton
             objectName: "deleteBranchConfirm"
+            variant: "danger"
             enabled: branchCombo.count > 0
             text: dialog.unmerged ? "Force delete"
                   : dialog.armed ? "Click again to delete"
                   : "Delete"
-            contentItem: Label {
-                text: dangerButton.text
-                color: dangerButton.enabled ? theme.surfaceBase : theme.textMuted
-                horizontalAlignment: Text.AlignHCenter
-            }
-            background: Rectangle {
-                radius: 6
-                color: dangerButton.enabled ? theme.stateDeleted : theme.surfaceOverlay
-            }
             onClicked: {
                 if (!repoVm)
                     return

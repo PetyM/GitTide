@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-26 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [spec/product/2026-06-26-themed-controls-design.md](../spec/product/2026-06-26-themed-controls-design.md) |
 | **Depends on** | — |
 
@@ -511,20 +511,20 @@ git commit -m "refactor(ui): migrate ComboBoxes to AppComboBox; theme DeleteBran
 **Files:** `docs/spec/design/design.md`, the design doc, `docs/plans/index.md`,
 this plan, `docs/decisions.md` (optional).
 
-- [ ] **Step 1:** In `docs/spec/design/design.md`, document `AppButton`
+- [x] **Step 1:** In `docs/spec/design/design.md`, document `AppButton`
   (variants + compact) and `AppComboBox` as the standard themed controls — note
   that plain action buttons and dropdowns use these, not raw Basic controls. Flip
   the design doc (`2026-06-26-themed-controls-design.md`) **Status** to `shipped`.
 
-- [ ] **Step 2:** Add the Plan 27 row to `docs/plans/index.md` (mirror Plan 26's
+- [x] **Step 2:** Add the Plan 27 row to `docs/plans/index.md` (mirror Plan 26's
   row format).
 
-- [ ] **Step 3:** Run the full suite to confirm nothing regressed:
+- [x] **Step 3:** Run the full suite to confirm nothing regressed:
 ```bash
 cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
 
-- [ ] **Step 4:** Set this plan's **Status** to `done`, fill **Outcome**, commit:
+- [x] **Step 4:** Set this plan's **Status** to `done`, fill **Outcome**, commit:
 ```bash
 git add docs/
 git commit -m "docs: close out Plan 27 (themed controls)"
@@ -534,9 +534,13 @@ git commit -m "docs: close out Plan 27 (themed controls)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: design.md §controls.
-> - Code: `ui/qml/AppButton.qml`, `ui/qml/AppComboBox.qml`, and the migrated
->   dialogs/panes.
+- Shipped: `AppButton` (primary / secondary / danger + compact) and `AppComboBox`
+  as the two standard themed action controls; all dialog footers, in-pane buttons,
+  and the three raw ComboBoxes migrated; the submodule Init affordance is now a
+  compact primary pill; `DeleteBranchDialog` fully themed end-to-end.
+- Spec updated: `design.md` §Components — AppButton / AppComboBox entries and the
+  bespoke-controls note.
+- Code: `ui/qml/AppButton.qml`, `ui/qml/AppComboBox.qml`, and all migrated
+  dialogs/panes (`ChangesPane`, `CommitDetail`, `Sidebar`, `DiffView`,
+  `MergeBanner`, `DeleteBranchDialog`, `NewBranchDialog`, `RebaseTodoDialog`, and
+  all dialog footers). Tests: `tests/ui/test_qml_appcontrols.cpp`.

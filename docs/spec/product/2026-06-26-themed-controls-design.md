@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | `approved` |
+| **Status** | `shipped` |
 | **Date** | 2026-06-26 |
 | **Related** | [spec/design/design.md](../design/design.md) (visual system + tokens) |
 

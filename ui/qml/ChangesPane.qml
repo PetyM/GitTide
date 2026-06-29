@@ -276,23 +276,16 @@ SplitView {
                     // else: default TextArea behaviour inserts newline — do not accept event.
                 }
             }
-            Button {
+            AppButton {
                 id: commitButton
                 objectName: "commitButton"
+                variant: "primary"
                 Layout.fillWidth: true
                 enabled: repoVm && repoVm.checkedCount > 0 && commitSummary.text.length > 0
-                contentItem: Label {
-                    text: repoVm
-                          ? ("Commit " + repoVm.checkedCount + " file" + (repoVm.checkedCount === 1 ? "" : "s")
-                             + " to " + repoVm.currentBranch)
-                          : "Commit"
-                    color: parent.enabled ? theme.surfaceBase : theme.textMuted
-                    horizontalAlignment: Text.AlignHCenter
-                }
-                background: Rectangle {
-                    radius: 6
-                    color: parent.enabled ? theme.accent : theme.surfaceOverlay
-                }
+                text: repoVm
+                      ? ("Commit " + repoVm.checkedCount + " file" + (repoVm.checkedCount === 1 ? "" : "s")
+                         + " to " + repoVm.currentBranch)
+                      : "Commit"
                 onClicked: {
                     if (repoVm) repoVm.commit(commitSummary.text, commitDescription.text)
                 }
