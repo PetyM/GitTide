@@ -348,7 +348,9 @@ private slots:
     }
 
     // -----------------------------------------------------------------
-    // TitleBar appMenuPopup: rebaseMenuItem exists.
+    // TitleBar: the rebase entry now lives in the Repository menu of the
+    // mounted AppMenuBar as "rebaseItem" (Plan 29, Task 8 relocated it out of
+    // the app-icon popup). The icon popup keeps only Options / About / Quit.
     // -----------------------------------------------------------------
     void title_bar_app_menu_has_rebase_item()
     {
@@ -362,17 +364,27 @@ private slots:
         QObject* root = loadMain(engine, theme, repoModel, stub);
         QVERIFY(root != nullptr);
 
-        // Find the appMenuPopup inside TitleBar.
+        // Rebase moved to the Repository menu under the mounted AppMenuBar.
+        QObject* bar = root->findChild<QObject*>(QStringLiteral("appMenuBar"));
+        QVERIFY2(bar != nullptr, "appMenuBar not found in TitleBar");
+
+        QObject* rebaseItem = bar->findChild<QObject*>(QStringLiteral("rebaseItem"));
+        QVERIFY2(rebaseItem != nullptr, "rebaseItem not found inside appMenuBar");
+
+        const QString text = rebaseItem->property("text").toString();
+        QVERIFY2(text.contains(QStringLiteral("Rebase")), qPrintable("rebaseItem text unexpected: " + text));
+
+        // The app-icon popup keeps only Options / About / Quit (rebase gone).
         QObject* appMenu = root->findChild<QObject*>(QStringLiteral("appMenuPopup"));
         QVERIFY2(appMenu != nullptr, "appMenuPopup not found in TitleBar");
-
-        // Find the rebaseMenuItem inside it.
-        QObject* rebaseMenuItem = appMenu->findChild<QObject*>(QStringLiteral("rebaseMenuItem"));
-        QVERIFY2(rebaseMenuItem != nullptr, "rebaseMenuItem not found inside appMenuPopup");
-
-        // Verify the text.
-        const QString text = rebaseMenuItem->property("text").toString();
-        QVERIFY2(text.contains(QStringLiteral("Rebase")), qPrintable("rebaseMenuItem text unexpected: " + text));
+        QVERIFY2(appMenu->findChild<QObject*>(QStringLiteral("optionsMenuItem")) != nullptr,
+                 "optionsMenuItem missing from appMenuPopup");
+        QVERIFY2(appMenu->findChild<QObject*>(QStringLiteral("aboutMenuItem")) != nullptr,
+                 "aboutMenuItem missing from appMenuPopup");
+        QVERIFY2(appMenu->findChild<QObject*>(QStringLiteral("quitMenuItem")) != nullptr,
+                 "quitMenuItem missing from appMenuPopup");
+        QVERIFY2(appMenu->findChild<QObject*>(QStringLiteral("rebaseMenuItem")) == nullptr,
+                 "rebaseMenuItem should no longer live in appMenuPopup");
     }
 };
 

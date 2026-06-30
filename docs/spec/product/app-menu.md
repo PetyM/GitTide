@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Designed** | 2026-06-23 · menu bar 2026-06-30 |
-| **Status** | `spec` |
+| **Status** | `shipped` |
 | **Wishlist** | [docs/wishlist/app-menu.md](../../wishlist/app-menu.md) |
 | **Touches** | window chrome, settings persistence, theme, pull default, repo actions (menu bar) |
 
@@ -272,7 +272,8 @@ Version string exposed as a `QString` context property `"appVersion"` in
 | | |
 |--|--|
 | **Designed** | 2026-06-30 |
-| **Status** | `spec` |
+| **Status** | `shipped` |
+| **Plan** | [Plan 29](../../plans/2026-06-30-plan29-menu-bar.md) |
 
 The title bar gains a classic horizontal **text menu bar** to the right of the app
 icon. The app-icon popup (§3) keeps only app-level items (Options / About / Quit);
@@ -288,10 +289,8 @@ Win/Lin:  [icon]  File Edit View Repository  [──── drag ────]  [
 
 The bar is a `RowLayout` of `MenuBarButton`s placed in `TitleBar.qml` right after
 the app-icon button, before the drag `Item`. Each button is a flat themed text
-button (`theme.textPrimary`, hover `theme.surfaceHover`) that opens its own
-`AppMenu` popup anchored below it. Hovering an adjacent button while a menu is open
-switches to that menu (standard menu-bar behaviour), implemented with a shared
-`openMenu` index the buttons read/write.
+button (`theme.textPrimary`, hover `theme.surfaceOverlay`) that opens its own
+`AppMenu` popup anchored below it on click.
 
 ### 7.2 Menu contents
 
@@ -332,7 +331,7 @@ Every repo item requires an open repo. Binding source in parentheses:
 
 | Item | Enabled when |
 |------|--------------|
-| Open repository folder | a repo is open (`repoVm && repoVm.repoPath !== ""`) |
+| Open repository folder | a repo is open (`repoVm && repoVm.repoOpen`) |
 | Undo last commit | repo open **and** not `rebaseInProgress \|\| mergeInProgress` (existing rule) |
 | Discard all changes | repo open **and** working tree dirty (`repoVm.dirty`) |
 | Merge…/Rebase… | repo open **and** not `rebaseInProgress \|\| mergeInProgress` |
@@ -342,20 +341,27 @@ Every repo item requires an open repo. Binding source in parentheses:
 
 The VM has no dirty flag today (`checkedCount` counts *checked* rows, not changed
 ones). Add a `RepoViewModel::dirty` (`Q_PROPERTY bool`, true when the
-`changedFiles` model is non-empty, NOTIFY `changedChanged`/`changed`).
+`changedFiles` model is non-empty). Its `NOTIFY` is a dedicated `dirtyChanged()`
+signal emitted at the end of `onStatus()` — `changed()` is **not** emitted on the
+status-refresh path (only on open/close), so reusing it would leave the binding
+stale on dirty↔clean transitions.
 
 ### 7.4 New engine work
 
 Most actions reuse existing wiring (rebase, merge, discard, undo all have full
 core→VM stacks). Net-new pieces:
 
-- **`GitRepo::discardAll()`** (`core`) — atomic full reset: `git_checkout_head`
-  with `GIT_CHECKOUT_FORCE` and no path filter (resets all tracked), then iterate
-  the status list and delete each `GIT_STATUS_WT_NEW` (untracked) entry. Returns
+- **`GitRepo::discardAll()`** (`core`) — full working-tree reset: hard-reset to
+  HEAD (`git_reset(GIT_RESET_HARD)`, which also drops staged changes; on an unborn
+  HEAD the index is cleared instead), then a second pass enumerates untracked
+  entries (status, `GIT_STATUS_WT_NEW`, no `RECURSE_UNTRACKED_DIRS`) and
+  `std::filesystem::remove_all`s each — `git clean -fd` parity, removing untracked
+  files *and* directories while leaving ignored files alone. Returns
   `Expected<void>`. Surfaced via `AsyncRepo::discardAll` →
   `RepoController::discardAll` → `RepoViewModel::discardAll()` (`Q_INVOKABLE`),
-  with the standard post-write refresh cascade (status + diff). TDD: a `TempRepo`
-  test asserting both a modified tracked file and a new untracked file are gone.
+  with the standard post-write refresh cascade (status). TDD: `TempRepo` tests
+  asserting a modified tracked file, a new untracked file, an untracked directory,
+  and a staged new file are all gone and the tree is clean.
 - **Stash exposure on the VM.** `stashSave`/`stashPop` already exist on
   `GitRepo`/`AsyncRepo`; add `RepoController::stashChanges()`/`popStash()` and
   `RepoViewModel::stashChanges()`/`popStash()` (`Q_INVOKABLE`) that drive them

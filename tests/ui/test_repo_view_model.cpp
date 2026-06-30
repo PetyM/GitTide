@@ -379,6 +379,37 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    // The dirty property must NOTIFY on a clean→dirty transition: a QML binding
+    // like `enabled: repoVm.dirty` only re-evaluates when dirtyChanged() fires.
+    // onStatus() emits it on every status rebuild, so a refresh that turns the
+    // tree dirty both flips dirty() and notifies.
+    void dirty_notifies_on_status_refresh()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // Commit the initial dirt so the working tree is clean (dirty() == false).
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("clean it"), QString());
+        QVERIFY(committedSpy.wait(3000));
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.dirty(), 3000);
+
+        // Now dirty the tree externally and refresh: dirty() flips true and the
+        // dedicated notify fires at least once.
+        QSignalSpy dirtySpy(&vm, &RepoViewModel::dirtyChanged);
+        std::ofstream(dir / "a.txt") << "one\ntwo\nthree\n";
+        vm.resync();
+
+        QTRY_VERIFY_WITH_TIMEOUT(vm.dirty(), 3000);
+        QVERIFY(dirtySpy.count() >= 1);
+
+        std::filesystem::remove_all(dir);
+    }
+
     void copyToClipboard_sets_system_clipboard()
     {
         RepoViewModel vm;

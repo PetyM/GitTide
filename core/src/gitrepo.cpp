@@ -551,6 +551,63 @@ Expected<void> GitRepo::discard(const StageSelection& sel)
     return {};
 }
 
+Expected<void> GitRepo::discardAll()
+{
+    // 1. Reset tracked changes (staged + unstaged) back to HEAD.
+    if (git_repository_head_unborn(m_repo) == 1)
+    {
+        // No commit yet: clear the index so nothing stays staged.
+        git_index* index = nullptr;
+        int rc           = git_repository_index(&index, m_repo);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_index, decltype(&git_index_free)> idx_guard(index, git_index_free);
+        git_index_clear(index);
+        rc = git_index_write(index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    else
+    {
+        git_object* head = nullptr;
+        int rc           = git_revparse_single(&head, m_repo, "HEAD");
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_object, decltype(&git_object_free)> head_guard(head, git_object_free);
+
+        rc = git_reset(m_repo, head, GIT_RESET_HARD, nullptr);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+
+    // 2. Delete untracked files (git clean -fd equivalent). Hard reset leaves
+    //    untracked files in place, so enumerate and remove them explicitly.
+    git_status_options opts = GIT_STATUS_OPTIONS_INIT;
+    opts.show               = GIT_STATUS_SHOW_WORKDIR_ONLY;
+    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
+
+    git_status_list* raw = nullptr;
+    int rc               = git_status_list_new(&raw, m_repo, &opts);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_status_list, decltype(&git_status_list_free)> list(raw, git_status_list_free);
+
+    const std::filesystem::path wd = workdir();
+    size_t n                       = git_status_list_entrycount(list.get());
+    for (size_t i = 0; i < n; ++i)
+    {
+        const git_status_entry* e = git_status_byindex(list.get(), i);
+        if (!(e->status & GIT_STATUS_WT_NEW))
+            continue;
+        const git_diff_file* nf = e->index_to_workdir ? &e->index_to_workdir->new_file : nullptr;
+        if (!nf || !nf->path)
+            continue;
+        std::error_code ec;
+        std::filesystem::remove_all(wd / fromGitPath(nf->path), ec); // best-effort; handles dirs too
+    }
+    return {};
+}
+
 Expected<std::string> GitRepo::commit(const CommitRequest& req)
 {
     git_signature* sig = nullptr;
@@ -1868,6 +1925,22 @@ Expected<void> GitRepo::stashPop()
         // Stash is intentionally preserved — the caller can inspect it.
         return std::unexpected(GitError{rc, "Your changes conflict and are kept in the stash"});
     return {};
+}
+
+Expected<int> GitRepo::stashCount() const
+{
+    int count  = 0;
+    int rc     = git_stash_foreach(
+        m_repo,
+        [](size_t, const char*, const git_oid*, void* payload) -> int
+        {
+            ++*static_cast<int*>(payload);
+            return 0;
+        },
+        &count);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return count;
 }
 
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)

@@ -30,6 +30,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_commitDiff(new DiffLinesModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
+    connect(m_controller, &RepoController::stashCountChanged, this, &RepoViewModel::onStashCount);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
@@ -95,6 +96,11 @@ RepoViewModel::RepoViewModel(QObject* parent)
 bool RepoViewModel::repoOpen() const
 {
     return m_open;
+}
+
+bool RepoViewModel::dirty() const
+{
+    return m_files->rowCount(QModelIndex()) > 0;
 }
 
 QString RepoViewModel::repoPath() const
@@ -593,6 +599,10 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     }
 
     emit checkedChanged();
+    // The dirty property is derived from m_files, which we just rebuilt; notify so
+    // QML bindings re-evaluate on dirty↔clean transitions. Unconditional on each
+    // refresh is fine — the binding re-reads a cheap rowCount.
+    emit dirtyChanged();
 }
 
 void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& result)
@@ -1023,6 +1033,29 @@ void RepoViewModel::discardFile(const QString& path)
     QCoro::connect(m_controller->discard(sel), this, [] {});
 }
 
+void RepoViewModel::discardAll()
+{
+    QCoro::connect(m_controller->discardAll(), this, [] {});
+}
+
+void RepoViewModel::onStashCount(int count)
+{
+    if (m_stashCount == count)
+        return;
+    m_stashCount = count;
+    emit stashCountChanged();
+}
+
+void RepoViewModel::stashChanges()
+{
+    QCoro::connect(m_controller->stashChanges(), this, [] {});
+}
+
+void RepoViewModel::popStash()
+{
+    QCoro::connect(m_controller->popStash(), this, [] {});
+}
+
 void RepoViewModel::openInEditor(const QString& path)
 {
     QDesktopServices::openUrl(QUrl::fromLocalFile(path));
@@ -1031,6 +1064,14 @@ void RepoViewModel::openInEditor(const QString& path)
 void RepoViewModel::revealInFileManager(const QString& path)
 {
     QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+}
+
+void RepoViewModel::openRepoFolder()
+{
+    const QString root = repoPath();
+    if (root.isEmpty())
+        return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(root));
 }
 
 void RepoViewModel::copyToClipboard(const QString& text)

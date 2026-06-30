@@ -39,13 +39,15 @@
     <file>MergeBanner.qml</file>
     <file>RebaseBanner.qml</file>
     <file>WindowButton.qml</file>
+    <file>MenuBarButton.qml</file>
+    <file>AppMenuBar.qml</file>
     <file>EdgeResizer.qml</file>
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
     <file>OptionsDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
-    <file>RebaseTargetDialog.qml</file>
+    <file>BranchPickerDialog.qml</file>
     <file>RebaseTodoDialog.qml</file>
     <file>ReorderConfirmDialog.qml</file>
     <file>PathElide.js</file>

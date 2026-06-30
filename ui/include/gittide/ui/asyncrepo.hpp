@@ -47,6 +47,7 @@ public:
     QCoro::Task<gittide::Expected<void>> stage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
+    QCoro::Task<gittide::Expected<void>> discardAll();
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> logAllRefs(unsigned limit = 1000);
@@ -118,6 +119,9 @@ public:
     /// Pop the most-recent stash onto the working tree.
     /// Errors (and preserves the stash) if the pop conflicts.
     QCoro::Task<gittide::Expected<void>> stashPop();
+
+    /// Number of entries on the stash stack.
+    QCoro::Task<gittide::Expected<int>> stashCount();
 
     /// De-initialise a submodule: remove its working-tree source files while
     /// preserving the .git gitlink file. path is repo-relative.

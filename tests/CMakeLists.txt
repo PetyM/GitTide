@@ -13,6 +13,7 @@ add_executable(gittide_core_tests
   test_project_store.cpp
   test_build_patch.cpp
   test_git_repo_discard.cpp
+  test_git_repo_stash.cpp
   test_git_repo_init_clone.cpp
   test_git_repo_log.cpp
   test_git_repo_commit_diff.cpp
@@ -79,6 +80,8 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_merge_entrypoints.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_undo.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_discard_all.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_stash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_squash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp
@@ -90,6 +93,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_model_reflabels.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_graph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_appcontrols.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_menu_bar.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

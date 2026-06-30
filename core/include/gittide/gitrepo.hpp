@@ -94,6 +94,12 @@ public:
     // dropped from the index (if staged) and deleted from the worktree.
     Expected<void> discard(const StageSelection& sel);
 
+    /// Discard *all* working-tree changes: hard-reset tracked files (staged and
+    /// unstaged) to HEAD, then delete every untracked file. Leaves ignored files
+    /// alone. On an unborn HEAD there is no commit to reset to, so the index is
+    /// cleared instead. Returns an error only on a libgit2 failure.
+    Expected<void> discardAll();
+
     // Walk commits reachable from HEAD, newest first (topological + time).
     // Returns empty vector if repo has no commits. limit=0 means unlimited.
     Expected<std::vector<CommitNode>> log(unsigned limit = 1000) const;
@@ -205,6 +211,10 @@ public:
     /// Pop the most-recent stash onto the working tree. Errors (and preserves the
     /// stash) if the pop conflicts.
     Expected<void> stashPop();
+
+    /// Number of entries currently on the stash stack (stash@{0}, {1}, …).
+    /// Zero when the stack is empty. Errors only on a libgit2 failure.
+    Expected<int> stashCount() const;
 
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,

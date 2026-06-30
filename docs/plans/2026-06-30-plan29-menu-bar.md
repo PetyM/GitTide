@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-06-30 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/app-menu.md` §7](../spec/product/app-menu.md) |
 | **Depends on** | [Plan 15 — App menu](2026-06-23-plan15-app-menu.md) |
 
@@ -303,7 +303,10 @@ a `dirty` property (working tree has changes) to drive enable/disable.
   - `QCoro::Task<gittide::Expected<void>> AsyncRepo::discardAll();`
   - `QCoro::Task<void> RepoController::discardAll();` (refreshes status on success)
   - `Q_INVOKABLE void RepoViewModel::discardAll();`
-  - `Q_PROPERTY(bool dirty READ dirty NOTIFY changed)` on `RepoViewModel`
+  - `Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)` on `RepoViewModel`
+    (NOTE: shipped with a dedicated `dirtyChanged()` signal emitted in `onStatus()`
+    — `changed()` is not emitted on the status-refresh path, so it would leave the
+    binding stale; corrected during Task 3 review)
 
 - [ ] **Step 1: Write the failing test** — create `tests/ui/test_repocontroller_discard_all.cpp`,
 mirroring `tests/ui/test_repocontroller_undo.cpp`:
@@ -425,8 +428,14 @@ QCoro::Task<void> RepoController::discardAll()
 Property (after the `repoOpen` property, ~line 36):
 
 ```cpp
-    Q_PROPERTY(bool dirty READ dirty NOTIFY changed)
+    Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
 ```
+
+> **As shipped:** the NOTIFY is a dedicated `dirtyChanged()` signal (added to the
+> `signals:` block) emitted at the end of `onStatus()`. The plan originally
+> specified `NOTIFY changed`, but `changed()` is only emitted in `open()`/`close()`,
+> not on status refresh — so the binding would never update on dirty↔clean
+> transitions. Caught in Task 3 review and fixed.
 
 Getter declaration (near `repoOpen()`, line 103) and invokable (after
 `discardFile`, line 244):
@@ -1408,10 +1417,32 @@ git commit -m "docs: close out Plan 29 (title-bar menu bar)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: `spec/product/app-menu.md` §7.
-> - Code: `GitRepo::discardAll`/`stashCount`; VM `discardAll`/`stashChanges`/
->   `popStash`/`openRepoFolder` + `dirty`/`stashAvailable`; QML `AppMenuBar`,
->   `MenuBarButton`, `BranchPickerDialog`.
+Shipped on branch `plan29-menu-bar` (base `4952f69` → `2f47dda`), 11 commits,
+8 tasks, full suite 165/165 green. A classic title-bar text menu bar
+(File · Edit · View · Repository) now hosts the per-repo actions; the app-icon
+popup is trimmed to Options / About / Quit.
+
+- **Shipped:** Menu bar with File ▸ Open repository folder · Edit ▸ Undo last
+  commit / Discard all changes (red, confirm-gated) · View ▸ Theme ▸
+  System/Dark/Light · Repository ▸ Merge into current… / Rebase current… / Stash
+  all / Pop latest stash. Enable/disable driven by `dirty`, `stashAvailable`,
+  `repoOpen`, and merge/rebase-in-progress state.
+- **Spec updated:** `spec/product/app-menu.md` §7 (Status → `shipped`); corrected
+  during close-out to match the code (hover token `surfaceOverlay`, click-to-open
+  only, `discardAll` = hard-reset + `remove_all` untracked, `dirty` NOTIFY
+  `dirtyChanged`). `spec/product/rebase.md` updated for the `RebaseTargetDialog` →
+  `BranchPickerDialog` rename.
+- **Code:**
+  - core: `GitRepo::discardAll()` (hard reset + clean untracked files/dirs),
+    `GitRepo::stashCount()`.
+  - ui: `AsyncRepo::discardAll`/`stashCount`; `RepoController::discardAll`/
+    `stashChanges`/`popStash`/`refreshStashState` + `stashCountChanged(int)`;
+    `RepoViewModel::discardAll`/`stashChanges`/`popStash`/`openRepoFolder` +
+    `dirty`/`stashAvailable` properties (with `dirtyChanged()` notify).
+  - qml: new `AppMenuBar.qml`, `MenuBarButton.qml`; `RebaseTargetDialog.qml` →
+    `BranchPickerDialog.qml` (generalised, reused for merge); `TitleBar.qml`
+    mounts the bar + trims the popup; `Main.qml` wires routes + `mergeTargetDialog`
+    / `discardAllDialog`.
+- **Deferred (own specs):** credentials manager, compare-to-branch (dropped from
+  scope during brainstorming). Follow-ups noted in review: theme submenu popup
+  background unthemed; full stash stack/list UI (separate stash-management wish).

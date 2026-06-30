@@ -84,3 +84,53 @@ TEST_CASE("discard a hunk reverts only that region", "[discard]")
     REQUIRE(after.find("NINE") != std::string::npos); // kept
     REQUIRE(after.substr(0, 2) == "1\n");
 }
+
+TEST_CASE("discardAll resets tracked and deletes untracked", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("tracked.txt", "orig\n");
+    tmp.commitAll("init");
+    tmp.writeFile("tracked.txt", "changed\n"); // modified tracked
+    tmp.writeFile("untracked.txt", "new\n");    // untracked
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->discardAll().has_value());
+
+    REQUIRE(read_file(tmp.path() / "tracked.txt") == "orig\n"); // reset
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "untracked.txt")); // removed
+
+    auto st = repo->status();
+    REQUIRE(st.has_value());
+    REQUIRE(st->empty()); // fully clean tree
+}
+
+TEST_CASE("discardAll drops a staged new file", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("keep.txt", "x\n");
+    tmp.commitAll("init");
+    tmp.writeFile("staged.txt", "fresh\n");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->stage(gittide::StageSelection{"staged.txt", std::nullopt, {}}).has_value());
+    REQUIRE(repo->discardAll().has_value());
+
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "staged.txt"));
+    REQUIRE(repo->status().value().empty());
+}
+
+TEST_CASE("discardAll removes untracked directories", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("keep.txt", "x\n");
+    tmp.commitAll("init");
+    tmp.writeFile("newdir/inner.txt", "fresh\n"); // untracked file in a new dir
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->discardAll().has_value());
+
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "newdir")); // dir gone, not just the file
+}
