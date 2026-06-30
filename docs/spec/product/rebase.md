@@ -5,7 +5,7 @@
 | **Designed** | 2026-06-24 |
 | **Status** | `spec` |
 | **Wishlist** | [rebase.md](../../wishlist/rebase.md) · [history-editing.md](../../wishlist/history-editing.md) |
-| **Touches** | core: `RebaseState` + driver verbs on `GitRepo`; ui: branch/app-menu entry points, `RebaseBanner`, `RebaseTargetDialog`, ViewModel/Controller wiring; design: rebase-in-progress banner |
+| **Touches** | core: `RebaseState` + driver verbs on `GitRepo`; ui: branch/app-menu entry points, `RebaseBanner`, `BranchPickerDialog`, ViewModel/Controller wiring; design: rebase-in-progress banner |
 
 ## Overview
 
@@ -144,15 +144,17 @@ Two routes, one VM verb (`startRebase(ref)`):
 - **`BranchContextMenu.qml`** — item **"Rebase current onto `<name>`"**, **hidden
   when `isHead`** (the current branch can't rebase onto itself), mirroring the
   *Merge into current* gating. `onRebase → repoVm.startRebase(name)`.
-- **App-menu popup** — item **"Rebase current branch…"** opens
-  `RebaseTargetDialog.qml`. The app menu is global, so it needs an explicit
-  target picker rather than a baked-in branch.
+- **App-menu popup** — item **"Rebase current branch…"** (now in the title-bar
+  Repository menu, see [app-menu §7](app-menu.md)) opens `BranchPickerDialog.qml`.
+  The app menu is global, so it needs an explicit target picker rather than a
+  baked-in branch.
 
-### 2.2 `RebaseTargetDialog.qml` (new)
+### 2.2 `BranchPickerDialog.qml`
 
-`OverlayCard` following the existing dialog pattern: a list of local branches
-(excluding the current branch), single-select, **Rebase** / **Cancel**. *Rebase*
-→ `repoVm.startRebase(selectedRef)`.
+A reusable local-branch picker (originally `RebaseTargetDialog.qml`, generalised
+in Plan 29 to also serve *Merge into current*): `OverlayCard` with a list of local
+branches (excluding the current branch), single-select, and a caller-supplied
+action/prompt (**Rebase** / **Cancel** here). *Rebase* → `repoVm.startRebase(selectedRef)`.
 
 ### 2.3 ViewModel state
 
@@ -232,7 +234,8 @@ message UI, because plain rebase reuses each original commit's message
 methods `startRebase`, `continueRebase`, `skipRebase`, `abortRebase`,
 `rebaseState`. New tests in the core test list.
 
-**New `ui/qml/`:** `RebaseBanner.qml`, `RebaseTargetDialog.qml`.
+**New `ui/qml/`:** `RebaseBanner.qml`, `BranchPickerDialog.qml` (was
+`RebaseTargetDialog.qml`; renamed in Plan 29).
 
 **Modified `ui/qml/`:**
 - `BranchContextMenu.qml` — add *Rebase current onto `<name>`* (hidden when `isHead`).
