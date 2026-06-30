@@ -15,8 +15,16 @@ Rectangle {
     signal aboutRequested()
     signal rebaseRequested()
     signal undoLastCommitRequested()
+    signal openRepoFolderRequested()
+    signal discardAllRequested()
+    signal mergeRequested()
+    signal stashRequested()
+    signal popStashRequested()
 
     readonly property bool isMac: Qt.platform.os === "osx"
+
+    // Injected from Main.qml — the live QSettings store (themeMode etc.).
+    property var appSettings
 
     // Bottom border
     Rectangle {
@@ -111,19 +119,6 @@ Rectangle {
                     text: "About GitTide"
                     onTriggered: titleBar.aboutRequested()
                 }
-                AppMenuItem {
-                    objectName: "rebaseMenuItem"
-                    text: "Rebase current branch…"
-                    onTriggered: titleBar.rebaseRequested()
-                }
-                AppMenuItem {
-                    objectName: "undoLastCommitMenuItem"
-                    text: "Undo last commit"
-                    // Disabled mid-merge/-rebase (mutual exclusion); core also
-                    // guards unborn/detached/root.
-                    enabled: !!repoVm && !repoVm.rebaseInProgress && !repoVm.mergeInProgress
-                    onTriggered: titleBar.undoLastCommitRequested()
-                }
                 MenuSeparator {
                     padding: 6
                     contentItem: Rectangle { implicitHeight: 1; color: theme.border }
@@ -134,6 +129,21 @@ Rectangle {
                     onTriggered: Qt.quit()
                 }
             }
+        }
+
+        // Horizontal text menu bar (File / Edit / View / Repository)
+        AppMenuBar {
+            id: appMenuBar
+            Layout.leftMargin: 4
+            appSettings: titleBar.appSettings
+            repo: repoVm
+            onOpenRepoFolderRequested: titleBar.openRepoFolderRequested()
+            onUndoLastCommitRequested: titleBar.undoLastCommitRequested()
+            onDiscardAllRequested: titleBar.discardAllRequested()
+            onMergeRequested: titleBar.mergeRequested()
+            onRebaseRequested: titleBar.rebaseRequested()
+            onStashRequested: titleBar.stashRequested()
+            onPopStashRequested: titleBar.popStashRequested()
         }
 
         // Drag spacer fills the centre

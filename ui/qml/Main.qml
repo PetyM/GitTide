@@ -76,10 +76,16 @@ ApplicationWindow {
         TitleBar {
             id: titleBar
             Layout.fillWidth: true
+            appSettings: appSettings
             onOptionsRequested: optionsDialog.open()
             onAboutRequested: aboutDialog.open()
             onRebaseRequested: rebaseTargetDialog.open()
             onUndoLastCommitRequested: if (repoVm) repoVm.undoLastCommit()
+            onOpenRepoFolderRequested: if (repoVm) repoVm.openRepoFolder()
+            onDiscardAllRequested: discardAllDialog.open()
+            onMergeRequested: mergeTargetDialog.open()
+            onStashRequested: if (repoVm) repoVm.stashChanges()
+            onPopStashRequested: if (repoVm) repoVm.popStash()
         }
 
         RowLayout {
@@ -215,6 +221,22 @@ ApplicationWindow {
         actionLabel: "Rebase"
         promptText: repoVm ? ("Rebase " + repoVm.currentBranch + " onto:") : "Rebase onto:"
         onAccepted: if (repoVm) repoVm.startRebase(rebaseTargetDialog.selectedRef)
+    }
+    BranchPickerDialog {
+        id: mergeTargetDialog
+        objectName: "mergeTargetDialog"
+        repo: repoVm
+        title: "Merge branch"
+        actionLabel: "Merge"
+        promptText: repoVm ? ("Merge selected branch into " + repoVm.currentBranch + ":")
+                           : "Merge into current branch:"
+        onAccepted: if (repoVm) repoVm.startMerge(mergeTargetDialog.selectedRef)
+    }
+    DiscardChangesDialog {
+        id: discardAllDialog
+        objectName: "discardAllDialog"
+        fileName: "all working-tree changes"
+        onAccepted: if (repoVm) repoVm.discardAll()
     }
 
     // ---- Repo-management dialogs (window-scoped so they centre on the whole window) ----
