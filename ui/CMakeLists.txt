@@ -17,6 +17,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changedfilesmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/difflinesmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/difflinesmodel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/syntaxhighlighter.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/syntaxhighlighter.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/repoviewmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/repoviewmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/branchlistmodel.cpp
@@ -43,3 +45,4 @@ target_include_directories(gittide_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 target_compile_features(gittide_ui PUBLIC cxx_std_23)
 target_link_libraries(gittide_ui PUBLIC
   gittide_core Qt6::Gui Qt6::Concurrent Qt6::Svg Qt6::Qml Qt6::Quick Qt6::QuickControls2 QCoro6::Core)
+target_link_libraries(gittide_ui PRIVATE KF6::SyntaxHighlighting)

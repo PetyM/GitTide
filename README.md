@@ -31,8 +31,8 @@ wishlist/ (wanted)   →   spec/ (designed)   →   plans/ (built)
 - **Qt 6** (Gui, Qml, Quick, QuickControls2, Test, Concurrent, Svg) — from a
   system install or [`aqtinstall`](https://github.com/miurahr/aqtinstall), found
   via `find_package`.
-- libgit2, QCoro, and Catch2 are fetched automatically by CMake (FetchContent);
-  no manual install needed.
+- libgit2, QCoro, Catch2, and **KSyntaxHighlighting** (KDE Frameworks) are fetched
+  automatically by CMake (FetchContent); no manual install needed.
 - **TLS + SSH dev libraries** for network transports — OpenSSL and libssh2.
   On Debian/Ubuntu: `sudo apt install libssl-dev libssh2-1-dev`. On macOS they
   ship with the platform (SecureTransport) / Homebrew `libssh2`; on Windows
