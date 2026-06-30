@@ -1383,11 +1383,27 @@ git commit -m "docs: close out Plan 31 (stash viewing & management)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`. The durable result — what shipped and
-> **where it now lives** in the code and the living spec:
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: `GitRepo::stashList/stashApplyAt/stashPopAt/stashDrop/stashClear`,
->   `AsyncRepo` wrappers, `StashListModel`, `RepoController` stash slots +
->   `stashListReady`, `RepoViewModel` `stashes`/preview, `ui/qml/StashPanel.qml`.
+Shipped on branch `feat/stash-management` (8 commits, `e9ee475`..`2d11edb`),
+all 171 tests green, the dedicated `TestQmlStash` pristine.
+
+- **Shipped:** the user-facing stash stack — a collapsible *Stashes* panel in the
+  Changes tab listing every entry (newest first), with per-entry Apply / Pop /
+  Drop, a header Clear, and read-only diff preview of a selected entry in the
+  shared diff pane. Save stays one-click (untracked included). Apply/pop conflicts
+  report and preserve the stash (D44). Preview reuses the existing commit-diff path
+  (a stash is a commit) — no new core diff primitive.
+- **Spec updated:** [`product` §Stash](../spec/product/product.md#stash),
+  [`engineering` §Stash management](../spec/engineering/engineering.md),
+  decision [D44](../decisions.md).
+- **Code:** `GitRepo::stashList/stashApplyAt/stashPopAt/stashDrop/stashClear`
+  (core); `AsyncRepo` wrappers; `StashListModel`; `RepoController` apply/pop/drop/
+  clear slots + `stashListReady`; `RepoViewModel` `stashes` + `previewStash`/
+  `exitStashPreview` reusing `commitFiles`/`commitDiff`; `ui/qml/StashPanel.qml`
+  + stash-preview mode in `DiffView.qml` / `ChangesPane.qml`.
+- **Deferred (Minor, for follow-up):** apply/popAt error text says "conflict" for
+  any `rc<0` (incl. bad index) — matches the pre-existing `stashPop` pattern;
+  `StashEntry` metatype declared in `repocontroller.hpp` rather than
+  `metatypes.hpp`; `onStashList` exits preview only when the stack empties (a
+  non-last previewed entry being dropped is mitigated in the panel by exiting
+  preview before any mutation); the banner QML tests' minimal stubs add 2 lines to
+  their pre-existing `[undefined]`-binding noise.

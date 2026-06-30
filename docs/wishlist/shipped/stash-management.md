@@ -3,7 +3,8 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `designed` |
+| **Status** | `shipped` |
+| **Shipped** | 2026-06-30 |
 | **Touches** | product (stash actions + a stash list), engineering (core: stash save/list/apply/pop/drop on `GitRepo`), design (stash list UI, stash-and-switch affordance) |
 
 ## What
@@ -54,11 +55,11 @@ uncommitted changes, can't checkout" is "stash them, switch, optionally restore.
 
 ---
 
-**Designed in:** [`spec/product` §Stash](../spec/product/product.md#stash) (stash
+**Shipped in:** [`spec/product` §Stash](../../spec/product/product.md#stash) (stash
 list + per-entry actions + preview), [`spec/engineering` §Stash
-management](../spec/engineering/engineering.md) (core stash ops on `GitRepo`,
-refresh cascade), decision [D44](../decisions.md). Open questions resolved: UI
+management](../../spec/engineering/engineering.md) (core stash ops on `GitRepo`,
+refresh cascade), decision [D44](../../decisions.md). Open questions resolved: UI
 surface = collapsible panel in the Changes tab; apply/pop conflict = report +
 preserve the stash (no inline-conflict UI first cut); save stays one-click (no
 message prompt / toggles). · plan:
-[Plan 31](../plans/2026-06-30-plan31-stash-management.md)
+[Plan 31](../../plans/2026-06-30-plan31-stash-management.md)

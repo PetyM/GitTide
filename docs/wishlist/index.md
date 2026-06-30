@@ -19,7 +19,6 @@ and it links out to them.
 | [Deployment — native installers (apt / brew / .exe)](deployment-packaging.md) | 2026-06-22 | `idea` | engineering, product |
 | [Code syntax highlighting in diffs](diff-syntax-highlighting.md) | 2026-06-21 | `idea` | product, design, engineering |
 | [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
-| [Stash management — stackable](stash-management.md) | 2026-06-17 | `designed` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
@@ -44,3 +43,4 @@ plan from the bottom of its file.
 | [App menu + Options dialog](shipped/app-menu.md) | 2026-06-22 | 2026-06-23 | product, design, engineering |
 | [Context menus — right-click actions on every entity](shipped/context-menus.md) | 2026-06-21 | 2026-06-23 | product, design, engineering |
 | [Keyboard controls — navigate and act without the mouse](shipped/keyboard-controls.md) | 2026-06-21 | 2026-06-23 | product, design, engineering |
+| [Stash management — stackable](shipped/stash-management.md) | 2026-06-17 | 2026-06-30 | product, engineering, design |
