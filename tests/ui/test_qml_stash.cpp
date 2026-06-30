@@ -192,6 +192,8 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(btn, "click"));
         QTest::qWait(50);
 
+        // exitStashPreview() must fire before applyStash() — stale-preview guard.
+        QCOMPARE(stub.m_exitPreviewCalls, 1);
         QVERIFY2(!stub.m_applyStashCalls.isEmpty(), "applyStash was not called");
         QCOMPARE(stub.m_applyStashCalls.first(), 0);
     }

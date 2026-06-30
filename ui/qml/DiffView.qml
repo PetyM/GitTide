@@ -27,6 +27,7 @@ ColumnLayout {
             }
         }
         Label {
+            objectName: "stashPreviewLabel"
             Layout.fillWidth: true
             elide: Text.ElideMiddle
             font.family: "monospace"

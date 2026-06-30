@@ -67,21 +67,28 @@ ColumnLayout {
         }
     }
 
-    // ---- Entry list (clipped, max 180 px) ----
-    // A Repeater eagerly creates all delegates so findChild always works and the
-    // layout does not depend on a running rendering loop. An outer Item clips
-    // entries that exceed the height cap; an inner Column stacks them.
-    Item {
-        id: stashEntriesContainer
+    // ---- Entry list (scrollable, max 180 px visible) ----
+    // A Repeater eagerly creates all delegates so findChild always works via
+    // Repeater.itemAt() and all delegates live in the QObject hierarchy.
+    // A Flickable clips entries beyond 180 px and provides vertical scrolling
+    // when the stack grows tall; the height cap keeps the panel from growing
+    // unbounded. stashList stays on the Repeater so test access is unchanged.
+    Flickable {
+        id: stashEntriesFlickable
         Layout.fillWidth: true
-        // Clamp height to 180 px; Column grows freely so overflow is clipped.
-        Layout.preferredHeight: Math.min(stashEntriesColumn.height, 180)
+        // Clamp visible height to 180 px; Flickable scrolls past the cap.
+        Layout.preferredHeight: Math.min(contentHeight, 180)
+        contentHeight: stashEntriesColumn.height
+        contentWidth: width
         visible: stashPanel.expanded
         clip: true
+        flickableDirection: Flickable.VerticalFlick
+
+        ScrollBar.vertical: AppScrollBar {}
 
         Column {
             id: stashEntriesColumn
-            width: parent.width
+            width: stashEntriesFlickable.width
             spacing: 0
 
             // The Repeater creates one delegate per stash entry. Its count
