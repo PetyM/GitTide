@@ -123,6 +123,17 @@ public:
     /// Number of entries on the stash stack.
     QCoro::Task<gittide::Expected<int>> stashCount();
 
+    /// Enumerate the stash stack (newest first).
+    QCoro::Task<gittide::Expected<std::vector<gittide::StashEntry>>> stashList();
+    /// Apply stash@{index}, keeping it on the stack. Conflict → error, stash kept.
+    QCoro::Task<gittide::Expected<void>> stashApplyAt(int index);
+    /// Apply stash@{index} and drop it. Conflict → error, stash kept.
+    QCoro::Task<gittide::Expected<void>> stashPopAt(int index);
+    /// Drop stash@{index} without applying it.
+    QCoro::Task<gittide::Expected<void>> stashDrop(int index);
+    /// Drop every stash entry.
+    QCoro::Task<gittide::Expected<void>> stashClear();
+
     /// De-initialise a submodule: remove its working-tree source files while
     /// preserving the .git gitlink file. path is repo-relative.
     QCoro::Task<gittide::Expected<void>> deinitSubmodule(std::filesystem::path path);

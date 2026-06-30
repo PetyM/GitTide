@@ -550,6 +550,61 @@ QCoro::Task<gittide::Expected<int>> AsyncRepo::stashCount()
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::StashEntry>>> AsyncRepo::stashList()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashList();
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stashApplyAt(int index)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, index]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashApplyAt(static_cast<std::size_t>(index));
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stashPopAt(int index)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, index]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashPopAt(static_cast<std::size_t>(index));
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stashDrop(int index)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, index]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashDrop(static_cast<std::size_t>(index));
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stashClear()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashClear();
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::deinitSubmodule(std::filesystem::path path)
 {
     auto impl = m_impl;
