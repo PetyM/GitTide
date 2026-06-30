@@ -1962,6 +1962,48 @@ Expected<std::vector<StashEntry>> GitRepo::stashList() const
     return entries;
 }
 
+Expected<void> GitRepo::stashApplyAt(std::size_t index)
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_apply(m_repo, index, &aopts);
+    if (rc < 0)
+        return std::unexpected(GitError{rc, "Your changes conflict and the stash was kept"});
+    return {};
+}
+
+Expected<void> GitRepo::stashPopAt(std::size_t index)
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_pop(m_repo, index, &aopts);
+    if (rc < 0)
+        // libgit2 does not drop on a conflicting pop — the stash is preserved.
+        return std::unexpected(GitError{rc, "Your changes conflict and are kept in the stash"});
+    return {};
+}
+
+Expected<void> GitRepo::stashDrop(std::size_t index)
+{
+    int rc = git_stash_drop(m_repo, index);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::stashClear()
+{
+    auto list = stashList();
+    if (!list)
+        return std::unexpected(list.error());
+    // Drop highest index first so the remaining indices stay valid.
+    for (auto it = list->rbegin(); it != list->rend(); ++it)
+    {
+        int rc = git_stash_drop(m_repo, it->index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;

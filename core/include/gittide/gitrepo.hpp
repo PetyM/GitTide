@@ -230,6 +230,17 @@ public:
     /// Errors only on a libgit2 failure.
     Expected<std::vector<StashEntry>> stashList() const;
 
+    /// Apply stash@{index} onto the working tree, keeping it on the stack. Errors
+    /// (and preserves the stash) on conflict.
+    Expected<void> stashApplyAt(std::size_t index);
+    /// Apply stash@{index} and drop it on success. Errors (and preserves the stash)
+    /// on conflict — never drops a stash it could not cleanly apply.
+    Expected<void> stashPopAt(std::size_t index);
+    /// Drop stash@{index} without applying it.
+    Expected<void> stashDrop(std::size_t index);
+    /// Drop every entry on the stack (high index → low so indices stay valid).
+    Expected<void> stashClear();
+
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
     /// writing conflict markers into the worktree on conflict. Caller handles a
