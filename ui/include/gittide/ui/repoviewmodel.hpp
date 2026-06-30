@@ -259,6 +259,8 @@ public:
     Q_INVOKABLE void popStash();
     Q_INVOKABLE void openInEditor(const QString& path);
     Q_INVOKABLE void revealInFileManager(const QString& path);
+    /// Open the repository root folder in the OS-native file manager.
+    Q_INVOKABLE void openRepoFolder();
     Q_INVOKABLE void copyToClipboard(const QString& text);
 
 signals:

@@ -1066,6 +1066,14 @@ void RepoViewModel::revealInFileManager(const QString& path)
     QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
 }
 
+void RepoViewModel::openRepoFolder()
+{
+    const QString root = repoPath();
+    if (root.isEmpty())
+        return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(root));
+}
+
 void RepoViewModel::copyToClipboard(const QString& text)
 {
     QGuiApplication::clipboard()->setText(text);
