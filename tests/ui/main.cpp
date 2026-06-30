@@ -58,6 +58,7 @@
 #include "test_history_model_reflabels.cpp"
 #include "test_qml_graph.cpp"
 #include "test_qml_appcontrols.cpp"
+#include "test_qml_menu_bar.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -129,6 +130,7 @@ int main(int argc, char** argv)
     RUN(TestHistoryModelRefLabels);
     RUN(TestQmlGraph);
     RUN(TestQmlAppControls);
+    RUN(TestQmlMenuBar);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down

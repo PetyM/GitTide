@@ -93,6 +93,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_history_model_reflabels.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_graph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_appcontrols.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_menu_bar.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

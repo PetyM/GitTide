@@ -39,6 +39,8 @@
     <file>MergeBanner.qml</file>
     <file>RebaseBanner.qml</file>
     <file>WindowButton.qml</file>
+    <file>MenuBarButton.qml</file>
+    <file>AppMenuBar.qml</file>
     <file>EdgeResizer.qml</file>
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
