@@ -642,12 +642,14 @@ private slots:
         // Switch to repo B without close() — mirrors the Sidebar repo-switching path.
         vm.open(QString::fromStdString(repoB.path().generic_string()));
 
-        // Preview state and stash list must be cleared synchronously by open().
+        // Preview state, stash list, and stashAvailable must be cleared
+        // synchronously by open() — no stale "header visible, list empty" window.
         QVERIFY(!vm.stashPreviewActive());
         QCOMPARE(vm.stashes()->rowCount(), 0);
+        QVERIFY(!vm.stashAvailable());
 
         // After repo B fully loads its stash refresh, the list stays empty (B has none).
-        QTRY_VERIFY_WITH_TIMEOUT(vm.repoOpen(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.stashAvailable(), 3000);
         QCOMPARE(vm.stashes()->rowCount(), 0);
         QVERIFY(!vm.stashPreviewActive());
     }

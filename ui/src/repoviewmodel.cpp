@@ -162,12 +162,14 @@ void RepoViewModel::open(const QString& path)
     // Reset stash and preview state so no data from a previous repo leaks across
     // an in-place open() — the Sidebar switches repos without calling close() first.
     m_stashes->setEntries({});
+    m_stashCount = 0; // stashAvailable must read false synchronously, before the async refresh
     m_stashPreviewActive = false;
     m_stashPreviewLabel.clear();
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
     m_selectedCommit.clear();
     m_activeCommitFile.clear();
+    emit stashCountChanged();
     emit stashPreviewChanged();
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
