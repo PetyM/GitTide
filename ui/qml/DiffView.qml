@@ -7,6 +7,11 @@ ColumnLayout {
     objectName: "diffView"
     spacing: 0
 
+    // Keep the diff model's syntax theme aligned with the app theme.
+    property bool syntaxDark: theme.dark
+    onSyntaxDarkChanged: if (repoVm && repoVm.diffLines) repoVm.diffLines.setSyntaxDark(syntaxDark)
+    Component.onCompleted: if (repoVm && repoVm.diffLines) repoVm.diffLines.setSyntaxDark(theme.dark)
+
     // ---- Header: master line checkbox + active file path ----
     RowLayout {
         Layout.fillWidth: true
@@ -167,14 +172,18 @@ ColumnLayout {
                     font.family: "monospace"
                     font.pixelSize: 12
                     elide: Text.ElideRight
-                    text: model.lineText
-                    color: model.lineKind === "hunk"         ? theme.textMuted
-                         : model.lineKind === "added"        ? theme.stateAdded
-                         : model.lineKind === "removed"      ? theme.stateDeleted
-                         : model.lineKind === "ours"         ? theme.stateAdded
-                         : model.lineKind === "theirs"       ? theme.stateIncoming
-                         : model.lineKind === "conflict-sep" ? theme.textMuted
-                         : model.lineKind === "conflict-end" ? theme.textMuted
+                    textFormat: model.lineHtml && model.lineHtml.length > 0
+                                ? Text.RichText : Text.PlainText
+                    text: model.lineHtml && model.lineHtml.length > 0
+                          ? model.lineHtml : model.lineText
+                    color: model.lineKind === "hunk"               ? theme.textMuted
+                         : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
+                         : model.lineKind === "added"              ? theme.stateAdded
+                         : model.lineKind === "removed"            ? theme.stateDeleted
+                         : model.lineKind === "ours"               ? theme.stateAdded
+                         : model.lineKind === "theirs"             ? theme.stateIncoming
+                         : model.lineKind === "conflict-sep"       ? theme.textMuted
+                         : model.lineKind === "conflict-end"       ? theme.textMuted
                          : theme.textPrimary
                 }
             }
