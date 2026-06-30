@@ -580,6 +580,37 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    // Stash stack populates after stashChanges(); previewStash() loads the
+    // commit-diff machinery (commitFiles/commitDiff) and sets stashPreviewActive
+    // + stashPreviewLabel. exitStashPreview() tears it all down.
+    void stashesPopulateAndPreview()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.writeFile("a.txt", "orig\n");
+        tmp.commitAll("init");
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        QCOMPARE(vm.stashes()->rowCount(), 0);
+        QVERIFY(!vm.stashPreviewActive());
+
+        tmp.writeFile("a.txt", "dirty\n");
+        vm.stashChanges();
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+
+        vm.previewStash(0);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
+        QVERIFY(vm.stashPreviewLabel().startsWith(QStringLiteral("stash@{0}")));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.commitFiles()->rowCount() > 0, 5000);
+
+        vm.exitStashPreview();
+        QVERIFY(!vm.stashPreviewActive());
+        QCOMPARE(vm.commitFiles()->rowCount(), 0);
+    }
 };
 
 #include "test_repo_view_model.moc"

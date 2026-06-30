@@ -15,6 +15,7 @@
 #include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/repocontroller.hpp"
 #include "gittide/ui/historylistmodel.hpp"
+#include "gittide/ui/stashlistmodel.hpp"
 
 namespace gittide::ui {
 
@@ -28,6 +29,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_graph(new HistoryListModel(this))
     , m_commitFiles(new ChangedFilesModel(this))
     , m_commitDiff(new DiffLinesModel(this))
+    , m_stashes(new StashListModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
     connect(m_controller, &RepoController::stashCountChanged, this, &RepoViewModel::onStashCount);
@@ -91,6 +93,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             this, &RepoViewModel::rebaseTodoReady);
     connect(m_controller, &RepoController::gitDirRefreshed,
             this, &RepoViewModel::repoStructureChanged);
+    connect(m_controller, &RepoController::stashListReady,
+            this, &RepoViewModel::onStashList);
 }
 
 bool RepoViewModel::repoOpen() const
@@ -192,6 +196,9 @@ void RepoViewModel::close()
     m_merge          = {};
     m_mergeStartName.clear();
     m_rebase         = {};
+    m_stashes->setEntries({});
+    m_stashPreviewActive = false;
+    m_stashPreviewLabel.clear();
     emit changed();
     emit branchChanged();
     emit activeFileChanged();
@@ -201,6 +208,7 @@ void RepoViewModel::close()
     emit syncStatusChanged();
     emit mergeStateChanged();
     emit rebaseStateChanged();
+    emit stashPreviewChanged();
 }
 
 void RepoViewModel::selectFile(const QString& path)
@@ -1054,6 +1062,61 @@ void RepoViewModel::stashChanges()
 void RepoViewModel::popStash()
 {
     QCoro::connect(m_controller->popStash(), this, [] {});
+}
+
+void RepoViewModel::onStashList(const std::vector<gittide::StashEntry>& entries)
+{
+    m_stashes->setEntries(entries);
+    // If the previewed stash vanished (dropped/popped), leave preview mode.
+    if (m_stashPreviewActive && m_stashes->rowCount() == 0)
+        exitStashPreview();
+}
+
+void RepoViewModel::previewStash(int row)
+{
+    const QString oid = m_stashes->oidAt(row);
+    if (oid.isEmpty())
+        return;
+    m_stashPreviewActive = true;
+    m_stashPreviewLabel  = m_stashes->data(m_stashes->index(row, 0),
+                                            StashListModel::LabelRole).toString();
+    emit stashPreviewChanged();
+    selectCommit(oid); // reuses commitFiles/commitDiff (stash commit vs base parent)
+}
+
+void RepoViewModel::exitStashPreview()
+{
+    if (!m_stashPreviewActive)
+        return;
+    m_stashPreviewActive = false;
+    m_stashPreviewLabel.clear();
+    m_selectedCommit.clear();
+    m_activeCommitFile.clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    emit stashPreviewChanged();
+}
+
+void RepoViewModel::applyStash(int row)
+{
+    QCoro::connect(m_controller->applyStashAt(row), this, [] {});
+}
+
+void RepoViewModel::popStashAt(int row)
+{
+    QCoro::connect(m_controller->popStashAt(row), this, [] {});
+}
+
+void RepoViewModel::dropStash(int row)
+{
+    QCoro::connect(m_controller->dropStash(row), this, [] {});
+}
+
+void RepoViewModel::clearStashes()
+{
+    QCoro::connect(m_controller->clearStashes(), this, [] {});
 }
 
 void RepoViewModel::openInEditor(const QString& path)
