@@ -2,27 +2,31 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// Branch picker for the app-menu "Rebase current branch…" route. Lists local
-// branches except the current one (model.remote=false, model.isHead=false);
-// calls accept() (Dialog built-in accepted()) on Rebase. Read selectedRef
-// in the onAccepted handler.
+// Reusable local-branch picker. Lists local branches except the current one
+// (remote=false, isHead=false); calls accept() (Dialog.accepted) on confirm.
+// Read selectedRef in the onAccepted handler. promptText and actionLabel are
+// set by the caller (rebase vs merge).
 Dialog {
     id: dialog
-    objectName: "rebaseTargetDialog"
+    objectName: "branchPickerDialog"
     modal: true
-    title: "Rebase branch"
     anchors.centerIn: parent
     width: 380
     padding: 20
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    /// The RepoViewModel — provides branches model and currentBranch name.
+    /// The RepoViewModel — provides the branches model and currentBranch name.
     property var repo
 
-    /// Currently highlighted branch name; empty until user selects one.
+    /// Prompt shown above the list, e.g. "Rebase main onto:".
+    property string promptText: ""
+
+    /// Confirm-button label, e.g. "Rebase" / "Merge".
+    property string actionLabel: "OK"
+
+    /// Currently highlighted branch name; empty until the user selects one.
     property string selectedRef: ""
 
-    // Reset selection each time the dialog opens.
     onOpened: dialog.selectedRef = ""
 
     background: OverlayCard {}
@@ -31,16 +35,15 @@ Dialog {
         spacing: 12
 
         Label {
-            text: repo ? ("Rebase " + repo.currentBranch + " onto:") : "Rebase onto:"
+            text: dialog.promptText
             color: theme.textPrimary
             font.pixelSize: 14
             Layout.fillWidth: true
         }
 
-        // Branch list — local non-current branches.
         ListView {
             id: branchList
-            objectName: "rebaseTargetList"
+            objectName: "branchPickerList"
             Layout.fillWidth: true
             Layout.preferredHeight: 200
             clip: true
@@ -52,8 +55,6 @@ Dialog {
                 required property bool   isHead
                 required property bool   remote
                 width: branchList.width
-                // Filter: show only local (non-remote, non-current) branches.
-                // Height 0 prevents gaps for hidden rows.
                 visible: !branchDelegate.remote && !branchDelegate.isHead
                 height: visible ? implicitHeight : 0
                 highlighted: dialog.selectedRef === branchDelegate.branchName
@@ -84,9 +85,9 @@ Dialog {
             onClicked: dialog.close()
         }
         AppButton {
-            objectName: "rebaseTargetConfirm"
+            objectName: "branchPickerConfirm"
             variant: "primary"
-            text: "Rebase"
+            text: dialog.actionLabel
             enabled: dialog.selectedRef.length > 0
             onClicked: dialog.accept()
         }

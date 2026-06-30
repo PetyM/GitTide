@@ -208,9 +208,12 @@ ApplicationWindow {
         appSettings: appSettings
     }
     AboutDialog { id: aboutDialog }
-    RebaseTargetDialog {
+    BranchPickerDialog {
         id: rebaseTargetDialog
         repo: repoVm
+        title: "Rebase branch"
+        actionLabel: "Rebase"
+        promptText: repoVm ? ("Rebase " + repoVm.currentBranch + " onto:") : "Rebase onto:"
         onAccepted: if (repoVm) repoVm.startRebase(rebaseTargetDialog.selectedRef)
     }
 
