@@ -18,7 +18,8 @@ ColumnLayout {
             objectName: "diffHeaderCheck"
             tristate: true
             property bool allOn: false
-            visible: repoVm && repoVm.activeFile.length > 0
+            // Hidden when no file active and during stash preview (read-only).
+            visible: repoVm && repoVm.activeFile.length > 0 && !repoVm.stashPreviewActive
             checkState: allOn ? Qt.Checked : Qt.PartiallyChecked
             onClicked: {
                 allOn = !allOn
@@ -31,7 +32,21 @@ ColumnLayout {
             font.family: "monospace"
             font.pixelSize: 12
             color: theme.textSecondary
-            text: repoVm ? repoVm.activeFile : ""
+            // In stash preview show the stash label; otherwise the active file path.
+            text: repoVm
+                  ? (repoVm.stashPreviewActive
+                     ? ("Preview: " + repoVm.stashPreviewLabel)
+                     : repoVm.activeFile)
+                  : ""
+        }
+        // Exit-preview bar: visible only in stash-preview mode.
+        AppButton {
+            objectName: "stashPreviewBar"
+            variant: "secondary"
+            compact: true
+            text: qsTr("Exit Preview")
+            visible: repoVm && repoVm.stashPreviewActive
+            onClicked: if (repoVm) repoVm.exitStashPreview()
         }
     }
 
@@ -41,7 +56,8 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
-        model: repoVm ? repoVm.diffLines : null
+        // In stash preview show the commit (stash) diff; otherwise the working diff.
+        model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitDiff : repoVm.diffLines) : null
 
         ScrollBar.vertical: AppScrollBar {}
         WheelScroller {}
@@ -122,7 +138,8 @@ ColumnLayout {
                     Layout.fillHeight: true
                     AppCheckBox {
                         anchors.centerIn: parent
-                        visible: model.checkable
+                        // Hidden when line is not checkable OR when in stash preview (read-only).
+                        visible: model.checkable && (!repoVm || !repoVm.stashPreviewActive)
                         checked: model.lineChecked
                         accentColor: model.lineKind === "added" ? theme.stateAdded
                                      : model.lineKind === "removed" ? theme.stateDeleted

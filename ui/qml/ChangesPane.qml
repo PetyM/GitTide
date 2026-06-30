@@ -46,6 +46,8 @@ SplitView {
             AppCheckBox {
                 objectName: "fileHeaderCheck"
                 tristate: true
+                // Hidden in stash preview (read-only file list).
+                visible: !repoVm || !repoVm.stashPreviewActive
                 // 0 Unchecked, 1 PartiallyChecked, 2 Checked — mirror file states.
                 checkState: {
                     var n = repoVm ? repoVm.checkedCount : 0
@@ -83,7 +85,8 @@ SplitView {
                 objectName: "fileList"
                 anchors.fill: parent
                 clip: true
-                model: repoVm ? repoVm.changedFiles : null
+                // In stash preview show the stash's snapshot files; otherwise working changes.
+                model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitFiles : repoVm.changedFiles) : null
 
                 ScrollBar.vertical: AppScrollBar {}
                 WheelScroller {}
@@ -132,7 +135,12 @@ SplitView {
                         onClicked: {
                             fileList.forceActiveFocus()   // arrows work right after a click
                             fileList.currentIndex = index
-                            if (repoVm) repoVm.selectFile(model.filePath)
+                            if (repoVm) {
+                                if (repoVm.stashPreviewActive)
+                                    repoVm.selectCommitFile(model.filePath)
+                                else
+                                    repoVm.selectFile(model.filePath)
+                            }
                         }
                     }
 
@@ -155,6 +163,8 @@ SplitView {
                         spacing: 8
 
                         AppCheckBox {
+                            // Hidden in stash preview (read-only).
+                            visible: !repoVm || !repoVm.stashPreviewActive
                             // A checked submodule whose working tree is dirty renders
                             // as partial (a dash): committing moves its pointer to the
                             // submodule's last commit, leaving the uncommitted changes
@@ -220,11 +230,17 @@ SplitView {
             }
         }
 
-        // ---- Commit box ----
+        // ---- Stash stack panel (collapsible; hidden when empty) ----
+        StashPanel {
+            Layout.fillWidth: true
+        }
+
+        // ---- Commit box (hidden during stash preview) ----
         ColumnLayout {
             Layout.fillWidth: true
             Layout.margins: 12
             spacing: 8
+            visible: !repoVm || !repoVm.stashPreviewActive
 
             TextField {
                 id: commitSummary

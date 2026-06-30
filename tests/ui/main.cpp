@@ -60,6 +60,7 @@
 #include "test_qml_appcontrols.cpp"
 #include "test_qml_menu_bar.cpp"
 #include "test_stash_list_model.cpp"
+#include "test_qml_stash.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -133,6 +134,7 @@ int main(int argc, char** argv)
     RUN(TestQmlAppControls);
     RUN(TestQmlMenuBar);
     RUN(TestStashListModel);
+    RUN(TestQmlStash);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down
