@@ -81,6 +81,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_reword.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_undo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_discard_all.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_stash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_squash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repocontroller_rebase.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repoviewmodel_rebase.cpp

@@ -120,6 +120,9 @@ public:
     /// Errors (and preserves the stash) if the pop conflicts.
     QCoro::Task<gittide::Expected<void>> stashPop();
 
+    /// Number of entries on the stash stack.
+    QCoro::Task<gittide::Expected<int>> stashCount();
+
     /// De-initialise a submodule: remove its working-tree source files while
     /// preserving the .git gitlink file. path is repo-relative.
     QCoro::Task<gittide::Expected<void>> deinitSubmodule(std::filesystem::path path);

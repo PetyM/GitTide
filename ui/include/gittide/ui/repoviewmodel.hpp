@@ -38,6 +38,10 @@ class RepoViewModel : public QObject
     /// enable/disable of the "discard all" action. Re-evaluated on every status
     /// refresh via the dedicated dirtyChanged() notify, which onStatus() emits.
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
+    /// True when the stash stack is non-empty. Drives enable/visibility of the
+    /// "pop stash" action. Re-evaluated whenever the controller reports a new
+    /// stash count (on open, git-dir changes, and after stash save/pop).
+    Q_PROPERTY(bool stashAvailable READ stashAvailable NOTIFY stashCountChanged)
     /// Path of the open repository (empty when none). The sidebar marks the row
     /// whose repoPath matches this as the active repo.
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY changed)
@@ -106,6 +110,7 @@ public:
 
     bool repoOpen() const;
     bool dirty() const;
+    bool stashAvailable() const { return m_stashCount > 0; }
     QString repoPath() const;
     QString currentBranch() const;
     QString activeFile() const;
@@ -248,6 +253,10 @@ public:
 
     Q_INVOKABLE void discardFile(const QString& path);
     Q_INVOKABLE void discardAll();
+    /// Stash all working-tree changes (no message prompt).
+    Q_INVOKABLE void stashChanges();
+    /// Pop the most-recent stash back onto the working tree.
+    Q_INVOKABLE void popStash();
     Q_INVOKABLE void openInEditor(const QString& path);
     Q_INVOKABLE void revealInFileManager(const QString& path);
     Q_INVOKABLE void copyToClipboard(const QString& text);
@@ -257,6 +266,8 @@ signals:
     /// Emitted whenever the working-tree status is rebuilt (every onStatus()
     /// refresh), so the dirty property re-evaluates on dirty↔clean transitions.
     void dirtyChanged();
+    /// Emitted when the stash count changes; NOTIFY for the stashAvailable property.
+    void stashCountChanged();
     void branchChanged();
     void activeFileChanged();
     void checkedChanged();
@@ -299,6 +310,7 @@ private:
     };
 
     void onStatus(const std::vector<gittide::FileStatus>& files);
+    void onStashCount(int count);
     void onDiff(const QString& path, const gittide::DiffResult& result);
     void onHead(const gittide::HeadState& head);
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
@@ -334,6 +346,7 @@ private:
     DiffLinesModel*    m_commitDiff  = nullptr;
 
     bool                       m_open = false;
+    int                        m_stashCount = 0;
     gittide::MergeState        m_merge;
     QString                    m_mergeStartName;
     gittide::RebaseState       m_rebase;

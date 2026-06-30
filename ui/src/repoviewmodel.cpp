@@ -30,6 +30,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_commitDiff(new DiffLinesModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
+    connect(m_controller, &RepoController::stashCountChanged, this, &RepoViewModel::onStashCount);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
     connect(m_controller, &RepoController::branchesChanged, this, &RepoViewModel::onBranches);
@@ -1035,6 +1036,24 @@ void RepoViewModel::discardFile(const QString& path)
 void RepoViewModel::discardAll()
 {
     QCoro::connect(m_controller->discardAll(), this, [] {});
+}
+
+void RepoViewModel::onStashCount(int count)
+{
+    if (m_stashCount == count)
+        return;
+    m_stashCount = count;
+    emit stashCountChanged();
+}
+
+void RepoViewModel::stashChanges()
+{
+    QCoro::connect(m_controller->stashChanges(), this, [] {});
+}
+
+void RepoViewModel::popStash()
+{
+    QCoro::connect(m_controller->popStash(), this, [] {});
 }
 
 void RepoViewModel::openInEditor(const QString& path)

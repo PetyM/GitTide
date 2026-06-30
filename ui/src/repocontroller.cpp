@@ -207,6 +207,53 @@ QCoro::Task<void> RepoController::discardAll()
     co_await refreshStatus();
 }
 
+QCoro::Task<void> RepoController::stashChanges()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    auto result = co_await m_repo->stashSave(QString());
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshStashState();
+}
+
+QCoro::Task<void> RepoController::popStash()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    auto result = co_await m_repo->stashPop();
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshStashState();
+}
+
+QCoro::Task<void> RepoController::refreshStashState()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto count = co_await m_repo->stashCount();
+    if (!self || !count)
+        co_return;
+    emit stashCountChanged(*count);
+}
+
 QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
 {
     if (!m_repo)
@@ -611,6 +658,9 @@ QCoro::Task<void> RepoController::refreshAll()
     if (!self)
         co_return;
     co_await refreshSyncStatus();
+    if (!self)
+        co_return;
+    co_await refreshStashState();
 }
 
 QCoro::Task<void> RepoController::rearmWatch()

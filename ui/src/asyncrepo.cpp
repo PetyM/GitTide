@@ -539,6 +539,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::stashPop()
         });
 }
 
+QCoro::Task<gittide::Expected<int>> AsyncRepo::stashCount()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashCount();
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::deinitSubmodule(std::filesystem::path path)
 {
     auto impl = m_impl;

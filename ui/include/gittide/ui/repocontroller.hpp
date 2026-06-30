@@ -56,6 +56,10 @@ public slots:
     QCoro::Task<void> unstage(gittide::StageSelection sel);
     QCoro::Task<void> discard(gittide::StageSelection sel);
     QCoro::Task<void> discardAll();
+    /// Stash the working tree (no message); refreshes status + stash count.
+    QCoro::Task<void> stashChanges();
+    /// Pop the most-recent stash; refreshes status + stash count.
+    QCoro::Task<void> popStash();
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
     QCoro::Task<void> refreshGraph(unsigned limit = 1000);
@@ -171,6 +175,10 @@ signals:
     void syncStatusChanged(gittide::SyncStatus status);
     void pullStrategyChanged(gittide::PullStrategy strategy);
 
+    /// Emitted whenever the stash count is refreshed (on open, after a git-dir
+    /// change, and after stashChanges/popStash). Feeds the VM's stashAvailable.
+    void stashCountChanged(int count);
+
     /// Emitted whenever the merge-in-progress state is refreshed (D30).
     /// Always reflects disk truth — never a cached/in-memory flag.
     void mergeStateChanged(gittide::MergeState state);
@@ -207,6 +215,9 @@ private:
 
     // Pop the pending auto-stash if one was saved.
     QCoro::Task<void> popPendingStash();
+
+    // Re-read the stash count from disk and emit stashCountChanged.
+    QCoro::Task<void> refreshStashState();
 
     // Refresh status (including mergeState → mergeStateChanged) + history +
     // branches + sync. Used as the tail of every merge operation.

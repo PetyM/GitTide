@@ -46,6 +46,7 @@
 #include "test_repocontroller_reword.cpp"
 #include "test_repocontroller_undo.cpp"
 #include "test_repocontroller_discard_all.cpp"
+#include "test_repocontroller_stash.cpp"
 #include "test_repocontroller_squash.cpp"
 #include "test_repocontroller_rebase.cpp"
 #include "test_repoviewmodel_rebase.cpp"
@@ -116,6 +117,7 @@ int main(int argc, char** argv)
     RUN(TestRepoControllerReword);
     RUN(TestRepoControllerUndo);
     RUN(TestRepoControllerDiscardAll);
+    RUN(TestRepoControllerStash);
     RUN(TestRepoControllerSquash);
     RUN(TestRepoControllerRebase);
     RUN(TestRepoViewModelRebase);
