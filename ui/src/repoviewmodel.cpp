@@ -159,6 +159,18 @@ void RepoViewModel::open(const QString& path)
     updateReorderableRun();
     m_headArrived    = false;
     m_historyArrived = false;
+    // Reset stash and preview state so no data from a previous repo leaks across
+    // an in-place open() — the Sidebar switches repos without calling close() first.
+    m_stashes->setEntries({});
+    m_stashPreviewActive = false;
+    m_stashPreviewLabel.clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    m_selectedCommit.clear();
+    m_activeCommitFile.clear();
+    emit stashPreviewChanged();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
     m_controller->open(path);
     m_open = true;
     emit changed();
@@ -166,6 +178,7 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshBranches(), this, [] {});
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
     QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
+    QCoro::connect(m_controller->refreshStashState(), this, [] {});
 }
 
 void RepoViewModel::close()

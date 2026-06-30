@@ -72,6 +72,9 @@ public slots:
     QCoro::Task<void> dropStash(int index);
     /// Clear the whole stack; refreshes the stash list.
     QCoro::Task<void> clearStashes();
+    /// Re-read the stash count and list from disk; emits stashCountChanged and
+    /// stashListReady. Called on open() and after every stash operation.
+    QCoro::Task<void> refreshStashState();
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
     QCoro::Task<void> refreshGraph(unsigned limit = 1000);
@@ -231,9 +234,6 @@ private:
 
     // Pop the pending auto-stash if one was saved.
     QCoro::Task<void> popPendingStash();
-
-    // Re-read the stash count from disk and emit stashCountChanged.
-    QCoro::Task<void> refreshStashState();
 
     // Refresh status (including mergeState → mergeStateChanged) + history +
     // branches + sync. Used as the tail of every merge operation.

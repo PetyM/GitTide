@@ -581,6 +581,77 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    // Finding 2: A repo opened that already has stashes (made in a prior session
+    // or via CLI) must show a populated Stashes panel immediately — open() must
+    // trigger a stash-state refresh so stashAvailable and stashes->rowCount are
+    // correct without any subsequent user action.
+    void open_with_pre_existing_stash_populates_stash_list()
+    {
+        // Use a first VM to create a stash in the repo (simulates a prior session).
+        gittide::test::TempRepo tmp;
+        tmp.writeFile("a.txt", "orig\n");
+        tmp.commitAll("init");
+        tmp.writeFile("a.txt", "dirty\n");
+
+        {
+            RepoViewModel vmA;
+            QSignalSpy filesSpy(vmA.changedFiles(), &QAbstractItemModel::modelReset);
+            vmA.open(QString::fromStdString(tmp.path().generic_string()));
+            QVERIFY(filesSpy.wait(3000));
+            vmA.stashChanges();
+            QTRY_COMPARE_WITH_TIMEOUT(vmA.stashes()->rowCount(), 1, 5000);
+        }
+
+        // A fresh VM opened on the same repo must see the stash without any manual op.
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashAvailable(), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+    }
+
+    // Finding 1: After previewing a stash in repo A, switching to repo B via
+    // open() (without a preceding close(), which is the Sidebar pattern) must
+    // clear the stash preview immediately and keep the stash list empty after
+    // repo B finishes loading.
+    void switch_repo_clears_stash_preview()
+    {
+        // Repo A: has a stash.
+        gittide::test::TempRepo repoA;
+        repoA.writeFile("a.txt", "orig\n");
+        repoA.commitAll("init");
+        repoA.writeFile("a.txt", "dirty\n");
+
+        // Repo B: clean (no changes, no stashes).
+        gittide::test::TempRepo repoB;
+        repoB.writeFile("b.txt", "clean\n");
+        repoB.commitAll("init");
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(repoA.path().generic_string()));
+        QVERIFY(filesSpy.wait(3000));
+
+        // Stash the dirty file in repo A.
+        vm.stashChanges();
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+
+        // Enter preview mode for stash 0.
+        vm.previewStash(0);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
+
+        // Switch to repo B without close() — mirrors the Sidebar repo-switching path.
+        vm.open(QString::fromStdString(repoB.path().generic_string()));
+
+        // Preview state and stash list must be cleared synchronously by open().
+        QVERIFY(!vm.stashPreviewActive());
+        QCOMPARE(vm.stashes()->rowCount(), 0);
+
+        // After repo B fully loads its stash refresh, the list stays empty (B has none).
+        QTRY_VERIFY_WITH_TIMEOUT(vm.repoOpen(), 3000);
+        QCOMPARE(vm.stashes()->rowCount(), 0);
+        QVERIFY(!vm.stashPreviewActive());
+    }
+
     // Stash stack populates after stashChanges(); previewStash() loads the
     // commit-diff machinery (commitFiles/commitDiff) and sets stashPreviewActive
     // + stashPreviewLabel. exitStashPreview() tears it all down.
