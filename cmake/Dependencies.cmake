@@ -60,6 +60,10 @@ if(GITGUI_BUILD_UI)
   find_package(Qt6 REQUIRED COMPONENTS Gui Test Concurrent Svg Qml Quick QuickControls2 QuickTest)
 
   # Trim QCoro to the modules we use; the rest pull in Qt components we don't link.
+  # IMPORTANT: QCoro must be made available BEFORE ECM (Extra CMake Modules) is added
+  # to CMAKE_MODULE_PATH. ECM 6.5.0 removed the INTERFACE keyword from
+  # ecm_generate_pri_file; QCoro 0.11.0 uses that keyword and would fail if it found
+  # ECM 6.5.0 on the module path instead of its own bundled ECM cmake files.
   set(QCORO_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
   set(QCORO_BUILD_TESTING OFF CACHE BOOL "" FORCE)
   set(QCORO_WITH_QML OFF CACHE BOOL "" FORCE)
@@ -74,4 +78,34 @@ if(GITGUI_BUILD_UI)
     GIT_SHALLOW    TRUE
   )
   FetchContent_MakeAvailable(qcoro)
+
+  # --- Syntax highlighting (KDE Frameworks) ---
+  # ECM (KDE's Extra CMake Modules) must be on CMAKE_MODULE_PATH for
+  # KSyntaxHighlighting's own CMakeLists.txt to find its helpers.
+  # We add ECM AFTER QCoro is already configured (see comment above).
+  FetchContent_Declare(
+    ecm
+    GIT_REPOSITORY https://invent.kde.org/frameworks/extra-cmake-modules.git
+    GIT_TAG        v6.5.0
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(ecm)
+  list(APPEND CMAKE_MODULE_PATH "${ecm_SOURCE_DIR}/modules" "${ecm_SOURCE_DIR}/kde-modules")
+
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)            # KSyntax's own tests
+  FetchContent_Declare(
+    KF6SyntaxHighlighting
+    GIT_REPOSITORY https://invent.kde.org/frameworks/syntax-highlighting.git
+    GIT_TAG        v6.5.0
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(KF6SyntaxHighlighting)
+  # FetchContent creates the raw CMake target 'KF6SyntaxHighlighting'.
+  # When the library is installed and found via find_package the target is
+  # 'KF6::SyntaxHighlighting' (the EXPORT_NAME alias in the package config).
+  # Create the alias unconditionally so downstream code can always spell
+  # KF6::SyntaxHighlighting regardless of how the dep was acquired.
+  if(TARGET KF6SyntaxHighlighting AND NOT TARGET KF6::SyntaxHighlighting)
+    add_library(KF6::SyntaxHighlighting ALIAS KF6SyntaxHighlighting)
+  endif()
 endif()
