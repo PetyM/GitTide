@@ -2,10 +2,10 @@
 
 | | |
 |--|--|
-| **Designed** | 2026-06-23 |
+| **Designed** | 2026-06-23 · menu bar 2026-06-30 |
 | **Status** | `spec` |
 | **Wishlist** | [docs/wishlist/app-menu.md](../../wishlist/app-menu.md) |
-| **Touches** | window chrome, settings persistence, theme, pull default |
+| **Touches** | window chrome, settings persistence, theme, pull default, repo actions (menu bar) |
 
 ## Overview
 
@@ -14,6 +14,10 @@ replacing the native OS decorations. Behind it sits an **Options** dialog that
 consolidates theme and pull-default settings in one place. App settings persist
 via `QSettings` (platform-native storage). The window launches maximised with a
 minimum size.
+
+A classic horizontal **text menu bar** (File · Edit · View · Repository) sits to
+the right of the app icon and hosts the per-repo actions — open folder, undo,
+discard all, theme, merge, rebase, stash/pop. See [§7](#7-menu-bar-file--edit--view--repository).
 
 ---
 
@@ -120,7 +124,9 @@ TapHandler {
 ```
 
 **App icon button:** 32×32 px, left side (Win/Linux) or after traffic lights
-(macOS). Click opens `appMenuPopup`.
+(macOS). Click opens `appMenuPopup`. The text [menu bar](#7-menu-bar-file--edit--view--repository)
+(§7) sits immediately to the right of the icon; the drag area takes the remaining
+space.
 
 **Window controls — macOS** (left side, before icon):
 Colored circles: close `#FF5F56`, minimise `#FFBD2E`, maximise `#27C93F`.
@@ -167,17 +173,20 @@ ApplicationWindow (frameless)
 ## 3. App menu popup
 
 Opens on app-icon click. Implemented as `AppMenu` (existing component) anchored
-below the icon button:
+below the icon button. It holds **app-level** items only — repo operations live in
+the text [menu bar](#7-menu-bar-file--edit--view--repository) (§7):
 
 ```
 Options…
 About GitTide
-Rebase current branch…
 ─────────────
 Quit
 ```
 
-`Quit` calls `Qt.quit()`. `Rebase current branch…` opens `RebaseTargetDialog` (a local branch picker; emits `accepted(ref)` → `repoVm.startRebase(ref)`).
+`Options…` → `optionsRequested()`, `About GitTide` → `aboutRequested()`,
+`Quit` calls `Qt.quit()`. The repo actions formerly here (`Rebase current
+branch…`, `Undo last commit`) move into the menu bar's **Repository** / **Edit**
+menus (§7).
 
 ---
 
@@ -255,3 +264,146 @@ Version string exposed as a `QString` context property `"appVersion"` in
 | `ui/include/gittide/ui/repoviewmodel.hpp` | Add `applyPullDefault(bool)` |
 | `ui/src/repoviewmodel.cpp` | Add `applyPullDefault`; remove `loadPullStrategy` call; remove `setPullRebase` git-config write |
 | `ui/qml/CMakeLists.txt` | Register new QML files |
+
+---
+
+## 7. Menu bar (File · Edit · View · Repository)
+
+| | |
+|--|--|
+| **Designed** | 2026-06-30 |
+| **Status** | `spec` |
+
+The title bar gains a classic horizontal **text menu bar** to the right of the app
+icon. The app-icon popup (§3) keeps only app-level items (Options / About / Quit);
+every repository operation lives under one of four text menus. This replaces
+cramming repo actions under the icon and gives the actions room to grow.
+
+### 7.1 Layout in the title bar
+
+```
+macOS:    [● ● ●] [icon] File Edit View Repository  [──── drag ────]
+Win/Lin:  [icon]  File Edit View Repository  [──── drag ────]  [─][□][✕]
+```
+
+The bar is a `RowLayout` of `MenuBarButton`s placed in `TitleBar.qml` right after
+the app-icon button, before the drag `Item`. Each button is a flat themed text
+button (`theme.textPrimary`, hover `theme.surfaceHover`) that opens its own
+`AppMenu` popup anchored below it. Hovering an adjacent button while a menu is open
+switches to that menu (standard menu-bar behaviour), implemented with a shared
+`openMenu` index the buttons read/write.
+
+### 7.2 Menu contents
+
+All repository items are **per-repo** and act on the current repo via `repoVm`
+(the active `RepoViewModel`, already used by the existing icon-menu items). Each
+item is an `AppMenuItem`; `destructive: true` marks danger (red) actions.
+
+```
+File                       Edit                      View
+  Open repository folder     Undo last commit          Theme ▸
+                             Discard all changes  (red)     System
+                                                            Dark
+Repository                                                  Light
+  Merge into current branch…
+  Rebase current branch…
+  ─────────────
+  Stash all changes
+  Pop latest stash
+```
+
+Wiring (each item emits a `TitleBar` signal; `Main.qml` binds it, mirroring the
+existing `optionsRequested`/`rebaseRequested` pattern):
+
+| Item | Signal → Main.qml handler | Reaches |
+|------|---------------------------|---------|
+| **File** › Open repository folder | `openRepoFolderRequested()` → `repoVm.openRepoFolder()` | new VM `openRepoFolder()` |
+| **Edit** › Undo last commit | `undoLastCommitRequested()` → `repoVm.undoLastCommit()` | existing |
+| **Edit** › Discard all changes | `discardAllRequested()` → `discardAllDialog.open()` | confirm → `repoVm.discardAll()` |
+| **View** › Theme › System/Dark/Light | sets `appSettings.themeMode` + `theme.setMode(v)` | mirrors OptionsDialog (§4) |
+| **Repository** › Merge into current branch… | `mergeRequested()` → `mergeTargetDialog.open()` | picker → `repoVm.startMerge(ref)` |
+| **Repository** › Rebase current branch… | `rebaseRequested()` → `rebaseTargetDialog.open()` | existing → `repoVm.startRebase(ref)` |
+| **Repository** › Stash all changes | `stashRequested()` → `repoVm.stashChanges()` | new VM `stashChanges()` |
+| **Repository** › Pop latest stash | `popStashRequested()` → `repoVm.popStash()` | new VM `popStash()` |
+
+### 7.3 Enable / disable rules
+
+Every repo item requires an open repo. Binding source in parentheses:
+
+| Item | Enabled when |
+|------|--------------|
+| Open repository folder | a repo is open (`repoVm && repoVm.repoPath !== ""`) |
+| Undo last commit | repo open **and** not `rebaseInProgress \|\| mergeInProgress` (existing rule) |
+| Discard all changes | repo open **and** working tree dirty (`repoVm.dirty`) |
+| Merge…/Rebase… | repo open **and** not `rebaseInProgress \|\| mergeInProgress` |
+| Stash all changes | repo open **and** working tree dirty (`repoVm.dirty`) |
+| Pop latest stash | repo open **and** `repoVm.stashAvailable` (new property) |
+| Theme items | always |
+
+The VM has no dirty flag today (`checkedCount` counts *checked* rows, not changed
+ones). Add a `RepoViewModel::dirty` (`Q_PROPERTY bool`, true when the
+`changedFiles` model is non-empty, NOTIFY `changedChanged`/`changed`).
+
+### 7.4 New engine work
+
+Most actions reuse existing wiring (rebase, merge, discard, undo all have full
+core→VM stacks). Net-new pieces:
+
+- **`GitRepo::discardAll()`** (`core`) — atomic full reset: `git_checkout_head`
+  with `GIT_CHECKOUT_FORCE` and no path filter (resets all tracked), then iterate
+  the status list and delete each `GIT_STATUS_WT_NEW` (untracked) entry. Returns
+  `Expected<void>`. Surfaced via `AsyncRepo::discardAll` →
+  `RepoController::discardAll` → `RepoViewModel::discardAll()` (`Q_INVOKABLE`),
+  with the standard post-write refresh cascade (status + diff). TDD: a `TempRepo`
+  test asserting both a modified tracked file and a new untracked file are gone.
+- **Stash exposure on the VM.** `stashSave`/`stashPop` already exist on
+  `GitRepo`/`AsyncRepo`; add `RepoController::stashChanges()`/`popStash()` and
+  `RepoViewModel::stashChanges()`/`popStash()` (`Q_INVOKABLE`) that drive them
+  with the refresh cascade. `stashChanges()` maps to `stashSave("")` (no message
+  prompt in the first cut).
+- **`GitRepo::stashCount()`** (`core`) — counts entries via `git_stash_foreach`,
+  returns `Expected<int>`. Drives a new `RepoViewModel::stashAvailable`
+  (`Q_PROPERTY bool`, `count > 0`), refreshed in the same cascade as status so
+  **Pop latest stash** enables/disables correctly. (Full stash stack/list UI stays
+  out of scope — that is the separate [stash-management](../../wishlist/stash-management.md)
+  wish; this is only save + pop-top.)
+- **`RepoViewModel::openRepoFolder()`** (`Q_INVOKABLE`) —
+  `QDesktopServices::openUrl(QUrl::fromLocalFile(repoPath()))`. Note this opens the
+  **repo root itself** (unlike `revealInFileManager`, which opens a file's *parent*).
+  Per the open-targets rule: **folders/repos open in the OS-native handler**;
+  individual files (diff/history) keep opening in the OS-default editor via the
+  existing `openInEditor` (unchanged).
+
+### 7.5 Branch-picker reuse (merge)
+
+`RebaseTargetDialog.qml` is already a clean local-branch picker emitting
+`accepted(ref)`. Generalise it into a reusable **`BranchPickerDialog.qml`**
+(parameterised `title`, `actionLabel`, and the prompt text; same
+`repo.branches` model, same `selectedRef`). Both the rebase route and the new
+merge route instantiate it. Per the repo code rule, **split the rename/extract
+from any behavioural change into a separate commit** to preserve history.
+
+### 7.6 Files created / modified (this change)
+
+#### New files
+
+| File | Purpose |
+|------|---------|
+| `ui/qml/AppMenuBar.qml` | Horizontal text menu bar (File/Edit/View/Repository) |
+| `ui/qml/MenuBarButton.qml` | Flat themed text button that opens its `AppMenu` |
+| `ui/qml/BranchPickerDialog.qml` | Reusable branch picker (generalised from `RebaseTargetDialog`) |
+
+#### Modified files
+
+| File | Change |
+|------|--------|
+| `ui/qml/TitleBar.qml` | Trim icon popup to app-level items; add `AppMenuBar`; declare new signals |
+| `ui/qml/Main.qml` | Instantiate `AppMenuBar`; add `mergeTargetDialog` + `discardAllDialog`; bind new signals |
+| `ui/qml/RebaseTargetDialog.qml` | Becomes `BranchPickerDialog` (rename) + merge instance |
+| `ui/qml/DiscardChangesDialog.qml` | Reused for the repo-wide discard-all confirm (or a thin variant) |
+| `core/include/gittide/gitrepo.hpp` · `core/src/gitrepo.cpp` | Add `discardAll()`, `stashCount()` |
+| `ui/include/gittide/ui/asyncrepo.hpp` · `*.cpp` | Add `discardAll`, `stashCount` |
+| `ui/include/gittide/ui/repocontroller.hpp` · `*.cpp` | Add `discardAll`, `stashChanges`, `popStash`, stash-count refresh |
+| `ui/include/gittide/ui/repoviewmodel.hpp` · `*.cpp` | Add `discardAll()`, `stashChanges()`, `popStash()`, `openRepoFolder()`, `stashAvailable` + `dirty` properties |
+| `ui/qml/CMakeLists.txt` | Register new QML files |
+| `tests/CMakeLists.txt` | Register new core tests (`discardAll`, `stashCount`) |
