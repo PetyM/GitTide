@@ -120,3 +120,17 @@ TEST_CASE("discardAll drops a staged new file", "[discard]")
     REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "staged.txt"));
     REQUIRE(repo->status().value().empty());
 }
+
+TEST_CASE("discardAll removes untracked directories", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("keep.txt", "x\n");
+    tmp.commitAll("init");
+    tmp.writeFile("newdir/inner.txt", "fresh\n"); // untracked file in a new dir
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    REQUIRE(repo->discardAll().has_value());
+
+    REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "newdir")); // dir gone, not just the file
+}

@@ -584,7 +584,7 @@ Expected<void> GitRepo::discardAll()
     //    untracked files in place, so enumerate and remove them explicitly.
     git_status_options opts = GIT_STATUS_OPTIONS_INIT;
     opts.show               = GIT_STATUS_SHOW_WORKDIR_ONLY;
-    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
+    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED;
 
     git_status_list* raw = nullptr;
     int rc               = git_status_list_new(&raw, m_repo, &opts);
@@ -603,7 +603,7 @@ Expected<void> GitRepo::discardAll()
         if (!nf || !nf->path)
             continue;
         std::error_code ec;
-        std::filesystem::remove(wd / fromGitPath(nf->path), ec); // best-effort
+        std::filesystem::remove_all(wd / fromGitPath(nf->path), ec); // best-effort; handles dirs too
     }
     return {};
 }
