@@ -255,6 +255,7 @@ private slots:
         QCOMPARE(stub.m_discardAllCalls, 0); // not until the dialog is confirmed
         QObject* discardDlg = root->findChild<QObject*>(QStringLiteral("discardAllDialog"));
         QVERIFY2(discardDlg != nullptr, "discardAllDialog not found");
+        QTRY_VERIFY(discardDlg->property("opened").toBool());
         QVERIFY(QMetaObject::invokeMethod(discardDlg, "accept"));
         QTest::qWait(50);
         QCOMPARE(stub.m_discardAllCalls, 1);
@@ -266,6 +267,11 @@ private slots:
         QTest::qWait(50);
         QObject* mergeDlg = root->findChild<QObject*>(QStringLiteral("mergeTargetDialog"));
         QVERIFY2(mergeDlg != nullptr, "mergeTargetDialog not found");
+        QTRY_VERIFY(mergeDlg->property("opened").toBool());
+        mergeDlg->setProperty("selectedRef", QStringLiteral("some-branch"));
+        QVERIFY(QMetaObject::invokeMethod(mergeDlg, "accept"));
+        QTest::qWait(50);
+        QCOMPARE(stub.m_startMergeCalls, 1);
     }
 };
 
