@@ -36,8 +36,8 @@ class RepoViewModel : public QObject
     Q_PROPERTY(bool repoOpen READ repoOpen NOTIFY changed)
     /// True when the working tree has any changes (staged or unstaged). Drives
     /// enable/disable of the "discard all" action. Re-evaluated on every status
-    /// refresh via the shared changed() notify.
-    Q_PROPERTY(bool dirty READ dirty NOTIFY changed)
+    /// refresh via the dedicated dirtyChanged() notify, which onStatus() emits.
+    Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
     /// Path of the open repository (empty when none). The sidebar marks the row
     /// whose repoPath matches this as the active repo.
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY changed)
@@ -254,6 +254,9 @@ public:
 
 signals:
     void changed();
+    /// Emitted whenever the working-tree status is rebuilt (every onStatus()
+    /// refresh), so the dirty property re-evaluates on dirty↔clean transitions.
+    void dirtyChanged();
     void branchChanged();
     void activeFileChanged();
     void checkedChanged();

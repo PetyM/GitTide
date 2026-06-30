@@ -598,6 +598,10 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     }
 
     emit checkedChanged();
+    // The dirty property is derived from m_files, which we just rebuilt; notify so
+    // QML bindings re-evaluate on dirty↔clean transitions. Unconditional on each
+    // refresh is fine — the binding re-reads a cheap rowCount.
+    emit dirtyChanged();
 }
 
 void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& result)
