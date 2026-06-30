@@ -1943,6 +1943,25 @@ Expected<int> GitRepo::stashCount() const
     return count;
 }
 
+Expected<std::vector<StashEntry>> GitRepo::stashList() const
+{
+    std::vector<StashEntry> entries;
+    int rc = git_stash_foreach(
+        m_repo,
+        [](size_t index, const char* message, const git_oid* oid, void* payload) -> int
+        {
+            char hex[GIT_OID_HEXSZ + 1] = {0};
+            git_oid_tostr(hex, sizeof(hex), oid);
+            static_cast<std::vector<StashEntry>*>(payload)->push_back(
+                StashEntry{index, message ? message : "", hex});
+            return 0;
+        },
+        &entries);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return entries;
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;

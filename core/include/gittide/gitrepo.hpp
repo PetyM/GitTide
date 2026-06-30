@@ -28,6 +28,16 @@ namespace gittide {
 // Return true to continue, false to cancel (clone returns an error).
 using ProgressCallback = std::function<bool(unsigned received, unsigned total)>;
 
+/// One entry on the stash stack. `index` is the stash@{index} slot (0 = newest),
+/// `message` is git's stash message, `oid` is the 40-char hex of the stash commit
+/// (a commit whose diff against its first parent is the stashed change set).
+struct StashEntry
+{
+    std::size_t index;
+    std::string message;
+    std::string oid;
+};
+
 // RAII wrapper around a single libgit2 git_repository.
 // Move-only. Not safe to share across threads; one owner per repo.
 class GitRepo
@@ -215,6 +225,10 @@ public:
     /// Number of entries currently on the stash stack (stash@{0}, {1}, …).
     /// Zero when the stack is empty. Errors only on a libgit2 failure.
     Expected<int> stashCount() const;
+
+    /// Enumerate the stash stack, newest first (index 0..n-1). Empty when no stashes.
+    /// Errors only on a libgit2 failure.
+    Expected<std::vector<StashEntry>> stashList() const;
 
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
