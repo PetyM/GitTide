@@ -89,10 +89,10 @@ if(GITGUI_BUILD_UI)
     GIT_TAG        v6.5.0
     GIT_SHALLOW    TRUE
   )
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)   # suppress ECM's and KSyntax's own tests
   FetchContent_MakeAvailable(ecm)
   list(APPEND CMAKE_MODULE_PATH "${ecm_SOURCE_DIR}/modules" "${ecm_SOURCE_DIR}/kde-modules")
 
-  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)            # KSyntax's own tests
   FetchContent_Declare(
     KF6SyntaxHighlighting
     GIT_REPOSITORY https://invent.kde.org/frameworks/syntax-highlighting.git

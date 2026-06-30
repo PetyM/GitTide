@@ -48,6 +48,8 @@ protected:
     {
         if (length <= 0)
             return;
+        if (offset < m_cursor)
+            return;
         if (offset > m_cursor)
             m_html += m_text.mid(m_cursor, offset - m_cursor).toHtmlEscaped();
 

@@ -172,6 +172,7 @@ ColumnLayout {
                     font.family: "monospace"
                     font.pixelSize: 12
                     elide: Text.ElideRight
+                    clip: true
                     textFormat: model.lineHtml && model.lineHtml.length > 0
                                 ? Text.RichText : Text.PlainText
                     text: model.lineHtml && model.lineHtml.length > 0

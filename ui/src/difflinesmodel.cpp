@@ -230,10 +230,6 @@ void DiffLinesModel::rehighlightRows()
     if (m_filePath.isEmpty() || !m_highlighter.hasDefinition(m_filePath))
         return;
 
-    int maxHunk = -1;
-    for (const Row& r : m_rows)
-        maxHunk = std::max(maxHunk, r.hunkIndex);
-
     const QString kContext = QStringLiteral("context");
     const QString kAdded   = QStringLiteral("added");
     const QString kRemoved = QStringLiteral("removed");
@@ -254,28 +250,27 @@ void DiffLinesModel::rehighlightRows()
             m_rows[static_cast<std::size_t>(idxs[k])].html = html[k];
     };
 
-    // Per hunk: old side = context+removed, new side = context+added, in row
-    // order. State resets per hunk (gaps between hunks are unobservable).
-    for (int h = 0; h <= maxHunk; ++h)
+    // Single pass: bucket rows by hunkIndex into (oldRows, newRows) pairs.
+    // context rows land in both lists; removed→old; added→new; others skipped.
+    // State resets per hunk (gaps between hunks are unobservable).
+    std::map<int, std::pair<std::vector<int>, std::vector<int>>> byHunk;
+    for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
     {
-        std::vector<int> oldRows, newRows;
-        for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
+        const Row& r = m_rows[static_cast<std::size_t>(i)];
+        if (r.kind == kContext)
         {
-            const Row& r = m_rows[static_cast<std::size_t>(i)];
-            if (r.hunkIndex != h)
-                continue;
-            if (r.kind == kContext)
-            {
-                oldRows.push_back(i);
-                newRows.push_back(i);
-            }
-            else if (r.kind == kRemoved)
-                oldRows.push_back(i);
-            else if (r.kind == kAdded)
-                newRows.push_back(i);
+            byHunk[r.hunkIndex].first.push_back(i);
+            byHunk[r.hunkIndex].second.push_back(i);
         }
-        run(oldRows); // fills context + removed
-        run(newRows); // fills added (and re-fills context with identical HTML)
+        else if (r.kind == kRemoved)
+            byHunk[r.hunkIndex].first.push_back(i);
+        else if (r.kind == kAdded)
+            byHunk[r.hunkIndex].second.push_back(i);
+    }
+    for (auto& [h, lists] : byHunk)
+    {
+        run(lists.first);  // old side: context + removed
+        run(lists.second); // new side: context + added
     }
 }
 
