@@ -63,6 +63,8 @@ RepoController::RepoController(QObject* parent, int watchDebounceMs)
     qRegisterMetaType<gittide::Credentials>();
     qRegisterMetaType<gittide::MergeState>();
     qRegisterMetaType<gittide::RebaseState>();
+    qRegisterMetaType<gittide::StashEntry>();
+    qRegisterMetaType<std::vector<gittide::StashEntry>>();
 }
 
 void RepoController::open(const QString& path)
@@ -252,6 +254,79 @@ QCoro::Task<void> RepoController::refreshStashState()
     if (!self || !count)
         co_return;
     emit stashCountChanged(*count);
+
+    auto list = co_await m_repo->stashList();
+    if (!self || !list)
+        co_return;
+    emit stashListReady(*list);
+}
+
+QCoro::Task<void> RepoController::applyStashAt(int index)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    auto result = co_await m_repo->stashApplyAt(index);
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message)); // stash preserved
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshStashState();
+}
+
+QCoro::Task<void> RepoController::popStashAt(int index)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    auto result = co_await m_repo->stashPopAt(index);
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message)); // stash preserved
+        co_return;
+    }
+    co_await refreshStatus();
+    co_await refreshStashState();
+}
+
+QCoro::Task<void> RepoController::dropStash(int index)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto result = co_await m_repo->stashDrop(index);
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshStashState();
+}
+
+QCoro::Task<void> RepoController::clearStashes()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto result = co_await m_repo->stashClear();
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshStashState();
 }
 
 QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
