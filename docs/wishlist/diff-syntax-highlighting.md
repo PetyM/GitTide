@@ -3,7 +3,14 @@
 | | |
 |--|--|
 | **Added** | 2026-06-21 |
-| **Status** | `idea` |
+| **Status** | `done` |
+| **Shipped** | 2026-06-30 |
+| **Designed in** | [spec/product/2026-06-30-diff-syntax-highlighting-design.md](../spec/product/2026-06-30-diff-syntax-highlighting-design.md) · decisions D45 (KSyntaxHighlighting + bundled themes), D46 (rich-text-per-line) |
+| **Plan** | [plans/2026-06-30-plan30-diff-syntax-highlighting.md](../plans/2026-06-30-plan30-diff-syntax-highlighting.md) |
+
+> **Note:** moving this file to `wishlist/shipped/` and its row to the Shipped
+> table in `wishlist/index.md` is deferred — `index.md` was being live-edited by
+> the concurrent Plan 31 (stash) work; do the move when closing that out.
 | **Touches** | product (richer diff readability), design (token colours for syntax on top of add/remove backgrounds), engineering (ui-side highlighter feeding `DiffLinesModel`/`DiffView` — **not** core) |
 
 ## What
