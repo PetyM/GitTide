@@ -51,6 +51,8 @@ QVariant DiffLinesModel::data(const QModelIndex& index, int role) const
         return r.blockState;
     case ConflictRegionRole:
         return r.conflictRegion;
+    case HtmlRole:
+        return r.html;
     default:
         return {};
     }
@@ -69,6 +71,7 @@ QHash<int, QByteArray> DiffLinesModel::roleNames() const
         {LineRole, "lineIndex"},
         {BlockStateRole, "blockState"},
         {ConflictRegionRole, "conflictRegion"},
+        {HtmlRole, "lineHtml"},
     };
 }
 
@@ -144,10 +147,12 @@ void DiffLinesModel::refreshBlock(int blockRow)
 void DiffLinesModel::setDiff(const gittide::DiffResult& result,
                              const std::map<int, std::vector<int>>& checkedLines,
                              bool wholeChecked,
-                             bool blocks)
+                             bool blocks,
+                             const QString& filePath)
 {
     beginResetModel();
     m_rows.clear();
+    m_filePath = filePath;
     for (int h = 0; h < static_cast<int>(result.hunks.size()); ++h)
     {
         const gittide::DiffHunk& hunk = result.hunks[static_cast<std::size_t>(h)];
@@ -207,6 +212,7 @@ void DiffLinesModel::setDiff(const gittide::DiffResult& result,
             }
         }
     }
+    rehighlightRows();
     endResetModel();
 }
 
@@ -215,6 +221,74 @@ void DiffLinesModel::clear()
     beginResetModel();
     m_rows.clear();
     endResetModel();
+}
+
+void DiffLinesModel::rehighlightRows()
+{
+    for (Row& r : m_rows)
+        r.html.clear();
+    if (m_filePath.isEmpty() || !m_highlighter.hasDefinition(m_filePath))
+        return;
+
+    int maxHunk = -1;
+    for (const Row& r : m_rows)
+        maxHunk = std::max(maxHunk, r.hunkIndex);
+
+    const QString kContext = QStringLiteral("context");
+    const QString kAdded   = QStringLiteral("added");
+    const QString kRemoved = QStringLiteral("removed");
+
+    auto run = [&](const std::vector<int>& idxs)
+    {
+        if (idxs.empty())
+            return;
+        std::vector<QString> texts;
+        texts.reserve(idxs.size());
+        for (int i : idxs)
+            texts.push_back(m_rows[static_cast<std::size_t>(i)].text);
+        const std::vector<QString> html =
+            m_highlighter.highlightLines(m_filePath, texts, m_syntaxDark);
+        if (html.size() != idxs.size())
+            return; // defensive: highlighter gave an unexpected count
+        for (std::size_t k = 0; k < idxs.size(); ++k)
+            m_rows[static_cast<std::size_t>(idxs[k])].html = html[k];
+    };
+
+    // Per hunk: old side = context+removed, new side = context+added, in row
+    // order. State resets per hunk (gaps between hunks are unobservable).
+    for (int h = 0; h <= maxHunk; ++h)
+    {
+        std::vector<int> oldRows, newRows;
+        for (int i = 0; i < static_cast<int>(m_rows.size()); ++i)
+        {
+            const Row& r = m_rows[static_cast<std::size_t>(i)];
+            if (r.hunkIndex != h)
+                continue;
+            if (r.kind == kContext)
+            {
+                oldRows.push_back(i);
+                newRows.push_back(i);
+            }
+            else if (r.kind == kRemoved)
+                oldRows.push_back(i);
+            else if (r.kind == kAdded)
+                newRows.push_back(i);
+        }
+        run(oldRows); // fills context + removed
+        run(newRows); // fills added (and re-fills context with identical HTML)
+    }
+}
+
+void DiffLinesModel::setSyntaxDark(bool dark)
+{
+    if (m_syntaxDark == dark)
+        return;
+    m_syntaxDark = dark;
+    rehighlightRows();
+    if (!m_rows.empty())
+        emit dataChanged(index(0, 0),
+                         index(static_cast<int>(m_rows.size()) - 1, 0),
+                         {HtmlRole});
 }
 
 void DiffLinesModel::setLineChecked(int row, bool checked)

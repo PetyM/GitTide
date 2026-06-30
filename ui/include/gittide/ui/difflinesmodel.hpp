@@ -6,6 +6,7 @@
 #include <QString>
 
 #include "gittide/diff.hpp"
+#include "gittide/ui/syntaxhighlighter.hpp"
 
 namespace gittide::ui {
 
@@ -29,7 +30,8 @@ public:
         HunkRole,
         LineRole,
         BlockStateRole,    ///< int Qt::CheckState; meaningful only on "block" rows
-        ConflictRegionRole ///< int region index on conflict rows; -1 for non-conflict rows
+        ConflictRegionRole, ///< int region index on conflict rows; -1 for non-conflict rows
+        HtmlRole            ///< per-line syntax HTML; empty = plain text
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -45,12 +47,17 @@ public:
     void setDiff(const gittide::DiffResult& result,
                  const std::map<int, std::vector<int>>& checkedLines,
                  bool wholeChecked,
-                 bool blocks = false);
+                 bool blocks = false,
+                 const QString& filePath = QString());
     void clear();
 
     Q_INVOKABLE void setLineChecked(int row, bool checked);
     Q_INVOKABLE void setBlockChecked(int row, bool checked);
     void setAllChecked(bool checked);
+
+    /// Re-highlight all rows for the given theme brightness (true = dark). Emits
+    /// dataChanged over HtmlRole when the value changes. No-op if unchanged.
+    Q_INVOKABLE void setSyntaxDark(bool dark);
 
     int checkableCount() const;
     int checkedCount() const;
@@ -91,6 +98,7 @@ private:
         int     oldNo = -1;
         int     newNo = -1;
         QString text;
+        QString html; ///< per-line syntax HTML; empty = plain
         bool    checkable = false;
         bool    checked   = false;
         int     hunkIndex = -1;
@@ -105,11 +113,16 @@ private:
     std::vector<Row> m_rows;
     QString m_conflictText; ///< raw file text supplied to setConflictContent()
 
+    SyntaxHighlighter m_highlighter; ///< owns the KSyntax Repository (built once)
+    bool    m_syntaxDark = true;     ///< theme brightness for highlighting
+    QString m_filePath;              ///< path of the diff'd file (drives language)
+
     Row  makeLineRow(const gittide::DiffLine& line, int hunkIndex, int lineIndex,
                      bool wholeChecked,
                      const std::map<int, std::vector<int>>& checkedLines) const;
     int  computeBlockState(int blockRow);   // sets m_rows[blockRow].blockState, no signal
     void refreshBlock(int blockRow);        // computeBlockState + emit dataChanged
+    void rehighlightRows(); ///< fill Row::html per hunk, per side; no signals
 };
 
 } // namespace gittide::ui
