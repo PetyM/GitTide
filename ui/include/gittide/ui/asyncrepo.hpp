@@ -47,6 +47,7 @@ public:
     QCoro::Task<gittide::Expected<void>> stage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
+    QCoro::Task<gittide::Expected<void>> discardAll();
     QCoro::Task<gittide::Expected<std::string>> commit(gittide::CommitRequest req);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> logAllRefs(unsigned limit = 1000);

@@ -55,6 +55,7 @@ public slots:
     QCoro::Task<void> stage(gittide::StageSelection sel);
     QCoro::Task<void> unstage(gittide::StageSelection sel);
     QCoro::Task<void> discard(gittide::StageSelection sel);
+    QCoro::Task<void> discardAll();
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
     QCoro::Task<void> refreshGraph(unsigned limit = 1000);

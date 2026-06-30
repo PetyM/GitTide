@@ -34,6 +34,10 @@ class RepoViewModel : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool repoOpen READ repoOpen NOTIFY changed)
+    /// True when the working tree has any changes (staged or unstaged). Drives
+    /// enable/disable of the "discard all" action. Re-evaluated on every status
+    /// refresh via the shared changed() notify.
+    Q_PROPERTY(bool dirty READ dirty NOTIFY changed)
     /// Path of the open repository (empty when none). The sidebar marks the row
     /// whose repoPath matches this as the active repo.
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY changed)
@@ -101,6 +105,7 @@ public:
     explicit RepoViewModel(QObject* parent = nullptr);
 
     bool repoOpen() const;
+    bool dirty() const;
     QString repoPath() const;
     QString currentBranch() const;
     QString activeFile() const;
@@ -242,6 +247,7 @@ public:
     Q_INVOKABLE void abortRebase();
 
     Q_INVOKABLE void discardFile(const QString& path);
+    Q_INVOKABLE void discardAll();
     Q_INVOKABLE void openInEditor(const QString& path);
     Q_INVOKABLE void revealInFileManager(const QString& path);
     Q_INVOKABLE void copyToClipboard(const QString& text);

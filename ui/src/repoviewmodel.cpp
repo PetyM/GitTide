@@ -97,6 +97,11 @@ bool RepoViewModel::repoOpen() const
     return m_open;
 }
 
+bool RepoViewModel::dirty() const
+{
+    return m_files->rowCount(QModelIndex()) > 0;
+}
+
 QString RepoViewModel::repoPath() const
 {
     return m_open ? m_controller->path() : QString();
@@ -1021,6 +1026,11 @@ void RepoViewModel::discardFile(const QString& path)
         .lineIndices = {}
     };
     QCoro::connect(m_controller->discard(sel), this, [] {});
+}
+
+void RepoViewModel::discardAll()
+{
+    QCoro::connect(m_controller->discardAll(), this, [] {});
 }
 
 void RepoViewModel::openInEditor(const QString& path)

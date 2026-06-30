@@ -190,6 +190,23 @@ QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
     co_await refreshStatus();
 }
 
+QCoro::Task<void> RepoController::discardAll()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    WatchMute                mute(m_watcher);
+    auto result = co_await m_repo->discardAll();
+    if (!self)
+        co_return;
+    if (!result)
+    {
+        emit operationFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+    co_await refreshStatus();
+}
+
 QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
 {
     if (!m_repo)

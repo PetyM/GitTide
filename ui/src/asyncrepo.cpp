@@ -96,6 +96,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::discard(gittide::StageSelection 
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::discardAll()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.discardAll();
+        });
+}
+
 QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commit(gittide::CommitRequest req)
 {
     auto impl = m_impl;
