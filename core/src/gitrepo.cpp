@@ -1927,6 +1927,22 @@ Expected<void> GitRepo::stashPop()
     return {};
 }
 
+Expected<int> GitRepo::stashCount() const
+{
+    int count  = 0;
+    int rc     = git_stash_foreach(
+        m_repo,
+        [](size_t, const char*, const git_oid*, void* payload) -> int
+        {
+            ++*static_cast<int*>(payload);
+            return 0;
+        },
+        &count);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return count;
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;

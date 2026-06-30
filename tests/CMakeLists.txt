@@ -13,6 +13,7 @@ add_executable(gittide_core_tests
   test_project_store.cpp
   test_build_patch.cpp
   test_git_repo_discard.cpp
+  test_git_repo_stash.cpp
   test_git_repo_init_clone.cpp
   test_git_repo_log.cpp
   test_git_repo_commit_diff.cpp

@@ -212,6 +212,10 @@ public:
     /// stash) if the pop conflicts.
     Expected<void> stashPop();
 
+    /// Number of entries currently on the stash stack (stash@{0}, {1}, …).
+    /// Zero when the stack is empty. Errors only on a libgit2 failure.
+    Expected<int> stashCount() const;
+
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
     /// writing conflict markers into the worktree on conflict. Caller handles a
