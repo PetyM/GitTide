@@ -11,8 +11,9 @@ RowLayout {
     spacing: 0
 
     function takeFocus() { graphList.forceActiveFocus() }
-    // Entry from the Tab chain in reverse — land on the last element (commit detail).
-    function takeFocusLast() { graphDetail.takeFocus() }
+    // No inner detail pane anymore (Graph tab is graph-only); Tab chain entry
+    // from either direction lands on the same, only focusable element.
+    function takeFocusLast() { graphList.forceActiveFocus() }
 
     signal tabNext()
     signal tabPrev()
@@ -32,7 +33,7 @@ RowLayout {
 
     // ---- Commit list (graph column + ref chips + avatar + summary/author/date) ----
     Item {
-        Layout.preferredWidth: 460
+        Layout.fillWidth: true
         Layout.fillHeight: true
 
         ListView {
@@ -59,7 +60,7 @@ RowLayout {
                 }
             }
             Keys.onTabPressed: {
-                graphDetail.takeFocus()
+                graphPane.tabNext()
                 event.accepted = true
             }
             Keys.onBacktabPressed: {
@@ -191,26 +192,5 @@ RowLayout {
             border.width: 1
             enabled: false
         }
-    }
-
-    // Hairline divider
-    Rectangle {
-        Layout.fillHeight: true
-        Layout.preferredWidth: 1
-        color: theme.border
-    }
-
-    // ---- Selected-commit detail (files + read-only diff) ----
-    CommitDetail {
-        id: graphDetail
-        objectName: "graphCommitDetail"
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-    }
-
-    Connections {
-        target: graphDetail
-        function onTabBackward() { graphList.forceActiveFocus() }
-        function onTabForward() { graphPane.tabNext() }
     }
 }

@@ -253,6 +253,61 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void graph_tab_has_no_inline_commit_detail_panel()
+    {
+        const auto dir = qml_graph_test::make_branched_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        {
+            QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historySpy.wait(3000));
+        }
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        {
+            QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historyReady2.wait(3000));
+        }
+
+        QObject* root = engine.rootObjects().first();
+
+        // Switch to Graph tab (index 2).
+        QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
+        QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
+        QVERIFY(tabBar != nullptr);
+        tabBar->setProperty("currentIndex", 2);
+        QVERIFY(graphSpy.wait(3000));
+
+        // No inline commit-detail panel in the Graph tab anymore.
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("graphCommitDetail")) == nullptr);
+
+        // The commit list fills the whole pane width — find its ListView and
+        // compare its width against the tab body's width (allow a 2px margin
+        // for the pane's own layout spacing/borders).
+        QObject* graphList = root->findChild<QObject*>(QStringLiteral("graphList"));
+        QVERIFY(graphList != nullptr);
+        QObject* graphTabBody = root->findChild<QObject*>(QStringLiteral("graphTabBody"));
+        QVERIFY(graphTabBody != nullptr);
+        const qreal listWidth = graphList->property("width").toReal();
+        const qreal paneWidth = graphTabBody->property("width").toReal();
+        QVERIFY2(listWidth > paneWidth - 2.0,
+                 qPrintable(QStringLiteral("expected graphList to fill the pane: list=%1 pane=%2")
+                                .arg(listWidth).arg(paneWidth)));
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_qml_graph.moc"
