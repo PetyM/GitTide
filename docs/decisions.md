@@ -310,6 +310,17 @@ an entry with a newer one if it changes.
   column and still needed the `MouseArea` fix). → [`product`](spec/product/product.md),
   [`history-editing`](spec/product/history-editing.md)
 
+- **D47 — Graph tab drops its inline commit-detail panel; double-click hands off
+  to History instead.** The Graph tab's split (graph list + `CommitDetail`) left
+  the graph itself cramped at a fixed 460px. Since `commitDiff`/`selectedCommit`
+  are already global state on `RepoViewModel` shared by both panes'
+  `CommitDetail`, a double-click only needs to select the row and switch
+  `WorkingPane`'s tab — no oid lookup or re-selection needed, and it works even
+  when the commit isn't in History's own HEAD-only list (that pane just shows no
+  highlighted row). *Rejected:* keeping a collapsible/toggleable detail panel
+  (not requested, adds state for no real benefit). →
+  [`product`](spec/product/product.md#graph-tab)
+
 - **D44 — On a stash apply/pop conflict, report and preserve the stash; do not
   drive into the inline conflict UI (first cut).** The user-facing stash stack
   (list / apply / pop / drop / clear / preview) exposes git's native stack in a

@@ -121,12 +121,17 @@ cooperate with the `DragHandler`, fixing the earlier `MouseArea` grab-steal bug.
 
 A read-only **full git graph** of all refs — local branches, remote-tracking
 branches, and tags — rendered in the same lane-based `GraphColumn` painter used
-by the old History graph. Each commit row shows branch/tag name chips for every
-ref tip that points at it. Selecting a row opens the same **commit detail** panel
-(changed files → per-file diff, read-only). A right-click context menu offers the
-cross-branch-safe subset of actions: copy SHA, new branch from here, checkout
-commit, merge. History-editing items (Reword, Undo, Squash, Edit history) are
-hidden via the `CommitContextMenu.allowHistoryEditing` property set to `false` in
+by the old History graph, filling the **full pane width** (no inline commit
+detail panel). Each commit row shows branch/tag name chips for every ref tip
+that points at it. Selecting a row highlights it and updates the shared
+selection state; **double-clicking a row switches to the History tab**, which
+shows that commit's diff in its own commit-detail panel via the same shared
+selection — if the commit isn't reachable from HEAD, History's own commit list
+simply shows no highlighted row (the diff still displays correctly). A
+right-click context menu offers the cross-branch-safe subset of actions: copy
+SHA, new branch from here, checkout commit, merge. History-editing items
+(Reword, Undo, Squash, Edit history) are hidden via the
+`CommitContextMenu.allowHistoryEditing` property set to `false` in
 `GraphPane.qml`. **Ctrl+3** switches to this tab; `repoVm.refreshGraph()` is
 called on first switch and on live-refresh triggers while the tab is active. See
 [context-menus](context-menus.md) and [keyboard-controls](keyboard-controls.md).

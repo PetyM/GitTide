@@ -97,6 +97,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_stash_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_stash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_syntaxhighlighter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_wheelscroller.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

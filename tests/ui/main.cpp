@@ -62,6 +62,7 @@
 #include "test_stash_list_model.cpp"
 #include "test_qml_stash.cpp"
 #include "test_syntaxhighlighter.cpp"
+#include "test_qml_wheelscroller.cpp"
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
@@ -137,6 +138,7 @@ int main(int argc, char** argv)
     RUN(TestStashListModel);
     RUN(TestQmlStash);
     RUN(TestSyntaxHighlighter);
+    RUN(TestQmlWheelScroller);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
     // are joined only during static teardown, after main returns, so shutting down
