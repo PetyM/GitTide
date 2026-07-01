@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-01 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/product.md`](../spec/product/product.md#graph-tab), decision D47 in [`decisions.md`](../decisions.md) |
 | **Depends on** | Plan 25 (History redesign + full git-graph tab) |
 
@@ -502,10 +502,16 @@ git commit -m "feat(ui): double-click a Graph row switches to History showing th
 
 ## Outcome
 
-> Fill in when the plan reaches `done`. The durable result — what shipped and
-> **where it now lives** in the code and the living spec. This is the bridge a
-> future reader follows from "this plan" to "the current truth":
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
+- Shipped: mouse-wheel scrolling fixed app-wide (`WheelScroller.qml`'s `view`
+  now resolves through `parent.parent`, past Flickable's `flickableData`
+  redirection into `contentItem`); the Graph tab's inline commit-detail panel
+  is gone and the graph fills the full pane; double-clicking a graph row
+  switches to the History tab and shows that commit's diff via the shared
+  `RepoViewModel` selection state.
+- Spec updated: [`product.md#graph-tab`](../spec/product/product.md#graph-tab);
+  decision [D47](../decisions.md) records the panel-removal rationale.
+- Code: `ui/qml/WheelScroller.qml` (fix), `ui/qml/GraphPane.qml` (layout +
+  `commitActivated()`/`activateRow()` + double-tap `TapHandler`),
+  `ui/qml/WorkingPane.qml` (`Connections` wiring the tab switch); tests in
+  `tests/ui/test_qml_wheelscroller.cpp` (new) and `tests/ui/test_qml_graph.cpp`
+  (two new cases).
