@@ -22,7 +22,7 @@ RowLayout {
 
     // Select the row (shared repoVm selection state, same as a single click)
     // then signal a hand-off to History. Exposed as a root-level function so
-    // it's reachable both from the delegate's DoubleTap TapHandler and from
+    // it's reachable both from the delegate's double-tap TapHandler and from
     // tests via QMetaObject::invokeMethod, without simulating a click gesture.
     function activateRow(index) {
         graphList.selectRow(index)

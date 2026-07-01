@@ -21,7 +21,7 @@ children into `contentItem`, not the Flickable itself) — this is already fixed
 in the working tree; this plan adds the regression test. `GraphPane.qml` drops
 its `CommitDetail` + divider and widens its `ListView` to `Layout.fillWidth`.
 A new `commitActivated()` signal on `GraphPane`, fired from a
-`TapHandler { gesture: TapHandler.DoubleTap }` per row, lets `WorkingPane.qml`
+`TapHandler`'s `onDoubleTapped` per row, lets `WorkingPane.qml`
 switch `tabs.currentIndex` to History — no oid look-up needed since
 `selectedCommit`/`commitDiff` are already shared global state on `RepoViewModel`.
 
@@ -424,7 +424,7 @@ lines 17-18):
 
     // Select the row (shared repoVm selection state, same as a single click)
     // then signal a hand-off to History. Exposed as a root-level function so
-    // it's reachable both from the delegate's DoubleTap TapHandler and from
+    // it's reachable both from the delegate's double-tap TapHandler and from
     // tests via QMetaObject::invokeMethod, without simulating a click gesture.
     function activateRow(index) {
         graphList.selectRow(index)
@@ -434,13 +434,15 @@ lines 17-18):
 
 Add a third `TapHandler` to the row delegate, alongside the existing
 left-click/right-click ones (currently lines 87-107), for the double-click
-gesture:
+gesture. Note: this Qt build's `TapHandler` has no `gesture`/`DoubleTap`
+property — `gesturePolicy` is an unrelated exclusivity-control property, not
+a tap-count selector — so use the dedicated `doubleTapped(eventPoint, button)`
+signal instead:
 
 ```qml
                 TapHandler {
                     acceptedButtons: Qt.LeftButton
-                    gesture: TapHandler.DoubleTap
-                    onTapped: {
+                    onDoubleTapped: {
                         graphList.currentIndex = index
                         graphPane.activateRow(index)
                     }
