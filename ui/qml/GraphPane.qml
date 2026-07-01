@@ -17,6 +17,17 @@ RowLayout {
 
     signal tabNext()
     signal tabPrev()
+    // Fired when a graph row is double-clicked; WorkingPane switches to History.
+    signal commitActivated()
+
+    // Select the row (shared repoVm selection state, same as a single click)
+    // then signal a hand-off to History. Exposed as a root-level function so
+    // it's reachable both from the delegate's DoubleTap TapHandler and from
+    // tests via QMetaObject::invokeMethod, without simulating a click gesture.
+    function activateRow(index) {
+        graphList.selectRow(index)
+        commitActivated()
+    }
 
     CommitContextMenu {
         id: graphMenu
@@ -104,6 +115,16 @@ RowLayout {
                         graphMenu.isHead          = model.isHead
                         graphMenu.selectionCount  = 1
                         graphMenu.popup()
+                    }
+                }
+                TapHandler {
+                    acceptedButtons: Qt.LeftButton
+                    // This Qt build exposes double-tap detection via the dedicated
+                    // doubleTapped signal rather than a `gesture` property (that
+                    // TapHandler.gesture/DoubleTap API landed in a later Qt minor).
+                    onDoubleTapped: {
+                        graphList.currentIndex = index
+                        graphPane.activateRow(index)
                     }
                 }
 

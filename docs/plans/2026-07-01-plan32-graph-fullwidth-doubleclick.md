@@ -344,7 +344,7 @@ git commit -m "feat(ui): Graph tab drops the inline commit-detail panel, graph f
   `commitActivated()`) — both are `QMetaObject::invokeMethod`/signal-spy
   reachable from tests without simulating a physical double-click gesture.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/test_qml_graph.cpp`, after the test added in Task 2:
 
@@ -401,7 +401,7 @@ Add to `tests/ui/test_qml_graph.cpp`, after the test added in Task 2:
     }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 cmake --build build --target gittide_ui_tests --parallel
@@ -411,7 +411,7 @@ QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests -select TestQmlGraph
 Expected: `FAIL` — `activateRow` doesn't exist yet on `GraphPane`
 (`QMetaObject::invokeMethod` returns `false`), and/or `currentIndex` stays `2`.
 
-- [ ] **Step 3: Add the signal + function + double-tap handler to GraphPane.qml**
+- [x] **Step 3: Add the signal + function + double-tap handler to GraphPane.qml**
 
 Add the signal next to the existing `tabNext()`/`tabPrev()` signals (currently
 lines 17-18):
@@ -447,7 +447,7 @@ gesture:
                 }
 ```
 
-- [ ] **Step 4: Wire the tab switch in WorkingPane.qml**
+- [x] **Step 4: Wire the tab switch in WorkingPane.qml**
 
 Add a `Connections` block near the existing `onRebaseMessagePauseEntered`
 one (currently around line 245-249):
@@ -465,7 +465,7 @@ one (currently around line 245-249):
     }
 ```
 
-- [ ] **Step 5: Run it to verify it passes**
+- [x] **Step 5: Run it to verify it passes**
 
 ```bash
 cmake --build build --target gittide_ui_tests --parallel
@@ -474,7 +474,7 @@ QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests -select TestQmlGraph
 
 Expected: `PASS` for all `TestQmlGraph` slots, including the new one.
 
-- [ ] **Step 6: Full suite + manual smoke check**
+- [x] **Step 6: Full suite + manual smoke check**
 
 ```bash
 ctest --test-dir build --output-on-failure
@@ -489,7 +489,7 @@ width with no right-hand panel, (b) mouse-wheel scrolling works in the graph
 list, (c) double-clicking a commit row switches to the History tab and shows
 that commit's diff in the right-hand panel.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add ui/qml/GraphPane.qml ui/qml/WorkingPane.qml tests/ui/test_qml_graph.cpp

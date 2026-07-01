@@ -308,6 +308,57 @@ private slots:
 
         std::filesystem::remove_all(dir);
     }
+
+    void double_click_activates_row_and_switches_to_history_tab()
+    {
+        const auto dir = qml_graph_test::make_branched_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        {
+            QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historySpy.wait(3000));
+        }
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        {
+            QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(historyReady2.wait(3000));
+        }
+
+        QObject* root = engine.rootObjects().first();
+
+        QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
+        QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
+        QVERIFY(tabBar != nullptr);
+        tabBar->setProperty("currentIndex", 2);
+        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(vm.graph()->rowCount(QModelIndex()) >= 1);
+
+        QObject* graphBody = root->findChild<QObject*>(QStringLiteral("graphTabBody"));
+        QVERIFY(graphBody != nullptr);
+
+        // Simulate the double-click's effect: activateRow(0) selects the row
+        // (shared repoVm selection state) and emits commitActivated(), which
+        // WorkingPane wires to a tab switch.
+        bool invoked = QMetaObject::invokeMethod(graphBody, "activateRow", Q_ARG(QVariant, 0));
+        QVERIFY(invoked);
+
+        QVERIFY(!vm.selectedCommit().isEmpty());
+        QCOMPARE(tabBar->property("currentIndex").toInt(), 1);
+
+        std::filesystem::remove_all(dir);
+    }
 };
 
 #include "test_qml_graph.moc"

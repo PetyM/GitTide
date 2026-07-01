@@ -248,6 +248,17 @@ Item {
         function onRebaseMessagePauseEntered() { workingPane.openRebaseMessageDialog() }
     }
 
+    // Double-click on a Graph row hands off to History with that commit's
+    // diff already selected (selectedCommit/commitDiff are shared repoVm
+    // state, so no oid look-up is needed — just switch the tab).
+    Connections {
+        target: graphTabBody
+        function onCommitActivated() {
+            tabs.currentIndex = 1
+            historyTabBody.takeFocus()
+        }
+    }
+
     ShortcutsHelpPopup {
         id: shortcutsPopup
     }
