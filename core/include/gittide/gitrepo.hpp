@@ -241,6 +241,18 @@ public:
     /// Drop every entry on the stack (high index → low so indices stay valid).
     Expected<void> stashClear();
 
+    /// Files contained in the stash commit @p oid (a StashEntry::oid), matching
+    /// `git stash show -u`: the tracked changes (base tree → stash tree) UNION the
+    /// untracked files captured in the stash's untracked parent (present only when
+    /// the stash was taken with --include-untracked). Untracked files appear as
+    /// added. Used to populate the stash-preview file list.
+    Expected<std::vector<FileStatus>> stashFiles(std::string oid) const;
+    /// Diff of one file within stash commit @p oid. A tracked file diffs its base
+    /// tree against the stash tree; an untracked file (only in the untracked
+    /// parent) diffs against an empty tree, so it shows as fully added. Returns an
+    /// empty DiffResult if @p file is in neither.
+    Expected<DiffResult> stashDiff(std::string oid, const std::filesystem::path& file) const;
+
     /// Analyse and perform a merge of local branch `name` into current HEAD.
     /// FF when possible (moves HEAD, no merge commit); otherwise a normal merge,
     /// writing conflict markers into the worktree on conflict. Caller handles a
@@ -333,6 +345,12 @@ private:
     // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
     // root commit). Both out-trees are owned by the caller (git_tree_free).
     Expected<void> commitTrees(const std::string& oid, git_tree** outTree, git_tree** outParentTree) const;
+
+    // Resolve a stash commit's three trees: its own tree, its base (parent 0), and
+    // the untracked-files tree (parent 2, present only for --include-untracked
+    // stashes — nullptr otherwise). Each non-null out-tree is owned by the caller.
+    Expected<void> stashTrees(const std::string& oid, git_tree** outStash,
+                              git_tree** outBase, git_tree** outUntracked) const;
 
     // Best-effort read of rebase-merge/onto_name (the target's label). Empty if absent.
     std::string rebaseOntoName() const;

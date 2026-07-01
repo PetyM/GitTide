@@ -128,3 +128,41 @@ TEST_CASE("stashPopAt conflict preserves the stash", "[stash]")
     REQUIRE_FALSE(r.has_value());            // reported
     REQUIRE(repo->stashCount().value() == 1); // and preserved
 }
+
+TEST_CASE("stashFiles lists both tracked changes and untracked files", "[stash]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("tracked.txt", "base\n");
+    tmp.commitAll("init");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    // A tracked modification AND a brand-new untracked file, then stash both.
+    tmp.writeFile("tracked.txt", "base\nmore\n");
+    tmp.writeFile("untracked.txt", "brand new\n");
+    REQUIRE(repo->stashSave("wip").value());
+
+    auto list = repo->stashList();
+    REQUIRE(list.has_value());
+    REQUIRE(list->size() == 1);
+    const std::string oid = (*list)[0].oid;
+
+    auto files = repo->stashFiles(oid);
+    REQUIRE(files.has_value());
+
+    bool hasTracked = false, hasUntracked = false;
+    for (const auto& f : *files)
+    {
+        const auto p = f.path.generic_string();
+        if (p == "tracked.txt")   hasTracked = true;
+        if (p == "untracked.txt") hasUntracked = true;
+    }
+    REQUIRE(hasTracked);
+    REQUIRE(hasUntracked); // the bug: untracked file was missing from the preview
+
+    // And its diff is retrievable (the untracked file shows as added content).
+    auto d = repo->stashDiff(oid, std::filesystem::path("untracked.txt"));
+    REQUIRE(d.has_value());
+    REQUIRE_FALSE(d->hunks.empty());
+}

@@ -773,7 +773,9 @@ void RepoViewModel::selectCommitFile(const QString& path)
 {
     m_activeCommitFile = path;
     emit activeCommitFileChanged();
-    if (!m_rangeOld.isEmpty())
+    if (m_stashPreviewActive)
+        QCoro::connect(m_controller->refreshStashPreviewDiff(m_selectedCommit, path), this, [] {});
+    else if (!m_rangeOld.isEmpty())
         QCoro::connect(m_controller->refreshRangeDiff(m_rangeOld, m_rangeNew, path), this, [] {});
     else
         QCoro::connect(m_controller->refreshCommitDiff(m_selectedCommit, path), this, [] {});
@@ -1099,7 +1101,16 @@ void RepoViewModel::previewStash(int row)
     m_stashPreviewLabel  = m_stashes->data(m_stashes->index(row, 0),
                                             StashListModel::LabelRole).toString();
     emit stashPreviewChanged();
-    selectCommit(oid); // reuses commitFiles/commitDiff (stash commit vs base parent)
+    // Load the stash's files (tracked changes + untracked, like `git stash show -u`)
+    // into the shared read-only commit models. Uses the stash-aware source rather
+    // than the generic commit diff so untracked files are included.
+    m_selectedCommit = oid;
+    m_activeCommitFile.clear();
+    m_commitFiles->setFiles({});
+    m_commitDiff->clear();
+    emit selectedCommitChanged();
+    emit activeCommitFileChanged();
+    QCoro::connect(m_controller->refreshStashPreviewFiles(oid), this, [] {});
 }
 
 void RepoViewModel::exitStashPreview()

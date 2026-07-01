@@ -617,6 +617,38 @@ QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)
     emit commitDiffReady(oid, path, *d);
 }
 
+QCoro::Task<void> RepoController::refreshStashPreviewFiles(QString oid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto files = co_await m_repo->stashFiles(oid);
+    if (!self)
+        co_return;
+    if (!files)
+    {
+        emit operationFailed(QString::fromStdString(files.error().message));
+        co_return;
+    }
+    emit commitFilesReady(oid, *files);
+}
+
+QCoro::Task<void> RepoController::refreshStashPreviewDiff(QString oid, QString path)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto d = co_await m_repo->stashDiff(oid, qstringToPath(path));
+    if (!self)
+        co_return;
+    if (!d)
+    {
+        emit operationFailed(QString::fromStdString(d.error().message));
+        co_return;
+    }
+    emit commitDiffReady(oid, path, *d);
+}
+
 QCoro::Task<void> RepoController::refreshRangeFiles(QString oldOid, QString newOid)
 {
     if (!m_repo)

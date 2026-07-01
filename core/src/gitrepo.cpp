@@ -2206,24 +2206,12 @@ Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTre
     return {};
 }
 
-Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
+// Append every delta of a tree-to-tree diff to @p out as a FileStatus, mapping
+// git delta status to an index-side StatusFlag (added/deleted/modified).
+static void appendDiffDeltas(git_diff* raw, std::vector<FileStatus>& out)
 {
-    git_tree* tree       = nullptr;
-    git_tree* parentTree = nullptr;
-    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
-        return std::unexpected(r.error());
-    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
-    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
-
-    git_diff* raw = nullptr;
-    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, nullptr);
-    if (rc < 0)
-        return std::unexpected(lastGitError(rc));
-    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
-
-    std::vector<FileStatus> result;
     size_t n = git_diff_num_deltas(raw);
-    result.reserve(n);
+    out.reserve(out.size() + n);
     for (size_t i = 0; i < n; ++i)
     {
         const git_diff_delta* d = git_diff_get_delta(raw, i);
@@ -2243,8 +2231,27 @@ Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
                 break;
         }
         if (path)
-            result.push_back(FileStatus{fromGitPath(path), flag});
+            out.push_back(FileStatus{fromGitPath(path), flag});
     }
+}
+
+Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
+{
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oid, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    git_diff* raw = nullptr;
+    int rc        = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    std::vector<FileStatus> result;
+    appendDiffDeltas(raw, result);
     return result;
 }
 
@@ -2269,6 +2276,133 @@ Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem:
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
     return DiffEngine::parse(diff_guard.get());
+}
+
+Expected<void> GitRepo::stashTrees(const std::string& oid, git_tree** outStash,
+                                   git_tree** outBase, git_tree** outUntracked) const
+{
+    *outStash     = nullptr;
+    *outBase      = nullptr;
+    *outUntracked = nullptr;
+
+    git_oid coid;
+    if (int rc = git_oid_fromstr(&coid, oid.c_str()); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_commit* commit = nullptr;
+    if (int rc = git_commit_lookup(&commit, m_repo, &coid); rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    if (int rc = git_commit_tree(outStash, commit); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    // Parent 0 is the base (HEAD at stash time). git stash always has it.
+    const unsigned parents = git_commit_parentcount(commit);
+    if (parents > 0)
+    {
+        git_commit* base = nullptr;
+        if (git_commit_parent(&base, commit, 0) == 0)
+        {
+            std::unique_ptr<git_commit, decltype(&git_commit_free)> base_guard(base, git_commit_free);
+            if (int rc = git_commit_tree(outBase, base); rc < 0)
+            {
+                git_tree_free(*outStash);
+                *outStash = nullptr;
+                return std::unexpected(lastGitError(rc));
+            }
+        }
+    }
+
+    // Parent 2 (the third) holds the untracked files, present only when the stash
+    // was taken with --include-untracked.
+    if (parents >= 3)
+    {
+        git_commit* untr = nullptr;
+        if (git_commit_parent(&untr, commit, 2) == 0)
+        {
+            std::unique_ptr<git_commit, decltype(&git_commit_free)> untr_guard(untr, git_commit_free);
+            if (int rc = git_commit_tree(outUntracked, untr); rc < 0)
+            {
+                git_tree_free(*outStash);
+                git_tree_free(*outBase);
+                *outStash = nullptr;
+                *outBase  = nullptr;
+                return std::unexpected(lastGitError(rc));
+            }
+        }
+    }
+    return {};
+}
+
+Expected<std::vector<FileStatus>> GitRepo::stashFiles(std::string oid) const
+{
+    git_tree *stashTree = nullptr, *baseTree = nullptr, *untrackedTree = nullptr;
+    if (auto r = stashTrees(oid, &stashTree, &baseTree, &untrackedTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> s_guard(stashTree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> b_guard(baseTree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> u_guard(untrackedTree, git_tree_free);
+
+    std::vector<FileStatus> result;
+
+    // Tracked changes: base tree → stash tree (staged + unstaged tracked edits).
+    {
+        git_diff* raw = nullptr;
+        if (int rc = git_diff_tree_to_tree(&raw, m_repo, baseTree, stashTree, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_diff, decltype(&git_diff_free)> dg(raw, git_diff_free);
+        appendDiffDeltas(raw, result);
+    }
+
+    // Untracked files: empty → untracked tree, so each shows as added.
+    if (untrackedTree)
+    {
+        git_diff* raw = nullptr;
+        if (int rc = git_diff_tree_to_tree(&raw, m_repo, nullptr, untrackedTree, nullptr); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_diff, decltype(&git_diff_free)> dg(raw, git_diff_free);
+        appendDiffDeltas(raw, result);
+    }
+    return result;
+}
+
+Expected<DiffResult> GitRepo::stashDiff(std::string oid, const std::filesystem::path& file) const
+{
+    git_tree *stashTree = nullptr, *baseTree = nullptr, *untrackedTree = nullptr;
+    if (auto r = stashTrees(oid, &stashTree, &baseTree, &untrackedTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> s_guard(stashTree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> b_guard(baseTree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> u_guard(untrackedTree, git_tree_free);
+
+    std::string git_file  = toGitPath(file);
+    char* paths[]         = {git_file.data()};
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.pathspec.strings = paths;
+    opts.pathspec.count   = 1;
+
+    // Tracked file first: base → stash for this path.
+    {
+        git_diff* raw = nullptr;
+        if (int rc = git_diff_tree_to_tree(&raw, m_repo, baseTree, stashTree, &opts); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_diff, decltype(&git_diff_free)> dg(raw, git_diff_free);
+        if (git_diff_num_deltas(raw) > 0)
+            return DiffEngine::parse(raw);
+    }
+
+    // Otherwise it may be an untracked file: empty → untracked tree for this path.
+    if (untrackedTree)
+    {
+        git_diff* raw = nullptr;
+        if (int rc = git_diff_tree_to_tree(&raw, m_repo, nullptr, untrackedTree, &opts); rc < 0)
+            return std::unexpected(lastGitError(rc));
+        std::unique_ptr<git_diff, decltype(&git_diff_free)> dg(raw, git_diff_free);
+        if (git_diff_num_deltas(raw) > 0)
+            return DiffEngine::parse(raw);
+    }
+    return DiffResult{}; // path in neither tracked nor untracked set
 }
 
 Expected<std::vector<FileStatus>> GitRepo::rangeFiles(std::string oldOid, std::string newOid) const

@@ -671,7 +671,9 @@ private slots:
         QCOMPARE(vm.stashes()->rowCount(), 0);
         QVERIFY(!vm.stashPreviewActive());
 
+        // A tracked modification AND a brand-new untracked file, then stash both.
         tmp.writeFile("a.txt", "dirty\n");
+        tmp.writeFile("newfile.txt", "brand new\n");
         vm.stashChanges();
         QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
 
@@ -681,7 +683,11 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
         QVERIFY(vm.stashPreviewLabel().startsWith(QStringLiteral("stash@{0}")));
         QCOMPARE(vm.stashPreviewIndex(), 0); // tracks the previewed row
-        QTRY_VERIFY_WITH_TIMEOUT(vm.commitFiles()->rowCount() > 0, 5000);
+        // Both the tracked change AND the untracked file must appear in the
+        // preview (git stash show -u) — the untracked file was the reported bug.
+        QTRY_COMPARE_WITH_TIMEOUT(vm.commitFiles()->rowCount(), 2, 5000);
+        QVERIFY(vm.commitFiles()->rowForPath(QStringLiteral("a.txt")) >= 0);
+        QVERIFY(vm.commitFiles()->rowForPath(QStringLiteral("newfile.txt")) >= 0);
 
         vm.exitStashPreview();
         QVERIFY(!vm.stashPreviewActive());

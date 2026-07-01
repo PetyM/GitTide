@@ -92,6 +92,12 @@ public slots:
     // Read-only history diff:
     QCoro::Task<void> refreshCommitFiles(QString oid);
     QCoro::Task<void> refreshCommitDiff(QString oid, QString path);
+    /// Load a stash commit's files (tracked + untracked) for preview; emits the
+    /// same commitFilesReady signal so the ViewModel's commit models are reused.
+    QCoro::Task<void> refreshStashPreviewFiles(QString oid);
+    /// Load one file's diff within a stash commit (tracked or untracked); emits
+    /// commitDiffReady. Untracked files show as fully added.
+    QCoro::Task<void> refreshStashPreviewDiff(QString oid, QString path);
     // Read-only range diff (combined across a commit span):
     QCoro::Task<void> refreshRangeFiles(QString oldOid, QString newOid);
     QCoro::Task<void> refreshRangeDiff(QString oldOid, QString newOid, QString path);

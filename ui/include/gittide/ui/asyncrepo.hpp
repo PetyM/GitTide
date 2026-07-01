@@ -134,6 +134,11 @@ public:
     /// Drop every stash entry.
     QCoro::Task<gittide::Expected<void>> stashClear();
 
+    /// Files in stash commit @p oid (tracked changes + untracked), for the preview.
+    QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> stashFiles(QString oid);
+    /// Diff of one file within stash commit @p oid (tracked or untracked).
+    QCoro::Task<gittide::Expected<gittide::DiffResult>> stashDiff(QString oid, std::filesystem::path file);
+
     /// De-initialise a submodule: remove its working-tree source files while
     /// preserving the .git gitlink file. path is repo-relative.
     QCoro::Task<gittide::Expected<void>> deinitSubmodule(std::filesystem::path path);

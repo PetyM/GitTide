@@ -605,6 +605,28 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::stashClear()
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::stashFiles(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, id = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashFiles(id);
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::stashDiff(QString oid, std::filesystem::path file)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, id = oid.toStdString(), file = std::move(file)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stashDiff(id, file);
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::deinitSubmodule(std::filesystem::path path)
 {
     auto impl = m_impl;
