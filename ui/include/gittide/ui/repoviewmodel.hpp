@@ -59,6 +59,10 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::StashListModel* stashes READ stashes CONSTANT)
     Q_PROPERTY(bool stashPreviewActive READ stashPreviewActive NOTIFY stashPreviewChanged)
     Q_PROPERTY(QString stashPreviewLabel READ stashPreviewLabel NOTIFY stashPreviewChanged)
+    /// Row index of the stash currently being previewed, or -1 when no preview is
+    /// active. Lets the panel highlight the previewed row and toggle it off on a
+    /// second click (the primary "get out of preview" affordance).
+    Q_PROPERTY(int stashPreviewIndex READ stashPreviewIndex NOTIFY stashPreviewChanged)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
     Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
@@ -129,6 +133,7 @@ public:
     StashListModel* stashes() const { return m_stashes; }
     bool stashPreviewActive() const { return m_stashPreviewActive; }
     QString stashPreviewLabel() const { return m_stashPreviewLabel; }
+    int stashPreviewIndex() const { return m_stashPreviewIndex; }
     QString selectedCommit() const;
     QString activeCommitFile() const;
     QString historyDetailHeader() const { return m_detailHeader; }
@@ -375,6 +380,7 @@ private:
     int                        m_stashCount = 0;
     bool                       m_stashPreviewActive = false;
     QString                    m_stashPreviewLabel;
+    int                        m_stashPreviewIndex  = -1;
     gittide::MergeState        m_merge;
     QString                    m_mergeStartName;
     gittide::RebaseState       m_rebase;

@@ -164,6 +164,7 @@ void RepoViewModel::open(const QString& path)
     m_stashes->setEntries({});
     m_stashCount = 0; // stashAvailable must read false synchronously, before the async refresh
     m_stashPreviewActive = false;
+    m_stashPreviewIndex  = -1;
     m_stashPreviewLabel.clear();
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
@@ -213,6 +214,7 @@ void RepoViewModel::close()
     m_rebase         = {};
     m_stashes->setEntries({});
     m_stashPreviewActive = false;
+    m_stashPreviewIndex  = -1;
     m_stashPreviewLabel.clear();
     emit changed();
     emit branchChanged();
@@ -1093,6 +1095,7 @@ void RepoViewModel::previewStash(int row)
     if (oid.isEmpty())
         return;
     m_stashPreviewActive = true;
+    m_stashPreviewIndex  = row;
     m_stashPreviewLabel  = m_stashes->data(m_stashes->index(row, 0),
                                             StashListModel::LabelRole).toString();
     emit stashPreviewChanged();
@@ -1104,6 +1107,7 @@ void RepoViewModel::exitStashPreview()
     if (!m_stashPreviewActive)
         return;
     m_stashPreviewActive = false;
+    m_stashPreviewIndex  = -1;
     m_stashPreviewLabel.clear();
     m_selectedCommit.clear();
     m_activeCommitFile.clear();

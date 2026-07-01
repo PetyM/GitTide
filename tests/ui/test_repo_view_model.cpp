@@ -675,13 +675,17 @@ private slots:
         vm.stashChanges();
         QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
 
+        QCOMPARE(vm.stashPreviewIndex(), -1); // no preview yet
+
         vm.previewStash(0);
         QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
         QVERIFY(vm.stashPreviewLabel().startsWith(QStringLiteral("stash@{0}")));
+        QCOMPARE(vm.stashPreviewIndex(), 0); // tracks the previewed row
         QTRY_VERIFY_WITH_TIMEOUT(vm.commitFiles()->rowCount() > 0, 5000);
 
         vm.exitStashPreview();
         QVERIFY(!vm.stashPreviewActive());
+        QCOMPARE(vm.stashPreviewIndex(), -1); // reset on exit
         QCOMPARE(vm.commitFiles()->rowCount(), 0);
     }
 };

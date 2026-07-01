@@ -23,6 +23,11 @@ ColumnLayout {
 
     property bool expanded: true
 
+    // Emitted when the user asks to clear the whole stack. The host (ChangesPane)
+    // guards this with a confirmation dialog before calling repoVm.clearStashes()
+    // — clearing the stack is destructive and unrecoverable.
+    signal clearRequested()
+
     // ---- Header row: disclosure toggle + title + Clear button ----
     RowLayout {
         Layout.fillWidth: true
@@ -60,10 +65,9 @@ ColumnLayout {
             variant: "secondary"
             compact: true
             text: "Clear"
-            onClicked: {
-                if (repoVm) repoVm.exitStashPreview()
-                if (repoVm) repoVm.clearStashes()
-            }
+            // Guarded: hand off to the host's confirmation dialog rather than
+            // clearing immediately (destructive, unrecoverable).
+            onClicked: stashPanel.clearRequested()
         }
     }
 
@@ -99,18 +103,52 @@ ColumnLayout {
                 model: repoVm ? repoVm.stashes : null
 
                 delegate: Rectangle {
+                    id: stashRow
                     // `index` and model role names (label, message, oid) are
                     // available implicitly in the delegate context from the
                     // QAbstractListModel without needing `required property`.
                     width: stashEntriesColumn.width
                     height: 46
-                    color: "transparent"
+
+                    // True while THIS row's diff is showing in the right pane.
+                    readonly property bool previewing:
+                        repoVm && repoVm.stashPreviewActive && repoVm.stashPreviewIndex === index
+
+                    // Row activation: toggle preview for this entry. Clicking the
+                    // previewed row again exits preview (primary "get back out"
+                    // affordance). Named so it is invokable from tests.
+                    function activate() {
+                        if (!repoVm)
+                            return
+                        if (stashRow.previewing)
+                            repoVm.exitStashPreview()
+                        else
+                            repoVm.previewStash(index)
+                    }
+
+                    // Previewed row is tinted with the accent; hover gives a subtle
+                    // overlay so rows read as clickable.
+                    color: stashRow.previewing ? theme.surfaceOverlay
+                           : rowHover.hovered ? theme.surfaceRaised
+                           : "transparent"
+
+                    // Accent bar marks the previewed row (colour alone is never the
+                    // only signal — see D19).
+                    Rectangle {
+                        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                        width: 2
+                        color: theme.accent
+                        visible: stashRow.previewing
+                    }
+
+                    HoverHandler { id: rowHover }
 
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: {
-                            if (repoVm) repoVm.previewStash(index)
-                        }
+                        // Toggle: clicking the previewed row again exits preview —
+                        // the primary "get back out" affordance, alongside the
+                        // Exit Preview button in the diff pane.
+                        onClicked: stashRow.activate()
                     }
 
                     RowLayout {
@@ -130,8 +168,12 @@ ColumnLayout {
                             }
                             Label {
                                 Layout.fillWidth: true
-                                text: model.message
-                                color: theme.textPrimary
+                                // While previewing, the message doubles as an exit
+                                // hint so the way out is obvious from the panel.
+                                text: stashRow.previewing
+                                      ? (model.message + "  ·  click to exit preview")
+                                      : model.message
+                                color: stashRow.previewing ? theme.accent : theme.textPrimary
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
                             }

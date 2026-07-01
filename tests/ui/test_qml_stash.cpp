@@ -26,8 +26,9 @@ class StashRepoStub : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(bool stashAvailable    READ stashAvailable    NOTIFY stashAvailableChanged)
-    Q_PROPERTY(bool stashPreviewActive READ stashPreviewActive CONSTANT)
+    Q_PROPERTY(bool stashPreviewActive READ stashPreviewActive NOTIFY previewChanged)
     Q_PROPERTY(QString stashPreviewLabel READ stashPreviewLabel CONSTANT)
+    Q_PROPERTY(int stashPreviewIndex  READ stashPreviewIndex  NOTIFY previewChanged)
     Q_PROPERTY(gittide::ui::StashListModel* stashes READ stashes CONSTANT)
 public:
     explicit StashRepoStub(QObject* parent = nullptr)
@@ -36,8 +37,9 @@ public:
     {}
 
     bool           stashAvailable()    const { return m_stashAvailable; }
-    bool           stashPreviewActive() const { return false; }
+    bool           stashPreviewActive() const { return m_previewActive; }
     QString        stashPreviewLabel() const { return {}; }
+    int            stashPreviewIndex() const { return m_previewIndex; }
     StashListModel* stashes()          const { return m_stashes; }
 
     // Helpers for test setup
@@ -45,6 +47,13 @@ public:
     {
         m_stashAvailable = v;
         emit stashAvailableChanged();
+    }
+    // Simulate the VM previewing a row (or none, index -1).
+    void setPreview(bool active, int index)
+    {
+        m_previewActive = active;
+        m_previewIndex  = index;
+        emit previewChanged();
     }
     void loadEntries(const std::vector<StashEntry>& entries)
     {
@@ -68,9 +77,12 @@ public:
 
 signals:
     void stashAvailableChanged();
+    void previewChanged();
 
 private:
     bool            m_stashAvailable = false;
+    bool            m_previewActive  = false;
+    int             m_previewIndex   = -1;
     StashListModel* m_stashes;
 };
 
@@ -199,9 +211,10 @@ private slots:
     }
 
     // -----------------------------------------------------------------
-    // 4. Clicking the header Clear button records clearStashes().
+    // 4. The header Clear button emits clearRequested (guarded by the host's
+    //    confirmation dialog) — it must NOT clear the stack directly.
     // -----------------------------------------------------------------
-    void clicking_stash_clear_button_records_clear_stashes()
+    void clicking_stash_clear_button_requests_confirmation()
     {
         ThemeManager mgr;
         mgr.setMode(ThemeManager::Mode::Dark);
@@ -214,12 +227,95 @@ private slots:
         std::unique_ptr<QObject> panel(loadPanel(engine, theme, stub, 400, 200));
         QVERIFY2(panel != nullptr, "StashPanel.qml failed to load");
 
+        QSignalSpy clearSpy(panel.get(), SIGNAL(clearRequested()));
+        QVERIFY(clearSpy.isValid());
+
         QObject* btn = panel->findChild<QObject*>(QStringLiteral("stashClearButton"));
         QVERIFY2(btn != nullptr, "stashClearButton not found");
         QVERIFY(QMetaObject::invokeMethod(btn, "click"));
         QTest::qWait(50);
 
-        QCOMPARE(stub.m_clearStashesCalls, 1);
+        // Signal fired; stack NOT cleared directly (the dialog does that on confirm).
+        QCOMPARE(clearSpy.count(), 1);
+        QCOMPARE(stub.m_clearStashesCalls, 0);
+    }
+
+    // -----------------------------------------------------------------
+    // 5. Clicking a non-previewed row starts preview; clicking the row that is
+    //    already being previewed exits preview (the "get back out" affordance).
+    // -----------------------------------------------------------------
+    void clicking_row_toggles_preview()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        StashRepoStub stub;
+        stub.loadEntries({{0, "WIP on main: abc", "aabbcc"}});
+        stub.setStashAvailable(true);
+
+        QQmlEngine engine;
+        std::unique_ptr<QObject> panel(loadPanel(engine, theme, stub, 400, 200));
+        QVERIFY2(panel != nullptr, "StashPanel.qml failed to load");
+
+        QObject* listObj = panel->findChild<QObject*>(QStringLiteral("stashList"));
+        QVERIFY2(listObj != nullptr, "stashList Repeater not found");
+        QQuickItem* row = nullptr;
+        QVERIFY(QMetaObject::invokeMethod(listObj, "itemAt", Qt::DirectConnection,
+                                          Q_RETURN_ARG(QQuickItem*, row), Q_ARG(int, 0)));
+        QVERIFY2(row != nullptr, "delegate row 0 not created");
+
+        // Not previewing → activate() starts preview of row 0.
+        QVERIFY(QMetaObject::invokeMethod(row, "activate"));
+        QCOMPARE(stub.m_previewStashCalls.size(), 1);
+        QCOMPARE(stub.m_previewStashCalls.first(), 0);
+        QCOMPARE(stub.m_exitPreviewCalls, 0);
+
+        // Now previewing row 0 → activate() exits preview instead of re-previewing.
+        stub.setPreview(true, 0);
+        QVERIFY(QMetaObject::invokeMethod(row, "activate"));
+        QCOMPARE(stub.m_exitPreviewCalls, 1);
+        QCOMPARE(stub.m_previewStashCalls.size(), 1); // unchanged — no second preview
+    }
+
+    // -----------------------------------------------------------------
+    // 6. The previewed row surfaces an exit affordance (highlight + hint text),
+    //    so the user can see how to get back out.
+    // -----------------------------------------------------------------
+    void previewed_row_shows_exit_hint()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        StashRepoStub stub;
+        stub.loadEntries({{0, "WIP on main: abc", "aabbcc"}});
+        stub.setStashAvailable(true);
+        stub.setPreview(true, 0); // previewing row 0 before load
+
+        QQmlEngine engine;
+        std::unique_ptr<QObject> panel(loadPanel(engine, theme, stub, 400, 200));
+        QVERIFY2(panel != nullptr, "StashPanel.qml failed to load");
+
+        QObject* listObj = panel->findChild<QObject*>(QStringLiteral("stashList"));
+        QVERIFY2(listObj != nullptr, "stashList Repeater not found");
+        QQuickItem* row = nullptr;
+        QVERIFY(QMetaObject::invokeMethod(listObj, "itemAt", Qt::DirectConnection,
+                                          Q_RETURN_ARG(QQuickItem*, row), Q_ARG(int, 0)));
+        QVERIFY2(row != nullptr, "delegate row 0 not created");
+
+        QCOMPARE(row->property("previewing").toBool(), true);
+
+        // The message label carries the "click to exit preview" hint while previewing.
+        QObject* hint = nullptr;
+        const auto labels = row->findChildren<QObject*>();
+        bool found = false;
+        for (QObject* o : labels) {
+            const QVariant t = o->property("text");
+            if (t.isValid() && t.toString().contains(QStringLiteral("exit preview"))) {
+                found = true;
+                break;
+            }
+        }
+        QVERIFY2(found, "previewed row does not show an exit-preview hint");
     }
 };
 

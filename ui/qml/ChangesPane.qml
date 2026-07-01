@@ -233,6 +233,8 @@ SplitView {
         // ---- Stash stack panel (collapsible; hidden when empty) ----
         StashPanel {
             Layout.fillWidth: true
+            // Clearing the whole stack is destructive → confirm first.
+            onClearRequested: clearStashesDialog.open()
         }
 
         // ---- Commit box (hidden during stash preview) ----
@@ -340,5 +342,51 @@ SplitView {
         id: discardDialog
         fileName: fileMenu.fileName
         onAccepted: if (repoVm) repoVm.discardFile(fileMenu.filePath)
+    }
+
+    // Confirmation guard before clearing the whole stash stack — destructive and
+    // unrecoverable, so it must never fire on a single stray click.
+    Dialog {
+        id: clearStashesDialog
+        objectName: "clearStashesDialog"
+        modal: true
+        title: "Clear all stashes"
+        anchors.centerIn: parent
+        width: 380
+        padding: 20
+        background: OverlayCard {}
+
+        contentItem: Label {
+            text: (repoVm && repoVm.stashes)
+                  ? ("Delete all " + repoVm.stashes.count
+                     + " stash entr" + (repoVm.stashes.count === 1 ? "y" : "ies")
+                     + "? This cannot be undone.")
+                  : "Delete all stash entries? This cannot be undone."
+            color: theme.textPrimary
+            font.pixelSize: 13
+            wrapMode: Text.WordWrap
+        }
+
+        footer: RowLayout {
+            spacing: 8
+            Layout.margins: 16
+            Item { Layout.fillWidth: true }
+            AppButton {
+                variant: "secondary"
+                text: "Cancel"
+                onClicked: clearStashesDialog.reject()
+            }
+            AppButton {
+                objectName: "clearStashesConfirmButton"
+                variant: "danger"
+                text: "Clear all"
+                onClicked: clearStashesDialog.accept()
+            }
+        }
+
+        onAccepted: {
+            if (repoVm) repoVm.exitStashPreview()
+            if (repoVm) repoVm.clearStashes()
+        }
     }
 }
