@@ -179,7 +179,7 @@ git commit -m "fix(ui): mouse-wheel scroll was dead everywhere — WheelHandler.
   its commit-list `Item` becomes `Layout.fillWidth: true` (was
   `Layout.preferredWidth: 460`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/ui/test_qml_graph.cpp`, inside `class TestQmlGraph`, a new slot
 (place it after `graph_tab_exists_and_selection_drives_commit_detail`):
@@ -241,7 +241,7 @@ Add to `tests/ui/test_qml_graph.cpp`, inside `class TestQmlGraph`, a new slot
     }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 cmake --build build --target gittide_ui_tests --parallel
@@ -250,7 +250,7 @@ QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests -select TestQmlGraph
 
 Expected: `FAIL` — `graphCommitDetail` is still found (it exists today).
 
-- [ ] **Step 3: Remove the detail panel, widen the list**
+- [x] **Step 3: Remove the detail panel, widen the list**
 
 In `ui/qml/GraphPane.qml`:
 
@@ -310,7 +310,7 @@ leaves the pane entirely instead of moving to the (now-removed) detail pane:
             }
 ```
 
-- [ ] **Step 4: Run it to verify it passes**
+- [x] **Step 4: Run it to verify it passes**
 
 ```bash
 cmake --build build --target gittide_ui_tests --parallel
@@ -319,7 +319,7 @@ QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests -select TestQmlGraph
 
 Expected: `PASS` for all `TestQmlGraph` slots, including the new one.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/qml/GraphPane.qml tests/ui/test_qml_graph.cpp
