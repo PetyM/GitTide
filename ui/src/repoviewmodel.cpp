@@ -633,7 +633,7 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
     if (path != m_activeFile)
         return;
     const FileSel& fs = m_sel[path];
-    m_diff->setDiff(result, fs.checkedLinesByHunk, fs.state == ChangedFilesModel::Checked, /*blocks=*/true);
+    m_diff->setDiff(result, fs.checkedLinesByHunk, fs.state == ChangedFilesModel::Checked, /*blocks=*/true, path);
 }
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
@@ -813,7 +813,7 @@ void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const 
         return;
     // Read-only: no checked lines, not whole-file-checked. The QML detail view
     // hides the per-line checkbox column.
-    m_commitDiff->setDiff(result, {}, false);
+    m_commitDiff->setDiff(result, {}, false, /*blocks=*/false, path);
 }
 
 void RepoViewModel::selectCommitRows(const QVariantList& rows)
@@ -907,7 +907,7 @@ void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,
 {
     if (oldOid != m_rangeOld || newOid != m_rangeNew || path != m_activeCommitFile)
         return;
-    m_commitDiff->setDiff(result, {}, false);
+    m_commitDiff->setDiff(result, {}, false, /*blocks=*/false, path);
 }
 
 void RepoViewModel::fetch()

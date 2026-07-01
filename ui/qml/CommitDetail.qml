@@ -11,6 +11,11 @@ ColumnLayout {
     signal tabForward()
     function takeFocus() { commitFilesList.forceActiveFocus() }
 
+    // Keep the diff model's syntax theme aligned with the app theme.
+    property bool syntaxDark: theme.dark
+    onSyntaxDarkChanged: if (repoVm && repoVm.commitDiff) repoVm.commitDiff.setSyntaxDark(syntaxDark)
+    Component.onCompleted: if (repoVm && repoVm.commitDiff) repoVm.commitDiff.setSyntaxDark(theme.dark)
+
     // Range header / hint shown when a multi-commit selection is active.
     Label {
         objectName: "rangeHeaderLabel"
@@ -194,11 +199,16 @@ ColumnLayout {
                     font.family: "monospace"
                     font.pixelSize: 12
                     elide: Text.ElideRight
-                    text: model.lineText
-                    color: model.lineKind === "hunk" ? theme.textMuted
-                           : model.lineKind === "added" ? theme.stateAdded
-                           : model.lineKind === "removed" ? theme.stateDeleted
-                           : theme.textPrimary
+                    clip: true
+                    textFormat: model.lineHtml && model.lineHtml.length > 0
+                                ? Text.RichText : Text.PlainText
+                    text: model.lineHtml && model.lineHtml.length > 0
+                          ? model.lineHtml : model.lineText
+                    color: model.lineKind === "hunk"   ? theme.textMuted
+                         : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
+                         : model.lineKind === "added"  ? theme.stateAdded
+                         : model.lineKind === "removed" ? theme.stateDeleted
+                         : theme.textPrimary
                 }
             }
         }

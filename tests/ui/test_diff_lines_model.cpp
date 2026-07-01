@@ -269,6 +269,41 @@ private slots:
         }
         QVERIFY(sawBlock);
     }
+
+    void codeRowsCarryHtmlForKnownLanguage()
+    {
+        DiffLinesModel m;
+        gittide::DiffResult diff = oneHunkDiff();   // existing helper: ctx/added/removed
+        m.setDiff(diff, {}, false, /*blocks=*/false, QStringLiteral("main.cpp"));
+
+        const int htmlRole = roleKey(m, "lineHtml");
+        const int kindRole = roleKey(m, "lineKind");
+        QVERIFY(htmlRole != -1);
+
+        bool sawCodeHtml = false;
+        for (int i = 0; i < m.rowCount(); ++i)
+        {
+            const QString kind = m.data(m.index(i, 0), kindRole).toString();
+            const QString html = m.data(m.index(i, 0), htmlRole).toString();
+            if (kind == "hunk")
+                QVERIFY(html.isEmpty());            // headers never highlighted
+            if (kind == "added" || kind == "removed" || kind == "context")
+                if (!html.isEmpty())
+                    sawCodeHtml = true;
+        }
+        QVERIFY(sawCodeHtml);                        // at least one code row got HTML
+    }
+
+    void unknownLanguageLeavesHtmlEmpty()
+    {
+        DiffLinesModel m;
+        gittide::DiffResult diff = oneHunkDiff();
+        m.setDiff(diff, {}, false, false, QStringLiteral("notes.weirdext"));
+
+        const int htmlRole = roleKey(m, "lineHtml");
+        for (int i = 0; i < m.rowCount(); ++i)
+            QVERIFY(m.data(m.index(i, 0), htmlRole).toString().isEmpty());
+    }
 };
 
 #include "test_diff_lines_model.moc"
