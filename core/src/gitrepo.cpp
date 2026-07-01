@@ -1943,6 +1943,67 @@ Expected<int> GitRepo::stashCount() const
     return count;
 }
 
+Expected<std::vector<StashEntry>> GitRepo::stashList() const
+{
+    std::vector<StashEntry> entries;
+    int rc = git_stash_foreach(
+        m_repo,
+        [](size_t index, const char* message, const git_oid* oid, void* payload) -> int
+        {
+            char hex[GIT_OID_HEXSZ + 1] = {0};
+            git_oid_tostr(hex, sizeof(hex), oid);
+            static_cast<std::vector<StashEntry>*>(payload)->push_back(
+                StashEntry{index, message ? message : "", hex});
+            return 0;
+        },
+        &entries);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return entries;
+}
+
+Expected<void> GitRepo::stashApplyAt(std::size_t index)
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_apply(m_repo, index, &aopts);
+    if (rc < 0)
+        return std::unexpected(GitError{rc, "Your changes conflict and the stash was kept"});
+    return {};
+}
+
+Expected<void> GitRepo::stashPopAt(std::size_t index)
+{
+    git_stash_apply_options aopts = GIT_STASH_APPLY_OPTIONS_INIT;
+    int rc = git_stash_pop(m_repo, index, &aopts);
+    if (rc < 0)
+        // libgit2 does not drop on a conflicting pop — the stash is preserved.
+        return std::unexpected(GitError{rc, "Your changes conflict and are kept in the stash"});
+    return {};
+}
+
+Expected<void> GitRepo::stashDrop(std::size_t index)
+{
+    int rc = git_stash_drop(m_repo, index);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::stashClear()
+{
+    auto list = stashList();
+    if (!list)
+        return std::unexpected(list.error());
+    // Drop highest index first so the remaining indices stay valid.
+    for (auto it = list->rbegin(); it != list->rend(); ++it)
+    {
+        int rc = git_stash_drop(m_repo, it->index);
+        if (rc < 0)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
 Expected<void> GitRepo::deleteBranch(std::string name, bool force)
 {
     git_reference* ref = nullptr;

@@ -51,5 +51,6 @@
     <file>RebaseTodoDialog.qml</file>
     <file>ReorderConfirmDialog.qml</file>
     <file>PathElide.js</file>
+    <file>StashPanel.qml</file>
   </qresource>
 </RCC>

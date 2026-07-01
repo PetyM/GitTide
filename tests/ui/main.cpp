@@ -59,6 +59,8 @@
 #include "test_qml_graph.cpp"
 #include "test_qml_appcontrols.cpp"
 #include "test_qml_menu_bar.cpp"
+#include "test_stash_list_model.cpp"
+#include "test_qml_stash.cpp"
 #include "test_syntaxhighlighter.cpp"
 
 #include <QGuiApplication>
@@ -132,6 +134,8 @@ int main(int argc, char** argv)
     RUN(TestQmlGraph);
     RUN(TestQmlAppControls);
     RUN(TestQmlMenuBar);
+    RUN(TestStashListModel);
+    RUN(TestQmlStash);
     RUN(TestSyntaxHighlighter);
 
     // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers

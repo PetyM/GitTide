@@ -285,6 +285,39 @@ engineering contract.
   status (+`MergeState`) + diff + history + branches + sync-status — the same
   cascade as a checkout, scoped to the one repo.
 
+### Stash management
+
+The user-facing stash stack is a pure git operation on `GitRepo` over the
+libgit2 `git_stash_*` family, returning `Expected<T>` like the rest of core;
+`AsyncRepo` wraps each as a `QCoro::Task` and `RepoController` exposes them as
+slots. The product shape is in [`../product/product.md`](../product/product.md#stash).
+It builds on the existing `stashSave` / `stashPop` / `stashCount` primitives
+already used for auto-stash.
+
+- **Core surface.** New `GitRepo` methods: `stashList()` →
+  `Expected<std::vector<StashEntry>>` (`git_stash_foreach`; `StashEntry` is a
+  plain core struct — `index`, `message`, hex `oid` string — so no libgit2 type
+  crosses the public header); and `stashApplyAt(index)` / `stashPopAt(index)` /
+  `stashDrop(index)` / `stashClear()` over `git_stash_apply` / `git_stash_pop` /
+  `git_stash_drop` (clear drops high→low). The existing parameterless
+  `stashPop()` is the `index 0` shortcut.
+- **No new diff primitive — a stash *is* a commit.** Preview reuses the existing
+  commit-diff path: a stash entry's `oid` is fed to `commitFiles(oid)` +
+  `commitDiff(oid, file)`, which diff the stash commit's tree against its first
+  parent (the base) — exactly `git stash show`. No `stashDiff` method is added.
+- **Conflicts never drop the stash.** libgit2's apply/pop return a merge-conflict
+  error and leave the stash on the stack on failure — core returns that `GitError`
+  unchanged, the UI reports it via `operationFailed`, and the stack is preserved
+  (D44). First cut does not drive into the inline conflict UI.
+- **Bridge & model.** A `StashListModel` (`QAbstractListModel`) exposes the
+  entries to QML; `RepoViewModel` owns it behind a `stashes` property plus
+  invokables (`previewStash` / `applyStash` / `popStashAt` / `dropStash` /
+  `clearStashes`). Preview reuses the read-only `commitDiff` `DiffLinesModel`.
+- **Cascade.** Every mutating stash op (save / apply / pop / drop / clear) runs on
+  the worker repo and then refreshes status + diff + the stash list together, the
+  same cascade as discard / checkout. The existing `stashCountChanged` signal
+  continues to feed `stashAvailable`.
+
 ### Inline selection, commit, and the history diff
 
 There is **no staging area**: the UI owns the commit selection, and `core/` stays

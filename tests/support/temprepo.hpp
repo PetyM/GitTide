@@ -27,6 +27,9 @@ public:
     // Write (or overwrite) a file at a repo-relative path.
     void writeFile(std::string_view rel_path, std::string_view contents);
 
+    // Read the full contents of a file at a repo-relative path.
+    std::string readFile(std::string_view rel_path);
+
     // Stage all changes and create a commit with a fixed test author.
     void commitAll(std::string_view message);
 

@@ -62,6 +62,15 @@ void TempRepo::writeFile(std::string_view rel_path, std::string_view contents)
     out.write(contents.data(), static_cast<std::streamsize>(contents.size()));
 }
 
+std::string TempRepo::readFile(std::string_view rel_path)
+{
+    std::filesystem::path file = m_dir / std::filesystem::path(rel_path);
+    std::ifstream in(file, std::ios::binary);
+    if (!in)
+        throw std::runtime_error("readFile: could not open " + file.string());
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
 void TempRepo::commitAll(std::string_view message)
 {
     // NOTE: leaks index/tree/sig if a check() throws mid-function. Test-only

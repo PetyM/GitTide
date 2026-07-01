@@ -8,6 +8,7 @@
 
 #include "gittide/filestatus.hpp"
 #include "gittide/ui/asyncrepo.hpp"
+#include "support/temprepo.hpp"
 
 using gittide::ui::AsyncRepo;
 
@@ -221,6 +222,28 @@ private slots:
         QVERIFY(files.has_value());
         QVERIFY(!files->empty());
         std::filesystem::remove_all(dir);
+    }
+
+    void stashListRoundTrips()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "orig\n");
+        tmp.commitAll("init");
+
+        auto repo = gittide::ui::AsyncRepo::open(tmp.path());
+        QVERIFY(repo.has_value());
+
+        tmp.writeFile("a.txt", "dirty\n");
+        QVERIFY(QCoro::waitFor(repo->stashSave(QStringLiteral("wip"))).value());
+
+        auto list = QCoro::waitFor(repo->stashList());
+        QVERIFY(list.has_value());
+        QCOMPARE(int(list->size()), 1);
+        QCOMPARE(int((*list)[0].index), 0);
+
+        QVERIFY(QCoro::waitFor(repo->stashPopAt(0)).has_value());
+        QCOMPARE(QCoro::waitFor(repo->stashCount()).value(), 0);
     }
 };
 

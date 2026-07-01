@@ -19,6 +19,7 @@
 #include "gittide/ui/changedfilesmodel.hpp"
 #include "gittide/ui/difflinesmodel.hpp"
 #include "gittide/ui/historylistmodel.hpp"
+#include "gittide/ui/stashlistmodel.hpp"
 
 namespace gittide::ui {
 
@@ -55,6 +56,9 @@ class RepoViewModel : public QObject
     Q_PROPERTY(gittide::ui::HistoryListModel* graph READ graph CONSTANT)
     Q_PROPERTY(gittide::ui::ChangedFilesModel* commitFiles READ commitFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
+    Q_PROPERTY(gittide::ui::StashListModel* stashes READ stashes CONSTANT)
+    Q_PROPERTY(bool stashPreviewActive READ stashPreviewActive NOTIFY stashPreviewChanged)
+    Q_PROPERTY(QString stashPreviewLabel READ stashPreviewLabel NOTIFY stashPreviewChanged)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
     Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
@@ -122,6 +126,9 @@ public:
     HistoryListModel*   graph() const;
     ChangedFilesModel* commitFiles() const;
     DiffLinesModel* commitDiff() const;
+    StashListModel* stashes() const { return m_stashes; }
+    bool stashPreviewActive() const { return m_stashPreviewActive; }
+    QString stashPreviewLabel() const { return m_stashPreviewLabel; }
     QString selectedCommit() const;
     QString activeCommitFile() const;
     QString historyDetailHeader() const { return m_detailHeader; }
@@ -257,6 +264,18 @@ public:
     Q_INVOKABLE void stashChanges();
     /// Pop the most-recent stash back onto the working tree.
     Q_INVOKABLE void popStash();
+    /// Preview the stash at @p row in the commit-diff view.
+    Q_INVOKABLE void previewStash(int row);
+    /// Exit stash preview mode and clear the commit-diff view.
+    Q_INVOKABLE void exitStashPreview();
+    /// Apply the stash at @p row (keep it in the stack).
+    Q_INVOKABLE void applyStash(int row);
+    /// Pop (apply + drop) the stash at @p row.
+    Q_INVOKABLE void popStashAt(int row);
+    /// Drop the stash at @p row without applying it.
+    Q_INVOKABLE void dropStash(int row);
+    /// Drop all stash entries.
+    Q_INVOKABLE void clearStashes();
     Q_INVOKABLE void openInEditor(const QString& path);
     Q_INVOKABLE void revealInFileManager(const QString& path);
     /// Open the repository root folder in the OS-native file manager.
@@ -304,6 +323,9 @@ signals:
     /// on disk (e.g. submodule init/deinit via an external terminal).
     void repoStructureChanged();
 
+    /// Emitted when stashPreviewActive or stashPreviewLabel changes.
+    void stashPreviewChanged();
+
 private:
     struct FileSel
     {
@@ -313,6 +335,7 @@ private:
 
     void onStatus(const std::vector<gittide::FileStatus>& files);
     void onStashCount(int count);
+    void onStashList(const std::vector<gittide::StashEntry>& entries);
     void onDiff(const QString& path, const gittide::DiffResult& result);
     void onHead(const gittide::HeadState& head);
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
@@ -346,9 +369,12 @@ private:
     HistoryListModel*  m_graph      = nullptr;
     ChangedFilesModel* m_commitFiles = nullptr;
     DiffLinesModel*    m_commitDiff  = nullptr;
+    StashListModel*    m_stashes     = nullptr;
 
     bool                       m_open = false;
     int                        m_stashCount = 0;
+    bool                       m_stashPreviewActive = false;
+    QString                    m_stashPreviewLabel;
     gittide::MergeState        m_merge;
     QString                    m_mergeStartName;
     gittide::RebaseState       m_rebase;

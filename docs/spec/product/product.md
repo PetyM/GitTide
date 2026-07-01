@@ -250,6 +250,35 @@ merge are out of scope.
   refreshes status, diff, history, branches, and sync-status together — the same
   cascade as a checkout.
 
+### Stash
+
+Park working changes on git's native **stack** and bring them back later — fully
+local, no network. This is the *user-facing* stash feature, distinct from the
+invisible auto-stash that safe-switch / merge / rebase use internally.
+
+- **The stack is visible.** A collapsible **Stashes** panel lives in the
+  [Changes tab](#changes-tab)'s left column, below the working-file list. Its
+  header reads *Stashes (n)* and collapses to nothing when the stack is empty.
+  Each row names the stash — its message and the branch it was taken from
+  (`stash@{0}`, `{1}`, …, newest first).
+- **Save stays one-click.** *Stash all changes* (title-bar / Repository menu)
+  keeps its current behaviour: no message prompt, untracked files included,
+  leaving a clean tree. Entries show git's default message (*WIP on \<branch>*).
+- **Per-entry actions.** Any entry — not only the newest — can be **Apply** (run
+  it onto the tree, keep it on the stack), **Pop** (apply + drop), or **Drop**
+  (remove without applying). A **Clear** action on the panel header empties the
+  whole stack. *Pop latest stash* in the menu stays as the newest-entry shortcut.
+- **Preview before applying.** Selecting a stash row shows its diff in the shared
+  right-hand diff panel, read-only, headed *Preview: stash@{n}* — the same viewer
+  used for history. Deselecting returns the panel to the live working-tree diff.
+- **Apply/pop conflicts never lose the stash.** If applying or popping would land
+  on conflicts against the current tree, the operation stops, reports via the
+  error banner, and **keeps the stash on the stack** — first cut does not route
+  into inline conflict resolution (D44).
+- **Refresh cascade.** Stash save, apply, pop, drop, and clear all rewrite the
+  working tree and/or the stack → status, diff, and the stash list refresh
+  together, the same cascade as discard / checkout.
+
 ## Key flows
 
 - **Switch project** → load its repos → redraw the repo tree. Only the active

@@ -310,6 +310,22 @@ an entry with a newer one if it changes.
   column and still needed the `MouseArea` fix). → [`product`](spec/product/product.md),
   [`history-editing`](spec/product/history-editing.md)
 
+- **D44 — On a stash apply/pop conflict, report and preserve the stash; do not
+  drive into the inline conflict UI (first cut).** The user-facing stash stack
+  (list / apply / pop / drop / clear / preview) exposes git's native stack in a
+  collapsible panel in the Changes tab; selecting an entry previews its diff in
+  the shared right-hand diff panel. When `git_stash_apply`/`pop` would land on
+  conflicts against the current tree, the op stops, surfaces via `operationFailed`,
+  and leaves the stash on the stack (libgit2 does not drop on failure) — never
+  silently losing parked work. *Why:* highest value per line and zero coupling to
+  the merge-conflict flow; the minimum the wish demands. *Rejected:* routing the
+  conflict into the existing inline merge-conflict resolution UI (richer, but
+  couples stash to merge state and is materially more work — deferred as the
+  upgrade path); a message prompt + keep-index/untracked toggles on save (kept the
+  existing one-click save, YAGNI). The preview reuses the read-only `commitDiff`
+  model. → [`product`](spec/product/product.md#stash),
+  [`engineering`](spec/engineering/engineering.md)
+
 ## Design
 
 - **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand

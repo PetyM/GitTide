@@ -19,6 +19,8 @@
 #include "gittide/ui/asyncrepo.hpp"
 
 Q_DECLARE_METATYPE(gittide::RebaseState)
+Q_DECLARE_METATYPE(gittide::StashEntry)
+Q_DECLARE_METATYPE(std::vector<gittide::StashEntry>)
 
 namespace gittide::ui {
 
@@ -60,6 +62,19 @@ public slots:
     QCoro::Task<void> stashChanges();
     /// Pop the most-recent stash; refreshes status + stash count.
     QCoro::Task<void> popStash();
+    /// Apply stash@{index}, keeping it; refreshes status + stash list. Conflict →
+    /// operationFailed, stash preserved.
+    QCoro::Task<void> applyStashAt(int index);
+    /// Pop stash@{index} (apply + drop); refreshes status + stash list. Conflict →
+    /// operationFailed, stash preserved.
+    QCoro::Task<void> popStashAt(int index);
+    /// Drop stash@{index}; refreshes the stash list.
+    QCoro::Task<void> dropStash(int index);
+    /// Clear the whole stack; refreshes the stash list.
+    QCoro::Task<void> clearStashes();
+    /// Re-read the stash count and list from disk; emits stashCountChanged and
+    /// stashListReady. Called on open() and after every stash operation.
+    QCoro::Task<void> refreshStashState();
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
     QCoro::Task<void> refreshGraph(unsigned limit = 1000);
@@ -179,6 +194,10 @@ signals:
     /// change, and after stashChanges/popStash). Feeds the VM's stashAvailable.
     void stashCountChanged(int count);
 
+    /// Emitted whenever the stash list is refreshed (on open, after a git-dir change,
+    /// and after any stash op). Feeds the VM's StashListModel. Newest first.
+    void stashListReady(std::vector<gittide::StashEntry> entries);
+
     /// Emitted whenever the merge-in-progress state is refreshed (D30).
     /// Always reflects disk truth — never a cached/in-memory flag.
     void mergeStateChanged(gittide::MergeState state);
@@ -215,9 +234,6 @@ private:
 
     // Pop the pending auto-stash if one was saved.
     QCoro::Task<void> popPendingStash();
-
-    // Re-read the stash count from disk and emit stashCountChanged.
-    QCoro::Task<void> refreshStashState();
 
     // Refresh status (including mergeState → mergeStateChanged) + history +
     // branches + sync. Used as the tail of every merge operation.
