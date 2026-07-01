@@ -62,7 +62,7 @@ scrollable list in the app.
 - Consumes: `qrc:/qml/WheelScroller.qml` (`view` property, type `Flickable`).
 - Produces: nothing new — this is a leaf regression test.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/ui/test_qml_wheelscroller.cpp`:
 
@@ -115,7 +115,7 @@ private slots:
 #include "test_qml_wheelscroller.moc"
 ```
 
-- [ ] **Step 2: Wire the test into the build**
+- [x] **Step 2: Wire the test into the build**
 
 In `tests/CMakeLists.txt`, find the `gittide_ui_test_sources` list (it already
 contains `${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_graph.cpp` per
@@ -137,7 +137,7 @@ and add a `QTest::qExec` call in `main()` alongside the others:
     { TestQmlWheelScroller t; status |= QTest::qExec(&t, argc, argv); }
 ```
 
-- [ ] **Step 3: Build and run — verify the test currently PASSES**
+- [x] **Step 3: Build and run — verify the test currently PASSES**
 
 The fix is already applied in the working tree, so this test should pass
 immediately, proving the regression guard is correctly wired:
@@ -149,7 +149,7 @@ QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests -select TestQmlWheelScr
 
 Expected: `PASS` for `view_resolves_to_the_enclosing_flickable_not_its_content_item`.
 
-- [ ] **Step 4: Verify the test actually catches the regression**
+- [x] **Step 4: Verify the test actually catches the regression**
 
 Temporarily revert `ui/qml/WheelScroller.qml`'s `view` property to the buggy
 form (`property Flickable view: parent`), rebuild, and re-run the same test —
@@ -158,7 +158,7 @@ a null `QObject*`, or `QCOMPARE` mismatches `root`). Then restore the fixed
 form (`property Flickable view: parent ? parent.parent : null`) and rebuild —
 confirm `PASS` again.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/ui/test_qml_wheelscroller.cpp tests/CMakeLists.txt tests/ui/main.cpp ui/qml/WheelScroller.qml

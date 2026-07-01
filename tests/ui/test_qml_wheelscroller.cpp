@@ -1,7 +1,6 @@
 #include <QtTest>
 #include <QQmlComponent>
 #include <QQmlEngine>
-#include <QQuickItem>
 
 class TestQmlWheelScroller : public QObject
 {
