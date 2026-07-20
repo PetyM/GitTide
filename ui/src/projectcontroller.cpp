@@ -70,20 +70,26 @@ QCoro::Task<void> ProjectController::pollRepos()
         QString branch, shortOid;
         bool    detached = false;
         int     dirty    = 0;
+        bool    haveHead = false, haveStatus = false;
         if (auto hs = co_await repo.head(); hs)
         {
             branch   = QString::fromStdString(hs->branch);
             detached = hs->detached;
             shortOid = QString::fromStdString(
                 hs->oid.substr(0, std::min<std::size_t>(7, hs->oid.size())));
+            haveHead = true;
         }
         if (!self)
             co_return;
         if (auto ds = co_await repo.status(); ds)
-            dirty = static_cast<int>(ds->size());
+        {
+            dirty      = static_cast<int>(ds->size());
+            haveStatus = true;
+        }
         if (!self)
             co_return;
-        m_repoModel->setRepoHead(row, branch, detached, shortOid, dirty);
+        if (haveHead && haveStatus)
+            m_repoModel->setRepoHead(row, branch, detached, shortOid, dirty);
 
         auto tree = co_await repo.submoduleTree();
         if (!self)

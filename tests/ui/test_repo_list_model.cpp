@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <vector>
 
+#include "gittide/gitrepo.hpp"
 #include "gittide/projectstore.hpp"
 #include "gittide/submodule.hpp"
 #include "gittide/ui/repolistmodel.hpp"
@@ -378,6 +379,37 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), false);
         QVERIFY(m.data(i0, RepoListModel::DirtyCountRole).toInt() >= 1);      // 1 modified file
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false); // no remote
+    }
+
+    void setRepos_seeds_detached_head_from_disk()
+    {
+        using namespace gittide::test;
+        TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+
+        auto opened1 = gittide::GitRepo::open(repo.path());
+        QVERIFY(opened1.has_value());
+        auto headAfterC1 = opened1->head();
+        QVERIFY(headAfterC1.has_value());
+        const std::string c1Oid = headAfterC1->oid;
+
+        repo.writeFile("a.txt", "two\n");
+        repo.commitAll("c2");
+
+        auto opened2 = gittide::GitRepo::open(repo.path());
+        QVERIFY(opened2.has_value());
+        auto checkout = opened2->checkoutCommit(c1Oid);
+        QVERIFY(checkout.has_value());
+
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
+        const QModelIndex i0 = m.index(0, 0);
+
+        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), true);
+        QCOMPARE(m.data(i0, RepoListModel::ShortOidRole).toString().size(), 7);
+        QVERIFY(m.data(i0, RepoListModel::BranchRole).toString().isEmpty());
     }
 };
 
