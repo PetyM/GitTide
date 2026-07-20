@@ -85,8 +85,14 @@
         fflush(stderr);                                                                                                        \
         try                                                                                                                    \
         {                                                                                                                      \
-            T t;                                                                                                               \
-            status |= QTest::qExec(&t, argc, argv);                                                                            \
+            T         t;                                                                                                       \
+            const int rc = QTest::qExec(&t, argc, argv);                                                                       \
+            if (rc != 0)                                                                                                       \
+            {                                                                                                                  \
+                fprintf(stderr, "[ui-test] FAILED %s (rc=%d)\n", #T, rc);                                                      \
+                fflush(stderr);                                                                                                \
+            }                                                                                                                  \
+            status |= rc;                                                                                                      \
         }                                                                                                                      \
         catch (const std::exception& e)                                                                                        \
         {                                                                                                                      \
