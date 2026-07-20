@@ -23,6 +23,7 @@
 #include "test_auth_error.cpp"
 #include "test_credential_manager.cpp"
 #include "test_forge_client.cpp"
+#include "test_avatar_service.cpp"
 #include "test_identity_list_model.cpp"
 #include "test_secret_store.cpp"
 #include "test_project_controller.cpp"
@@ -101,6 +102,11 @@
 
 int main(int argc, char** argv)
 {
+    // Unbuffer stdout so QTest's PASS/FAIL lines survive an abnormal exit and land
+    // in the CI log — Windows block-buffers stdout when it isn't a TTY, so the
+    // per-test output was otherwise lost while our stderr trace survived.
+    setvbuf(stdout, nullptr, _IONBF, 0);
+
     QGuiApplication app(argc, argv);
 
     // Hold one process-wide libgit2 reference for the whole run. The per-test repo
@@ -122,6 +128,7 @@ int main(int argc, char** argv)
     RUN(TestCredentialManager);
     RUN(TestSecretStore);
     RUN(TestForgeClient);
+    RUN(TestAvatarService);
     RUN(TestRepoListModel);
     RUN(TestProjectController);
     RUN(TestRepoController);
