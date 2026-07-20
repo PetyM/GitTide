@@ -550,6 +550,36 @@ private slots:
         controller.setWindowActive(false);
     }
 
+    void pollRepos_refreshes_branch_and_dirty()
+    {
+        using namespace gittide::test;
+        using gittide::ui::ProjectController;
+        using gittide::ui::RepoListModel;
+
+        TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+
+        gittide::ProjectStore store;
+        auto& p = store.createProject("P");
+        store.addRepo(p.id, gittide::RepoRef{.path = repo.path().generic_string()});
+
+        // Short poll interval so the timer fires quickly under QTRY.
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/100);
+        controller.activate(QString::fromStdString(p.id));
+
+        RepoListModel*    model = controller.repos();
+        const QModelIndex i0    = model->index(0, 0);
+        QCOMPARE(model->data(i0, RepoListModel::DirtyCountRole).toInt(), 0); // seeded clean
+
+        // Dirty the tree on disk, then let the poll pick it up.
+        repo.writeFile("a.txt", "two\n");
+        controller.setWindowActive(true);
+        QTRY_COMPARE_WITH_TIMEOUT(model->data(i0, RepoListModel::DirtyCountRole).toInt(), 1, 5000);
+        QVERIFY(!model->data(i0, RepoListModel::BranchRole).toString().isEmpty());
+    }
+
     // The poll must not run while the window is inactive.
     void poll_does_not_run_when_window_inactive()
     {

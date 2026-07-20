@@ -3,6 +3,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <QtConcurrent>
+#include <algorithm>
 #include <core/qcorofuture.h>
 #include <filesystem>
 
@@ -65,6 +66,25 @@ QCoro::Task<void> ProjectController::pollRepos()
             co_return;
         if (st)
             m_repoModel->setSyncCounts(row, st->ahead, st->behind, st->hasUpstream);
+
+        QString branch, shortOid;
+        bool    detached = false;
+        int     dirty    = 0;
+        if (auto hs = co_await repo.head(); hs)
+        {
+            branch   = QString::fromStdString(hs->branch);
+            detached = hs->detached;
+            shortOid = QString::fromStdString(
+                hs->oid.substr(0, std::min<std::size_t>(7, hs->oid.size())));
+        }
+        if (!self)
+            co_return;
+        if (auto ds = co_await repo.status(); ds)
+            dirty = static_cast<int>(ds->size());
+        if (!self)
+            co_return;
+        m_repoModel->setRepoHead(row, branch, detached, shortOid, dirty);
+
         auto tree = co_await repo.submoduleTree();
         if (!self)
             co_return;
