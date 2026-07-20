@@ -104,7 +104,7 @@ private slots:
         QVERIFY(sawMessagePause);
         QVERIFY(!paused.messagePrefill.empty());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     // A non-contiguous selection (c2 + c0, skipping c1) is rejected.
@@ -123,7 +123,7 @@ private slots:
         QVERIFY(failed.wait(15000));
         QCOMPARE(ready.count(), 0);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <fstream>
+#include <system_error>
 #include <qcoro/qcorotask.h>
 #include <git2.h>
 
@@ -125,7 +126,7 @@ private slots:
         const auto last = stateSpy.last().at(0).value<gittide::RebaseState>();
         QVERIFY(!last.inProgress);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

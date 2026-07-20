@@ -126,7 +126,7 @@ private slots:
         QVERIFY(bar != nullptr);
         QCOMPARE(bar->property("text").toString(), vm.currentBranch());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void file_list_binds_to_changed_files_model()
@@ -155,7 +155,7 @@ private slots:
         QObject* btn = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("commitButton"));
         QVERIFY(btn != nullptr);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void diff_list_binds_to_diff_lines_model()
@@ -184,7 +184,7 @@ private slots:
         QVERIFY(diff != nullptr);
         QCOMPARE(diff->property("model").value<QAbstractItemModel*>(), vm.diffLines());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     // The branded empty state lives in the main working area (not the sidebar)
@@ -554,7 +554,7 @@ private slots:
         QObject* discardDialog = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("discardChangesDialog"));
         QVERIFY(discardDialog != nullptr);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void commit_context_menu_exists_in_shell()

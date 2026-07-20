@@ -130,7 +130,7 @@ private slots:
                  qPrintable(QStringLiteral("expected >= 3 rows, got %1")
                                 .arg(vm.graph()->rowCount(QModelIndex()))));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void graph_model_is_empty_before_refresh()
@@ -141,7 +141,7 @@ private slots:
         // Before any open/refresh the graph model starts empty.
         QCOMPARE(vm.graph()->rowCount(QModelIndex()), 0);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void graph_model_clears_on_close()
@@ -162,7 +162,7 @@ private slots:
         vm.close();
         QCOMPARE(vm.graph()->rowCount(QModelIndex()), 0);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void graph_model_exposes_local_branch_name_for_tip_commits()
@@ -199,7 +199,7 @@ private slots:
                  "No graph row has a non-empty LocalBranchNameRole; "
                  "setLocalBranchTips was not called on the graph model");
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void graph_tab_exists_and_selection_drives_commit_detail()
@@ -251,7 +251,7 @@ private slots:
         vm.selectGraphCommitAtRow(0);
         QVERIFY(!vm.selectedCommit().isEmpty());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void graph_tab_has_no_inline_commit_detail_panel()
@@ -306,7 +306,7 @@ private slots:
                  qPrintable(QStringLiteral("expected graphList to fill the pane: list=%1 pane=%2")
                                 .arg(listWidth).arg(paneWidth)));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void double_click_activates_row_and_switches_to_history_tab()
@@ -357,7 +357,7 @@ private slots:
         QVERIFY(!vm.selectedCommit().isEmpty());
         QCOMPARE(tabBar->property("currentIndex").toInt(), 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

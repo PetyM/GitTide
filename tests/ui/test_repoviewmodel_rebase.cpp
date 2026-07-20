@@ -177,7 +177,7 @@ private slots:
         QCOMPARE(vm.property("rebaseConflictedCount").toInt(), 0);
         QCOMPARE(vm.property("rebaseHasSubmoduleConflicts").toBool(), false);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// A clean (non-conflicting) rebase must fire rebaseStateChanged and finish
@@ -198,7 +198,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 15000);
         QVERIFY(!vm.rebaseInProgress());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// reorderableRunLength counts the linear single-parent run from HEAD. For a
@@ -210,7 +210,7 @@ private slots:
         vm.open(QString::fromStdString(dir.generic_string()));
         QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// reorderCommits replays the run in the new order: swapping the two newest
@@ -232,7 +232,7 @@ private slots:
 
         QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 15000);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// reorderCommits honours the "above" band: dropping the oldest run commit on
@@ -254,7 +254,7 @@ private slots:
         QTRY_VERIFY(!vm.rebaseInProgress());
         QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 15000);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// reorderCommits honours the "below" band: dropping the same commit on the
@@ -275,7 +275,7 @@ private slots:
         QTRY_VERIFY(!vm.rebaseInProgress());
         QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c3\n"), 15000);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// squashCommitInto folds the dragged commit into the target: squashing the
@@ -311,7 +311,7 @@ private slots:
         QVERIFY(std::filesystem::exists(dir / "f2.txt"));
         QVERIFY(std::filesystem::exists(dir / "f1.txt"));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// A drag-squash pauses for the combined message; the ViewModel must fire
@@ -331,7 +331,7 @@ private slots:
                                   QStringLiteral("message"), 15000);
         QCOMPARE(pauseSpy.count(), 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// Opening a new repo clears the reorderable run: a stale run length must not
@@ -364,8 +364,8 @@ private slots:
         QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
         QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 0), Q_ARG(int, 1));
 
-        std::filesystem::remove_all(linear);
-        std::filesystem::remove_all(empty);
+        { std::error_code rec; std::filesystem::remove_all(linear, rec); }
+        { std::error_code rec; std::filesystem::remove_all(empty, rec); }
     }
 };
 

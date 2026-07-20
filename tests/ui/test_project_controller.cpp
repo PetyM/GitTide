@@ -99,14 +99,14 @@ private slots:
 
         // Stale guard: once the folder is gone, the accessor reports empty so the
         // caller falls back to the first repo.
-        std::filesystem::remove_all(repoDir);
+        { std::error_code rec; std::filesystem::remove_all(repoDir, rec); }
         {
             ProjectController controller(&store, storePath);
             controller.activate(QStringLiteral("id-a"));
             QCOMPARE(controller.lastActiveRepo(), QString());
         }
 
-        std::filesystem::remove_all(base);
+        { std::error_code rec; std::filesystem::remove_all(base, rec); }
     }
 
     void activate_unknown_id_is_ignored()
@@ -216,7 +216,7 @@ private slots:
 
         QCOMPARE(spy.count(), 1);
         QCOMPARE(store.projects()[0].repos.size(), std::size_t(1));
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void addExistingRepo_nonrepo_emits_repoAddFailed()
@@ -250,7 +250,7 @@ private slots:
         QCOMPARE(spy.count(), 1);
         QVERIFY(std::filesystem::exists(dest / ".git"));
         QCOMPARE(store.projects()[0].repos.size(), std::size_t(1));
-        std::filesystem::remove_all(dest);
+        { std::error_code rec; std::filesystem::remove_all(dest, rec); }
     }
 
     void cloneRepo_file_url_succeeds_and_emits_repoAdded()
@@ -289,7 +289,7 @@ private slots:
 
         auto destDir = std::filesystem::temp_directory_path() /
                        ("gittide-pc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
-        std::filesystem::remove_all(destDir); // clone creates it
+        { std::error_code rec; std::filesystem::remove_all(destDir, rec); } // clone creates it
 
         ProjectStore store;
         auto& p = store.createProject("proj");
@@ -311,8 +311,8 @@ private slots:
         QVERIFY(std::filesystem::exists(destDir / ".git"));
         QCOMPARE(store.projects()[0].repos.size(), std::size_t(1));
 
-        std::filesystem::remove_all(srcDir);
-        std::filesystem::remove_all(destDir);
+        { std::error_code rec; std::filesystem::remove_all(srcDir, rec); }
+        { std::error_code rec; std::filesystem::remove_all(destDir, rec); }
     }
 
     void startClone_file_url_emits_repoAdded()
@@ -350,7 +350,7 @@ private slots:
 
         auto destDir = std::filesystem::temp_directory_path() /
                        ("gittide-pc-sc-dst-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
-        std::filesystem::remove_all(destDir);
+        { std::error_code rec; std::filesystem::remove_all(destDir, rec); }
 
         ProjectStore store;
         auto& p = store.createProject("proj");
@@ -367,8 +367,8 @@ private slots:
         QVERIFY(added.wait(15000));
         QVERIFY(std::filesystem::exists(destDir / ".git"));
 
-        std::filesystem::remove_all(srcDir);
-        std::filesystem::remove_all(destDir);
+        { std::error_code rec; std::filesystem::remove_all(srcDir, rec); }
+        { std::error_code rec; std::filesystem::remove_all(destDir, rec); }
     }
 
     void cloneRepo_invalid_url_emits_repoAddFailed()

@@ -96,7 +96,7 @@ private slots:
         git_repository_free(raw);
         git_libgit2_shutdown();
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

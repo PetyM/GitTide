@@ -97,12 +97,14 @@
         }                                                                                                                      \
         catch (const std::exception& e)                                                                                        \
         {                                                                                                                      \
-            qWarning("UI test %s threw an exception: %s", #T, e.what());                                                       \
+            fprintf(stderr, "[ui-test] THREW %s: %s\n", #T, e.what());                                                        \
+            fflush(stderr);                                                                                                    \
             status |= 1;                                                                                                       \
         }                                                                                                                      \
         catch (...)                                                                                                            \
         {                                                                                                                      \
-            qWarning("UI test %s threw a non-std exception", #T);                                                              \
+            fprintf(stderr, "[ui-test] THREW %s (non-std)\n", #T);                                                            \
+            fflush(stderr);                                                                                                    \
             status |= 1;                                                                                                       \
         }                                                                                                                      \
     } while (0)

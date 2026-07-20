@@ -55,7 +55,7 @@ private slots:
         QVERIFY(msgReady.wait(15000));
         QCOMPARE(msgReady.takeFirst().at(1).toString(), QStringLiteral("new subject\n"));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

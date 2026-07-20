@@ -114,7 +114,7 @@ private slots:
         QCOMPARE(vm.property("conflictedCount").toInt(), 1);
         QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// Initial state (no merge in progress) must report mergeInProgress == false.
@@ -130,7 +130,7 @@ private slots:
         QCOMPARE(vm.property("mergedRef").toString(), QString());
         QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// After acceptConflict(0, 0) (keep ours), the on-disk file must have no
@@ -199,7 +199,7 @@ private slots:
                  "diffLines was cleared by refreshStatus — I-1 regression: "
                  "diff panel would blank mid-conflict-resolution");
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <fstream>
+#include <system_error>
 #include <qcoro/qcorotask.h>
 #include <git2.h>
 
@@ -164,7 +165,7 @@ private slots:
         QVERIFY(lastState.inProgress);
         QCOMPARE(static_cast<int>(lastState.conflictedPaths.size()), 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void clean_ff_merge_emits_mergeFinished_not_inProgress()
@@ -190,7 +191,7 @@ private slots:
         const auto lastState = mergeStateSpy.last().at(0).value<gittide::MergeState>();
         QVERIFY(!lastState.inProgress);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// I-2 regression guard: calling retryMergeDeinitSubmodules with an empty
@@ -253,7 +254,7 @@ private slots:
         QVERIFY2(mergeStillInProgress,
                  "retryMergeDeinitSubmodules with empty name aborted the merge — I-2 regression");
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

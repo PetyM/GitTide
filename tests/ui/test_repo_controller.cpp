@@ -197,7 +197,7 @@ private slots:
         QCOMPARE(ok.count(), 1);
         QCOMPARE(bad.count(), 0);
         QVERIFY(controller.isOpen());
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void open_missing_repo_fails()
@@ -221,7 +221,7 @@ private slots:
         QCOMPARE(spy.count(), 1);
         const auto files = spy.at(0).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void stage_then_status_shows_staged()
@@ -235,7 +235,7 @@ private slots:
         const auto files = spy.at(spy.count() - 1).at(0).value<std::vector<gittide::FileStatus>>();
         QCOMPARE(static_cast<int>(files.size()), 1);
         QVERIFY(gittide::hasFlag(files[0].flags, gittide::StatusFlag::IndexModified));
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void refresh_diff_emits_diff_ready()
@@ -248,7 +248,7 @@ private slots:
         QCOMPARE(spy.count(), 1);
         const auto result = spy.at(0).at(1).value<gittide::DiffResult>();
         QVERIFY(!result.hunks.empty());
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void commit_also_refreshes_history()
@@ -264,7 +264,7 @@ private slots:
         QVERIFY(historySpy.count() >= 1);
         const auto layout = historySpy.last().at(0).value<gittide::GraphLayout>();
         QVERIFY(layout.rows.size() >= 2); // initial commit + new commit
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void refresh_history_emits_local_only_oids()
@@ -309,7 +309,7 @@ private slots:
 
         QCOMPARE(branches.count(), 1);
         QCOMPARE(head.count(), 1);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void switch_branch_runs_the_refresh_cascade()
@@ -327,7 +327,7 @@ private slots:
         QCOMPARE(status.count(), 1);
         QCOMPARE(history.count(), 1);
         QCOMPARE(branches.count(), 1);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void delete_unmerged_branch_emits_deleteFailedUnmerged()
@@ -354,7 +354,7 @@ private slots:
         QCoro::waitFor(controller.deleteBranch(qBranchName, true));
         QCOMPARE(branchesSpy.count(), 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void commit_selection_commits_only_checked_files()
@@ -380,7 +380,7 @@ private slots:
         bool skipStillThere = std::any_of(st->begin(), st->end(),
             [](const auto& f){ return f.path.generic_string() == "skip.txt"; });
         QVERIFY(skipStillThere);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void refresh_commit_files_emits_for_a_commit()
@@ -396,7 +396,7 @@ private slots:
         QSignalSpy spy(&controller, &RepoController::commitFilesReady);
         QCoro::waitFor(controller.refreshCommitFiles(oid));
         QCOMPARE(spy.count(), 1);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     // D35: an external working-tree change refreshes status with no explicit call.
@@ -419,7 +419,7 @@ private slots:
         QVERIFY(!spy.isEmpty());
         const auto files = spy.last().at(0).value<std::vector<gittide::FileStatus>>();
         QVERIFY(!files.empty());
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     // D35: an external git-dir change runs the full cascade (history refreshes).
@@ -441,7 +441,7 @@ private slots:
             spy.wait(500);
         }
         QVERIFY(!spy.isEmpty());
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 };
 

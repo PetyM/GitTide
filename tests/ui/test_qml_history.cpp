@@ -214,7 +214,7 @@ private slots:
         const QModelIndex top = vm.history()->index(0, 0);
         QCOMPARE(vm.history()->data(top, HistoryListModel::IsHeadRole).toBool(), true);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void history_model_is_empty_for_unborn_repo()
@@ -225,7 +225,7 @@ private slots:
         vm.open(QString::fromStdString(dir.generic_string()));
         QVERIFY(historySpy.wait(15000));
         QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void history_model_refreshes_on_reopen()
@@ -245,8 +245,8 @@ private slots:
             QVERIFY(s.wait(15000));
         }
         QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
-        std::filesystem::remove_all(repoA);
-        std::filesystem::remove_all(repoB);
+        { std::error_code rec; std::filesystem::remove_all(repoA, rec); }
+        { std::error_code rec; std::filesystem::remove_all(repoB, rec); }
     }
 
     void graph_column_unpacks_row_and_sizes_to_lane_count()
@@ -305,7 +305,7 @@ private slots:
         QCOMPARE(vm.activeCommitFile(), path);
         QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void selecting_a_commit_auto_selects_first_file_and_loads_diff()
@@ -328,7 +328,7 @@ private slots:
         QCOMPARE(vm.activeCommitFile(), vm.commitFiles()->pathAt(0));
         QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void history_list_binds_to_history_model()
@@ -354,7 +354,7 @@ private slots:
         QVERIFY(list != nullptr);
         QCOMPARE(list->property("model").value<QAbstractItemModel*>(), vm.history());
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void checkout_commit_detaches_head_at_that_commit()
@@ -373,7 +373,7 @@ private slots:
         // Detached HEAD label is "detached @ <short>".
         QVERIFY(vm.currentBranch().startsWith(QStringLiteral("detached @ ")));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void reword_dialog_loads_and_exposes_summary()
@@ -478,7 +478,7 @@ private slots:
                                   Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("squash")));
         QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 15000);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void perform_drop_reorder_opens_confirm_dialog()
@@ -520,7 +520,7 @@ private slots:
         // Reorder must NOT have driven the engine directly.
         QCOMPARE(vm.property("rebaseInProgress").toBool(), false);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     /// The floating drag chip exists as a pane-level child (not inside the

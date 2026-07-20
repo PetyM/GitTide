@@ -138,7 +138,7 @@ private slots:
         QCOMPARE((*result)[0].path, std::filesystem::path("a.txt"));
         QVERIFY(gittide::hasFlag((*result)[0].flags, gittide::StatusFlag::WtModified));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void stage_whole_file_then_status_shows_staged()
@@ -155,7 +155,7 @@ private slots:
         QCOMPARE(static_cast<int>(result->size()), 1);
         QVERIFY(gittide::hasFlag((*result)[0].flags, gittide::StatusFlag::IndexModified));
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void commit_after_staging_clears_status()
@@ -173,7 +173,7 @@ private slots:
         QVERIFY(result.has_value());
         QCOMPARE(static_cast<int>(result->size()), 0);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void branches_lists_and_creates()
@@ -187,7 +187,7 @@ private slots:
         auto list = QCoro::waitFor(repo->branches());
         QVERIFY(list.has_value());
         QVERIFY(list->size() == 2);
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void watch_targets_runs_on_pool()
@@ -205,7 +205,7 @@ private slots:
         QVERIFY(hasGitDir);
         QVERIFY(hasWorkdir);
 
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void commit_files_lists_changed_paths()
@@ -221,7 +221,7 @@ private slots:
         auto files = QCoro::waitFor(repo->commitFiles(newest));
         QVERIFY(files.has_value());
         QVERIFY(!files->empty());
-        std::filesystem::remove_all(dir);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
     void localOnlyOidsReportsUnpushedCommits()

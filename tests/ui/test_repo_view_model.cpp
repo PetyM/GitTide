@@ -37,7 +37,7 @@ inline void remove_repo_dir(const std::filesystem::path& dir)
         if (!ec)
             return;
     }
-    std::filesystem::remove_all(dir); // last attempt surfaces a genuine error
+    { std::error_code rec; std::filesystem::remove_all(dir, rec); } // last attempt surfaces a genuine error
 }
 
 // Self-contained dirty repo: one committed file "a.txt", then a worktree edit
