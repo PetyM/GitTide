@@ -13,7 +13,7 @@
 **Goal:** Let a user manage named git identities (name/email) and assign one
 globally, per-project, or per-repo — so commits are made as the right person
 without dropping to the CLI. Phase 1 of the larger credentials-management feature
-(keychain secrets, SSH keys, and forge tokens follow in Plans 35–36).
+(keychain secrets, SSH keys, and forge tokens follow in Plans 37–38).
 
 **Architecture:** A new metadata-only JSON store `credentials.json`
 (`core/CredentialsStore`, mirroring `ProjectStore`) holds identities and the

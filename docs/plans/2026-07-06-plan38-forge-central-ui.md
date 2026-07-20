@@ -77,7 +77,7 @@ becomes the central **Credentials** dialog.
   confirms a token and prefills/creates an identity, and a single central
   **Credentials** dialog managing identities (global / per-project / per-repo), host
   accounts (keychain-backed tokens), and SSH keys. This completes the
-  credentials-management feature (Plans 34–36).
+  credentials-management feature (Plans 36–38).
 - **Code:** `ui/forgeclient.{hpp,cpp}`, `ui/hostlistmodel.*`, `ui/sshkeylistmodel.*`,
   `CredentialManager::validateAndAddHost` + owned models, `ui/qml/IdentityDialog.qml`
   (now the central dialog), `Qt6::Network` in the build.

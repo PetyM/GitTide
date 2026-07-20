@@ -189,7 +189,7 @@ identities…*): manage identities and their global / per-project / per-repo
 assignment, add forge host accounts (token validated + saved to the keychain), and
 register SSH keys (passphrase to the keychain). Remaining out of scope: forge
 features beyond token validation (PRs/issues), and an SSH agent/keyfile picker
-inside the sync auth prompt. See [network-sync](network-sync.md) and Plans 34–36.
+inside the sync auth prompt. See [network-sync](network-sync.md) and Plans 36–38.
 
 #### Fleet fetch
 
