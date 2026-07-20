@@ -144,7 +144,7 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Running));
         QCOMPARE(spy.count(), 1);
 
-        m.setSyncCounts(0, 1, 3);
+        m.setSyncCounts(0, 1, 3, false);
         QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 1);
         QCOMPARE(m.data(i0, RepoListModel::BehindRole).toInt(), 3);
 
@@ -322,6 +322,43 @@ private slots:
         QCOMPARE(model.data(model.index(0, 0, model.index(0, 0)),
                             RepoListModel::BusyRole).toBool(), true);
         QCOMPARE(busySpy.count(), 1);
+    }
+
+    void repo_head_and_dirty_roles_roundtrip()
+    {
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
+        const QModelIndex i0 = m.index(0, 0);
+
+        // Defaults.
+        QCOMPARE(m.data(i0, RepoListModel::BranchRole).toString(), QString());
+        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), false);
+        QCOMPARE(m.data(i0, RepoListModel::DirtyCountRole).toInt(), 0);
+        QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false);
+
+        QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
+        m.setRepoHead(0, QStringLiteral("main"), false, QStringLiteral("abc1234"), 3);
+        QCOMPARE(m.data(i0, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
+        QCOMPARE(m.data(i0, RepoListModel::DirtyCountRole).toInt(), 3);
+        QVERIFY(spy.count() >= 1);
+
+        // Detached: branch empty, detached true, short oid carried in ShortOidRole.
+        m.setRepoHead(0, QString(), true, QStringLiteral("deadbee"), 0);
+        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), true);
+        QCOMPARE(m.data(i0, RepoListModel::ShortOidRole).toString(), QStringLiteral("deadbee"));
+
+        // hasUpstream flows through setSyncCounts.
+        m.setSyncCounts(0, 2, 1, true);
+        QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 2);
+        QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), true);
+    }
+
+    void setRepoHead_out_of_range_is_noop()
+    {
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
+        m.setRepoHead(9, QStringLiteral("x"), false, QString(), 0); // must not crash
+        QCOMPARE(m.topLevelCount(), 1);
     }
 };
 

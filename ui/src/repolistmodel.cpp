@@ -173,6 +173,14 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
         return node->ahead;
     case BehindRole:
         return node->behind;
+    case BranchRole:
+        return node->branch;
+    case DetachedRole:
+        return node->detached;
+    case DirtyCountRole:
+        return node->dirtyCount;
+    case HasUpstreamRole:
+        return node->hasUpstream;
     case BusyRole:
         return node->busy;
     case OwnerRepoPathRole:
@@ -194,6 +202,10 @@ QHash<int, QByteArray> RepoListModel::roleNames() const
     roles[FetchErrorRole]  = "fetchError";
     roles[AheadRole]          = "ahead";
     roles[BehindRole]         = "behind";
+    roles[BranchRole]         = "branch";
+    roles[DetachedRole]       = "detached";
+    roles[DirtyCountRole]     = "dirtyCount";
+    roles[HasUpstreamRole]    = "hasUpstream";
     roles[BusyRole]           = "submoduleBusy";
     roles[OwnerRepoPathRole]  = "ownerRepoPath";
     return roles;
@@ -229,15 +241,30 @@ void RepoListModel::setFetchState(int rootRow, FetchState state, const QString& 
     emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole});
 }
 
-void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind)
+void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind, bool hasUpstream)
 {
     if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
         return;
-    Node& n  = *m_roots[rootRow];
-    n.ahead  = ahead;
-    n.behind = behind;
+    Node& n        = *m_roots[rootRow];
+    n.ahead        = ahead;
+    n.behind       = behind;
+    n.hasUpstream  = hasUpstream;
     const QModelIndex idx = createIndex(rootRow, 0, &n);
-    emit dataChanged(idx, idx, {AheadRole, BehindRole});
+    emit dataChanged(idx, idx, {AheadRole, BehindRole, HasUpstreamRole});
+}
+
+void RepoListModel::setRepoHead(int rootRow, const QString& branch, bool detached,
+                                const QString& shortOid, int dirtyCount)
+{
+    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
+        return;
+    Node& n       = *m_roots[rootRow];
+    n.branch      = branch;
+    n.detached    = detached;
+    n.shortOid    = shortOid;
+    n.dirtyCount  = dirtyCount;
+    const QModelIndex idx = createIndex(rootRow, 0, &n);
+    emit dataChanged(idx, idx, {BranchRole, DetachedRole, ShortOidRole, DirtyCountRole});
 }
 
 RepoListModel::Node* RepoListModel::findByPath(const QString& path)

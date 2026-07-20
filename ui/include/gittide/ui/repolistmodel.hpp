@@ -33,6 +33,10 @@ public:
         FetchErrorRole,
         AheadRole,
         BehindRole,
+        BranchRole,
+        DetachedRole,
+        DirtyCountRole,
+        HasUpstreamRole,
         BusyRole,
         OwnerRepoPathRole,
     };
@@ -74,7 +78,11 @@ public:
     int  topLevelCount() const;
     void resetFetchStates();
     void setFetchState(int rootRow, FetchState state, const QString& error = {});
-    void setSyncCounts(int rootRow, int ahead, int behind);
+    void setSyncCounts(int rootRow, int ahead, int behind, bool hasUpstream);
+    /// Set the current-branch / dirty state of the top-level repo at `rootRow`.
+    /// `shortOid` is used only for the detached-HEAD fallback (reuses ShortOidRole).
+    void setRepoHead(int rootRow, const QString& branch, bool detached,
+                     const QString& shortOid, int dirtyCount);
 
 private:
     struct Node
@@ -90,6 +98,10 @@ private:
         QString                            fetchError;
         int                                ahead  = 0;
         int                                behind = 0;
+        QString                            branch;
+        bool                               detached    = false;
+        int                                dirtyCount   = 0;
+        bool                               hasUpstream  = false;
         Node*                              parent = nullptr;
         std::vector<std::unique_ptr<Node>> children;
     };

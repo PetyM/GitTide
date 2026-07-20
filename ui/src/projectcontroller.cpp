@@ -64,7 +64,7 @@ QCoro::Task<void> ProjectController::pollRepos()
         if (!self)
             co_return;
         if (st)
-            m_repoModel->setSyncCounts(row, st->ahead, st->behind);
+            m_repoModel->setSyncCounts(row, st->ahead, st->behind, st->hasUpstream);
         auto tree = co_await repo.submoduleTree();
         if (!self)
             co_return;
@@ -417,7 +417,7 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     {
         ahead  = st->ahead;
         behind = st->behind;
-        m_repoModel->setSyncCounts(row, ahead, behind);
+        m_repoModel->setSyncCounts(row, ahead, behind, st->hasUpstream);
     }
     m_repoModel->setFetchState(row, behind > 0 ? RepoListModel::FetchState::Updated
                                                : RepoListModel::FetchState::UpToDate);
