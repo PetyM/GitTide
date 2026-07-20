@@ -409,9 +409,14 @@ private slots:
         QTest::qWait(300); // let the initial rearmWatch arm the watcher
 
         QSignalSpy spy(&controller, &RepoController::statusChanged);
-        std::ofstream(root / "external.txt") << "made outside GitTide\n";
-
-        QVERIFY(spy.wait(15000));
+        // Re-touch until the watch fires — arming it is async and slower on CI, so a
+        // single write right after open() can precede the live watch and be missed.
+        for (int i = 0; i < 40 && spy.isEmpty(); ++i)
+        {
+            std::ofstream(root / "external.txt") << "made outside GitTide " << i << "\n";
+            spy.wait(500);
+        }
+        QVERIFY(!spy.isEmpty());
         const auto files = spy.last().at(0).value<std::vector<gittide::FileStatus>>();
         QVERIFY(!files.empty());
         std::filesystem::remove_all(dir);
@@ -427,9 +432,15 @@ private slots:
         QTest::qWait(300);
 
         QSignalSpy spy(&controller, &RepoController::historyReady);
-        std::ofstream(root / ".git" / "gittide-probe") << "x\n";
-
-        QVERIFY(spy.wait(15000));
+        // Re-touch the git dir until the watcher fires: arming a filesystem watch is
+        // asynchronous and slower on macOS/Windows CI, so a single probe written
+        // right after open() can land before the watch is live and be missed.
+        for (int i = 0; i < 40 && spy.isEmpty(); ++i)
+        {
+            std::ofstream(root / ".git" / "gittide-probe") << i << "\n";
+            spy.wait(500);
+        }
+        QVERIFY(!spy.isEmpty());
         std::filesystem::remove_all(dir);
     }
 };

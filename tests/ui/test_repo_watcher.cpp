@@ -20,6 +20,21 @@ gittide::WatchTargets targetsFor(gittide::test::TempRepo& repo)
     auto t = r->watchTargets();
     return *t;
 }
+
+// Re-run `write(i)` until `spy` fires. Arming a filesystem watch is asynchronous
+// and noticeably slower on macOS/Windows CI, so a single write issued right after
+// watch() can land before the watch is live and be missed — one probe then a long
+// wait flakes. Returns whether the signal eventually arrived.
+template <typename Write>
+bool touchUntilFired(QSignalSpy& spy, Write write)
+{
+    for (int i = 0; i < 40 && spy.isEmpty(); ++i)
+    {
+        write(i);
+        spy.wait(500);
+    }
+    return !spy.isEmpty();
+}
 } // namespace
 
 class TestRepoWatcher : public QObject
@@ -38,12 +53,11 @@ private slots:
         QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
 
         // A new file in the working tree is a directory change in the watched root.
-        std::ofstream(targets.workdir / "b.txt") << "new\n";
-
         // The worktree edit produces a worktree-scope signal. (We deliberately do
         // not assert the *absence* of a gitDir signal: the OS batches unrelated
         // .git setup churn non-deterministically, which would make that flaky.)
-        QVERIFY(workSpy.wait(15000));
+        QVERIFY(touchUntilFired(workSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "b.txt") << i << "\n"; }));
     }
 
     // An in-place content edit of an existing file is missed by directory watches
@@ -61,11 +75,8 @@ private slots:
         QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
 
         // Overwrite a.txt in place — no directory-listing change, pure content edit.
-        {
-            std::ofstream(targets.workdir / "a.txt") << "hello changed\n";
-        }
-
-        QVERIFY(workSpy.wait(15000));
+        QVERIFY(touchUntilFired(workSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "a.txt") << "hello changed " << i << "\n"; }));
     }
 
     void gitdir_change_emits_gitdir_scope()
@@ -79,9 +90,8 @@ private slots:
         QSignalSpy gitSpy(&watcher, &RepoWatcher::gitDirChanged);
 
         // A new entry under .git (as an external commit/checkout would produce).
-        std::ofstream(targets.gitDir / "gittide-probe") << "x\n";
-
-        QVERIFY(gitSpy.wait(15000));
+        QVERIFY(touchUntilFired(gitSpy, [&](int i)
+                                { std::ofstream(targets.gitDir / "gittide-probe") << i << "\n"; }));
     }
 
     void burst_coalesces_into_one_emission()
@@ -93,6 +103,13 @@ private slots:
         watcher.watch(targets);
         QTest::qWait(400); // drain residual setup FSEvents
         QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
+
+        // Confirm the watch is actually live before measuring coalescing, otherwise
+        // a slow-to-arm watch on CI drops the whole burst and the count is 0.
+        QVERIFY(touchUntilFired(workSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "warmup.txt") << i << "\n"; }));
+        QTest::qWait(200); // let the warm-up debounce window close
+        workSpy.clear();
 
         for (int i = 0; i < 5; ++i)
             std::ofstream(targets.workdir / ("burst" + std::to_string(i) + ".txt")) << "x\n";
