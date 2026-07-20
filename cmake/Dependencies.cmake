@@ -115,7 +115,32 @@ if(GITGUI_BUILD_UI)
   )
   set(BUILD_TESTING OFF CACHE BOOL "" FORCE)   # suppress ECM's and KSyntax's own tests
   FetchContent_MakeAvailable(ecm)
-  list(APPEND CMAKE_MODULE_PATH "${ecm_SOURCE_DIR}/modules" "${ecm_SOURCE_DIR}/kde-modules")
+  # KSyntaxHighlighting does find_package(ECM CONFIG) and then *overwrites*
+  # CMAKE_MODULE_PATH with ECM_MODULE_PATH, which points into ECM's INSTALL layout
+  # (share/ECM/modules). FetchContent only builds ECM, never installs it, so those
+  # module dirs don't exist and helper includes like ECMPoQmTools fail with
+  # "Unknown CMake command". On dev machines a system ECM (e.g. Homebrew) hides the
+  # problem; clean CI runners have none, so all three platforms break. Install our
+  # pinned ECM into a build-local prefix so find_package(ECM) resolves a complete,
+  # correct layout everywhere. ECM is script-only — the nested configure+install is
+  # quick and compiles nothing. Guarded by the config file so we install only once.
+  set(_ecm_prefix "${CMAKE_BINARY_DIR}/ecm-prefix")
+  if(NOT EXISTS "${_ecm_prefix}/share/ECM/cmake/ECMConfig.cmake")
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -S "${ecm_SOURCE_DIR}" -B "${CMAKE_BINARY_DIR}/ecm-prefix-build"
+              "-DCMAKE_INSTALL_PREFIX=${_ecm_prefix}" -DBUILD_TESTING=OFF
+      RESULT_VARIABLE _ecm_configure OUTPUT_QUIET)
+    if(NOT _ecm_configure EQUAL 0)
+      message(FATAL_ERROR "Failed to configure bundled ECM for install (exit ${_ecm_configure})")
+    endif()
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} --install "${CMAKE_BINARY_DIR}/ecm-prefix-build"
+      RESULT_VARIABLE _ecm_install OUTPUT_QUIET)
+    if(NOT _ecm_install EQUAL 0)
+      message(FATAL_ERROR "Failed to install bundled ECM (exit ${_ecm_install})")
+    endif()
+  endif()
+  set(ECM_DIR "${_ecm_prefix}/share/ECM/cmake" CACHE PATH "" FORCE)
 
   FetchContent_Declare(
     KF6SyntaxHighlighting
