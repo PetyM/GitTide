@@ -6,10 +6,12 @@
 #include <QSettings>
 #include <QStandardPaths>
 
+#include "gittide/credentialsstore.hpp"
 #include "gittide/libgit2context.hpp"
 #include "gittide/log.hpp"
 #include "gittide/projectstore.hpp"
 #include "gittide/version.hpp"
+#include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/logging.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
@@ -67,13 +69,31 @@ int main(int argc, char** argv)
     else if (!store.projects().empty())
         controller.activate(QString::fromStdString(store.projects().front().id));
 
+    // Credentials metadata (identities + assignments; secrets arrive in a later
+    // phase). Kept in its own credentials.json next to projects.json.
+    gittide::CredentialsStore credStore;
+    const QString             credFile = QDir(configDir).filePath(QStringLiteral("credentials.json"));
+    if (auto loaded = gittide::CredentialsStore::load(std::filesystem::path(credFile.toStdString())))
+    {
+        credStore = std::move(*loaded);
+    }
+    CredentialManager credentials(&credStore, std::filesystem::path(credFile.toStdString()), &store);
+    controller.setCredentialManager(&credentials); // keychain-backed clone + fleet-fetch creds
+
     QmlTheme qmlTheme(&theme);
 
     RepoViewModel repoVm;
+    repoVm.setCredentialManager(&credentials); // keychain-backed sync credentials
+    // Materialize the resolved identity into a repo's git config when it becomes
+    // the active repo (idempotent; guarded against clobbering CLI-set config).
+    QObject::connect(&repoVm, &RepoViewModel::changed, &credentials,
+                     [&credentials, &repoVm]() { credentials.onActiveRepoChanged(repoVm.repoPath()); });
+
     QQmlApplicationEngine engine;
     installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm,
                       nullptr,
-                      QString::fromStdString(std::string(gittide::kVersion)));
+                      QString::fromStdString(std::string(gittide::kVersion)),
+                      &credentials);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return 1;

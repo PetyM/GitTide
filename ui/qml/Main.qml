@@ -8,7 +8,12 @@ ApplicationWindow {
     id: window
     objectName: "appWindow"
     visible: true
-    flags: Qt.FramelessWindowHint | Qt.Window
+    // macOS uses native window decorations (real traffic lights + native
+    // fullscreen); Windows/Linux stay frameless with the custom TitleBar.
+    readonly property bool isMac: Qt.platform.os === "osx"
+    flags: isMac ? Qt.Window : (Qt.FramelessWindowHint | Qt.Window)
+    // Shown in the native macOS title bar; the custom TitleBar is hidden there.
+    title: "GitTide"
     minimumWidth: 860
     minimumHeight: 560
     color: theme.surfaceBase
@@ -32,16 +37,32 @@ ApplicationWindow {
         if (appSettings.windowVisibility === Window.Maximized) {
             window.showMaximized()
         } else {
-            window.x = appSettings.windowX
-            window.y = appSettings.windowY
-            window.width = appSettings.windowWidth
-            window.height = appSettings.windowHeight
+            window.restoreGeometry()
             window.showNormal()
         }
         if (repoVm) repoVm.applyPullDefault(appSettings.pullRebase)
         openFirstRepo()
         // Start the non-active-repo poll if we launch focused (D35).
         if (projectController) projectController.setWindowActive(window.active)
+    }
+
+    // Restore the saved windowed geometry, clamped to the current screen's
+    // available area (`Screen.desktopAvailable*`, offset by the virtual-desktop
+    // origin). Guards against a window saved on a now-absent or rearranged
+    // monitor — or with stale negative coordinates — launching partly off-screen.
+    function restoreGeometry() {
+        var availW = Screen.desktopAvailableWidth
+        var availH = Screen.desktopAvailableHeight
+        var w = Math.max(minimumWidth, Math.min(appSettings.windowWidth, availW))
+        var h = Math.max(minimumHeight, Math.min(appSettings.windowHeight, availH))
+        var minX = Screen.virtualX
+        var minY = Screen.virtualY
+        var maxX = minX + availW - w
+        var maxY = minY + availH - h
+        width = w
+        height = h
+        x = Math.min(Math.max(appSettings.windowX, minX), Math.max(minX, maxX))
+        y = Math.min(Math.max(appSettings.windowY, minY), Math.max(minY, maxY))
     }
 
     // Live refresh on focus-in (D35): re-sync the active repo (catches in-place
@@ -75,6 +96,10 @@ ApplicationWindow {
 
         TitleBar {
             id: titleBar
+            // Hidden on macOS — the native title bar owns window controls and the
+            // menu moves to the system menu bar (see nativeMenuLoader). Kept
+            // instantiated so the shared action wiring/tests still resolve.
+            visible: !window.isMac
             Layout.fillWidth: true
             appSettings: appSettings
             onOptionsRequested: optionsDialog.open()
@@ -129,49 +154,49 @@ ApplicationWindow {
         anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
         width: 4
         edges: Qt.LeftEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Right
     EdgeResizer {
         anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
         width: 4
         edges: Qt.RightEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Bottom
     EdgeResizer {
         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
         height: 4
         edges: Qt.BottomEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Bottom-left corner
     EdgeResizer {
         anchors.left: parent.left; anchors.bottom: parent.bottom
         width: 10; height: 10
         edges: Qt.LeftEdge | Qt.BottomEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Bottom-right corner
     EdgeResizer {
         anchors.right: parent.right; anchors.bottom: parent.bottom
         width: 10; height: 10
         edges: Qt.RightEdge | Qt.BottomEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Top-left corner
     EdgeResizer {
         anchors.left: parent.left; anchors.top: parent.top
         width: 10; height: 10
         edges: Qt.LeftEdge | Qt.TopEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
     // Top-right corner
     EdgeResizer {
         anchors.right: parent.right; anchors.top: parent.top
         width: 10; height: 10
         edges: Qt.RightEdge | Qt.TopEdge
-        active: window.visibility !== Window.Maximized
+        active: !window.isMac && window.visibility !== Window.Maximized
     }
 
     // ---- Transient error banner ----
@@ -208,11 +233,40 @@ ApplicationWindow {
         function show(msg) { message = msg }
     }
 
+    // ---- Native macOS menu bar ----
+    // Only on macOS: the menu lives in the system menu bar instead of the custom
+    // TitleBar (which is hidden there). Its signals bind to the same handlers as
+    // the TitleBar/AppMenuBar above.
+    Loader {
+        id: nativeMenuLoader
+        active: window.isMac
+        source: "NativeMenuBar.qml"
+        onLoaded: {
+            item.appSettings = appSettings
+            item.repo = repoVm
+        }
+    }
+    Connections {
+        target: nativeMenuLoader.item
+        ignoreUnknownSignals: true
+        function onOptionsRequested() { optionsDialog.open() }
+        function onAboutRequested() { aboutDialog.open() }
+        function onOpenRepoFolderRequested() { if (repoVm) repoVm.openRepoFolder() }
+        function onUndoLastCommitRequested() { if (repoVm) repoVm.undoLastCommit() }
+        function onDiscardAllRequested() { discardAllDialog.open() }
+        function onMergeRequested() { mergeTargetDialog.open() }
+        function onRebaseRequested() { rebaseTargetDialog.open() }
+        function onStashRequested() { if (repoVm) repoVm.stashChanges() }
+        function onPopStashRequested() { if (repoVm) repoVm.popStash() }
+    }
+
     // ---- App dialogs ----
     OptionsDialog {
         id: optionsDialog
         appSettings: appSettings
+        onIdentityRequested: identityDialog.openDialog()
     }
+    IdentityDialog { id: identityDialog }
     AboutDialog { id: aboutDialog }
     BranchPickerDialog {
         id: rebaseTargetDialog

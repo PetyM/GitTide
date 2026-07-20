@@ -7,6 +7,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <qcorotask.h>
 
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
@@ -24,6 +25,7 @@
 namespace gittide::ui {
 
 class RepoController;
+class CredentialManager;
 
 /// QML-facing façade over the signal-driven RepoController. Owns the controller,
 /// the two list models QML binds to, and the staging-selection state (whole-file
@@ -215,6 +217,10 @@ public:
     Q_INVOKABLE void push();
     Q_INVOKABLE void publishBranch();
     Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
+
+    /// Wire the process-wide credential manager so sync ops resolve keychain-backed
+    /// credentials for the active remote (and the auth-dialog fallback persists them).
+    void setCredentialManager(CredentialManager* cm) { m_credentials = cm; }
     Q_INVOKABLE void applyPullDefault(bool rebase);
 
     /// Accept one side of a single conflict region and write the resolved file.
@@ -332,6 +338,13 @@ signals:
     void stashPreviewChanged();
 
 private:
+    // Sync helpers: resolve credentials (session override → keychain-backed
+    // credentialsForRemote → agent default) then run the op through the controller.
+    QCoro::Task<gittide::Credentials> resolveCredentials();
+    QCoro::Task<void>                 runFetch();
+    QCoro::Task<void>                 runPull();
+    QCoro::Task<void>                 runPush(bool setUpstream);
+
     struct FileSel
     {
         ChangedFilesModel::Check        state = ChangedFilesModel::Checked;
@@ -390,6 +403,8 @@ private:
     int                        m_syncTotal    = 0;
     bool                       m_pullRebase = false;
     gittide::Credentials       m_sessionCred;
+    CredentialManager*         m_credentials = nullptr; // process-wide; not owned
+    QString                    m_remoteUrl;             // cached for auth-dialog persistence
     enum class PendingOp { None, Fetch, Pull, Push, Publish } m_pendingOp = PendingOp::None;
     QString                    m_selectedCommit;
     QString                    m_activeCommitFile;

@@ -11,6 +11,7 @@
 #include "gittide/projectstore.hpp"
 #include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/autherror.hpp"
+#include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/projectlistmodel.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 
@@ -255,10 +256,14 @@ QCoro::Task<void> ProjectController::cloneRepo(QString url, QString dest)
     const std::string urlStr = url.toStdString();
     const std::filesystem::path destPath(dest.toStdString());
 
+    // Resolve keychain-backed credentials for the clone URL (host token for private
+    // https, keyfile/agent for ssh); falls back to defaults with no manager wired.
+    gittide::Credentials cred =
+        m_credentials ? co_await m_credentials->credentialsForRemote(url) : gittide::Credentials{};
     auto result = co_await QtConcurrent::run(
-        [urlStr, destPath, cb = std::move(cb)]() mutable -> gittide::Expected<void>
+        [urlStr, destPath, cred, cb = std::move(cb)]() mutable -> gittide::Expected<void>
         {
-            auto r = gittide::GitRepo::clone(urlStr, destPath, std::move(cb));
+            auto r = gittide::GitRepo::clone(urlStr, destPath, std::move(cred), std::move(cb));
             if (!r)
                 return std::unexpected(r.error());
             return {};
@@ -420,10 +425,19 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     }
     AsyncRepo repo = std::move(*opened);
 
+    // Resolve credentials: a dialog-entered token (from an earlier auth failure in
+    // this run) overrides; otherwise the keychain-backed store for this repo's URL.
+    gittide::Credentials cred = m_sessionCred;
+    if (cred.password.empty() && m_credentials)
+    {
+        auto u = co_await repo.remoteUrl(QStringLiteral("origin"));
+        if (u && !u->empty())
+            cred = co_await m_credentials->credentialsForRemote(QString::fromStdString(*u));
+    }
+
     // Fleet fetch surfaces per-row state in the tree, not byte-level transfer
     // progress, so a no-op progress callback is fine here.
-    auto fr = co_await repo.fetch(QStringLiteral("origin"), m_sessionCred,
-                                  [](unsigned, unsigned) { return true; });
+    auto fr = co_await repo.fetch(QStringLiteral("origin"), cred, [](unsigned, unsigned) { return true; });
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))

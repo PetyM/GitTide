@@ -77,11 +77,20 @@ public:
     QCoro::Task<gittide::Expected<void>> renameBranch(QString oldName, QString newName, bool force);
 
     QCoro::Task<gittide::Expected<gittide::SyncStatus>> syncStatus();
+    QCoro::Task<gittide::Expected<std::string>>         remoteUrl(QString remote);
     QCoro::Task<gittide::Expected<void>>                fetch(QString remote, gittide::Credentials cred, gittide::ProgressCallback onProgress);
     QCoro::Task<gittide::Expected<void>>                pull(gittide::Credentials cred, gittide::ProgressCallback onProgress);
     QCoro::Task<gittide::Expected<void>>                push(QString remote, QString branch, bool setUpstream, gittide::Credentials cred, gittide::ProgressCallback onProgress);
     QCoro::Task<gittide::Expected<gittide::PullStrategy>> pullStrategy();
     QCoro::Task<gittide::Expected<void>>                setPullStrategy(gittide::PullStrategy strategy);
+
+    // Identity (user.name / user.email) — see GitRepo. setLocalIdentity records the
+    // gittide.identity ownership marker; clearLocalIdentity drops it so the repo
+    // falls back to global; setGlobalIdentity writes ~/.gitconfig.
+    QCoro::Task<gittide::Expected<void>>                     setLocalIdentity(QString name, QString email, QString marker);
+    QCoro::Task<gittide::Expected<void>>                     clearLocalIdentity();
+    QCoro::Task<gittide::Expected<gittide::LocalIdentityInfo>> localIdentity();
+    QCoro::Task<gittide::Expected<gittide::ConfigIdentity>>    effectiveIdentity();
 
     /// Analyse and perform a merge of the named branch into the current HEAD.
     /// Returns the merge outcome (conflicted status, analysis type, new OID if clean/FF).

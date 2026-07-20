@@ -69,7 +69,7 @@ Dialog {
         }
 
         Label {
-            text: "Stored for this session only."
+            text: "Saved securely to your OS keychain for this host."
             color: theme.textMuted
             font.pixelSize: 11
         }

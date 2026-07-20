@@ -15,6 +15,7 @@ namespace gittide::ui {
 
 class ProjectListModel;
 class RepoListModel;
+class CredentialManager;
 
 // Per-window ViewModel. References the shared ProjectStore; owns the project
 // and repo list models. "Active project" is per-window UI state — activating
@@ -88,6 +89,10 @@ public slots:
     // when no auth failures are pending or a fetch is already running.
     Q_INVOKABLE void submitFleetCredentials(const QString& username, const QString& token);
 
+    /// Wire the process-wide credential manager so clone and fleet-fetch resolve
+    /// keychain-backed credentials for each remote.
+    void setCredentialManager(CredentialManager* cm) { m_credentials = cm; }
+
     // Record the repo (or submodule) the user has open as the active project's
     // "last active" hint and persist it, so the next launch reopens it. No-op when
     // unchanged or with no active project. `path` empty clears the hint.
@@ -136,6 +141,7 @@ private:
     int                  m_fetchFailed  = 0;
     std::vector<int>     m_authFailedRows;             // rows that failed on auth (retried in submitFleetCredentials)
     gittide::Credentials m_sessionCred;
+    CredentialManager*   m_credentials = nullptr; // process-wide; not owned
 
     void saveStore() const;
     void refreshRepoModel();

@@ -17,6 +17,9 @@ Dialog {
 
     required property var appSettings
 
+    // Raised when the user opens identity management (Main.qml opens the dialog).
+    signal identityRequested()
+
     background: OverlayCard {}
 
     contentItem: ColumnLayout {
@@ -107,6 +110,32 @@ Dialog {
                     checked: dialog.appSettings.pullRebase
                     onClicked: dialog.appSettings.pullRebase = true
                 }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: theme.border
+        }
+
+        // Git identity section
+        ColumnLayout {
+            spacing: 8
+            Layout.fillWidth: true
+
+            Label {
+                text: "Git identity"
+                color: theme.textMuted
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+
+            AppButton {
+                objectName: "manageIdentitiesButton"
+                variant: "secondary"
+                text: "Manage identities…"
+                onClicked: dialog.identityRequested()
             }
         }
     }

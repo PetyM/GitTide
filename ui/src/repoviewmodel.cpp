@@ -13,6 +13,7 @@
 #include <qcorotask.h>
 
 #include "gittide/ui/metatypes.hpp"
+#include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/repocontroller.hpp"
 #include "gittide/ui/historylistmodel.hpp"
 #include "gittide/ui/stashlistmodel.hpp"
@@ -914,16 +915,51 @@ void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,
     m_commitDiff->setDiff(result, {}, false, /*blocks=*/false, path);
 }
 
-void RepoViewModel::fetch()
+QCoro::Task<gittide::Credentials> RepoViewModel::resolveCredentials()
+{
+    // A token/keyfile just entered via the dialog overrides for this session.
+    if (!m_sessionCred.password.empty() || !m_sessionCred.sshPrivateKeyPath.empty())
+        co_return m_sessionCred;
+
+    // Otherwise resolve from the keychain-backed store for the active remote's URL.
+    if (m_credentials && m_controller)
+    {
+        m_remoteUrl = co_await m_controller->currentRemoteUrl();
+        if (!m_remoteUrl.isEmpty())
+            co_return co_await m_credentials->credentialsForRemote(m_remoteUrl);
+    }
+    co_return gittide::Credentials{}; // ssh-agent default / unauthenticated https
+}
+
+QCoro::Task<void> RepoViewModel::runFetch()
 {
     m_pendingOp = PendingOp::Fetch;
-    QCoro::connect(m_controller->fetch(m_sessionCred), this, [] {});
+    auto cred   = co_await resolveCredentials();
+    co_await m_controller->fetch(cred);
+}
+
+QCoro::Task<void> RepoViewModel::runPull()
+{
+    m_pendingOp = PendingOp::Pull;
+    auto cred   = co_await resolveCredentials();
+    co_await m_controller->pull(cred);
+}
+
+QCoro::Task<void> RepoViewModel::runPush(bool setUpstream)
+{
+    m_pendingOp = setUpstream ? PendingOp::Publish : PendingOp::Push;
+    auto cred   = co_await resolveCredentials();
+    co_await m_controller->push(m_headBranch, setUpstream, cred);
+}
+
+void RepoViewModel::fetch()
+{
+    QCoro::connect(runFetch(), this, [] {});
 }
 
 void RepoViewModel::pull()
 {
-    m_pendingOp = PendingOp::Pull;
-    QCoro::connect(m_controller->pull(m_sessionCred), this, [] {});
+    QCoro::connect(runPull(), this, [] {});
 }
 
 void RepoViewModel::push()
@@ -933,8 +969,7 @@ void RepoViewModel::push()
         emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
         return;
     }
-    m_pendingOp = PendingOp::Push;
-    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/false, m_sessionCred), this, [] {});
+    QCoro::connect(runPush(/*setUpstream=*/false), this, [] {});
 }
 
 void RepoViewModel::publishBranch()
@@ -944,8 +979,7 @@ void RepoViewModel::publishBranch()
         emit operationFailed(QStringLiteral("Cannot push: HEAD is detached or unborn — switch to a branch first."));
         return;
     }
-    m_pendingOp = PendingOp::Publish;
-    QCoro::connect(m_controller->push(m_headBranch, /*setUpstream=*/true, m_sessionCred), this, [] {});
+    QCoro::connect(runPush(/*setUpstream=*/true), this, [] {});
 }
 
 void RepoViewModel::submitCredentials(const QString& username, const QString& token)
@@ -953,6 +987,12 @@ void RepoViewModel::submitCredentials(const QString& username, const QString& to
     m_sessionCred.username    = username.toStdString();
     m_sessionCred.password    = token.toStdString();
     m_sessionCred.sshUseAgent = true;
+
+    // Persist the entered token to the OS keychain, associated with the active
+    // remote's host, so future sessions authenticate without re-prompting.
+    if (m_credentials && !m_remoteUrl.isEmpty())
+        m_credentials->rememberHostToken(m_remoteUrl, username, token);
+
     switch (m_pendingOp)
     {
     case PendingOp::Fetch:   fetch(); break;

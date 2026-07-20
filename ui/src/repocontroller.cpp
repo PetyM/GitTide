@@ -819,6 +819,14 @@ gittide::ProgressCallback RepoController::progressSink()
     };
 }
 
+QCoro::Task<QString> RepoController::currentRemoteUrl()
+{
+    if (!m_repo)
+        co_return QString();
+    auto r = co_await m_repo->remoteUrl(QStringLiteral("origin"));
+    co_return r ? QString::fromStdString(*r) : QString();
+}
+
 QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
 {
     if (!m_repo)

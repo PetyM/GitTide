@@ -382,6 +382,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::push(QString remote, QString bra
         });
 }
 
+QCoro::Task<gittide::Expected<std::string>> AsyncRepo::remoteUrl(QString remote)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, remote = remote.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.remoteUrl(remote);
+        });
+}
+
 QCoro::Task<gittide::Expected<gittide::PullStrategy>> AsyncRepo::pullStrategy()
 {
     auto impl = m_impl;
@@ -401,6 +412,50 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::setPullStrategy(gittide::PullStr
         {
             std::scoped_lock lock(impl->mutex);
             return impl->repo.setPullStrategy(strategy);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::setLocalIdentity(QString name, QString email, QString marker)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, name = name.toStdString(), email = email.toStdString(), marker = marker.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.setLocalIdentity(name, email, marker);
+        });
+}
+
+QCoro::Task<gittide::Expected<void>> AsyncRepo::clearLocalIdentity()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.clearLocalIdentity();
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::LocalIdentityInfo>> AsyncRepo::localIdentity()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.localIdentity();
+        });
+}
+
+QCoro::Task<gittide::Expected<gittide::ConfigIdentity>> AsyncRepo::effectiveIdentity()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.effectiveIdentity();
         });
 }
 

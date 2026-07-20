@@ -115,6 +115,9 @@ public slots:
     QCoro::Task<void> fetch(gittide::Credentials cred);
     QCoro::Task<void> pull(gittide::Credentials cred);
     QCoro::Task<void> push(QString branch, bool setUpstream, gittide::Credentials cred);
+    /// The URL of the "origin" remote for the active repo (empty if none / on
+    /// error). Lets the ViewModel look up a keychain credential for it.
+    QCoro::Task<QString> currentRemoteUrl();
     QCoro::Task<void> loadPullStrategy();
     QCoro::Task<void> setPullStrategy(gittide::PullStrategy strategy);
 
