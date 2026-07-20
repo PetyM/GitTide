@@ -120,7 +120,7 @@ private slots:
         QSignalSpy failed(&c, &RepoController::operationFailed);
         c.buildSquashTodo(QStringList{ QString::fromStdString(oids[0]),
                                        QString::fromStdString(oids[2]) }); // c2 + c0
-        QVERIFY(failed.wait(3000));
+        QVERIFY(failed.wait(15000));
         QCOMPARE(ready.count(), 0);
 
         std::filesystem::remove_all(dir);

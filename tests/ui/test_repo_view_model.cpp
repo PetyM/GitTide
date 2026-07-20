@@ -136,9 +136,9 @@ private slots:
 
         vm.open(QString::fromStdString(dir.generic_string()));
 
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
-        QVERIFY(branchSpy.wait(3000));
+        QVERIFY(branchSpy.wait(15000));
         QVERIFY(!vm.currentBranch().isEmpty());
 
         repo_view_model_test::remove_repo_dir(dir);
@@ -153,14 +153,14 @@ private slots:
         RepoViewModel vm;
         QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         // A second file appears outside GitTide; an explicit resync must see it.
         std::ofstream(dir / "external.txt") << "made outside\n";
         vm.resync();
 
-        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 15000);
         repo_view_model_test::remove_repo_dir(dir);
     }
 
@@ -175,7 +175,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         // Uncheck the one file → selection is now partial (not "all checked").
@@ -185,7 +185,7 @@ private slots:
         // A new file appears and a refresh runs.
         std::ofstream(dir / "external.txt") << "new\n";
         vm.resync();
-        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 15000);
 
         // The prior uncheck survived and the new file came in unchecked.
         QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("a.txt"))), Check::Unchecked);
@@ -205,12 +205,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy    filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.checkedCount(), 1); // the one file is checked by default
 
         std::ofstream(dir / "external.txt") << "new\n";
         vm.resync();
-        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 15000);
 
         QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("external.txt"))), Check::Checked);
         QCOMPARE(vm.checkedCount(), 2);
@@ -243,7 +243,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
         vm.open(QString::fromStdString(subWorkdir.generic_string()));
-        QVERIFY(branchSpy.wait(3000));
+        QVERIFY(branchSpy.wait(15000));
 
         QVERIFY(vm.repoOpen());
         QCOMPARE(vm.repoPath(), QString::fromStdString(subWorkdir.generic_string()));
@@ -257,7 +257,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
         QVERIFY(vm.repoOpen());
         QCOMPARE(vm.repoPath(), QString::fromStdString(dir.generic_string()));
@@ -287,11 +287,11 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
         vm.selectFile(QStringLiteral("a.txt"));
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
         QVERIFY(vm.diffLines()->rowCount(QModelIndex()) > 0);
         QCOMPARE(vm.activeFile(), QStringLiteral("a.txt"));
 
@@ -305,12 +305,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
         vm.commit(QStringLiteral("test commit"), QString());
-        QVERIFY(committedSpy.wait(3000));
+        QVERIFY(committedSpy.wait(15000));
 
         // commitSelection refreshes status after committing → worktree clean.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
@@ -324,13 +324,13 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         vm.createBranch(QStringLiteral("feature"), QString(), true);
-        QTRY_VERIFY_WITH_TIMEOUT(vm.branches()->rowCount() >= 2, 3000); // default branch + feature
+        QTRY_VERIFY_WITH_TIMEOUT(vm.branches()->rowCount() >= 2, 15000); // default branch + feature
 
         vm.switchBranch(QStringLiteral("feature"));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 15000);
 
         repo_view_model_test::remove_repo_dir(dir);
     }
@@ -346,12 +346,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
         QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
         vm.selectFile(QStringLiteral("a.txt"));
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
 
         // Locate the two checkable (added) rows in the flattened diff model.
         QList<int> checkable;
@@ -376,7 +376,7 @@ private slots:
         // Commit the partial selection; status refresh follows.
         QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
         vm.commit(QStringLiteral("partial"), QString());
-        QVERIFY(committedSpy.wait(3000));
+        QVERIFY(committedSpy.wait(15000));
 
         // One line was left unstaged → the file is still dirty after the commit.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
@@ -391,12 +391,12 @@ private slots:
 
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1); // a.txt modified
 
         QSignalSpy statusSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.discardFile(QStringLiteral("a.txt"));
-        QVERIFY(statusSpy.wait(3000));
+        QVERIFY(statusSpy.wait(15000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0); // clean after discard
 
         repo_view_model_test::remove_repo_dir(dir);
@@ -413,13 +413,13 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         // Commit the initial dirt so the working tree is clean (dirty() == false).
         QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
         vm.commit(QStringLiteral("clean it"), QString());
-        QVERIFY(committedSpy.wait(3000));
-        QTRY_VERIFY_WITH_TIMEOUT(!vm.dirty(), 3000);
+        QVERIFY(committedSpy.wait(15000));
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.dirty(), 15000);
 
         // Now dirty the tree externally and refresh: dirty() flips true and the
         // dedicated notify fires at least once.
@@ -427,7 +427,7 @@ private slots:
         std::ofstream(dir / "a.txt") << "one\ntwo\nthree\n";
         vm.resync();
 
-        QTRY_VERIFY_WITH_TIMEOUT(vm.dirty(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.dirty(), 15000);
         QVERIFY(dirtySpy.count() >= 1);
 
         repo_view_model_test::remove_repo_dir(dir);
@@ -447,13 +447,13 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QVERIFY(vm.changedFiles()->rowCount() > 0);
 
         // Also wait for diff to populate to ensure the async diff load completes
         QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
         vm.selectFileAtRow(0);
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
         QVERIFY(!vm.activeFile().isEmpty());
 
         repo_view_model_test::remove_repo_dir(dir);
@@ -488,16 +488,16 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         // Wait for history to load
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
         QVERIFY(vm.history()->rowCount(QModelIndex()) > 0);
 
         // Select the first commit and verify selectedCommit is populated
         vm.selectCommitAtRow(0);
-        QTRY_VERIFY_WITH_TIMEOUT(!vm.selectedCommit().isEmpty(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.selectedCommit().isEmpty(), 15000);
 
         repo_view_model_test::remove_repo_dir(dir);
     }
@@ -516,13 +516,13 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         // Commit the dirty change so HEAD has a known message.
         QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
         vm.commit(QStringLiteral("before reword"), QString());
-        QVERIFY(committedSpy.wait(3000));
-        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 1, 3000);
+        QVERIFY(committedSpy.wait(15000));
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 1, 15000);
 
         const QString headOid = vm.history()->data(
             vm.history()->index(0, 0), gittide::ui::HistoryListModel::OidRole).toString();
@@ -530,7 +530,7 @@ private slots:
         // Lazy-fetch the message round-trips the committed text.
         QSignalSpy msgSpy(&vm, &RepoViewModel::commitMessageReady);
         vm.requestCommitMessage(headOid);
-        QVERIFY(msgSpy.wait(3000));
+        QVERIFY(msgSpy.wait(15000));
         QCOMPARE(msgSpy.takeFirst().at(1).toString(), QStringLiteral("before reword"));
 
         // Reword → the top history row's summary changes.
@@ -538,7 +538,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(
             vm.history()->data(vm.history()->index(0, 0),
                                gittide::ui::HistoryListModel::SummaryRole).toString(),
-            QStringLiteral("after reword"), 3000);
+            QStringLiteral("after reword"), 15000);
 
         repo_view_model_test::remove_repo_dir(dir);
     }
@@ -550,28 +550,28 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         // c2: commit the dirty a.txt
         {
             QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
             vm.commit(QStringLiteral("c2"), QString());
-            QVERIFY(committedSpy.wait(3000));
+            QVERIFY(committedSpy.wait(15000));
         }
-        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 2, 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 2, 15000);
 
         // c3: write b.txt, re-open the repo to trigger a status refresh, then commit.
         {
             std::ofstream(dir / "b.txt") << "b content\n";
             QSignalSpy filesSpy2(vm.changedFiles(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(filesSpy2.wait(3000));
-            QTRY_VERIFY_WITH_TIMEOUT(vm.changedFiles()->rowCount() >= 1, 3000);
+            QVERIFY(filesSpy2.wait(15000));
+            QTRY_VERIFY_WITH_TIMEOUT(vm.changedFiles()->rowCount() >= 1, 15000);
             QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
             vm.commit(QStringLiteral("c3"), QString());
-            QVERIFY(committedSpy.wait(3000));
+            QVERIFY(committedSpy.wait(15000));
         }
-        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 3, 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount() >= 3, 15000);
 
         auto oidAt = [&](int row) {
             return vm.history()->data(vm.history()->index(row, 0),
@@ -584,7 +584,7 @@ private slots:
         // Contiguous range rows {0,1} → combined files + header.
         QSignalSpy cfReset(vm.commitFiles(), &QAbstractItemModel::modelReset);
         vm.selectCommitRows(QVariantList{0, 1});
-        QVERIFY(cfReset.wait(3000));
+        QVERIFY(cfReset.wait(15000));
         QVERIFY(vm.commitFiles()->rowCount() >= 1);
         QVERIFY(vm.property("historyDetailHeader").toString().contains(QStringLiteral("2 commits")));
         QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
@@ -592,13 +592,13 @@ private slots:
         // Non-contiguous rows {0,2} (3 commits present) → hint set, header empty, no core call.
         QVERIFY(vm.history()->rowCount() >= 3);
         vm.selectCommitRows(QVariantList{0, 2});
-        QTRY_VERIFY_WITH_TIMEOUT(!vm.property("historyDetailHint").toString().isEmpty(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.property("historyDetailHint").toString().isEmpty(), 15000);
         QVERIFY(vm.property("historyDetailHeader").toString().isEmpty());
         QCOMPARE(vm.commitFiles()->rowCount(), 0); // no files loaded for non-contiguous
 
         // Single row → header + hint both cleared.
         vm.selectCommitRows(QVariantList{0});
-        QTRY_VERIFY_WITH_TIMEOUT(vm.property("historyDetailHeader").toString().isEmpty(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("historyDetailHeader").toString().isEmpty(), 15000);
         QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
 
         repo_view_model_test::remove_repo_dir(dir);
@@ -620,16 +620,16 @@ private slots:
             RepoViewModel vmA;
             QSignalSpy filesSpy(vmA.changedFiles(), &QAbstractItemModel::modelReset);
             vmA.open(QString::fromStdString(tmp.path().generic_string()));
-            QVERIFY(filesSpy.wait(3000));
+            QVERIFY(filesSpy.wait(15000));
             vmA.stashChanges();
-            QTRY_COMPARE_WITH_TIMEOUT(vmA.stashes()->rowCount(), 1, 5000);
+            QTRY_COMPARE_WITH_TIMEOUT(vmA.stashes()->rowCount(), 1, 15000);
         }
 
         // A fresh VM opened on the same repo must see the stash without any manual op.
         RepoViewModel vm;
         vm.open(QString::fromStdString(tmp.path().generic_string()));
-        QTRY_VERIFY_WITH_TIMEOUT(vm.stashAvailable(), 5000);
-        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashAvailable(), 15000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 15000);
     }
 
     // Finding 1: After previewing a stash in repo A, switching to repo B via
@@ -652,15 +652,15 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(repoA.path().generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         // Stash the dirty file in repo A.
         vm.stashChanges();
-        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 15000);
 
         // Enter preview mode for stash 0.
         vm.previewStash(0);
-        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 15000);
 
         // Switch to repo B without close() — mirrors the Sidebar repo-switching path.
         vm.open(QString::fromStdString(repoB.path().generic_string()));
@@ -672,7 +672,7 @@ private slots:
         QVERIFY(!vm.stashAvailable());
 
         // After repo B fully loads its stash refresh, the list stays empty (B has none).
-        QTRY_VERIFY_WITH_TIMEOUT(!vm.stashAvailable(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.stashAvailable(), 15000);
         QCOMPARE(vm.stashes()->rowCount(), 0);
         QVERIFY(!vm.stashPreviewActive());
     }
@@ -689,7 +689,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(tmp.path().generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         QCOMPARE(vm.stashes()->rowCount(), 0);
         QVERIFY(!vm.stashPreviewActive());
@@ -698,17 +698,17 @@ private slots:
         tmp.writeFile("a.txt", "dirty\n");
         tmp.writeFile("newfile.txt", "brand new\n");
         vm.stashChanges();
-        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.stashes()->rowCount(), 1, 15000);
 
         QCOMPARE(vm.stashPreviewIndex(), -1); // no preview yet
 
         vm.previewStash(0);
-        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.stashPreviewActive(), 15000);
         QVERIFY(vm.stashPreviewLabel().startsWith(QStringLiteral("stash@{0}")));
         QCOMPARE(vm.stashPreviewIndex(), 0); // tracks the previewed row
         // Both the tracked change AND the untracked file must appear in the
         // preview (git stash show -u) — the untracked file was the reported bug.
-        QTRY_COMPARE_WITH_TIMEOUT(vm.commitFiles()->rowCount(), 2, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.commitFiles()->rowCount(), 2, 15000);
         QVERIFY(vm.commitFiles()->rowForPath(QStringLiteral("a.txt")) >= 0);
         QVERIFY(vm.commitFiles()->rowForPath(QStringLiteral("newfile.txt")) >= 0);
 

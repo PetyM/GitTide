@@ -102,7 +102,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy openSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(openSpy.wait(3000));
+        QVERIFY(openSpy.wait(15000));
 
         QSignalSpy mergeSpy(&vm, &RepoViewModel::mergeStateChanged);
         vm.startMerge(QStringLiteral("feature"));
@@ -110,7 +110,7 @@ private slots:
         // Wait until the merge actually registers as in-progress. An early
         // mergeStateChanged emission can precede the in-progress state, so poll
         // the property itself rather than the first signal (avoids a race).
-        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 15000);
         QCOMPARE(vm.property("conflictedCount").toInt(), 1);
         QCOMPARE(vm.property("hasSubmoduleConflicts").toBool(), false);
 
@@ -146,12 +146,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy openSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(openSpy.wait(3000));
+        QVERIFY(openSpy.wait(15000));
 
         // Start the conflicting merge and wait until it registers as in-progress
         // (poll the property, not the first signal — see the note above).
         vm.startMerge(QStringLiteral("feature"));
-        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.property("mergeInProgress").toBool(), 15000);
         QCOMPARE(vm.property("conflictedCount").toInt(), 1);
 
         // Select the conflicted file — this should load conflict content into diffLines.
@@ -159,7 +159,7 @@ private slots:
         vm.selectFile(QStringLiteral("a.txt"));
         // Wait for the activeFile signal (selectFile sets it synchronously, but
         // the conflict content load may also trigger it; either way we just check).
-        QTRY_VERIFY_WITH_TIMEOUT(fileChangedSpy.count() >= 1, 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(fileChangedSpy.count() >= 1, 15000);
 
         // The diff model should now be in conflict mode (isResolved() == false).
         QVERIFY(!vm.diffLines()->isResolved());

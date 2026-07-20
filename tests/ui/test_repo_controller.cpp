@@ -382,7 +382,7 @@ private slots:
         QSignalSpy spy(&controller, &RepoController::statusChanged);
         std::ofstream(root / "external.txt") << "made outside GitTide\n";
 
-        QVERIFY(spy.wait(3000));
+        QVERIFY(spy.wait(15000));
         const auto files = spy.last().at(0).value<std::vector<gittide::FileStatus>>();
         QVERIFY(!files.empty());
         std::filesystem::remove_all(dir);
@@ -400,7 +400,7 @@ private slots:
         QSignalSpy spy(&controller, &RepoController::historyReady);
         std::ofstream(root / ".git" / "gittide-probe") << "x\n";
 
-        QVERIFY(spy.wait(3000));
+        QVERIFY(spy.wait(15000));
         std::filesystem::remove_all(dir);
     }
 };

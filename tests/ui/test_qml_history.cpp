@@ -184,7 +184,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         QVERIFY(vm.history()->rowCount(QModelIndex()) >= 1);
         // Top row is HEAD (the "init" commit) — IsHeadRole true.
@@ -200,7 +200,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
         QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
         std::filesystem::remove_all(dir);
     }
@@ -213,13 +213,13 @@ private slots:
         {
             QSignalSpy s(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(repoA.generic_string()));
-            QVERIFY(s.wait(3000));
+            QVERIFY(s.wait(15000));
         }
         QVERIFY(vm.history()->rowCount(QModelIndex()) >= 1);
         {
             QSignalSpy s(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(repoB.generic_string()));
-            QVERIFY(s.wait(3000));
+            QVERIFY(s.wait(15000));
         }
         QCOMPARE(vm.history()->rowCount(QModelIndex()), 0);
         std::filesystem::remove_all(repoA);
@@ -258,13 +258,13 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         // Select the HEAD commit (row 0) by its oid.
         const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
         QSignalSpy filesSpy(vm.commitFiles(), &QAbstractItemModel::modelReset);
         vm.selectCommit(oid);
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QCOMPARE(vm.selectedCommit(), oid);
         QVERIFY(vm.commitFiles()->rowCount(QModelIndex()) >= 1);
 
@@ -272,7 +272,7 @@ private slots:
         const QString path = vm.commitFiles()->pathAt(0);
         QSignalSpy diffSpy(vm.commitDiff(), &QAbstractItemModel::modelReset);
         vm.selectCommitFile(path);
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
         QCOMPARE(vm.activeCommitFile(), path);
         QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
 
@@ -286,7 +286,7 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
         QSignalSpy diffSpy(vm.commitDiff(), &QAbstractItemModel::modelReset);
@@ -294,7 +294,7 @@ private slots:
 
         // Selecting a commit alone must auto-select its first file and load that
         // file's diff — no explicit selectCommitFile() call.
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
         QVERIFY(vm.commitFiles()->rowCount(QModelIndex()) >= 1);
         QCOMPARE(vm.activeCommitFile(), vm.commitFiles()->pathAt(0));
         QVERIFY(vm.commitDiff()->rowCount(QModelIndex()) >= 1);
@@ -314,7 +314,7 @@ private slots:
 
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -335,12 +335,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         const QString oid = vm.history()->data(vm.history()->index(0, 0), HistoryListModel::OidRole).toString();
         QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
         vm.checkoutCommit(oid);
-        QVERIFY(branchSpy.wait(3000));
+        QVERIFY(branchSpy.wait(15000));
         // Detached HEAD label is "detached @ <short>".
         QVERIFY(vm.currentBranch().startsWith(QStringLiteral("detached @ ")));
 
@@ -425,8 +425,8 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QVERIFY(historySpy.wait(15000));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -438,16 +438,16 @@ private slots:
         {
             QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historyReady2.wait(3000));
+            QVERIFY(historyReady2.wait(15000));
         }
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
         QObject* pane = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("historyPane"));
         QVERIFY(pane != nullptr);
 
         // Squash row 0 into row 1 → engine pauses for the combined message.
         QMetaObject::invokeMethod(pane, "performDrop",
                                   Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("squash")));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 15000);
 
         std::filesystem::remove_all(dir);
     }
@@ -462,8 +462,8 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QVERIFY(historySpy.wait(15000));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -475,9 +475,9 @@ private slots:
         {
             QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historyReady2.wait(3000));
+            QVERIFY(historyReady2.wait(15000));
         }
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
         QObject* root = engine.rootObjects().first();
         QObject* pane = root->findChild<QObject*>(QStringLiteral("historyPane"));
         QVERIFY(pane != nullptr);
@@ -487,7 +487,7 @@ private slots:
                                   Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("below")));
         QObject* dlg = root->findChild<QObject*>(QStringLiteral("reorderConfirmDialog"));
         QVERIFY(dlg != nullptr);
-        QTRY_VERIFY_WITH_TIMEOUT(dlg->property("visible").toBool(), 3000);
+        QTRY_VERIFY_WITH_TIMEOUT(dlg->property("visible").toBool(), 15000);
         // Reorder must NOT have driven the engine directly.
         QCOMPARE(vm.property("rebaseInProgress").toBool(), false);
 

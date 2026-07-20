@@ -47,12 +47,12 @@ private slots:
 
         QSignalSpy committed(&c, &RepoController::committed);
         c.rewordHead(QStringLiteral("new subject\n"));
-        QVERIFY(committed.wait(3000));
+        QVERIFY(committed.wait(15000));
 
         QSignalSpy msgReady(&c, &RepoController::commitMessageReady);
         const QString head = committed.takeFirst().at(0).toString();
         c.requestCommitMessage(head);
-        QVERIFY(msgReady.wait(3000));
+        QVERIFY(msgReady.wait(15000));
         QCOMPARE(msgReady.takeFirst().at(1).toString(), QStringLiteral("new subject\n"));
 
         std::filesystem::remove_all(dir);

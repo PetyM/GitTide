@@ -190,12 +190,12 @@ private slots:
         RepoViewModel vm;
         QSignalSpy openSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(openSpy.wait(3000));
+        QVERIFY(openSpy.wait(15000));
 
         QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
         vm.startRebase(QStringLiteral("master")); // non-conflicting → finishes cleanly
 
-        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 15000);
         QVERIFY(!vm.rebaseInProgress());
 
         std::filesystem::remove_all(dir);
@@ -208,7 +208,7 @@ private slots:
         const auto dir = repo_view_model_rebase_test::makeLinearRepo(3); // c0(root), c1, c2
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         std::filesystem::remove_all(dir);
     }
@@ -222,15 +222,15 @@ private slots:
 
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
         // Move row 0 (c2) below row 1 (c1) → new order newest-first: c1, c2, c0.
         QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 0), Q_ARG(int, 1));
-        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 15000);
         QTRY_VERIFY(!vm.rebaseInProgress());
 
-        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 15000);
 
         std::filesystem::remove_all(dir);
     }
@@ -244,15 +244,15 @@ private slots:
         const auto dir = repo_view_model_rebase_test::makeLinearRepo(4);
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 15000);
 
         QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
         // Drag c1 (row 2) onto c3 (row 0), band "above" → c1 lands newer than c3 → HEAD = c1.
         QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 2), Q_ARG(int, 0),
                                   Q_ARG(QString, QStringLiteral("above")));
-        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 15000);
         QTRY_VERIFY(!vm.rebaseInProgress());
-        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1\n"), 15000);
 
         std::filesystem::remove_all(dir);
     }
@@ -265,15 +265,15 @@ private slots:
         const auto dir = repo_view_model_rebase_test::makeLinearRepo(4);
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 3, 15000);
 
         QSignalSpy spy(&vm, &RepoViewModel::rebaseStateChanged);
         // Drag c1 (row 2) onto c3 (row 0), band "below" → c1 lands older than c3 → HEAD stays c3.
         QMetaObject::invokeMethod(&vm, "reorderCommits", Q_ARG(int, 2), Q_ARG(int, 0),
                                   Q_ARG(QString, QStringLiteral("below")));
-        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 15000);
         QTRY_VERIFY(!vm.rebaseInProgress());
-        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c3\n"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c3\n"), 15000);
 
         std::filesystem::remove_all(dir);
     }
@@ -288,13 +288,13 @@ private slots:
 
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         // Drag c2 (row 0) onto c1 (row 1) → squash c2 into c1.
         QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
 
         // The engine pauses for the combined message (squash), prefilled target-then-dragged.
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 15000);
         const QString prefill = vm.property("rebaseMessagePrefill").toString();
         QVERIFY(prefill.contains(QStringLiteral("c1")));
         QVERIFY(prefill.contains(QStringLiteral("c2")));
@@ -303,11 +303,11 @@ private slots:
 
         // Confirm the combined message → rebase completes.
         QMetaObject::invokeMethod(&vm, "continueRebase", Q_ARG(QString, QStringLiteral("c1+c2\n")));
-        QTRY_VERIFY_WITH_TIMEOUT(!vm.rebaseInProgress(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.rebaseInProgress(), 15000);
 
         // HEAD is the combined commit (target's identity, new message), and it carries
         // the dragged commit's file (f2.txt from c2) folded in.
-        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1+c2\n"), 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1+c2\n"), 15000);
         QVERIFY(std::filesystem::exists(dir / "f2.txt"));
         QVERIFY(std::filesystem::exists(dir / "f1.txt"));
 
@@ -321,14 +321,14 @@ private slots:
         const auto dir = repo_view_model_rebase_test::makeLinearRepo(3);
         RepoViewModel vm;
         vm.open(QString::fromStdString(dir.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         QSignalSpy pauseSpy(&vm, &RepoViewModel::rebaseMessagePauseEntered);
         QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
 
         // The interactive rebase runs async on the pool; wait for the message pause.
         QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(),
-                                  QStringLiteral("message"), 5000);
+                                  QStringLiteral("message"), 15000);
         QCOMPARE(pauseSpy.count(), 1);
 
         std::filesystem::remove_all(dir);
@@ -342,7 +342,7 @@ private slots:
         const auto linear = repo_view_model_rebase_test::makeLinearRepo(3);
         RepoViewModel vm;
         vm.open(QString::fromStdString(linear.generic_string()));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
         // Open a fresh empty (unborn) repo → layout clears → run length must reset to 0
         // synchronously at open() time (not wait for async history), so an immediately

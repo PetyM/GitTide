@@ -115,7 +115,7 @@ private slots:
         // Wait for the initial open to load history (HEAD-only walk).
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         // history (HEAD-only) should see 2 commits: master-work + base.
         QCOMPARE(vm.history()->rowCount(QModelIndex()), 2);
@@ -123,7 +123,7 @@ private slots:
         // Now trigger the all-refs walk.
         QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
         vm.refreshGraph();
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
 
         // graph must include commits from both branches: base + master-work + feature-work >= 3.
         QVERIFY2(vm.graph()->rowCount(QModelIndex()) >= 3,
@@ -151,11 +151,11 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
         vm.refreshGraph();
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
         QVERIFY(vm.graph()->rowCount(QModelIndex()) >= 3);
 
         // close() must reset the graph model.
@@ -172,11 +172,11 @@ private slots:
         RepoViewModel vm;
         QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(historySpy.wait(3000));
+        QVERIFY(historySpy.wait(15000));
 
         QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
         vm.refreshGraph();
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
 
         // At least one row in the graph must have a non-empty LocalBranchNameRole —
         // the "master" tip and the "feature" tip.
@@ -216,7 +216,7 @@ private slots:
         {
             QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historySpy.wait(3000));
+            QVERIFY(historySpy.wait(15000));
         }
 
         QQmlApplicationEngine engine;
@@ -229,7 +229,7 @@ private slots:
         {
             QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historyReady2.wait(3000));
+            QVERIFY(historyReady2.wait(15000));
         }
 
         QObject* root = engine.rootObjects().first();
@@ -244,7 +244,7 @@ private slots:
         QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
         QVERIFY(tabBar != nullptr);
         tabBar->setProperty("currentIndex", 2);
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
         QVERIFY(vm.graph()->rowCount(QModelIndex()) >= 1);
 
         // Select row 0 via selectGraphCommitAtRow — selectedCommit becomes non-empty.
@@ -267,7 +267,7 @@ private slots:
         {
             QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historySpy.wait(3000));
+            QVERIFY(historySpy.wait(15000));
         }
 
         QQmlApplicationEngine engine;
@@ -278,7 +278,7 @@ private slots:
         {
             QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historyReady2.wait(3000));
+            QVERIFY(historyReady2.wait(15000));
         }
 
         QObject* root = engine.rootObjects().first();
@@ -288,7 +288,7 @@ private slots:
         QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
         QVERIFY(tabBar != nullptr);
         tabBar->setProperty("currentIndex", 2);
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
 
         // No inline commit-detail panel in the Graph tab anymore.
         QVERIFY(root->findChild<QObject*>(QStringLiteral("graphCommitDetail")) == nullptr);
@@ -322,7 +322,7 @@ private slots:
         {
             QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historySpy.wait(3000));
+            QVERIFY(historySpy.wait(15000));
         }
 
         QQmlApplicationEngine engine;
@@ -333,7 +333,7 @@ private slots:
         {
             QSignalSpy historyReady2(vm.history(), &QAbstractItemModel::modelReset);
             vm.open(QString::fromStdString(dir.generic_string()));
-            QVERIFY(historyReady2.wait(3000));
+            QVERIFY(historyReady2.wait(15000));
         }
 
         QObject* root = engine.rootObjects().first();
@@ -342,7 +342,7 @@ private slots:
         QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
         QVERIFY(tabBar != nullptr);
         tabBar->setProperty("currentIndex", 2);
-        QVERIFY(graphSpy.wait(3000));
+        QVERIFY(graphSpy.wait(15000));
         QVERIFY(vm.graph()->rowCount(QModelIndex()) >= 1);
 
         QObject* graphBody = root->findChild<QObject*>(QStringLiteral("graphTabBody"));

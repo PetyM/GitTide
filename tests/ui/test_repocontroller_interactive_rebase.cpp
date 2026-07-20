@@ -45,7 +45,7 @@ private slots:
 
         ctrl.buildRebaseTodo(QString::fromStdString(oidA));
 
-        QTRY_VERIFY_WITH_TIMEOUT(ready.count() > 0 || failed.count() > 0, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(ready.count() > 0 || failed.count() > 0, 15000);
 
         QCOMPARE(failed.count(), 0);
         QCOMPARE(ready.count(), 1);

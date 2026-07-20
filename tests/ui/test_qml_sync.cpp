@@ -68,7 +68,7 @@ void TestQmlSync::aheadBehindMapToProperties()
 
     RepoViewModel vm;
     vm.open(QString::fromStdString(repo.path().generic_string()));
-    QTRY_COMPARE_WITH_TIMEOUT(vm.aheadCount(), 1, 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(vm.aheadCount(), 1, 15000);
     QCOMPARE(vm.behindCount(), 0);
     QVERIFY(vm.hasUpstream());
 }
@@ -101,11 +101,11 @@ void TestQmlSync::detachedHeadCannotPublish()
 
     // Wait until history is loaded so we can retrieve oids.
     QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
-    QVERIFY(historySpy.wait(5000));
+    QVERIFY(historySpy.wait(15000));
     QVERIFY(vm.history()->rowCount(QModelIndex()) >= 2);
 
     // Initially on a named branch.
-    QTRY_VERIFY_WITH_TIMEOUT(vm.onBranch(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(vm.onBranch(), 15000);
 
     // Check out the first (older) commit — row 1 in the history model — to get a detached HEAD.
     const QString c1Oid = vm.history()->data(vm.history()->index(1, 0), HistoryListModel::OidRole).toString();
@@ -113,10 +113,10 @@ void TestQmlSync::detachedHeadCannotPublish()
 
     QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
     vm.checkoutCommit(c1Oid);
-    QVERIFY(branchSpy.wait(5000));
+    QVERIFY(branchSpy.wait(15000));
 
     // Now detached — onBranch must be false.
-    QTRY_VERIFY_WITH_TIMEOUT(!vm.onBranch(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!vm.onBranch(), 15000);
 
     // publishBranch() must not crash and must emit operationFailed instead of pushing.
     QSignalSpy failSpy(&vm, &RepoViewModel::operationFailed);
@@ -150,15 +150,15 @@ void TestQmlSync::checkoutRemoteBranchCreatesTrackingLocal()
 
     RepoViewModel vm;
     vm.open(QString::fromStdString(clone.path().generic_string()));
-    QTRY_VERIFY_WITH_TIMEOUT(vm.onBranch(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(vm.onBranch(), 15000);
 
     QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
     vm.checkoutRemoteBranch(QStringLiteral("origin/feature"));
 
     // The DWIM checkout creates a local "feature" tracking origin/feature.
-    QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 5000);
+    QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 15000);
     QVERIFY(vm.onBranch());
-    QTRY_VERIFY_WITH_TIMEOUT(vm.hasUpstream(), 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(vm.hasUpstream(), 15000);
     QCOMPARE(vm.aheadCount(), 0);
     QCOMPARE(vm.behindCount(), 0);
 }

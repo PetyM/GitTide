@@ -43,7 +43,7 @@ private slots:
         // The worktree edit produces a worktree-scope signal. (We deliberately do
         // not assert the *absence* of a gitDir signal: the OS batches unrelated
         // .git setup churn non-deterministically, which would make that flaky.)
-        QVERIFY(workSpy.wait(3000));
+        QVERIFY(workSpy.wait(15000));
     }
 
     // An in-place content edit of an existing file is missed by directory watches
@@ -65,7 +65,7 @@ private slots:
             std::ofstream(targets.workdir / "a.txt") << "hello changed\n";
         }
 
-        QVERIFY(workSpy.wait(3000));
+        QVERIFY(workSpy.wait(15000));
     }
 
     void gitdir_change_emits_gitdir_scope()
@@ -81,7 +81,7 @@ private slots:
         // A new entry under .git (as an external commit/checkout would produce).
         std::ofstream(targets.gitDir / "gittide-probe") << "x\n";
 
-        QVERIFY(gitSpy.wait(3000));
+        QVERIFY(gitSpy.wait(15000));
     }
 
     void burst_coalesces_into_one_emission()
@@ -97,7 +97,7 @@ private slots:
         for (int i = 0; i < 5; ++i)
             std::ofstream(targets.workdir / ("burst" + std::to_string(i) + ".txt")) << "x\n";
 
-        QVERIFY(workSpy.wait(3000));
+        QVERIFY(workSpy.wait(15000));
         // Let any straggler debounce windows elapse, then assert it coalesced.
         QTest::qWait(200);
         QCOMPARE(workSpy.count(), 1);

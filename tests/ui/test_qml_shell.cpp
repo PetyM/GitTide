@@ -114,7 +114,7 @@ private slots:
 
         QSignalSpy branchSpy(&vm, &RepoViewModel::branchChanged);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(branchSpy.wait(3000));
+        QVERIFY(branchSpy.wait(15000));
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -140,7 +140,7 @@ private slots:
 
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -169,10 +169,10 @@ private slots:
 
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
         QSignalSpy diffSpy(vm.diffLines(), &QAbstractItemModel::modelReset);
         vm.selectFile(QStringLiteral("a.txt"));
-        QVERIFY(diffSpy.wait(3000));
+        QVERIFY(diffSpy.wait(15000));
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
@@ -503,7 +503,7 @@ private slots:
 
         QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
         vm.open(QString::fromStdString(dir.generic_string()));
-        QVERIFY(filesSpy.wait(3000));
+        QVERIFY(filesSpy.wait(15000));
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);

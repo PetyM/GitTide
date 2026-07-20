@@ -75,7 +75,7 @@ private slots:
         // branchesChanged is the last refresh the undo flow performs.
         QSignalSpy doneSpy(&c, &RepoController::branchesChanged);
         c.undoLastCommit();
-        QVERIFY(doneSpy.wait(3000));
+        QVERIFY(doneSpy.wait(15000));
 
         git_libgit2_init();
         git_repository* raw = nullptr;

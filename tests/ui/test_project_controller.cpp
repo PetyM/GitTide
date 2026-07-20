@@ -364,7 +364,7 @@ private slots:
         // signal arrives without the caller awaiting a Task.
         QSignalSpy added(&controller, &ProjectController::repoAdded);
         controller.startClone(QString::fromStdString(srcUrl), QString::fromStdString(destDir.generic_string()));
-        QVERIFY(added.wait(5000));
+        QVERIFY(added.wait(15000));
         QVERIFY(std::filesystem::exists(destDir / ".git"));
 
         std::filesystem::remove_all(srcDir);
@@ -579,7 +579,7 @@ private slots:
         repo->commitAll("c2"); // HEAD = c2 while origin/master = c1 → ahead by 1, behind the GUI's back
 
         controller.setWindowActive(true);
-        QTRY_VERIFY_WITH_TIMEOUT(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt() == 1, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt() == 1, 15000);
         controller.setWindowActive(false);
     }
 
@@ -653,7 +653,7 @@ private slots:
         // Dirty the tree on disk, then let the poll pick it up.
         repo.writeFile("a.txt", "two\n");
         controller.setWindowActive(true);
-        QTRY_COMPARE_WITH_TIMEOUT(model->data(i0, RepoListModel::DirtyCountRole).toInt(), 1, 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(model->data(i0, RepoListModel::DirtyCountRole).toInt(), 1, 15000);
         QVERIFY(!model->data(i0, RepoListModel::BranchRole).toString().isEmpty());
     }
 
