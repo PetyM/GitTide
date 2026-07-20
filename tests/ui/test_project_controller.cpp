@@ -484,15 +484,22 @@ private slots:
     {
         using gittide::ui::RepoListModel;
 
-        const QString ahead = makeRepoAheadBy1();
-        ProjectStore  store;
+        // setRepos seeds sync counts synchronously from disk, so start the repo
+        // at ahead=0 (upstream tracked, no local-only commit yet) and advance it
+        // *after* activation to exercise the poll's refresh, not the seed.
+        gittide::test::TempRepo* repo = makeRepoWithUpstream();
+        const QString             path = QString::fromStdString(repo->path().generic_string());
+        ProjectStore              store;
         store.projects().push_back(
-            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = ahead.toStdString()}}});
+            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = path.toStdString()}}});
 
         ProjectController controller(&store, {}, nullptr, 80); // fast poll for the test
         controller.activate(QStringLiteral("p1"));
         RepoListModel* m = controller.repos();
-        QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0); // not polled yet
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0); // seeded, not yet ahead
+
+        repo->writeFile("a.txt", "two");
+        repo->commitAll("c2"); // HEAD = c2 while origin/master = c1 → ahead by 1, behind the GUI's back
 
         controller.setWindowActive(true);
         QTRY_VERIFY_WITH_TIMEOUT(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt() == 1, 5000);
@@ -548,14 +555,18 @@ private slots:
     {
         using gittide::ui::RepoListModel;
 
-        const QString ahead = makeRepoAheadBy1();
-        ProjectStore  store;
+        gittide::test::TempRepo* repo = makeRepoWithUpstream();
+        const QString             path = QString::fromStdString(repo->path().generic_string());
+        ProjectStore              store;
         store.projects().push_back(
-            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = ahead.toStdString()}}});
+            Project{.id = "p1", .name = "Fleet", .repos = {RepoRef{.path = path.toStdString()}}});
 
         ProjectController controller(&store, {}, nullptr, 80);
         controller.activate(QStringLiteral("p1"));
         RepoListModel* m = controller.repos();
+
+        repo->writeFile("a.txt", "two");
+        repo->commitAll("c2"); // ahead by 1 on disk, but window never activated → no poll
 
         QTest::qWait(400); // window never activated → no poll
         QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0);
@@ -651,7 +662,11 @@ private:
     // Returns the path of a working repo whose local HEAD is one commit AHEAD of
     // its (already-known) tracking ref — so syncStatus reports ahead=1 with no
     // fetch. Kept alive in m_temps.
-    QString makeRepoAheadBy1()
+    // Repo with an upstream tracking branch and no local-only commits yet
+    // (ahead = behind = 0). Callers that need an ahead/behind count add
+    // commits themselves once the repo is under test, so the seeded state at
+    // activation time is deterministic.
+    gittide::test::TempRepo* makeRepoWithUpstream()
     {
         auto repo = std::make_unique<gittide::test::TempRepo>();
         repo->setIdentity("Test", "test@example.com");
@@ -659,12 +674,10 @@ private:
         repo->commitAll("c1");
         const auto bare = repo->addBareRemote("origin");
         repo->pushBranch("origin", "master"); // origin/master = c1, upstream set
-        repo->writeFile("a.txt", "two");
-        repo->commitAll("c2"); // HEAD = c2 while origin/master = c1 → ahead by 1
 
-        const QString p = QString::fromStdString(repo->path().generic_string());
+        auto* ptr = repo.get();
         m_temps.push_back(std::move(repo));
-        return p;
+        return ptr;
     }
 
     std::vector<std::unique_ptr<gittide::test::TempRepo>> m_temps;

@@ -360,6 +360,25 @@ private slots:
         m.setRepoHead(9, QStringLiteral("x"), false, QString(), 0); // must not crash
         QCOMPARE(m.topLevelCount(), 1);
     }
+
+    void setRepos_seeds_branch_dirty_and_upstream_from_disk()
+    {
+        using namespace gittide::test;
+        TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+        repo.writeFile("a.txt", "two\n"); // uncommitted change → dirty
+
+        RepoListModel m;
+        m.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
+        const QModelIndex i0 = m.index(0, 0);
+
+        QVERIFY(!m.data(i0, RepoListModel::BranchRole).toString().isEmpty()); // "master"/default
+        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), false);
+        QVERIFY(m.data(i0, RepoListModel::DirtyCountRole).toInt() >= 1);      // 1 modified file
+        QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false); // no remote
+    }
 };
 
 #include "test_repo_list_model.moc"

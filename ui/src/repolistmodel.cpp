@@ -1,5 +1,6 @@
 #include "gittide/ui/repolistmodel.hpp"
 
+#include <algorithm>
 #include <filesystem>
 
 #include "gittide/gitrepo.hpp"
@@ -93,6 +94,22 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
             {
                 if (auto tree = repo->submoduleTree())
                     appendSubmodules(*root, *tree);
+
+                if (auto hs = repo->head())
+                {
+                    root->branch   = QString::fromStdString(hs->branch);
+                    root->detached = hs->detached;
+                    root->shortOid = QString::fromStdString(
+                        hs->oid.substr(0, std::min<std::size_t>(7, hs->oid.size())));
+                }
+                if (auto st = repo->status())
+                    root->dirtyCount = static_cast<int>(st->size());
+                if (auto sy = repo->syncStatus())
+                {
+                    root->ahead       = sy->ahead;
+                    root->behind      = sy->behind;
+                    root->hasUpstream = sy->hasUpstream;
+                }
             }
         }
         m_roots.push_back(std::move(root));
