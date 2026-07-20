@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <git2.h>
+#include <qcorotask.h>
 
 #include "gittide/ui/repocontroller.hpp"
 
@@ -77,14 +78,12 @@ private slots:
         QSignalSpy stateSpy(&c, &RepoController::rebaseStateChanged);
         QSignalSpy failed(&c, &RepoController::operationFailed);
 
-        // Squash the two newest (c2 = HEAD, c1).
-        bool done = false;
-        [&]() -> QCoro::Task<void> {
-            co_await c.buildSquashTodo(QStringList{ QString::fromStdString(oids[0]),
-                                                    QString::fromStdString(oids[1]) });
-            done = true;
-        }();
-        QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+        // Squash the two newest (c2 = HEAD, c1). Drive the task to completion with
+        // QCoro::waitFor — a fire-and-forget lambda coroutine ([&]() -> Task {…}())
+        // resumes after its closure temporary is gone (stack-use-after-scope), which
+        // crashes non-deterministically under load (caught by ASan).
+        QCoro::waitFor(c.buildSquashTodo(QStringList{ QString::fromStdString(oids[0]),
+                                                      QString::fromStdString(oids[1]) }));
         QCOMPARE(failed.count(), 0);
 
         // The todo editor is never offered for a plain squash.

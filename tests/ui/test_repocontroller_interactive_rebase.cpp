@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <git2.h>
+#include <qcorotask.h>
 
 #include "gittide/ui/repocontroller.hpp"
 #include "support/temprepo.hpp"
@@ -84,15 +85,13 @@ private slots:
 
         QSignalSpy finished(&ctrl, &RepoController::rebaseFinished);
         QSignalSpy failed(&ctrl, &RepoController::operationFailed);
-        bool done = false;
-        [&]() -> QCoro::Task<void> {
-            co_await ctrl.startInteractiveRebase(
-                QString::fromStdString(base),
-                QStringList{"pick", "pick"},
-                QStringList{QString::fromStdString(oidA), QString::fromStdString(oidB)});
-            done = true;
-        }();
-        QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
+        // Drive the task to completion with QCoro::waitFor — a fire-and-forget
+        // lambda coroutine ([&]() -> Task {…}()) resumes after its closure temporary
+        // is gone (stack-use-after-scope), crashing under load (caught by ASan).
+        QCoro::waitFor(ctrl.startInteractiveRebase(
+            QString::fromStdString(base),
+            QStringList{"pick", "pick"},
+            QStringList{QString::fromStdString(oidA), QString::fromStdString(oidB)}));
         QCOMPARE(failed.count(), 0);
         QCOMPARE(finished.count(), 1);
     }
