@@ -29,9 +29,28 @@ TEST_CASE("chooseCredential returns None when https has no token", "[sync][cred]
     REQUIRE(chooseCredential("https://github.com/me/repo.git", GIT_CREDENTIAL_USERPASS_PLAINTEXT, c) == CredentialKind::None);
 }
 
-TEST_CASE("chooseCredential respects sshUseAgent=false", "[sync][cred]")
+TEST_CASE("chooseCredential returns None for ssh with agent off and no keyfile", "[sync][cred]")
 {
     Credentials c;
-    c.sshUseAgent = false;
+    c.sshUseAgent = false; // no private key configured either
     REQUIRE(chooseCredential("git@github.com:me/repo.git", GIT_CREDENTIAL_SSH_KEY, c) == CredentialKind::None);
+}
+
+TEST_CASE("chooseCredential picks the ssh keyfile when agent is off and a key is set", "[sync][cred]")
+{
+    Credentials c;
+    c.sshUseAgent       = false;
+    c.sshPrivateKeyPath = "/home/u/.ssh/id_ed25519";
+    c.sshPublicKeyPath  = "/home/u/.ssh/id_ed25519.pub";
+    c.sshPassphrase     = "s3cret";
+    REQUIRE(chooseCredential("git@github.com:me/repo.git", GIT_CREDENTIAL_SSH_KEY, c) == CredentialKind::SshKey);
+    REQUIRE(chooseCredential("ssh://git@host/repo.git", GIT_CREDENTIAL_SSH_KEY, c) == CredentialKind::SshKey);
+}
+
+TEST_CASE("chooseCredential prefers ssh-agent over a configured keyfile", "[sync][cred]")
+{
+    Credentials c;
+    c.sshUseAgent       = true; // agent wins when enabled
+    c.sshPrivateKeyPath = "/home/u/.ssh/id_ed25519";
+    REQUIRE(chooseCredential("git@github.com:me/repo.git", GIT_CREDENTIAL_SSH_KEY, c) == CredentialKind::SshAgent);
 }

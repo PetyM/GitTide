@@ -20,6 +20,21 @@ TEST_CASE("syncStatus reports no upstream when none is set", "[sync][status]")
     REQUIRE_FALSE(st->hasUpstream);
 }
 
+TEST_CASE("remoteUrl returns the configured url of a remote", "[sync][remote]")
+{
+    TempRepo repo;
+    auto     bare = repo.addBareRemote("origin");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    auto url = gr->remoteUrl("origin");
+    REQUIRE(url);
+    REQUIRE(url->find(bare.generic_string()) != std::string::npos); // file:// url to the bare repo
+
+    auto missing = gr->remoteUrl("nope");
+    REQUIRE_FALSE(missing); // unknown remote is an error, not empty
+}
+
 TEST_CASE("syncStatus reports ahead after a local-only commit", "[sync][status]")
 {
     TempRepo repo;

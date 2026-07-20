@@ -10,7 +10,9 @@ add_executable(gittide_core_tests
   test_git_repo_diff.cpp
   test_git_repo_stage.cpp
   test_git_repo_commit.cpp
+  test_git_repo_identity.cpp
   test_project_store.cpp
+  test_credentials_store.cpp
   test_build_patch.cpp
   test_git_repo_discard.cpp
   test_git_repo_stash.cpp
@@ -55,6 +57,10 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_smoke.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qcoro_smoke.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_list_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_identity_list_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_credential_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_secret_store.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_forge_client.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp

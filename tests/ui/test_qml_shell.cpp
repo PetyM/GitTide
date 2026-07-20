@@ -325,6 +325,38 @@ private slots:
         QVERIFY(bar != nullptr);
     }
 
+    // Window chrome is platform-conditional: macOS uses native decorations and a
+    // native system menu bar (the custom TitleBar is hidden but stays
+    // instantiated); Windows/Linux keep the frameless TitleBar with its in-window
+    // menu bar. The TitleBar object exists on every platform (asserted above).
+    void chrome_is_native_on_mac_custom_elsewhere()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QObject* titleBar = root->findChild<QObject*>(QStringLiteral("titleBar"));
+        QVERIFY(titleBar != nullptr);
+        QObject* nativeBar = root->findChild<QObject*>(QStringLiteral("nativeMenuBar"));
+
+#ifdef Q_OS_MACOS
+        // Native system menu bar is loaded; the custom title bar is hidden.
+        QVERIFY2(nativeBar != nullptr, "nativeMenuBar not loaded on macOS");
+        QCOMPARE(titleBar->property("visible").toBool(), false);
+#else
+        // No native bar; the custom title bar (with its in-window menu) is shown.
+        QVERIFY(nativeBar == nullptr);
+        QCOMPARE(titleBar->property("visible").toBool(), true);
+#endif
+    }
+
     void options_and_about_dialogs_exist()
     {
         ThemeManager mgr;

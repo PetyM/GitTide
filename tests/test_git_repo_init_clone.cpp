@@ -82,7 +82,7 @@ TEST_CASE("GitRepo::clone from file:// produces a working repo and invokes callb
         ++progress_calls;
         return true; // continue
     };
-    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, std::move(cb));
+    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, gittide::Credentials{}, std::move(cb));
 
     REQUIRE(result.has_value());
     REQUIRE(std::filesystem::exists(dest / "README.md"));
@@ -104,7 +104,7 @@ TEST_CASE("GitRepo::clone aborts when callback returns false", "[git_repo][clone
     {
         return false;
     }; // cancel
-    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, std::move(cb));
+    auto result = gittide::GitRepo::clone(fileUrl(source.path()), dest, gittide::Credentials{}, std::move(cb));
 
     REQUIRE_FALSE(result.has_value());
 }
@@ -120,7 +120,7 @@ TEST_CASE("GitRepo::clone into a missing URL returns an error", "[git_repo][clon
     {
         return true;
     };
-    auto result = gittide::GitRepo::clone("/no/such/gittide-clone-src", dest, std::move(cb));
+    auto result = gittide::GitRepo::clone("/no/such/gittide-clone-src", dest, gittide::Credentials{}, std::move(cb));
 
     REQUIRE_FALSE(result.has_value());
 }
