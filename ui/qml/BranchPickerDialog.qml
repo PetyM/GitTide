@@ -6,11 +6,9 @@ import QtQuick.Layouts
 // (remote=false, isHead=false); calls accept() (Dialog.accepted) on confirm.
 // Read selectedRef in the onAccepted handler. promptText and actionLabel are
 // set by the caller (rebase vs merge).
-Dialog {
+AppDialog {
     id: dialog
     objectName: "branchPickerDialog"
-    modal: true
-    anchors.centerIn: parent
     width: 380
     padding: 20
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
@@ -28,8 +26,6 @@ Dialog {
     property string selectedRef: ""
 
     onOpened: dialog.selectedRef = ""
-
-    background: OverlayCard {}
 
     contentItem: ColumnLayout {
         spacing: 12

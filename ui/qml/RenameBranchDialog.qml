@@ -3,18 +3,14 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // Rename a local branch. Old name preselected (the current branch).
-Dialog {
+AppDialog {
     id: dialog
     objectName: "renameBranchDialog"
-    modal: true
     title: "Rename branch"
-    anchors.centerIn: parent
     width: 380
     padding: 20
 
     property string oldName: ""
-
-    background: OverlayCard {}
 
     function openDialog() {
         oldName = repoVm ? repoVm.currentBranch : ""

@@ -4,21 +4,18 @@ import QtQuick.Layouts
 
 // Modal clone progress. Bound to ProjectController.cloneProgress; closes on
 // repoAdded / repoAddFailed. Cancel aborts the in-flight clone.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "cloneProgressDialog"
-    modal: true
     title: "Cloning…"
-    anchors.centerIn: parent
     width: 380
     padding: 20
     closePolicy: Popup.NoAutoClose
+    closable: false   // dismiss via Cancel (aborts the clone), not a stray ✕
 
     property int received: 0
     property int total: 0
     property string errorText: ""
-
-    background: OverlayCard {}
 
     function openDialog() {
         received = 0

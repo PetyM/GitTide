@@ -6,17 +6,13 @@ import QtQuick.Layouts
 // per-repo assignment), forge host accounts (token validated against the API and
 // stored in the keychain), and SSH keys. Backed by the `credentialManager` +
 // `identityModel` / `hostModel` / `sshKeyModel` context properties.
-Dialog {
+AppDialog {
     id: root
     objectName: "identityDialog"
-    modal: true
     title: "Credentials"
-    anchors.centerIn: parent
     width: 520
     padding: 20
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    background: OverlayCard {}
 
     // Live assignment ids for the open repo / active project (Q_INVOKABLE results
     // are not auto-tracked, so refresh them on the relevant change signals).

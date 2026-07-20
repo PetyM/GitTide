@@ -5,18 +5,14 @@ import QtQuick.Layouts
 // Create a new branch.
 // openDialog()       — branch from HEAD (or the base-combo selection, deferred).
 // openFromCommit(id) — branch from a specific commit OID; hides the base combo.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "newBranchDialog"
-    modal: true
     title: "New branch"
-    anchors.centerIn: parent
     width: 380
     padding: 20
 
     property string fromOid: ""
-
-    background: OverlayCard {}
 
     function openDialog() {
         fromOid = ""   // always reset; callers that want a specific OID use openFromCommit

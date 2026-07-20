@@ -9,12 +9,10 @@ import QtQuick.Layouts
 // API: openFor(fromRow, toRow, band) → on accept calls
 // repoVm.reorderCommits(from, to, band). band ("above"/"below") selects the side
 // of the target the dragged commit lands on; defaults to "below".
-Dialog {
+AppDialog {
     id: dialog
     objectName: "reorderConfirmDialog"
-    modal: true
     title: "Reorder commits"
-    anchors.centerIn: parent
     width: 380
     padding: 20
     closePolicy: Popup.CloseOnEscape
@@ -22,8 +20,6 @@ Dialog {
     property int fromRow: -1
     property int toRow: -1
     property string band: "below"
-
-    background: OverlayCard {}
 
     function openFor(from, to, dropBand) {
         fromRow = from

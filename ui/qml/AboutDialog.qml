@@ -3,16 +3,11 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // About dialog: app icon, name, version (from appVersion context property), tagline.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "aboutDialog"
-    modal: true
-    anchors.centerIn: parent
     width: 320
     padding: 24
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-    background: OverlayCard {}
 
     contentItem: ColumnLayout {
         spacing: 12

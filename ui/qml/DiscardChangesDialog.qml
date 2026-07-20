@@ -5,18 +5,14 @@ import QtQuick.Layouts
 // Confirmation guard before discarding working-tree changes (spec §3).
 // Open via .open(); on user confirmation emits Dialog.accepted so the caller
 // can invoke repoVm.discardFile(path). Never call discardFile without this guard.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "discardChangesDialog"
-    modal: true
     title: "Discard changes"
-    anchors.centerIn: parent
     width: 380
     padding: 20
 
     property string fileName: ""
-
-    background: OverlayCard {}
 
     contentItem: Label {
         text: "Discard changes to \"" + dialog.fileName + "\"? This cannot be undone."

@@ -238,6 +238,15 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   modals read as above the content, not painted flat onto it (design §9). The card
   colour/radius default to a dialog (`surface.raised` / 18) and are overridden by
   the dropdown (`surface.overlay` / 10).
+- **Dialog chrome.** Every modal is an `AppDialog` — a shared base that replaces
+  QtQuick.Controls.Basic's default `Dialog` header (an unthemed `palette.light`
+  white bar with square corners and no close affordance) with a themed header:
+  the `title` in `text.primary` on the left and a close **✕** button on the right
+  (`text.muted` → `text.primary` with a `surface.overlay` hover chip). The header
+  background is transparent so the `OverlayCard`'s rounded top corners show through
+  instead of being capped by a square bar; clicking ✕ rejects the dialog. Set
+  `closable: false` where a dialog must not be dismissed by a stray click (e.g. the
+  clone-progress modal, dismissed only via Cancel, which aborts the clone).
 - **Branch dialogs.** New-branch / rename / delete-confirm follow the dialog
   pattern: `OverlayCard` (`surface.raised`, radius 18, `border` ring + shadow), 2px
   `accent` focus rings. New-branch = name input + a "switch to it" checkbox; an

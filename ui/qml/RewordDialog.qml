@@ -6,12 +6,10 @@ import QtQuick.Layouts
 // openFor(oid) — lazy-fetches the full message via repoVm.requestCommitMessage(oid)
 //               and pre-fills the summary/body fields when commitMessageReady fires.
 // Save emits reworded(message) with the assembled commit message string.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "rewordDialog"
-    modal: true
     title: "Reword commit"
-    anchors.centerIn: parent
     width: 460
     padding: 20
 
@@ -20,8 +18,6 @@ Dialog {
     property alias body: bodyField.text
 
     signal reworded(string message)
-
-    background: OverlayCard {}
 
     function openFor(commitOid) {
         dialog.oid = commitOid

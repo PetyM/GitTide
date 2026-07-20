@@ -4,20 +4,16 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 
 // Clone a repository from a URL into a chosen destination folder.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "cloneRepoDialog"
-    modal: true
     title: "Clone repository"
-    anchors.centerIn: parent
     width: 460
     padding: 20
 
     property string destDir: ""
     // Emitted when a clone is kicked off, so the host can show progress.
     signal cloneStarted()
-
-    background: OverlayCard {}
 
     function openDialog() {
         urlField.text = ""

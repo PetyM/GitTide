@@ -5,19 +5,15 @@ import QtQuick.Layouts
 // HTTPS credential prompt, raised when a network op reports authRequired. Styled
 // as a raised card (design §9) to match the other dialogs; tokens are kept for
 // the session only.
-Dialog {
+AppDialog {
     id: root
     objectName: "credentialDialog"
-    modal: true
     title: "Authentication required"
-    anchors.centerIn: parent
     width: 380
     padding: 20
 
     property alias username: userField.text
     property alias token: tokenField.text
-
-    background: OverlayCard {}
 
     function openDialog() {
         userField.text = ""

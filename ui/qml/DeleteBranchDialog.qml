@@ -5,12 +5,10 @@ import QtQuick.Layouts
 // Delete a local branch. Confirmation-by-click (design §11): the danger button
 // arms on first click and deletes on the second, unless "Don't ask again" is
 // set. An unmerged branch surfaces a warning bar and a force-delete button.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "deleteBranchDialog"
-    modal: true
     title: "Delete branch"
-    anchors.centerIn: parent
     width: 400
     padding: 20
 
@@ -20,8 +18,6 @@ Dialog {
     property bool skipConfirm: false
     // Branch a delete was just requested for; cleared once resolved.
     property string pendingName: ""
-
-    background: OverlayCard {}
 
     function deletableBranches() {
         if (!repoVm)

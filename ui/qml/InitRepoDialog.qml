@@ -4,18 +4,14 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 
 // Initialize a new repository: choose a parent folder + a name.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "initRepoDialog"
-    modal: true
     title: "Initialize repository"
-    anchors.centerIn: parent
     width: 420
     padding: 20
 
     property string parentDir: ""
-
-    background: OverlayCard {}
 
     function openDialog() {
         parentDir = ""

@@ -3,16 +3,12 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // Create a new project and activate it.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "newProjectDialog"
-    modal: true
     title: "New project"
-    anchors.centerIn: parent
     width: 380
     padding: 20
-
-    background: OverlayCard {}
 
     function openDialog() {
         nameField.text = ""

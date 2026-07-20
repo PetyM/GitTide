@@ -15,17 +15,13 @@ import QtQuick.Layouts
 //
 // On Start → repoVm.startInteractiveRebase(base, actions[], oids[])
 // Listens to repoVm.rebaseTodoReady(base, entries) and opens itself.
-Dialog {
+AppDialog {
     id: root
     objectName: "rebaseTodoDialog"
-    modal: true
     title: "Edit history"
-    anchors.centerIn: parent
     width: 540
     padding: 0
     closePolicy: Popup.CloseOnEscape
-
-    background: OverlayCard {}
 
     // ----- State -----
 
@@ -102,26 +98,12 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 0
 
-        // Header
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.margins: 16
-            spacing: 8
-
-            Label {
-                text: "Edit history"
-                color: theme.textPrimary
-                font.pixelSize: 15
-                font.bold: true
-                Layout.fillWidth: true
-            }
-        }
-
         // Commit list
         ListView {
             id: todoList
             Layout.fillWidth: true
             Layout.preferredHeight: Math.min(todoModel.count * 44, 330)
+            Layout.topMargin: 4
             Layout.leftMargin: 8
             Layout.rightMargin: 8
             clip: true

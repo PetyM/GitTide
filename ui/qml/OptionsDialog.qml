@@ -5,22 +5,17 @@ import QtQuick.Layouts
 // App-level settings: theme mode and pull default. Changes apply instantly (no
 // OK/Cancel). Receives appSettings from Main.qml — writes go to the shared
 // Settings instance so they auto-persist and trigger Main.qml bindings.
-Dialog {
+AppDialog {
     id: dialog
     objectName: "optionsDialog"
-    modal: true
     title: "Options"
-    anchors.centerIn: parent
     width: 360
     padding: 20
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
     required property var appSettings
 
     // Raised when the user opens identity management (Main.qml opens the dialog).
     signal identityRequested()
-
-    background: OverlayCard {}
 
     contentItem: ColumnLayout {
         spacing: 20
