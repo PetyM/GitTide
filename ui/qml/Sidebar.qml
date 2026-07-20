@@ -276,7 +276,7 @@ Rectangle {
                         }
                     }
 
-                    // Name (line 1) + branch/sync (line 2, repos only).
+                    // Name (line 1) + branch/sync (line 2, repos + initialised submodules).
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
