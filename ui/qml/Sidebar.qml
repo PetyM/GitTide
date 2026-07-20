@@ -254,6 +254,14 @@ Rectangle {
                 readonly property bool activeRepo: repoVm && repoVm.repoOpen
                                                    && model.repoPath === repoVm.repoPath
 
+                // A greyed-down blue for the branch/detached line: the accent
+                // blended toward the muted token so it reads as blue without
+                // shouting. Derived from tokens (no hex), so it adapts per theme.
+                readonly property color branchColor: Qt.rgba(
+                    (theme.accent.r + theme.textMuted.r * 1.3) / 2.3,
+                    (theme.accent.g + theme.textMuted.g * 1.3) / 2.3,
+                    (theme.accent.b + theme.textMuted.b * 1.3) / 2.3, 1)
+
                 contentItem: RowLayout {
                     spacing: 8
 
@@ -388,12 +396,12 @@ Rectangle {
                             Label {
                                 visible: !model.detached
                                 text: "⎇"
-                                color: theme.accent
+                                color: row.branchColor
                                 font.pixelSize: 11
                             }
                             Label {
                                 text: model.detached ? "detached" : model.branch
-                                color: theme.accent
+                                color: row.branchColor
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
                                 Layout.maximumWidth: 180
