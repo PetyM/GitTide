@@ -21,18 +21,24 @@ enum class PullStrategy
     Rebase,          // rebase local commits onto the upstream
 };
 
-// Credentials supplied by the UI before a network call. Pure std; no Qt.
+// Credentials supplied by the UI before a network call. Pure std; no Qt. Secret
+// fields (password, sshPassphrase) are filled from the OS keychain at call time
+// and never persisted in this struct's lifetime beyond the operation.
 struct Credentials
 {
     bool        sshUseAgent = true; // ssh remotes: authenticate via ssh-agent
-    std::string username;           // https username
+    std::string username;           // https username (or ssh user override)
     std::string password;           // https token / password
+    std::string sshPublicKeyPath;   // ssh keyfile: public key path (optional)
+    std::string sshPrivateKeyPath;  // ssh keyfile: private key path
+    std::string sshPassphrase;      // ssh keyfile: passphrase (may be empty)
 };
 
 // Which credential kind a callback should produce for a given remote URL.
 enum class CredentialKind
 {
     SshAgent,
+    SshKey,
     UserPass,
     None,
 };

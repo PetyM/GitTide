@@ -39,6 +39,28 @@ struct StashEntry
     std::string oid;
 };
 
+/// A git author/committer identity (name + email) as read from merged git config
+/// — what `git_signature_default` would use. Pure std; no store id, no libgit2 type.
+struct ConfigIdentity
+{
+    std::string name;
+    std::string email;
+};
+
+/// The repo's LOCAL-level (`.git/config`) identity, plus whether GitTide wrote it.
+/// `managed` is true when our `gittide.identity` marker is present, meaning the
+/// local `user.*` keys are GitTide-owned and safe to overwrite/clear; when false
+/// the local identity (if any) was set by the user/CLI and must be left untouched.
+struct LocalIdentityInfo
+{
+    bool        hasName  = false;
+    bool        hasEmail = false;
+    std::string name;
+    std::string email;
+    bool        managed = false; // gittide.identity marker present
+    std::string marker;          // the identity id we recorded, if managed
+};
+
 // RAII wrapper around a single libgit2 git_repository.
 // Move-only. Not safe to share across threads; one owner per repo.
 class GitRepo
@@ -57,9 +79,12 @@ public:
     // Errors if a .git directory already exists at path.
     static Expected<GitRepo> init(const std::filesystem::path& path);
 
-    // Clone the repository at url into dest. Calls cb during the transfer.
+    // Clone the repository at url into dest. Calls cb during the transfer. cred is
+    // supplied by the caller (ssh-agent / keyfile / https token) and drives the
+    // same credential callback as fetch/pull/push, so private clones authenticate.
     // dest must not exist (libgit2 creates it). Returns error on failure or cancel.
-    static Expected<GitRepo> clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb);
+    static Expected<GitRepo> clone(const std::string& url, const std::filesystem::path& dest, Credentials cred,
+                                   ProgressCallback cb);
 
     // Working-tree + index status. A changed submodule gitlink carries
     // StatusFlag::Submodule, plus StatusFlag::SubmoduleDirty when the submodule's
@@ -171,6 +196,37 @@ public:
     // (pull.rebase: true => Rebase, absent/false => FastForwardOnly).
     Expected<PullStrategy> pullStrategy() const;
     Expected<void>         setPullStrategy(PullStrategy strategy);
+
+    // --- Identity (user.name / user.email) management ---
+    // GitTide materializes the resolved identity into git config so every path
+    // that reads git_signature_default (commit, reword, rebase, merge) picks it up
+    // and the CLI stays consistent. Local writes carry a gittide.identity marker
+    // so GitTide only ever overwrites/clears identity it set itself.
+
+    // Write user.name / user.email into the repo's LOCAL config and record the
+    // ownership marker gittide.identity = <marker> (the assigning identity's id).
+    Expected<void> setLocalIdentity(std::string name, std::string email, std::string marker);
+
+    // Delete user.name / user.email / gittide.identity from the repo's LOCAL
+    // config so it falls back to global. Missing keys are tolerated (no error).
+    Expected<void> clearLocalIdentity();
+
+    // Write user.name / user.email into the GLOBAL config (~/.gitconfig), creating
+    // the file if it does not exist yet. Static: the global config is not tied to
+    // any repository (it only needs libgit2 initialised).
+    static Expected<void> setGlobalIdentity(std::string name, std::string email);
+
+    // The effective identity from merged config (what git_signature_default uses),
+    // for display. name/email may be empty if unset at every level.
+    Expected<ConfigIdentity> effectiveIdentity() const;
+
+    // The LOCAL-level identity plus whether GitTide's ownership marker is present,
+    // so the UI can distinguish GitTide-managed from CLI-set local config.
+    Expected<LocalIdentityInfo> localIdentity() const;
+
+    // The configured URL of the named remote (e.g. "origin"), so the ui can match
+    // a remote's host to a stored credential without libgit2 leaking into ui/.
+    Expected<std::string> remoteUrl(std::string remoteName) const;
 
     // Fetch the named remote, updating remote-tracking refs. cred is supplied by
     // the caller (ssh-agent / https token); cb reports transfer progress. The

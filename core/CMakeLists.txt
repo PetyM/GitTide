@@ -8,6 +8,7 @@ target_sources(gittide_core PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src/credentialselect.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/diffengine.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/projectstore.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/credentialsstore.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/graphbuilder.cpp
 )
 target_include_directories(gittide_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

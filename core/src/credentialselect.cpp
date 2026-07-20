@@ -22,10 +22,18 @@ bool isSshUrl(std::string_view url)
 
 CredentialKind chooseCredential(std::string_view url, unsigned allowedTypes, const Credentials& cred)
 {
-    if (isSshUrl(url) && cred.sshUseAgent && (allowedTypes & GIT_CREDENTIAL_SSH_KEY))
+    if (isSshUrl(url) && (allowedTypes & GIT_CREDENTIAL_SSH_KEY))
     {
-        logf(LogLevel::Debug, logcat::AUTH, "selecting ssh-agent credential (allowed types {:#x})", allowedTypes);
-        return CredentialKind::SshAgent;
+        if (cred.sshUseAgent)
+        {
+            logf(LogLevel::Debug, logcat::AUTH, "selecting ssh-agent credential (allowed types {:#x})", allowedTypes);
+            return CredentialKind::SshAgent;
+        }
+        if (!cred.sshPrivateKeyPath.empty())
+        {
+            logf(LogLevel::Debug, logcat::AUTH, "selecting ssh keyfile credential (allowed types {:#x})", allowedTypes);
+            return CredentialKind::SshKey;
+        }
     }
     if ((allowedTypes & GIT_CREDENTIAL_USERPASS_PLAINTEXT) && !cred.username.empty() && !cred.password.empty())
     {

@@ -167,6 +167,10 @@ int credentialTrampoline(git_credential** out, const char* url, const char* user
     {
     case gittide::CredentialKind::SshAgent:
         return git_credential_ssh_key_from_agent(out, username_from_url ? username_from_url : "git");
+    case gittide::CredentialKind::SshKey:
+        return git_credential_ssh_key_new(out, username_from_url ? username_from_url : "git",
+                                          cred.sshPublicKeyPath.empty() ? nullptr : cred.sshPublicKeyPath.c_str(),
+                                          cred.sshPrivateKeyPath.c_str(), cred.sshPassphrase.c_str());
     case gittide::CredentialKind::UserPass:
         return git_credential_userpass_plaintext_new(out, cred.username.c_str(), cred.password.c_str());
     case gittide::CredentialKind::None:
@@ -225,11 +229,13 @@ Expected<GitRepo> GitRepo::init(const std::filesystem::path& path)
     return GitRepo(repo);
 }
 
-Expected<GitRepo> GitRepo::clone(const std::string& url, const std::filesystem::path& dest, ProgressCallback cb)
+Expected<GitRepo> GitRepo::clone(const std::string& url, const std::filesystem::path& dest, Credentials cred,
+                                 ProgressCallback cb)
 {
-    CbPayload pl{&cb, nullptr};
+    CbPayload pl{&cb, &cred};
     git_clone_options opts                      = GIT_CLONE_OPTIONS_INIT;
     opts.fetch_opts.callbacks.transfer_progress = transferProgressTrampoline;
+    opts.fetch_opts.callbacks.credentials       = credentialTrampoline;
     opts.fetch_opts.callbacks.payload           = &pl;
 
     git_repository* repo = nullptr;
@@ -2607,6 +2613,167 @@ Expected<void> GitRepo::setPullStrategy(PullStrategy strategy)
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     return {};
+}
+
+Expected<void> GitRepo::setLocalIdentity(std::string name, std::string email, std::string marker)
+{
+    git_config* cfg = nullptr;
+    int rc          = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    // git_config_set_* on the repo config writes to the highest-priority writable
+    // level — the repo-local .git/config — exactly like setPullStrategy above.
+    rc = git_config_set_string(cfg, "user.name", name.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    rc = git_config_set_string(cfg, "user.email", email.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    rc = git_config_set_string(cfg, "gittide.identity", marker.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::clearLocalIdentity()
+{
+    git_config* cfg = nullptr;
+    int rc          = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    // Delete only from the LOCAL level: deleting via the merged config could
+    // remove a global entry if the repo has no local one. A missing local level
+    // (or missing key) means there is nothing to clear — not an error.
+    git_config* local = nullptr;
+    rc                = git_config_open_level(&local, cfg, GIT_CONFIG_LEVEL_LOCAL);
+    if (rc == GIT_ENOTFOUND)
+        return {};
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> localGuard(local, git_config_free);
+
+    for (const char* key : {"user.name", "user.email", "gittide.identity"})
+    {
+        rc = git_config_delete_entry(local, key);
+        if (rc < 0 && rc != GIT_ENOTFOUND)
+            return std::unexpected(lastGitError(rc));
+    }
+    return {};
+}
+
+Expected<void> GitRepo::setGlobalIdentity(std::string name, std::string email)
+{
+    // Locate ~/.gitconfig; if none exists yet, derive its path from the global
+    // config search path so the first write creates the file.
+    std::string path;
+    git_buf     found = GIT_BUF_INIT;
+    int         rc    = git_config_find_global(&found);
+    if (rc == 0)
+        path.assign(found.ptr, found.size);
+    git_buf_dispose(&found);
+
+    if (path.empty())
+    {
+        git_buf sp = GIT_BUF_INIT;
+        if (git_libgit2_opts(GIT_OPT_GET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, &sp) == 0 && sp.size > 0)
+        {
+            std::string dir(sp.ptr, sp.size);
+#ifdef _WIN32
+            const char listSep = ';';
+#else
+            const char listSep = ':';
+#endif
+            if (auto pos = dir.find(listSep); pos != std::string::npos)
+                dir.resize(pos); // first search-path entry only
+            if (!dir.empty())
+                path = dir + "/.gitconfig";
+        }
+        git_buf_dispose(&sp);
+    }
+    if (path.empty())
+        return std::unexpected(GitError{-1, "cannot locate global git config path"});
+
+    git_config* raw = nullptr;
+    rc              = git_config_open_ondisk(&raw, path.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(raw, git_config_free);
+
+    rc = git_config_set_string(raw, "user.name", name.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    rc = git_config_set_string(raw, "user.email", email.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<ConfigIdentity> GitRepo::effectiveIdentity() const
+{
+    git_config* cfg = nullptr;
+    int         rc  = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    ConfigIdentity id;
+    auto           readKey = [&](const char* key, std::string& out)
+    {
+        git_buf buf = GIT_BUF_INIT;
+        if (git_config_get_string_buf(&buf, cfg, key) == 0)
+            out.assign(buf.ptr, buf.size);
+        git_buf_dispose(&buf);
+    };
+    readKey("user.name", id.name);
+    readKey("user.email", id.email);
+    return id;
+}
+
+Expected<LocalIdentityInfo> GitRepo::localIdentity() const
+{
+    git_config* cfg = nullptr;
+    int         rc  = git_repository_config(&cfg, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    LocalIdentityInfo info;
+    git_config*       local = nullptr;
+    rc                      = git_config_open_level(&local, cfg, GIT_CONFIG_LEVEL_LOCAL);
+    if (rc == GIT_ENOTFOUND)
+        return info; // no local level → all-empty
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> localGuard(local, git_config_free);
+
+    auto readKey = [&](const char* key, std::string& out) -> bool
+    {
+        git_buf buf = GIT_BUF_INIT;
+        bool    ok  = git_config_get_string_buf(&buf, local, key) == 0;
+        if (ok)
+            out.assign(buf.ptr, buf.size);
+        git_buf_dispose(&buf);
+        return ok;
+    };
+    info.hasName  = readKey("user.name", info.name);
+    info.hasEmail = readKey("user.email", info.email);
+    info.managed  = readKey("gittide.identity", info.marker);
+    return info;
+}
+
+Expected<std::string> GitRepo::remoteUrl(std::string remoteName) const
+{
+    git_remote* raw = nullptr;
+    int         rc  = git_remote_lookup(&raw, m_repo, remoteName.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_remote, decltype(&git_remote_free)> remote(raw, git_remote_free);
+    const char* url = git_remote_url(remote.get());
+    return std::string(url ? url : "");
 }
 
 Expected<void> GitRepo::fetch(std::string remoteName, Credentials cred, ProgressCallback cb)
