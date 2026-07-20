@@ -70,6 +70,7 @@
 
 #include <QGuiApplication>
 #include <QtTest/QtTest>
+#include <cstdio>
 #include <git2.h>
 
 // Wrap each test class so a C++ exception escaping its fixture/slots (e.g. a
@@ -79,6 +80,8 @@
 #define RUN(T)                                                                                                                 \
     do                                                                                                                         \
     {                                                                                                                          \
+        fprintf(stderr, "[ui-test] running %s\n", #T);                                                                         \
+        fflush(stderr);                                                                                                        \
         try                                                                                                                    \
         {                                                                                                                      \
             T t;                                                                                                               \
