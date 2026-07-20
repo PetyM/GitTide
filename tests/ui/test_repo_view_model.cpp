@@ -517,10 +517,10 @@ private slots:
         vm.open(QString::fromStdString(dir.generic_string()));
         QVERIFY(filesSpy.wait(15000));
 
-        // Wait for history to load
-        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
-        QVERIFY(historySpy.wait(15000));
-        QVERIFY(vm.history()->rowCount(QModelIndex()) > 0);
+        // Wait for history to load. Poll the state rather than a modelReset spy —
+        // the reset can fire during the filesSpy.wait above (before a spy created
+        // here would connect), so a spy races and misses it under CI timing.
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount(QModelIndex()) > 0, 15000);
 
         // Select the first commit and verify selectedCommit is populated
         vm.selectCommitAtRow(0);
