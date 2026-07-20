@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-20 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-07-20-submodule-detail-and-right-align-design.md`](../spec/product/2026-07-20-submodule-detail-and-right-align-design.md) |
 | **Depends on** | Plan 33 (repo tree entry redesign), Plan 24 (submodule rows) |
 
@@ -765,8 +765,22 @@ git commit -m "docs: close out Plan 34 — submodule detail rows + right-aligned
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
+- **Shipped:** initialized submodule rows now match the repo two-line entry —
+  name + dirty-count badge on line 1; `⎇ <branch>` or `detached <currentOid>` +
+  ahead/behind **vs the pinned commit** on line 2. Ahead/behind (and the repo
+  no-upstream `—`) are right-aligned into a column, with right padding so they
+  don't touch the edge. Uninitialised submodules stay single-line with their
+  `Init` button. Verified in the running app: a submodule checked out 1 behind
+  its pin shows `detached <oid>` + right-aligned `↓1` and a `● 2` dirty badge.
+- **Spec updated:** [`spec/product/2026-07-20-submodule-detail-and-right-align-design.md`](../spec/product/2026-07-20-submodule-detail-and-right-align-design.md)
+  (Status: shipped); decision **D43** in [`decisions.md`](../decisions.md).
+- **Code:** `SubmoduleNode` gained `branch`/`detached`/`headShortOid`/`dirtyCount`/
+  `ahead`/`behind`; `GitRepo::aheadBehind` (`git_graph_ahead_behind`) and
+  `GitRepo::submoduleTree()` fill them from each submodule's own repo
+  (`core/src/gitrepo.cpp`, `core/include/gittide/{submodule,gitrepo}.hpp`).
+  `RepoListModel::appendSubmodules`/`submodulesEqual`/`reconcileChildren` populate
+  and refresh them via a shared `submoduleDisplayOid` helper
+  (`ui/src/repolistmodel.cpp`); the two-line submodule delegate + right-aligned
+  sync live in `ui/qml/Sidebar.qml`. Tests:
+  `tests/core/test_submodule_detail.cpp`, `tests/ui/test_repo_list_model.cpp`,
+  `tests/ui/test_qml_sync.cpp`.

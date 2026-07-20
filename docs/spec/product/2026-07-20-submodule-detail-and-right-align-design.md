@@ -1,7 +1,8 @@
 # Design — Submodule detail rows + right-aligned sync
 
-**Status:** planned
+**Status:** shipped
 **Date:** 2026-07-20
+**Shipped:** 2026-07-20 (Plan 34)
 **Builds on:** [`2026-07-20-repo-tree-entry-redesign-design.md`](2026-07-20-repo-tree-entry-redesign-design.md)
 (Plan 33), which gave top-level repo rows a two-line branch/sync/dirty entry.
 

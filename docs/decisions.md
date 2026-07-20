@@ -379,6 +379,20 @@ an entry with a newer one if it changes.
   still show their pinned OID, whose identity *is* the commit). →
   [`repo-tree-entry design doc`](spec/product/2026-07-20-repo-tree-entry-redesign-design.md)
 
+- **D43 — Submodule rows show branch + dirty + ahead/behind vs the *pinned*
+  commit, not a remote upstream.** An initialized submodule gets the same
+  two-line entry as a repo; its ahead/behind counts the submodule's current HEAD
+  against the commit the superproject pins (the submodule's contract), computed
+  on the submodule's own repository via `git_graph_ahead_behind`. Sync indicators
+  are right-aligned into a column (repos and submodules). The detail is filled
+  once in `submoduleTree()`, so the load-seed and the 5 s poll share one path.
+  *Why:* "have I drifted from the pin, and which way" is the multi-repo question;
+  a remote-upstream comparison would need N recursive repo opens and answers a
+  different question. *Rejected:* ahead/behind vs the submodule's own remote;
+  a lightweight off-pin marker without counts (the user wanted exact counts). A
+  shallow submodule missing the pinned commit simply shows no arrows. →
+  [`submodule-detail design doc`](spec/product/2026-07-20-submodule-detail-and-right-align-design.md)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

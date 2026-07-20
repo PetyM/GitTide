@@ -51,6 +51,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 31 — Stash viewing & management](2026-06-30-plan31-stash-management.md) | 2026-06-30 | done | product · engineering · core · ui |
 | [Plan 32 — Graph tab full-width + double-click hand-off to History](2026-07-01-plan32-graph-fullwidth-doubleclick.md) | 2026-07-01 | done | product · ui |
 | [Plan 33 — Repo tree entry redesign (branch + sync + dirty)](2026-07-20-plan33-repo-tree-entry.md) | 2026-07-20 | done | product · ui |
+| [Plan 34 — Submodule detail rows + right-aligned sync](2026-07-20-plan34-submodule-detail.md) | 2026-07-20 | done | product · core · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises
