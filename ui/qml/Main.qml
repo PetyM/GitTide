@@ -113,15 +113,23 @@ ApplicationWindow {
             onPopStashRequested: if (repoVm) repoVm.popStash()
         }
 
-        RowLayout {
+        // Resizable seam between the repo tree and the changes/history/graph pane.
+        // The draggable handle (accent on hover) doubles as the divider.
+        SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            orientation: Qt.Horizontal
+
+            handle: Rectangle {
+                implicitWidth: 3
+                color: mainHandleHover.hovered ? theme.accent : theme.border
+                HoverHandler { id: mainHandleHover }
+            }
 
             Sidebar {
                 id: sidebar
-                Layout.fillHeight: true
-                Layout.preferredWidth: 272
+                SplitView.preferredWidth: 272
+                SplitView.minimumWidth: 200
                 onAddExistingRequested: addExistingFolder.open()
                 onCloneRequested: cloneRepoDialog.openDialog()
                 onInitRequested: initRepoDialog.openDialog()
@@ -133,17 +141,10 @@ ApplicationWindow {
                 onTabPrev: workingPane.takeFocusLast()
             }
 
-            // Divider between the repo tree and the changes/history/graph pane.
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 1
-                color: theme.border
-            }
-
             WorkingPane {
                 id: workingPane
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                SplitView.fillWidth: true
+                SplitView.minimumWidth: 360
                 onAddExistingRequested: addExistingFolder.open()
                 onCloneRequested: cloneRepoDialog.openDialog()
                 onInitRequested: initRepoDialog.openDialog()

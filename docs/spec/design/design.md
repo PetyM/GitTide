@@ -141,12 +141,12 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   as *name: message* — there is no passing status caption. Auth failures instead
   prompt for credentials and retry; the error dialog only appears once that retry
   settles.
-- **Sidebar / main divider.** A 1px `border` hairline separates the repo tree
-  (sidebar, `surface.raised`) from the changes/history/graph pane. Fixed structural
-  seams use this 1px `border` hairline (also the branch-bar bottom edge and the
-  history list↔detail seam); a **draggable** split instead uses a 3px handle that
-  tints `border` → `accent` on hover (ChangesPane, and the CommitDetail files↔diff
-  split).
+- **Separators.** Two idioms. A **draggable** split uses a 3px handle that tints
+  `border` → `accent` on hover — the repo tree ↔ changes/history/graph seam
+  (sidebar min-width 200, pane min-width 360), the Changes files ↔ diff split, and
+  the History files ↔ diff split all share it, so any resizable boundary is both
+  visible and draggable. A **fixed** structural seam is a 1px `border` hairline
+  (the branch-bar bottom edge, the top-level-repo dividers in the tree).
 - **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
   `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
   a warning icon, never red text alone. Radius 10 on hover highlight. Top-level
