@@ -13,7 +13,7 @@ private slots:
         ThemeManager m;
         m.setMode(ThemeManager::Mode::Dark);
         QVERIFY(m.currentTheme().dark);
-        QCOMPARE(m.currentTheme().accent, QStringLiteral("#22D3EE"));
+        QCOMPARE(m.currentTheme().accent, QStringLiteral("#42A5F5"));
         QVERIFY(m.iconResource().contains(QStringLiteral("gittide-icon.svg")));
         QVERIFY(!m.iconResource().contains(QStringLiteral("light")));
     }
@@ -23,7 +23,7 @@ private slots:
         QSignalSpy spy(&m, &ThemeManager::themeChanged);
         m.setMode(ThemeManager::Mode::Light);
         QVERIFY(!m.currentTheme().dark);
-        QCOMPARE(m.currentTheme().accent, QStringLiteral("#0891B2"));
+        QCOMPARE(m.currentTheme().accent, QStringLiteral("#1976D2"));
         QVERIFY(m.iconResource().contains(QStringLiteral("light")));
         QCOMPARE(spy.count(), 1);
     }

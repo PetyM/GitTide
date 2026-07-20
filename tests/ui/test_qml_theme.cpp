@@ -19,9 +19,9 @@ private slots:
         QmlTheme theme(&mgr);
 
         QVERIFY(theme.property("dark").toBool());
-        QCOMPARE(theme.property("accent").value<QColor>(), QColor("#22D3EE"));
-        QCOMPARE(theme.property("surfaceBase").value<QColor>(), QColor("#0B1623"));
-        QCOMPARE(theme.property("head").value<QColor>(), QColor("#FFFFFF"));
+        QCOMPARE(theme.property("accent").value<QColor>(), QColor("#42A5F5"));
+        QCOMPARE(theme.property("surfaceBase").value<QColor>(), QColor("#1C1C1E"));
+        QCOMPARE(theme.property("head").value<QColor>(), QColor("#E3F2FD"));
         QCOMPARE(theme.property("iconSource").toString(),
                  QStringLiteral("qrc:/icons/gittide-icon.svg"));
     }
@@ -57,7 +57,7 @@ private slots:
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(!theme.property("dark").toBool());
-        QCOMPARE(theme.property("accent").value<QColor>(), QColor("#0891B2"));
+        QCOMPARE(theme.property("accent").value<QColor>(), QColor("#1976D2"));
     }
 
     // The QML toggle drives the mode through QmlTheme: a writable `mode` property

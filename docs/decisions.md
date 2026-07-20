@@ -339,8 +339,10 @@ an entry with a newer one if it changes.
 
 ## Design
 
-- **D17 — One accent (cyan brand); never a second hue** for emphasis. *Why:* brand
-  coherence. → [`design`](spec/design/design.md)
+- **D17 — One accent (Material Blue brand); never a second hue** for emphasis.
+  *Why:* brand coherence. *(Was cyan on a navy ground; reworked to a neutral
+  Material Grey ground with a Material Blue accent — 2026-07-20.)* →
+  [`design`](spec/design/design.md)
 - **D18 — Colour comes only from tokens; both themes define every token.** *Why:*
   adding a theme is adding one column, and no widget hard-codes a hex. →
   [`design`](spec/design/design.md)

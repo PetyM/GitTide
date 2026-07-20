@@ -20,25 +20,27 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 
 | Token            | Dark      | Light     | Use |
 |------------------|-----------|-----------|-----|
-| `surface.base`   | `#0B1623` | `#EEF3F8` | Window background |
-| `surface.raised` | `#11202F` | `#FFFFFF` | Sidebar, cards, dialogs, tab body |
-| `surface.overlay`| `#16293B` | `#F4F8FB` | Menus, tooltips, popovers |
-| `border`         | `#1E3245` | `#D4DFEA` | Dividers, control outlines |
-| `text.primary`   | `#C9D1D9` | `#0B1623` | Headings, primary content |
-| `text.secondary` | `#8B949E` | `#51606E` | Labels, secondary content |
-| `text.muted`     | `#6E7681` | `#8595A4` | Hints, disabled, captions |
-| `shadow`         | `#66000000` | `#2E0B1623` | Overlay drop-shadow (translucent) |
+| `surface.base`   | `#1C1C1E` | `#F5F5F5` | Window background |
+| `surface.raised` | `#262628` | `#FFFFFF` | Sidebar, cards, dialogs, tab body |
+| `surface.overlay`| `#333336` | `#EAEAEA` | Menus, tooltips, popovers |
+| `border`         | `#3D3D40` | `#E0E0E0` | Dividers, control outlines |
+| `text.primary`   | `#E4E4E6` | `#212121` | Headings, primary content |
+| `text.secondary` | `#A6A6AB` | `#5F5F5F` | Labels, secondary content |
+| `text.muted`     | `#757579` | `#9E9E9E` | Hints, disabled, captions |
+| `shadow`         | `#66000000` | `#24000000` | Overlay drop-shadow (translucent) |
+
+Neutrals are Material Grey — a neutral (unbiased) grey ground.
 
 ### Accent (brand)
 
 | Token          | Dark      | Light     | Use |
 |----------------|-----------|-----------|-----|
-| `accent`       | `#22D3EE` | `#0891B2` | Primary action, brand wave, selection, focus |
-| `accent.hover` | `#4DDFF2` | `#0AA5CC` | Hover/active of accent elements |
-| `head`         | `#FFFFFF` | `#0891B2` | HEAD / root commit node (matches the icon) |
+| `accent`       | `#42A5F5` | `#1976D2` | Primary action, brand wave, selection, focus |
+| `accent.hover` | `#64B5F6` | `#1565C0` | Hover/active of accent elements |
+| `head`         | `#E3F2FD` | `#1976D2` | HEAD / root commit node (matches the icon) |
 
-**One accent only.** Cyan is the brand; do not introduce a second hue for
-emphasis.
+**One accent only.** Material Blue is the brand (Blue 400 on dark, Blue 700 on
+light); do not introduce a second hue for emphasis.
 
 ### Git state colours
 

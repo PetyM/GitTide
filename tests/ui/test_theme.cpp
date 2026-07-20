@@ -13,18 +13,18 @@ private slots:
     {
         const Theme t = darkTheme();
         QVERIFY(t.dark);
-        QCOMPARE(t.surfaceBase, QStringLiteral("#0B1623"));
-        QCOMPARE(t.accent, QStringLiteral("#22D3EE"));
-        QCOMPARE(t.head, QStringLiteral("#FFFFFF"));
-        QCOMPARE(t.textPrimary, QStringLiteral("#C9D1D9"));
+        QCOMPARE(t.surfaceBase, QStringLiteral("#1C1C1E"));
+        QCOMPARE(t.accent, QStringLiteral("#42A5F5"));
+        QCOMPARE(t.head, QStringLiteral("#E3F2FD"));
+        QCOMPARE(t.textPrimary, QStringLiteral("#E4E4E6"));
     }
     void light_theme_has_brand_tokens()
     {
         const Theme t = lightTheme();
         QVERIFY(!t.dark);
-        QCOMPARE(t.surfaceBase, QStringLiteral("#EEF3F8"));
-        QCOMPARE(t.accent, QStringLiteral("#0891B2"));
-        QCOMPARE(t.textPrimary, QStringLiteral("#0B1623"));
+        QCOMPARE(t.surfaceBase, QStringLiteral("#F5F5F5"));
+        QCOMPARE(t.accent, QStringLiteral("#1976D2"));
+        QCOMPARE(t.textPrimary, QStringLiteral("#212121"));
     }
     void state_colors_match_across_themes()
     {

@@ -4,7 +4,7 @@
 namespace gittide::ui {
 
 // A resolved set of design tokens (one theme). Values come from
-// docs/superpowers/specs/2026-06-17-visual-design-system.md §2.
+// docs/spec/design/design.md (§ Surface / Accent token tables).
 struct Theme
 {
     bool dark;

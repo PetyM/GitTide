@@ -67,7 +67,7 @@ private slots:
     void dark_theme_has_brand_tokens() {
         const gittide::ui::Theme t = gittide::ui::darkTheme();
         QVERIFY(t.dark);
-        QCOMPARE(t.accent, QStringLiteral("#22D3EE"));
+        QCOMPARE(t.accent, QStringLiteral("#42A5F5"));
     }
 };
 
