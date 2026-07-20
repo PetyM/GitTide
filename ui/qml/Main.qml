@@ -133,6 +133,13 @@ ApplicationWindow {
                 onTabPrev: workingPane.takeFocusLast()
             }
 
+            // Divider between the repo tree and the changes/history/graph pane.
+            Rectangle {
+                Layout.fillHeight: true
+                Layout.preferredWidth: 1
+                color: theme.border
+            }
+
             WorkingPane {
                 id: workingPane
                 Layout.fillWidth: true
@@ -342,6 +349,62 @@ ApplicationWindow {
         onAccepted: if (projectController) projectController.removeProject()
     }
 
+    // Fleet-fetch error report — lists the repos that failed (non-auth) so the
+    // user sees why, in place of the old passing "N fetched, M failed" caption.
+    Dialog {
+        id: fetchErrorDialog
+        objectName: "fetchErrorDialog"
+        modal: true
+        title: "Fetch failed"
+        anchors.centerIn: parent
+        width: 460
+        padding: 20
+        background: OverlayCard {}
+
+        property var failures: []
+        function showFailures(list) { failures = list; open() }
+
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label {
+                Layout.fillWidth: true
+                text: fetchErrorDialog.failures.length === 1
+                      ? "One repository failed to fetch:"
+                      : (fetchErrorDialog.failures.length + " repositories failed to fetch:")
+                color: theme.textPrimary
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                wrapMode: Text.WordWrap
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.min(failuresText.implicitHeight, 220)
+                clip: true
+                Label {
+                    id: failuresText
+                    width: fetchErrorDialog.availableWidth
+                    text: fetchErrorDialog.failures.join("\n")
+                    color: theme.textSecondary
+                    font.family: "monospace"
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                }
+            }
+        }
+
+        footer: RowLayout {
+            spacing: 8
+            Layout.margins: 16
+            Item { Layout.fillWidth: true }
+            AppButton {
+                objectName: "fetchErrorClose"
+                variant: "secondary"
+                text: "Close"
+                onClicked: fetchErrorDialog.close()
+            }
+        }
+    }
+
     FolderDialog {
         id: addExistingFolder
         title: "Choose a repository folder"
@@ -370,6 +433,9 @@ ApplicationWindow {
         function onActiveProjectChanged() { window.openFirstRepo() }
         function onRepoAddFailed(message) { errorBanner.show(message) }
         function onSubmoduleOpFailed(repoPath, submodulePath, message) { errorBanner.show(message) }
+        // A fleet fetch finished with hard (non-auth) failures — surface them in a
+        // dialog rather than a passing status line.
+        function onFleetFetchFailed(failures) { fetchErrorDialog.showFailures(failures) }
     }
 
     Connections {

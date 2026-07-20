@@ -125,8 +125,28 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   (accent-underline tab), `WindowButton` (title-bar chrome), `AppRadioButton` /
   `AppCheckBox` (form toggles), and `EmptyState.Cta` (large empty-state CTA) each
   keep their own styling — they are distinct from plain action controls.
-- **Project combo** (`projectSwitcher`). `surface.raised` with `border` outline;
-  the "New project…" sentinel row is separated and shown in `text.secondary`.
+- **Project combo** (`projectSwitcher`). Styled as an `AppComboBox` **field** so it
+  reads as a peer of the branch chip: `surface.base` fill, `border` outline →
+  `accent` ring while its menu is open, radius 6, `▾` indicator, `text.primary`
+  label. It stays a `Button`+`AppMenu` (the menu carries the New/Delete sentinels a
+  plain combo can't) — the "New project…"/"Delete current project…" rows are
+  separated and shown in `text.secondary`. Directly **below it** sits the
+  full-width **Fetch all** button (secondary `AppButton`; label reads *Fetching…*
+  and disables while a fleet fetch runs). While fetching, a **determinate progress
+  bar** (`accent` fill on `surface.overlay`, `fetchAllProgress`) with a
+  *done / total* repo caption sits directly beneath it — repos-settled over
+  batch-size, not byte transfer. No bespoke icon. Per-repo outcome shows
+  in the tree (the fetch-result glyph); a fleet fetch that ends with **non-auth
+  failures** raises an error dialog (`fetchErrorDialog`) listing each failed repo
+  as *name: message* — there is no passing status caption. Auth failures instead
+  prompt for credentials and retry; the error dialog only appears once that retry
+  settles.
+- **Sidebar / main divider.** A 1px `border` hairline separates the repo tree
+  (sidebar, `surface.raised`) from the changes/history/graph pane. Fixed structural
+  seams use this 1px `border` hairline (also the branch-bar bottom edge and the
+  history list↔detail seam); a **draggable** split instead uses a 3px handle that
+  tints `border` → `accent` on hover (ChangesPane, and the CommitDetail files↔diff
+  split).
 - **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
   `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
   a warning icon, never red text alone. Radius 10 on hover highlight. Top-level
@@ -258,7 +278,7 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 
 ### QML History view
 
-The History tab is implemented in QML (Plan 4 — History Graph). The commit list is a virtualized `ListView`; each row owns a `GraphColumn` (`QQuickPaintedItem`, registered as `GitTide 1.0/GraphColumn`) that paints one `GraphRow`'s lane geometry — pass-through verticals, incoming line, outgoing edges, and the commit dot. Lanes are coloured by `laneColors[lane % laneColors.length]` (the multi-hue `theme.laneColors` list; the only sanctioned multi-colour exception). The HEAD commit's dot is drawn in `theme.head` (white) regardless of lane colour. When a history row is selected, a 2px `accent` `Rectangle` at `x = 0` spans its full height (covering the graph cell), and the row background fills with `surfaceOverlay` — both sit behind the `GraphColumn`'s transparent background so the lane lines remain visible. Avatars use initials on an `accent`-tinted disc (gravatar deferred — `CommitNode` carries no email). The right-hand detail pane (`CommitDetail`) is a read-only view: files in the selected commit, then the diff when a file is picked; it also hosts a secondary **Checkout** button that detaches HEAD at the selected commit.
+The History tab is implemented in QML (Plan 4 — History Graph). The commit list is a virtualized `ListView`; each row owns a `GraphColumn` (`QQuickPaintedItem`, registered as `GitTide 1.0/GraphColumn`) that paints one `GraphRow`'s lane geometry — pass-through verticals, incoming line, outgoing edges, and the commit dot. Lanes are coloured by `laneColors[lane % laneColors.length]` (the multi-hue `theme.laneColors` list; the only sanctioned multi-colour exception). The HEAD commit's dot is drawn in `theme.head` (white) regardless of lane colour. When a history row is selected, a 2px `accent` `Rectangle` at `x = 0` spans its full height (covering the graph cell), and the row background fills with `surfaceOverlay` — both sit behind the `GraphColumn`'s transparent background so the lane lines remain visible. Avatars use initials on an `accent`-tinted disc (gravatar deferred — `CommitNode` carries no email). The right-hand detail pane (`CommitDetail`) is a read-only view: files in the selected commit, then the diff when a file is picked — the two are split by a **draggable vertical handle** (the 3px `border`→`accent`-hover handle shared with the Changes pane) so the changed-files list is clearly divided from the selected diff and each side is resizable; it also hosts a secondary **Checkout** button that detaches HEAD at the selected commit.
 
 **Drag-to-reorder grip.** Rows that can be reordered — those in the reorderable run (the linear single-parent span from HEAD), and every row in the `RebaseTodoDialog` todo editor — carry a trailing **`⠿` grip** glyph in `text.muted`, brightening to `accent` while a drag is active. The grip is the affordance (an icon, not a colour-only state — D19) and a tooltip names it; dragging it reorders. In the history view a reorder is gated behind a confirmation because it rewrites history (D36).
 

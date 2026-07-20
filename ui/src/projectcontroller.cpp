@@ -384,6 +384,7 @@ void ProjectController::fetchAll()
     m_fetchOk     = 0;
     m_fetchFailed = 0;
     m_authFailedRows.clear();
+    m_fetchErrors.clear();
 
     // Only fetch non-missing top-level repos. A missing repo is SKIPPED — left in
     // its existing (missing) rendering, not counted as a failure (per spec).
@@ -400,8 +401,10 @@ void ProjectController::fetchAll()
         return; // nothing fetchable; leave fetchingAll false, no summary change
 
     m_fetchPending = static_cast<int>(rows.size());
+    m_fetchTotal   = m_fetchPending;
     m_fetchingAll  = true;
     emit fetchingAllChanged();
+    emit fetchProgressChanged();
 
     for (int row : rows)
         QCoro::connect(fetchOne(row, repos[row]), this, [] {});
@@ -410,6 +413,9 @@ void ProjectController::fetchAll()
 QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
 {
     m_repoModel->setFetchState(row, RepoListModel::FetchState::Running);
+
+    // Alias-aware display name for any failure line (matches the tree row).
+    const QString name = m_repoModel->data(m_repoModel->index(row, 0), Qt::DisplayRole).toString();
 
     // Each repo gets its OWN handle — the one-owner invariant holds; we never
     // touch the active RepoController's repo. The AsyncRepo lives in this
@@ -420,6 +426,7 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
         m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
                                    QString::fromStdString(opened.error().message));
         m_fetchFailed++;
+        m_fetchErrors << (name + QStringLiteral(": ") + QString::fromStdString(opened.error().message));
         finishOneFetch();
         co_return;
     }
@@ -441,7 +448,9 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))
-            m_authFailedRows.push_back(row);
+            m_authFailedRows.push_back(row);   // retried after credentials — not a hard failure yet
+        else
+            m_fetchErrors << (name + QStringLiteral(": ") + QString::fromStdString(fr.error().message));
         m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
                                    QString::fromStdString(fr.error().message));
         m_fetchFailed++;
@@ -483,8 +492,10 @@ void ProjectController::submitFleetCredentials(const QString& username, const QS
 
     const auto& repos = activeRepos();
     m_fetchPending    = static_cast<int>(retry.size());
+    m_fetchTotal      = m_fetchPending;
     m_fetchingAll     = true;
     emit fetchingAllChanged();
+    emit fetchProgressChanged();
 
     for (int row : retry)
     {
@@ -497,7 +508,9 @@ void ProjectController::finishOneFetch()
 {
     // fetchOne resumes on the UI thread after each co_await, so this runs
     // single-threaded — plain counters are safe.
-    if (--m_fetchPending > 0)
+    --m_fetchPending;
+    emit fetchProgressChanged();   // advance the bar as each repo settles
+    if (m_fetchPending > 0)
         return;
 
     m_fetchingAll  = false;
@@ -505,7 +518,14 @@ void ProjectController::finishOneFetch()
     emit fetchingAllChanged();
     emit fleetFetchFinished(m_fetchOk, m_fetchFailed);
     if (!m_authFailedRows.empty())
+    {
+        // Auth failures aren't hard failures yet — prompt for credentials and
+        // retry. The error dialog waits until that second pass settles.
         emit authRequired();
+        return;
+    }
+    if (!m_fetchErrors.isEmpty())
+        emit fleetFetchFailed(m_fetchErrors);
 }
 
 QCoro::Task<void> ProjectController::refreshSubmodules(QString repoPath)

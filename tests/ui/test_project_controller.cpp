@@ -477,6 +477,83 @@ private slots:
         QCOMPARE(m->data(m->index(2, 0), RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Failed));
     }
 
+    // A non-auth fetch failure (here: no 'origin' remote) surfaces through
+    // fleetFetchFailed as a one-line "name: message" entry, so the UI can raise an
+    // error dialog. Successful repos never appear in the list.
+    void fetchAll_reports_failures_via_fleetFetchFailed()
+    {
+        const QString behindA = makeRepoBehindBy1();
+
+        gittide::test::TempRepo noRemote;
+        noRemote.setIdentity("N", "n@e.x");
+        noRemote.writeFile("x.txt", "x");
+        noRemote.commitAll("c1");
+        const QString failPath = QString::fromStdString(noRemote.path().generic_string());
+        const QString failName = QString::fromStdString(noRemote.path().filename().generic_string());
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = behindA.toStdString()},
+                      RepoRef{.path = failPath.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy failed(&controller, &ProjectController::fleetFetchFailed);
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        QVERIFY(finished.wait(15000));
+
+        QCOMPARE(failed.count(), 1);
+        const QStringList msgs = failed.at(0).at(0).toStringList();
+        QCOMPARE(msgs.size(), 1);                 // only the failing repo
+        QVERIFY(msgs.at(0).contains(failName));   // names the repo
+    }
+
+    // Fleet fetch exposes determinate progress: fetchTotal is the batch size set
+    // synchronously, fetchDone advances to fetchTotal once every repo settles.
+    void fetchAll_exposes_determinate_progress()
+    {
+        const QString a = makeRepoBehindBy1();
+        const QString b = makeRepoBehindBy1();
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = a.toStdString()},
+                      RepoRef{.path = b.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        QCOMPARE(controller.fetchTotal(), 2);        // batch size, set synchronously
+        QVERIFY(controller.fetchDone() < 2);         // not all settled yet
+        QVERIFY(finished.wait(15000));
+
+        QCOMPARE(controller.fetchDone(), controller.fetchTotal());   // full bar at the end
+    }
+
+    // A fully successful fleet fetch raises no error dialog.
+    void fetchAll_no_failures_emits_no_fleetFetchFailed()
+    {
+        const QString behindA = makeRepoBehindBy1();
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = behindA.toStdString()}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy failed(&controller, &ProjectController::fleetFetchFailed);
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        QVERIFY(finished.wait(15000));
+
+        QCOMPARE(failed.count(), 0);
+    }
+
     // D35: while the window is active, the poll re-reads each repo's local sync
     // counts (no network) and updates the sidebar — so a commit made in a
     // non-active repo shows up without any user action.

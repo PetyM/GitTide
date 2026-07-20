@@ -50,97 +50,108 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        RowLayout {
+        // ---- Project switcher + fetch-all ----
+        ColumnLayout {
             Layout.margins: 16
-            spacing: 10
+            Layout.bottomMargin: 6
+            spacing: 8
 
-            Item { Layout.fillWidth: true }
+            // Project switcher (combo with inline New/Delete items). Styled to
+            // match AppComboBox's field so it reads as a peer of the branch chip.
+            Button {
+                id: projectSwitcher
+                objectName: "projectSwitcher"
+                visible: projectController !== null
+                Layout.fillWidth: true
+                implicitHeight: 30
+                flat: true
+                contentItem: Label {
+                    leftPadding: 10
+                    rightPadding: projectSwitcher.indicator.width + 10
+                    text: (projectController && projectController.activeProjectName.length > 0)
+                          ? projectController.activeProjectName : "No project"
+                    color: theme.textPrimary
+                    font.pixelSize: 12
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                indicator: Label {
+                    x: projectSwitcher.width - width - 10
+                    anchors.verticalCenter: projectSwitcher.verticalCenter
+                    text: "▾"
+                    color: theme.textMuted
+                    font.pixelSize: 12
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: theme.surfaceBase
+                    border.width: 1
+                    border.color: projectMenu.visible ? theme.accent : theme.border
+                }
+                // Anchor the menu under the field (combo behaviour), not at the
+                // cursor — popup() with no args would open wherever the pointer is.
+                onClicked: projectMenu.popup(projectSwitcher, 0, projectSwitcher.height)
+            }
 
             // Fetch-all action: runs fetch on every repo in the active project.
             AppButton {
                 objectName: "fetchAllButton"
                 variant: "secondary"
-                implicitWidth: 28
-                implicitHeight: 28
+                Layout.fillWidth: true
                 enabled: projectController !== null
                          && projectController.activeProjectId.length > 0
                          && !projectController.fetchingAll
-                ToolTip.visible: hovered
-                ToolTip.text: "Fetch all repositories"
-                text: "⟳"
-                contentItem: Label {
-                    text: "⟳"
-                    color: theme.textSecondary
-                    font.pixelSize: 16
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    radius: 6
-                    color: parent.hovered ? theme.surfaceOverlay : "transparent"
-                }
+                text: (projectController && projectController.fetchingAll)
+                      ? "Fetching…" : "Fetch all"
                 onClicked: if (projectController) projectController.fetchAll()
             }
 
-            BusyIndicator {
-                running: projectController !== null && projectController.fetchingAll
-                visible: running
-                implicitWidth: 16
-                implicitHeight: 16
-            }
-
-            Label {
-                objectName: "fetchSummary"
-                visible: projectController !== null
-                         && projectController.fetchSummary.length > 0
-                         && !projectController.fetchingAll
-                text: projectController ? projectController.fetchSummary : ""
-                color: theme.textMuted
-                elide: Text.ElideRight
+            // Determinate fleet-fetch progress (repos settled / total), shown while
+            // a fetch runs. Accent fill on surface.overlay, matching the branch bar.
+            RowLayout {
                 Layout.fillWidth: true
-            }
-
-        }
-
-        // ---- Project switcher (combo with inline New/Delete items) ----
-        Button {
-            id: projectSwitcher
-            objectName: "projectSwitcher"
-            visible: projectController !== null
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            Layout.bottomMargin: 6
-            flat: true
-            contentItem: RowLayout {
+                visible: projectController !== null && projectController.fetchingAll
+                         && projectController.fetchTotal > 0
                 spacing: 8
-                Label {
-                    text: (projectController && projectController.activeProjectName.length > 0)
-                          ? projectController.activeProjectName : "No project"
-                    color: theme.textPrimary
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
+
+                ProgressBar {
+                    id: fetchBar
+                    objectName: "fetchAllProgress"
                     Layout.fillWidth: true
+                    from: 0
+                    to: projectController ? projectController.fetchTotal : 0
+                    value: projectController ? projectController.fetchDone : 0
+                    background: Rectangle {
+                        implicitHeight: 6
+                        radius: 3
+                        color: theme.surfaceOverlay
+                    }
+                    contentItem: Item {
+                        implicitHeight: 6
+                        Rectangle {
+                            height: 6
+                            radius: 3
+                            color: theme.accent
+                            width: fetchBar.visualPosition * fetchBar.width
+                        }
+                    }
                 }
+
                 Label {
-                    text: "▾"
-                    color: theme.textSecondary
-                    font.pixelSize: 12
+                    text: projectController
+                          ? (projectController.fetchDone + " / " + projectController.fetchTotal)
+                          : ""
+                    color: theme.textMuted
+                    font.pixelSize: 11
                 }
             }
-            background: Rectangle {
-                radius: 8
-                color: projectSwitcher.hovered ? theme.surfaceOverlay : theme.surfaceBase
-                border.color: theme.border
-                border.width: 1
-            }
-            onClicked: projectMenu.popup()
         }
 
         AppMenu {
             id: projectMenu
             objectName: "projectMenu"
+            // Match the field width so the dropdown reads as the combo's popup.
+            width: projectSwitcher.width
             // One item per project, kept in sync with the model, then a
             // separator and the New/Delete actions.
             Instantiator {

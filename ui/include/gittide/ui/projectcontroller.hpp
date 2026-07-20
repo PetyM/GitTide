@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <atomic>
 #include <filesystem>
 #include <qcorotask.h>
@@ -35,6 +36,10 @@ class ProjectController : public QObject
     Q_PROPERTY(bool fetchingAll READ fetchingAll NOTIFY fetchingAllChanged)
     /// Human-readable result of the last fleet fetch, e.g. "12 fetched, 1 failed".
     Q_PROPERTY(QString fetchSummary READ fetchSummary NOTIFY fetchingAllChanged)
+    /// Fleet-fetch progress: total repos in the current batch and how many have
+    /// settled. QML shows a determinate bar (fetchDone / fetchTotal) while fetching.
+    Q_PROPERTY(int fetchTotal READ fetchTotal NOTIFY fetchProgressChanged)
+    Q_PROPERTY(int fetchDone READ fetchDone NOTIFY fetchProgressChanged)
 public:
     /// @param pollIntervalMs how often, while the window is active, to re-read each
     /// repo's local sync counts (D35). Injectable so tests can poll fast.
@@ -63,6 +68,14 @@ public:
     QString fetchSummary() const
     {
         return m_fetchSummary;
+    }
+    int fetchTotal() const
+    {
+        return m_fetchTotal;
+    }
+    int fetchDone() const
+    {
+        return m_fetchTotal - m_fetchPending;
     }
 
 public slots:
@@ -123,7 +136,12 @@ signals:
     void repoRemoved(const QString& path);
     void projectRemoved(const QString& id);
     void fetchingAllChanged();
+    void fetchProgressChanged();
     void fleetFetchFinished(int ok, int failed);
+    /// Emitted once a fleet fetch has fully settled (after any auth retry) when one
+    /// or more repos failed for a non-auth reason. Each entry is a "name: message"
+    /// line for a failed repo — the UI raises an error dialog from this.
+    void fleetFetchFailed(const QStringList& failures);
     void authRequired();
 
 private:
@@ -137,9 +155,11 @@ private:
     bool                 m_fetchingAll = false;
     QString              m_fetchSummary;
     int                  m_fetchPending = 0;
+    int                  m_fetchTotal   = 0;             // repos in the current fetch batch (for the progress bar)
     int                  m_fetchOk      = 0;
     int                  m_fetchFailed  = 0;
     std::vector<int>     m_authFailedRows;             // rows that failed on auth (retried in submitFleetCredentials)
+    QStringList          m_fetchErrors;                // "name: message" per non-auth failure, shown once settled
     gittide::Credentials m_sessionCred;
     CredentialManager*   m_credentials = nullptr; // process-wide; not owned
 
