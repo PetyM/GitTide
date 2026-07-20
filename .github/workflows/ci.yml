@@ -31,6 +31,15 @@ jobs:
           cache: true
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Diagnose AGL source (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "=== gittide_app link line ==="
+          cat build/app/CMakeFiles/gittide_app.dir/link.txt || true
+          echo "=== AGL references under Qt cmake ==="
+          grep -rl "AGL" "$QT_ROOT_DIR/lib/cmake" 2>/dev/null || echo "(none in Qt cmake)"
+          echo "=== AGL references anywhere under Qt lib ==="
+          grep -rln "AGL" "$QT_ROOT_DIR/lib/cmake" "$QT_ROOT_DIR/mkspecs" 2>/dev/null | head -20 || true
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test
