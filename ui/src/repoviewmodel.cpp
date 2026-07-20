@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QHash>
+#include <QPointer>
 #include <QUrl>
 
 #include <qcorotask.h>
@@ -924,7 +925,11 @@ QCoro::Task<gittide::Credentials> RepoViewModel::resolveCredentials()
     // Otherwise resolve from the keychain-backed store for the active remote's URL.
     if (m_credentials && m_controller)
     {
-        m_remoteUrl = co_await m_controller->currentRemoteUrl();
+        QPointer<RepoViewModel> self = this;
+        auto                    url  = co_await m_controller->currentRemoteUrl();
+        if (!self) // destroyed while the remote-URL lookup was in flight
+            co_return gittide::Credentials{};
+        m_remoteUrl = url;
         if (!m_remoteUrl.isEmpty())
             co_return co_await m_credentials->credentialsForRemote(m_remoteUrl);
     }
@@ -933,22 +938,31 @@ QCoro::Task<gittide::Credentials> RepoViewModel::resolveCredentials()
 
 QCoro::Task<void> RepoViewModel::runFetch()
 {
-    m_pendingOp = PendingOp::Fetch;
-    auto cred   = co_await resolveCredentials();
+    QPointer<RepoViewModel> self = this;
+    m_pendingOp                  = PendingOp::Fetch;
+    auto cred                    = co_await resolveCredentials();
+    if (!self) // viewmodel closed/destroyed while resolving credentials
+        co_return;
     co_await m_controller->fetch(cred);
 }
 
 QCoro::Task<void> RepoViewModel::runPull()
 {
-    m_pendingOp = PendingOp::Pull;
-    auto cred   = co_await resolveCredentials();
+    QPointer<RepoViewModel> self = this;
+    m_pendingOp                  = PendingOp::Pull;
+    auto cred                    = co_await resolveCredentials();
+    if (!self)
+        co_return;
     co_await m_controller->pull(cred);
 }
 
 QCoro::Task<void> RepoViewModel::runPush(bool setUpstream)
 {
-    m_pendingOp = setUpstream ? PendingOp::Publish : PendingOp::Push;
-    auto cred   = co_await resolveCredentials();
+    QPointer<RepoViewModel> self = this;
+    m_pendingOp                  = setUpstream ? PendingOp::Publish : PendingOp::Push;
+    auto cred                    = co_await resolveCredentials();
+    if (!self)
+        co_return;
     co_await m_controller->push(m_headBranch, setUpstream, cred);
 }
 

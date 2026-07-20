@@ -155,6 +155,8 @@ QCoro::Task<void> RepoController::stage(gittide::StageSelection sel)
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
 }
 
@@ -172,6 +174,8 @@ QCoro::Task<void> RepoController::unstage(gittide::StageSelection sel)
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
 }
 
@@ -189,6 +193,8 @@ QCoro::Task<void> RepoController::discard(gittide::StageSelection sel)
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
 }
 
@@ -206,6 +212,8 @@ QCoro::Task<void> RepoController::discardAll()
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
 }
 
@@ -223,7 +231,11 @@ QCoro::Task<void> RepoController::stashChanges()
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -241,7 +253,11 @@ QCoro::Task<void> RepoController::popStash()
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -275,7 +291,11 @@ QCoro::Task<void> RepoController::applyStashAt(int index)
         emit operationFailed(QString::fromStdString(result.error().message)); // stash preserved
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -293,7 +313,11 @@ QCoro::Task<void> RepoController::popStashAt(int index)
         emit operationFailed(QString::fromStdString(result.error().message)); // stash preserved
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -310,6 +334,8 @@ QCoro::Task<void> RepoController::dropStash(int index)
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -326,6 +352,8 @@ QCoro::Task<void> RepoController::clearStashes()
         emit operationFailed(QString::fromStdString(result.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStashState();
 }
 
@@ -344,8 +372,14 @@ QCoro::Task<void> RepoController::commit(gittide::CommitRequest req)
         co_return;
     }
     emit committed(QString::fromStdString(*result));
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus(); // ahead count grew — refresh so Push reflects it
 }
 
@@ -429,8 +463,14 @@ QCoro::Task<void> RepoController::switchBranch(QString name)
         emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -447,10 +487,18 @@ QCoro::Task<void> RepoController::checkoutRemoteBranch(QString remoteShorthand)
         emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
     // The new local branch tracks the remote ref, so ahead/behind is meaningful.
+    if (!self)
+        co_return;
     co_await refreshSyncStatus();
 }
 
@@ -475,12 +523,20 @@ QCoro::Task<void> RepoController::createBranch(QString name, QString fromOid, bo
         if (!sw)
         {
             emit operationFailed(QString::fromStdString(sw.error().message));
+            if (!self)
+                co_return;
             co_await refreshBranches(); // branch exists even if the switch failed
             co_return;
         }
+        if (!self)
+            co_return;
         co_await refreshStatus();
+        if (!self)
+            co_return;
         co_await refreshHistory();
     }
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -497,8 +553,14 @@ QCoro::Task<void> RepoController::checkoutCommit(QString oid)
         emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -519,6 +581,8 @@ QCoro::Task<void> RepoController::deleteBranch(QString name, bool force)
             emit operationFailed(msg);
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -535,6 +599,8 @@ QCoro::Task<void> RepoController::renameBranch(QString oldName, QString newName)
         emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -566,6 +632,8 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
         if (!s)
         {
             emit operationFailed(QString::fromStdString(s.error().message));
+            if (!self)
+                co_return;
             co_await refreshStatus(); // leave the user in a consistent state
             co_return;
         }
@@ -576,12 +644,20 @@ QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
     if (!oid)
     {
         emit operationFailed(QString::fromStdString(oid.error().message));
+        if (!self)
+            co_return;
         co_await refreshStatus();
         co_return;
     }
     emit committed(QString::fromStdString(*oid));
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus(); // ahead count grew — refresh so Push reflects it
 }
 
@@ -695,8 +771,14 @@ QCoro::Task<void> RepoController::rewordHead(QString message)
         co_return;
     }
     emit committed(QString::fromStdString(*r));
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -715,8 +797,14 @@ QCoro::Task<void> RepoController::undoLastCommit()
     }
     // The undone commit's changes are now staged: refresh the working-tree status,
     // the history (tip removed), and branch tips.
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
 }
 
@@ -788,6 +876,8 @@ QCoro::Task<void> RepoController::onWatchWorktree()
     // Mute while we refresh: libgit2 reads (status, ref lookups) can touch on-disk
     // caches under .git, which would otherwise re-trigger the watcher in a loop.
     WatchMute mute(m_watcher);
+    if (!self)
+        co_return;
     co_await refreshStatus();
     if (!self)
         co_return;
@@ -798,6 +888,8 @@ QCoro::Task<void> RepoController::onWatchGitDir()
 {
     QPointer<RepoController> self = this;
     WatchMute                mute(m_watcher);
+    if (!self)
+        co_return;
     co_await refreshAll();
     if (!self)
         co_return;
@@ -847,7 +939,11 @@ QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
             emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshBranches();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus();
 }
 
@@ -869,9 +965,17 @@ QCoro::Task<void> RepoController::pull(gittide::Credentials cred)
             emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshStatus();
+    if (!self)
+        co_return;
     co_await refreshHistory();
+    if (!self)
+        co_return;
     co_await refreshBranches();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus();
 }
 
@@ -893,7 +997,11 @@ QCoro::Task<void> RepoController::push(QString branch, bool setUpstream, gittide
             emit operationFailed(QString::fromStdString(r.error().message));
         co_return;
     }
+    if (!self)
+        co_return;
     co_await refreshBranches();
+    if (!self)
+        co_return;
     co_await refreshSyncStatus();
 }
 
@@ -946,6 +1054,8 @@ QCoro::Task<void> RepoController::merge(QString name)
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterMerge(); // still report true (disk) state, D30
         co_return;
     }
@@ -953,6 +1063,8 @@ QCoro::Task<void> RepoController::merge(QString name)
     using gittide::MergeAnalysis;
     if (out->analysis == MergeAnalysis::UpToDate)
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -960,6 +1072,8 @@ QCoro::Task<void> RepoController::merge(QString name)
     }
     else if (out->analysis == MergeAnalysis::FastForward)
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -978,6 +1092,8 @@ QCoro::Task<void> RepoController::merge(QString name)
         }
         else
         {
+            if (!self)
+                co_return;
             co_await popPendingStash();
             if (!self)
                 co_return;
@@ -989,6 +1105,8 @@ QCoro::Task<void> RepoController::merge(QString name)
     }
     // else: conflicted → leave mid-merge; the pending pop waits for commitMerge.
 
+    if (!self)
+        co_return;
     co_await refreshAfterMerge(); // status(+mergeState) + history + branches + sync
 }
 
@@ -1017,9 +1135,13 @@ QCoro::Task<void> RepoController::commitMerge(gittide::CommitRequest req)
     if (!oid)
     {
         emit operationFailed(QString::fromStdString(oid.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterMerge();
         co_return;
     }
+    if (!self)
+        co_return;
     co_await popPendingStash();         // deferred pop now safe
     if (!self)
         co_return;
@@ -1027,6 +1149,8 @@ QCoro::Task<void> RepoController::commitMerge(gittide::CommitRequest req)
     if (!self)
         co_return;
     emit mergeFinished(QString::fromStdString(*oid));
+    if (!self)
+        co_return;
     co_await refreshAfterMerge();
 }
 
@@ -1043,9 +1167,13 @@ QCoro::Task<void> RepoController::abortMerge()
         // Abort failed: repo is still mid-merge/conflicted. Popping the stash
         // onto a conflicted tree would corrupt it — re-report disk truth and bail.
         emit operationFailed(QString::fromStdString(r.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterMerge();
         co_return;
     }
+    if (!self)
+        co_return;
     co_await popPendingStash();         // restore the user's pre-merge work
     if (!self)
         co_return;
@@ -1076,6 +1204,8 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
     if (!ms)
     {
         emit operationFailed(QString::fromStdString(ms.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterMerge(); // re-report disk truth, D30
         co_return;
     }
@@ -1099,11 +1229,15 @@ QCoro::Task<void> RepoController::retryMergeDeinitSubmodules(QString name)
     // 3. After abort the working tree is clean; the user's original dirty work
     // sits in the stash (m_pendingStashPop == true from the first merge). Pop it
     // now so the inner merge() re-stashes it with a fresh m_pendingStashPop.
+    if (!self)
+        co_return;
     co_await popPendingStash();
     if (!self)
         co_return;
     // 4. Re-run the merge; now the gitlinks merge as plain pointers.
     // re-init happens on the next commitMerge/abort via reinitPendingSubmodules()
+    if (!self)
+        co_return;
     co_await merge(name);
 }
 
@@ -1134,6 +1268,8 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
+        if (!self)
+            co_return;
         co_await popPendingStash(); // start never began → restore the user's work
         if (!self)
             co_return;
@@ -1143,6 +1279,8 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
 
     if (out->pause == gittide::RebasePause::None) // finished in one run
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -1152,6 +1290,8 @@ QCoro::Task<void> RepoController::startRebase(QString ontoRef)
     }
     // else: conflicted or message pause → leave mid-rebase; deferred pop waits.
 
+    if (!self)
+        co_return;
     co_await refreshAfterRebase();
 }
 
@@ -1166,11 +1306,15 @@ QCoro::Task<void> RepoController::continueRebase(QString message)
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterRebase();
         co_return;
     }
     if (out->pause == gittide::RebasePause::None) // clean finish only
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -1178,6 +1322,8 @@ QCoro::Task<void> RepoController::continueRebase(QString message)
         if (self && head)
             emit rebaseFinished(QString::fromStdString(head->oid));
     }
+    if (!self)
+        co_return;
     co_await refreshAfterRebase();
 }
 
@@ -1192,11 +1338,15 @@ QCoro::Task<void> RepoController::skipRebase()
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterRebase();
         co_return;
     }
     if (out->pause == gittide::RebasePause::None) // clean finish only
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -1204,6 +1354,8 @@ QCoro::Task<void> RepoController::skipRebase()
         if (self && head)
             emit rebaseFinished(QString::fromStdString(head->oid));
     }
+    if (!self)
+        co_return;
     co_await refreshAfterRebase();
 }
 
@@ -1220,9 +1372,13 @@ QCoro::Task<void> RepoController::abortRebase()
         // Abort failed: repo is still mid-rebase/conflicted. Popping the stash
         // onto a conflicted tree would corrupt it — re-report disk truth and bail.
         emit operationFailed(QString::fromStdString(r.error().message));
+        if (!self)
+            co_return;
         co_await refreshAfterRebase();
         co_return;
     }
+    if (!self)
+        co_return;
     co_await popPendingStash(); // restore the user's pre-rebase work
     if (!self)
         co_return;
@@ -1360,6 +1516,8 @@ QCoro::Task<void> RepoController::buildSquashTodo(QStringList oids)
         planOids << QString::fromStdString((*hist)[i].oid);
         actions  << (i == hi ? QStringLiteral("pick") : QStringLiteral("squash"));
     }
+    if (!self)
+        co_return;
     co_await startInteractiveRebase(base, actions, planOids);
 }
 
@@ -1400,6 +1558,8 @@ QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringLi
     if (!out)
     {
         emit operationFailed(QString::fromStdString(out.error().message));
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -1409,6 +1569,8 @@ QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringLi
 
     if (out->pause == gittide::RebasePause::None) // finished in one run
     {
+        if (!self)
+            co_return;
         co_await popPendingStash();
         if (!self)
             co_return;
@@ -1418,6 +1580,8 @@ QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringLi
     }
     // else: paused (conflict or message) → banner drives; deferred pop waits.
 
+    if (!self)
+        co_return;
     co_await refreshAfterRebase();
 }
 
