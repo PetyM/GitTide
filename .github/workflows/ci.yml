@@ -24,9 +24,10 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          # 6.8+ dropped the AGL framework reference that Qt 6.7 still emitted on
-          # macOS; the current Xcode SDK removed AGL, so 6.7 fails to link there.
-          version: '6.8.3'
+          # Newer Qt dropped the legacy AGL framework reference that older 6.x
+          # emitted on macOS (the current Xcode SDK removed AGL). Paired with the
+          # defensive AGL strip in Dependencies.cmake for older Qt.
+          version: '6.9.1'
           cache: true
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

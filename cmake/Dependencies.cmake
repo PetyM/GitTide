@@ -59,6 +59,23 @@ endif()
 if(GITGUI_BUILD_UI)
   find_package(Qt6 REQUIRED COMPONENTS Gui Test Concurrent Svg Qml Quick QuickControls2 QuickTest Network)
 
+  # Some Qt 6.x macOS builds carry the legacy AGL framework in Qt6::Gui's link
+  # interface. The current Xcode SDK removed AGL, so anything linking Qt Gui fails
+  # with "framework 'AGL' not found". We don't use AGL (Quick renders via Metal),
+  # so strip it from the interface link libraries. No-op where AGL isn't present
+  # (recent Qt, non-Apple), so it's safe on every platform.
+  if(APPLE)
+    foreach(_qt_comp Gui OpenGL Widgets Quick)
+      if(TARGET Qt6::${_qt_comp})
+        get_target_property(_qt_ill Qt6::${_qt_comp} INTERFACE_LINK_LIBRARIES)
+        if(_qt_ill)
+          list(FILTER _qt_ill EXCLUDE REGEX "(^|/|-framework )AGL($|\\.framework)")
+          set_property(TARGET Qt6::${_qt_comp} PROPERTY INTERFACE_LINK_LIBRARIES "${_qt_ill}")
+        endif()
+      endif()
+    endforeach()
+  endif()
+
   # --- OS keychain (secret storage) ---
   # QtKeychain wraps the platform secret store (macOS Keychain, Linux libsecret,
   # Windows Credential Store) so HTTPS tokens / SSH passphrases never touch our own
