@@ -279,6 +279,7 @@ Rectangle {
                     // Name (line 1) + branch/sync (line 2, repos + initialised submodules).
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.rightMargin: 10   // breathing room so right-aligned badges/sync don't touch the edge
                         spacing: 2
 
                         // LINE 1 — name + trailing state.
