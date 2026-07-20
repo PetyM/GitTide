@@ -257,7 +257,7 @@ void TempRepo::cloneFrom(const std::filesystem::path& barePath)
         m_repo = nullptr;
     }
     std::filesystem::remove_all(m_dir);
-    std::string url = "file://" + barePath.generic_string();
+    std::string url = file_url(barePath);
     check(git_clone(&m_repo, url.c_str(), toGitPath(m_dir).c_str(), nullptr), "git_clone failed");
 }
 
