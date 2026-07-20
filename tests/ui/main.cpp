@@ -70,6 +70,7 @@
 #include "test_qml_wheelscroller.cpp"
 
 #include <QGuiApplication>
+#include <QThreadPool>
 #include <QtTest/QtTest>
 #include <cstdio>
 #include <git2.h>
@@ -181,9 +182,14 @@ int main(int argc, char** argv)
     RUN(TestSyntaxHighlighter);
     RUN(TestQmlWheelScroller);
 
-    // Deliberately do not git_libgit2_shutdown(): AsyncRepo's QThreadPool workers
-    // are joined only during static teardown, after main returns, so shutting down
-    // here could free libgit2 state still referenced by an exiting worker. The
-    // process is about to exit anyway, so leaving it initialised is harmless.
+    // Join any lingering AsyncRepo workers here, at a controlled point, rather than
+    // letting them run during static teardown after main returns — on Windows that
+    // teardown-time execution races global destruction and crashes the process, so
+    // ctest sees a non-zero exit even though every test passed.
+    QThreadPool::globalInstance()->waitForDone();
+
+    // Deliberately do not git_libgit2_shutdown(): with the workers now joined the
+    // remaining libgit2 state is freed at static teardown; the process is exiting
+    // anyway, so leaving it initialised is harmless.
     return status;
 }
