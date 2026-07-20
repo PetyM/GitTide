@@ -52,6 +52,10 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 32 — Graph tab full-width + double-click hand-off to History](2026-07-01-plan32-graph-fullwidth-doubleclick.md) | 2026-07-01 | done | product · ui |
 | [Plan 33 — Repo tree entry redesign (branch + sync + dirty)](2026-07-20-plan33-repo-tree-entry.md) | 2026-07-20 | done | product · ui |
 | [Plan 34 — Submodule detail rows + right-aligned sync](2026-07-20-plan34-submodule-detail.md) | 2026-07-20 | done | product · core · ui |
+| [Plan 35 — macOS native chrome & system menu bar](2026-07-06-plan35-macos-native-chrome.md) | 2026-07-06 | done | product · ui |
+| [Plan 36 — Credentials & identity management (Phase 1: identity)](2026-07-06-plan36-identity.md) | 2026-07-06 | done | product · engineering · core · ui |
+| [Plan 37 — Credentials Phase 2: keychain secrets, SSH keys, host tokens](2026-07-06-plan37-keychain-secrets.md) | 2026-07-06 | done | engineering · core · ui |
+| [Plan 38 — Credentials Phase 3: forge validation + central UI](2026-07-06-plan38-forge-central-ui.md) | 2026-07-06 | done | product · engineering · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

@@ -177,7 +177,45 @@ remote URL and the libgit2 `allowed_types` bitmask to decide between ssh-agent
 and HTTPS userpass — it is unit-testable without a live remote. The libgit2
 credential callback (`credentialTrampoline`) delegates to this helper; it never
 blocks for a UI dialog. HTTPS tokens are stored in a session map on the
-ViewModel and discarded on quit — secure keychain persistence is deferred.
+ViewModel and discarded on quit — secure keychain persistence is deferred (moving
+to the OS keychain, with the non-secret metadata in `credentials.json`; see below).
+
+**Identity management.** Who a commit is authored by is resolved from a small
+catalogue in `credentials.json` (`core/CredentialsStore`, a versioned atomic-JSON
+store mirroring `ProjectStore` — metadata only, never a secret) and **materialized
+into git config**, so every `git_signature_default` reader (commit, reword,
+pull-rebase, the cherry-pick/merge/rebase engine) and the CLI agree (D49). The
+pure resolver `CredentialsStore::resolveIdentity(repoPath, candidateProjectIds)`
+(repo override → project default → global; the caller supplies the priority order
+so core stays free of `ProjectStore` coupling) drives `GitRepo` primitives:
+`setLocalIdentity`/`clearLocalIdentity` (repo-local level, plus a `gittide.identity`
+ownership marker), the static `setGlobalIdentity` (writes `~/.gitconfig`, creating
+it if absent), and `localIdentity`/`effectiveIdentity` for read-back. In `ui/`,
+`CredentialManager` owns the store, references `ProjectStore` to compute the
+priority order, and — reacting to the active repo changing — opens a transient
+`AsyncRepo` and writes the resolved identity, **never overwriting a local identity
+that lacks our marker** (CLI-set config is left as the user set it). Secrets (HTTPS
+tokens, SSH passphrases) stay out of `core/` and out of `credentials.json`: they
+live in the OS keychain via a `ui/`-side `SecretStore` (QtKeychain;
+`InMemorySecretStore` for tests), read into the `Credentials` POD only at call
+time. `CredentialManager::credentialsForRemote(url)` assembles that POD — a matched
+host account's token for HTTPS, a configured keyfile (+ passphrase) or the ssh-agent
+for SSH — and `RepoViewModel`/`ProjectController` `co_await` it before dispatching
+fetch/pull/push/clone/fleet-fetch; the auth-dialog fallback persists an entered
+token back to the keychain. Core's `Credentials` carries SSH-keyfile fields and
+`chooseCredential`/the trampoline handle a `SshKey` kind; `clone()` takes
+`Credentials` too. On a machine with no keyring the keychain job errors and GitTide
+degrades to the per-session prompt (D50).
+
+**Forge validation.** Adding a host account validates the token against the host
+API via `ForgeClient` (`ui/`, `QNetworkAccessManager` + `QJsonDocument` — never
+nlohmann, which stays private to `core/`): `GET {apiBase}/user` with a bearer token,
+reading the login/name/email to confirm the token and pre-fill an identity
+(`CredentialManager::validateAndAddHost`). It awaits the reply with QCoro's signal
+support (`qCoro(reply, &QNetworkReply::finished)`), so only `Qt6::Network` is added,
+not a QCoro network module. `CredentialManager` owns `IdentityListModel` /
+`HostListModel` / `SshKeyListModel`; the central **Credentials** dialog
+(`IdentityDialog.qml`) is the one management surface (D51).
 
 **Transfer progress.** Each network call carries a `ProgressCallback`
 (`std::function<bool(unsigned received, unsigned total)>`, core-owned, pure

@@ -337,6 +337,81 @@ an entry with a newer one if it changes.
   model. → [`product`](spec/product/product.md#stash),
   [`engineering`](spec/engineering/engineering.md)
 
+- **D48 — The frameless custom title bar is Windows/Linux-only; macOS uses native
+  chrome + a native system menu bar.** The unified frameless bar (D-era app-menu
+  work) broke on macOS: `Qt.FramelessWindowHint` disables native fullscreen and
+  the menu lived in-window instead of the system menu bar. macOS therefore keeps
+  native decorations (`flags: Qt.Window`) and gets a `Qt.labs.platform`
+  `NativeMenuBar.qml` in the system menu bar, both selected by `window.isMac`.
+  *Why:* respect the platform — native fullscreen and a top-of-screen menu are
+  what Mac users expect — with no C++/Objective-C. *Rejected:* keeping the unified
+  look via Qt 6.9 `ExpandedClientAreaHint` overlaying real traffic lights (more
+  work; the user preferred a standard native bar); native `NSWindow` code
+  (violates the no-native-code stance). The custom `TitleBar` stays instantiated
+  but `visible: false` on macOS so shared signal wiring and tests still resolve.
+  → [`app-menu §8`](spec/product/app-menu.md#8-macos-native-chrome--system-menu-bar),
+  [Plan 35](plans/2026-07-06-plan35-macos-native-chrome.md)
+
+- **D49 — Managed git identity is materialized into git config with an ownership
+  marker, not injected at commit time.** GitTide resolves an effective identity
+  (repo override → project default → global) and *writes* it: the global identity
+  into `~/.gitconfig` (global level), a per-repo/per-project effective identity into
+  the repo's local `.git/config`. Every write also sets a `gittide.identity = <id>`
+  marker; GitTide only ever overwrites or clears local `user.name`/`user.email`
+  that are absent or carry that marker — a local identity set by the user/CLI (no
+  marker) is left untouched and shown as "manually configured". *Why:* `user.*` is
+  read by `git_signature_default` at ~7 sites (commit, reword, pull-rebase, and the
+  cherry-pick/merge/rebase engine); materializing to config makes all of them Just
+  Work with zero threading, keeps the CLI consistent, and reuses the proven
+  `setPullStrategy` config-write path. *Rejected:* overriding author/committer at
+  commit time (would have to plumb an identity through every signature site,
+  including a rebase loop with no UI path, and would silently diverge from what the
+  CLI shows). *Storage:* the identity catalogue and the global/project/repo
+  assignments live in a new metadata-only `credentials.json`
+  (`core/CredentialsStore`, mirroring `ProjectStore`); the pure resolver
+  `resolveIdentity(repoPath, candidateProjectIds)` takes the priority order from the
+  ui so core stays free of ProjectStore coupling. → `core/credentialsstore.{hpp,cpp}`,
+  `GitRepo::{setLocalIdentity,clearLocalIdentity,setGlobalIdentity,effectiveIdentity,localIdentity}`,
+  [Plan 36](plans/2026-07-06-plan36-identity.md)
+
+- **D50 — Secrets live in the OS keychain behind a `ui/`-side `SecretStore`; core
+  stays pure and receives the plaintext only at call time.** HTTPS tokens and
+  SSH-key passphrases are stored via QtKeychain (macOS Keychain / libsecret /
+  Windows Credential Store), never in `credentials.json` or any GitTide file. The
+  `SecretStore` seam (`KeychainSecretStore` prod, `InMemorySecretStore` for tests)
+  lives in `ui/` — QtKeychain is Qt-dependent, so `core/` never sees it and the
+  "no Qt in core" invariant holds. The secret is read (async, on the UI thread)
+  into the core `Credentials` POD *before* a git op is dispatched to the worker, so
+  the existing synchronous credential trampoline is unchanged. `Credentials` gained
+  SSH-keyfile fields (public/private path + passphrase) and `chooseCredential`/the
+  trampoline a `SshKey` kind (`git_credential_ssh_key_new`); `clone()` now takes
+  `Credentials` too (was unauthenticated). *Why:* real secure storage that survives
+  restart, without leaking a crypto dependency into the pure git engine. *Rejected:*
+  an app-encrypted file (the key has to live somewhere); keeping session-only
+  tokens (the deferred status quo — lost every quit). *Headless/CI:* no keyring →
+  the keychain job errors and GitTide degrades to the per-session prompt; tests
+  inject `InMemorySecretStore` and never touch a real keychain (a real round-trip
+  can block on an OS access prompt). QtKeychain is pulled via FetchContent
+  (`BUILD_WITH_QT6`, pinned `v0.14.0`), Linux needs `libsecret-1-dev`. →
+  `ui/secretstore.{hpp,cpp}`, `core/sync.hpp`, `core/credentialselect.cpp`,
+  [Plan 37](plans/2026-07-06-plan37-keychain-secrets.md)
+
+- **D51 — Forge (GitHub/GitLab) token validation lives in `ui/` via
+  `QNetworkAccessManager` + `QJsonDocument`; there is no forge client in `core/`.**
+  Adding a host account validates the token with `GET {apiBase}/user`
+  (`Authorization: Bearer`) and reads `login`/`name`/`email` to confirm the token
+  and pre-fill an identity (`ForgeClient` → `CredentialManager::validateAndAddHost`).
+  It parses with `QJsonDocument` — **never nlohmann/json**, which stays private to
+  `core/` — and reuses QCoro's signal-await (`qCoro(reply, &QNetworkReply::finished)`)
+  so no QCoro network module is needed; only `Qt6::Network` is added. *Why:* GitTide
+  is a git client, not a forge client — the first cut is token validation +
+  identity prefill, not PR/issue integration, and the HTTP client belongs at the Qt
+  boundary. *Rejected:* a forge API layer in `core/` (would drag an HTTP + JSON
+  stack into the pure git engine and break the nlohmann-private invariant); full
+  forge integration (out of scope). *Testing:* a local `QTcpServer` serves canned
+  JSON so validation is exercised with no live network. → `ui/forgeclient.{hpp,cpp}`,
+  [Plan 38](plans/2026-07-06-plan38-forge-central-ui.md)
+
 ## Design
 
 - **D17 — One accent (Material Blue brand); never a second hue** for emphasis.

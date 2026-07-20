@@ -3,7 +3,7 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `partly shipped` — per-repo fetch / pull / push + ahead/behind + credentials **done** (Decision D28 turned transports on); fleet **fetch-all** **shipped** ([Plan 11](../plans/2026-06-22-plan11-fleet-fetch-all.md)); determinate **transfer progress** for fetch/pull/push **shipped** ([Plan 12](../plans/2026-06-22-plan12-ui-polish-sync-progress.md)). Remaining: fleet pull-all, cancel, OS-keychain creds. |
+| **Status** | `partly shipped` — per-repo fetch / pull / push + ahead/behind + credentials **done** (Decision D28 turned transports on); fleet **fetch-all** **shipped** ([Plan 11](../plans/2026-06-22-plan11-fleet-fetch-all.md)); determinate **transfer progress** for fetch/pull/push **shipped** ([Plan 12](../plans/2026-06-22-plan12-ui-polish-sync-progress.md)); **OS-keychain credentials, SSH keyfiles, and multi-host tokens shipped** ([Plans 34–36](../plans/index.md), D49–D51). Remaining: fleet pull-all, cancel. |
 | **Touches** | product (sync actions + remote state), engineering (core: remotes + transport on `GitRepo`, credentials, progress/cancel), design (sync UI, ahead/behind, auth prompts) |
 
 ## What

@@ -5,12 +5,8 @@
 | **Added** | 2026-06-21 |
 | **Status** | `done` |
 | **Shipped** | 2026-06-30 |
-| **Designed in** | [spec/product/2026-06-30-diff-syntax-highlighting-design.md](../spec/product/2026-06-30-diff-syntax-highlighting-design.md) · decisions D45 (KSyntaxHighlighting + bundled themes), D46 (rich-text-per-line) |
-| **Plan** | [plans/2026-06-30-plan30-diff-syntax-highlighting.md](../plans/2026-06-30-plan30-diff-syntax-highlighting.md) |
-
-> **Note:** moving this file to `wishlist/shipped/` and its row to the Shipped
-> table in `wishlist/index.md` is deferred — `index.md` was being live-edited by
-> the concurrent Plan 31 (stash) work; do the move when closing that out.
+| **Designed in** | [spec/product/2026-06-30-diff-syntax-highlighting-design.md](../../spec/product/2026-06-30-diff-syntax-highlighting-design.md) · decisions D45 (KSyntaxHighlighting + bundled themes), D46 (rich-text-per-line) |
+| **Plan** | [plans/2026-06-30-plan30-diff-syntax-highlighting.md](../../plans/2026-06-30-plan30-diff-syntax-highlighting.md) |
 | **Touches** | product (richer diff readability), design (token colours for syntax on top of add/remove backgrounds), engineering (ui-side highlighter feeding `DiffLinesModel`/`DiffView` — **not** core) |
 
 ## What
@@ -58,7 +54,7 @@ self-contained polish item with no impact on the git engine.
   coverage; or a library (e.g. KSyntaxHighlighting, or a bundled grammar set) —
   broad coverage, heavier dependency to vet against the build. Decide based on how
   many languages we want day one vs. dependency appetite — log in
-  [`decisions.md`](../decisions.md).
+  [`decisions.md`](../../decisions.md).
 - **Colours come from theme tokens, not hex literals** (per the invariant). Syntax
   classes (keyword/string/comment/number/type/…) need their own token set in the
   design system, defined for both light and dark themes, sitting *above* the

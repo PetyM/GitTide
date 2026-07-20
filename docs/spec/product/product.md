@@ -151,7 +151,45 @@ ssh-agent; HTTPS remotes accept a personal access token entered in a
 keychain storage is deferred.
 
 Remaining deferred: merge-strategy pull, rebase / merge conflict UI,
-SSH keyfile + passphrase, multi-remote management, pull-all.
+multi-remote management, pull-all. (SSH keyfile + passphrase and secure token
+storage are in progress — see [Identity & credentials](#identity--credentials).)
+
+### Identity & credentials
+
+GitTide manages **who you commit as** and (progressively) **how you
+authenticate**, from one place, so neither has to be configured on the command
+line.
+
+- **Named identities.** A user keeps a small catalogue of identities (a display
+  name + email each) and assigns one at three levels, most specific winning:
+  a **per-repo override**, a **per-project default** (applies to every repo in a
+  project), and a **global default**. GitTide resolves the effective identity and
+  **writes it into git config** — the global one into `~/.gitconfig`, a per-repo /
+  per-project one into that repo's local `.git/config` — so every commit, merge,
+  and rebase (and the CLI) sees it. This is applied when an assignment changes and
+  when a repo becomes active. A local identity **you** set by hand (via the CLI)
+  is recognised as such and **never overwritten** — GitTide only touches identity
+  it owns (marked with a `gittide.identity` key). Managed from the **Options →
+  Manage identities…** dialog: add identities, pick the global one, and set the
+  open repo's override.
+- **Secrets stay in the OS keychain.** HTTPS tokens and SSH-key passphrases live in
+  the platform keychain (macOS Keychain / libsecret / Windows Credential Store) —
+  **never** written to GitTide's own files. The non-secret metadata (identity
+  names/emails, SSH key file paths, per-host accounts) lives in `credentials.json`;
+  the secret is looked up from the keychain only when a network op needs it, so
+  fetch/pull/push/clone authenticate without re-prompting across sessions. Entering
+  a token in the auth prompt saves it to the keychain for that host. On a machine
+  with no keyring, GitTide falls back to the per-session prompt.
+- **Forge accounts.** Per-host accounts (github.com / gitlab.com / self-hosted)
+  hold the login and a token used for HTTPS git auth; adding a token validates it
+  against the host API to confirm it and pre-fill an identity.
+
+All of the above is reachable from one **Credentials** dialog (Options → *Manage
+identities…*): manage identities and their global / per-project / per-repo
+assignment, add forge host accounts (token validated + saved to the keychain), and
+register SSH keys (passphrase to the keychain). Remaining out of scope: forge
+features beyond token validation (PRs/issues), and an SSH agent/keyfile picker
+inside the sync auth prompt. See [network-sync](network-sync.md) and Plans 34–36.
 
 #### Fleet fetch
 
@@ -327,8 +365,13 @@ Two separate files, so window juggling never rewrites the project registry:
   references to disk; a deleted directory is marked "missing", never a crash.
 - **Window session** (`session.json`) — which projects had windows open and their
   geometry, for restore on next launch.
+- **Credentials metadata** (`credentials.json`) — named identities, per-host and
+  SSH-key references, and the global/project/repo identity assignments.
+  **Secrets are never stored here** — HTTPS tokens and SSH passphrases live only in
+  the OS keychain, keyed by host/key id. A corrupt file is recovered the same way
+  as the project registry (backed up to `.corrupt`, replaced with an empty store).
 
-Both live in the OS-appropriate config dir. The persistence mechanics (atomic
+These live in the OS-appropriate config dir. The persistence mechanics (atomic
 writes, path encoding, corrupt-file recovery) are an engineering concern — see
 [`engineering`](../engineering/engineering.md).
 

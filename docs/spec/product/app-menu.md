@@ -10,7 +10,9 @@
 ## Overview
 
 GitTide gains a custom frameless title bar with an app icon menu on the left,
-replacing the native OS decorations. Behind it sits an **Options** dialog that
+replacing the native OS decorations **on Windows and Linux**. On **macOS** the
+window keeps native decorations and the menu moves to the system menu bar — see
+[§8](#8-macos-native-chrome--system-menu-bar). Behind it sits an **Options** dialog that
 consolidates theme and pull-default settings in one place. App settings persist
 via `QSettings` (platform-native storage). The window launches maximised with a
 minimum size.
@@ -79,17 +81,25 @@ sets `m_pullRebase` without touching git config.
 
 ### Window flags
 
-`Main.qml` sets:
+`Main.qml` sets the flags **per platform** — frameless only off macOS, which
+keeps native decorations so the OS traffic lights and native fullscreen work
+([§8](#8-macos-native-chrome--system-menu-bar)):
 
 ```qml
-flags: Qt.FramelessWindowHint | Qt.Window
+readonly property bool isMac: Qt.platform.os === "osx"
+flags: isMac ? Qt.Window : (Qt.FramelessWindowHint | Qt.Window)
+title: "GitTide"          // shown in the native macOS title bar
 minimumWidth: 860
 minimumHeight: 560
 ```
 
 Geometry and visibility are restored from `Settings` on startup. On first launch
 (no stored geometry), the `ApplicationWindow` default `visibility: Window.Maximized`
-takes effect. Subsequent launches restore the last saved state.
+takes effect. Subsequent launches restore the last saved state. Restored windowed
+geometry is **clamped to the current screen's available area** (`window.restoreGeometry()`,
+using `Screen.desktopAvailable*` offset by the virtual-desktop origin) so a window
+saved on a now-absent or rearranged monitor — or with stale/negative coordinates —
+cannot launch partly off-screen.
 
 ### TitleBar.qml
 
@@ -413,3 +423,67 @@ from any behavioural change into a separate commit** to preserve history.
 | `ui/include/gittide/ui/repoviewmodel.hpp` · `*.cpp` | Add `discardAll()`, `stashChanges()`, `popStash()`, `openRepoFolder()`, `stashAvailable` + `dirty` properties |
 | `ui/qml/CMakeLists.txt` | Register new QML files |
 | `tests/CMakeLists.txt` | Register new core tests (`discardAll`, `stashCount`) |
+
+---
+
+## 8. macOS native chrome & system menu bar
+
+| | |
+|--|--|
+| **Designed** | 2026-07-06 |
+| **Status** | `shipped` |
+| **Plan** | [Plan 35](../../plans/2026-07-06-plan35-macos-native-chrome.md) |
+
+The frameless custom title bar (§2) with its fake traffic lights and in-window
+menu bar (§7) is a **Windows/Linux** shell. On **macOS** it fought the platform:
+the frameless flag disables native fullscreen (the green "traffic light" merely
+toggled maximise), and menus belonged in the window rather than the system menu
+bar. macOS therefore takes a native path instead — selected purely by
+`window.isMac` (`Qt.platform.os === "osx"`); no C++/Objective-C.
+
+### 8.1 Native window decorations
+
+macOS drops `Qt.FramelessWindowHint`, so the OS draws the title bar with **real**
+traffic lights and **native fullscreen** works (green button / `⌃⌘F`). The custom
+`TitleBar` is `visible: false` on macOS — kept instantiated so the shared action
+wiring and `objectName` lookups still resolve, but excluded from the
+`ColumnLayout` so no empty bar remains. The seven frameless `EdgeResizer` zones
+gain `!window.isMac` to their `active` binding (the native frame owns resizing).
+The window sets `title: "GitTide"` for the native bar.
+
+### 8.2 Native system menu bar — `NativeMenuBar.qml`
+
+A new component built on **`Qt.labs.platform`** (`MenuBar` / `Menu` / `MenuItem`),
+which renders in the macOS system menu bar at the top of the screen. `Main.qml`
+instantiates it through a `Loader` with `active: window.isMac`, passing
+`appSettings` and `repoVm` in `onLoaded`. Windows/Linux never load it and keep
+the in-window `AppMenuBar` (§7).
+
+It mirrors the §7 action set and the §3 app-icon popup, and **emits the same
+signals** `TitleBar` does, so `Main.qml` binds them (via a `Connections` on the
+loader item) to the *identical* handlers as the custom bar — one source of
+behaviour, two front-ends. Menu layout:
+
+```
+GitTide (app menu)     File            Edit                 View          Repository
+  About GitTide          Open repo       Undo last commit     Theme ▸        Merge into current branch…
+  Preferences… (⌘,)      folder          Discard all changes    System       Rebase current branch…
+  Quit (⌘Q)                                                     Dark         ─────────────
+                                                                Light        Stash all changes
+                                                                             Pop latest stash
+```
+
+The application-menu items use `Qt.labs.platform` **roles** (`AboutRole`,
+`PreferencesRole`, `QuitRole`) so macOS relocates them into the bold app menu
+with their conventional shortcuts. Enable/disable rules and theme wiring are
+identical to §7.3–§7.4 (bound to the same `repoVm` properties; theme items call
+`theme.setMode` + `appSettings.themeMode`).
+
+### 8.3 Files created / modified (this change)
+
+| File | Change |
+|------|--------|
+| `ui/qml/NativeMenuBar.qml` | **New** — `Qt.labs.platform` system menu bar |
+| `ui/qml/Main.qml` | Platform-conditional `flags`/`title`; hide `TitleBar` + gate `EdgeResizer`s on macOS; `Loader` + `Connections` for the native bar |
+| `ui/qml/qml.qrc` | Register `NativeMenuBar.qml` |
+| `tests/ui/test_qml_shell.cpp` | `chrome_is_native_on_mac_custom_elsewhere` |
