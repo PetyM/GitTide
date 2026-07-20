@@ -142,6 +142,16 @@ if(GITGUI_BUILD_UI)
   endif()
   set(ECM_DIR "${_ecm_prefix}/share/ECM/cmake" CACHE PATH "" FORCE)
 
+  # We consume only the KF6::SyntaxHighlighting *library* (gittide_ui links it;
+  # there is no QML import of its quick plugin). Its bundled GUI examples
+  # (codeeditor, codepdfprinter, minimaltest) and the ksyntaxhighlighter6 CLI are
+  # Qt executables we never run, and they fail to link on modern macOS SDKs, which
+  # dropped the AGL framework KF6's build still references. Skip the examples via
+  # their ecm_optional_add_subdirectory switches (set before MakeAvailable so the
+  # subdirs are never added), and drop the CLI target from the default build after.
+  set(BUILD_codeeditor     OFF CACHE BOOL "" FORCE)
+  set(BUILD_codepdfprinter OFF CACHE BOOL "" FORCE)
+  set(BUILD_minimaltest    OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
     KF6SyntaxHighlighting
     GIT_REPOSITORY https://invent.kde.org/frameworks/syntax-highlighting.git
@@ -149,6 +159,9 @@ if(GITGUI_BUILD_UI)
     GIT_SHALLOW    TRUE
   )
   FetchContent_MakeAvailable(KF6SyntaxHighlighting)
+  if(TARGET ksyntaxhighlighter6)
+    set_target_properties(ksyntaxhighlighter6 PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  endif()
   # FetchContent creates the raw CMake target 'KF6SyntaxHighlighting'.
   # When the library is installed and found via find_package the target is
   # 'KF6::SyntaxHighlighting' (the EXPORT_NAME alias in the package config).
