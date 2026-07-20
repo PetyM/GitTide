@@ -9,6 +9,10 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/secretstore.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/forgeclient.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/forgeclient.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/avatarservice.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/avatarservice.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/avatarimageprovider.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/avatarimageprovider.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/hostlistmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/hostlistmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/sshkeylistmodel.cpp

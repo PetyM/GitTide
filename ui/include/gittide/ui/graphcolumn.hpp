@@ -22,6 +22,7 @@ class GraphColumn : public QQuickPaintedItem
     Q_PROPERTY(QColor headColor READ headColor WRITE setHeadColor NOTIFY changed)
     Q_PROPERTY(int laneCount READ laneCount WRITE setLaneCount NOTIFY changed)
     Q_PROPERTY(bool head READ head WRITE setHead NOTIFY changed)
+    Q_PROPERTY(bool localOnly READ localOnly WRITE setLocalOnly NOTIFY changed)
 public:
     static constexpr int kLaneWidth = 16;
     static constexpr int kDotRadius = 4;
@@ -33,12 +34,14 @@ public:
     QColor headColor() const { return m_headColor; }
     int laneCount() const { return m_laneCount; }
     bool head() const { return m_head; }
+    bool localOnly() const { return m_localOnly; }
 
     void setGraphRow(const QVariant& row);
     void setLaneColors(const QVariantList& colors);
     void setHeadColor(const QColor& color);
     void setLaneCount(int count);
     void setHead(bool head);
+    void setLocalOnly(bool localOnly);
 
     void paint(QPainter* painter) override;
 
@@ -57,6 +60,7 @@ private:
     QColor           m_headColor = Qt::white;
     int              m_laneCount = 1;
     bool             m_head      = false;
+    bool             m_localOnly = false;
 };
 
 } // namespace gittide::ui

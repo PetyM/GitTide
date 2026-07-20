@@ -192,6 +192,12 @@ public:
     /// {ahead, behind}. Used for a submodule's current HEAD vs its pinned commit.
     Expected<std::pair<int, int>> aheadBehind(std::string localOid, std::string baseOid) const;
 
+    /// Full OIDs of commits reachable from HEAD but from no remote-tracking ref
+    /// (`refs/remotes/*`) — i.e. the local-only, not-yet-pushed commits. Drives the
+    /// History "local only" cue. Empty when HEAD is fully pushed or unborn; every
+    /// HEAD commit when there is no remote at all.
+    Expected<std::vector<std::string>> localOnlyOids() const;
+
     // Read/write the pull reconciliation strategy, persisted in git config
     // (pull.rebase: true => Rebase, absent/false => FastForwardOnly).
     Expected<PullStrategy> pullStrategy() const;

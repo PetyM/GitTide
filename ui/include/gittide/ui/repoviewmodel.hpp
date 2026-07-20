@@ -3,6 +3,7 @@
 #include <vector>
 
 #include <QHash>
+#include <QSet>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -360,6 +361,7 @@ private:
     void onHistory(const gittide::GraphLayout& layout);
     void onGraph(const gittide::GraphLayout& layout);
     void onRefTips(const QHash<QString, QStringList>& oidToLabels);
+    void onLocalOnly(const QSet<QString>& oids);
     void applyHistoryIfReady();
     void updateReorderableRun();
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);

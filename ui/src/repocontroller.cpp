@@ -397,6 +397,24 @@ QCoro::Task<void> RepoController::refreshHistory(unsigned limit)
         co_return;
     }
     emit historyReady(gittide::GraphBuilder::build(std::move(*result)));
+    if (!self)
+        co_return;
+    co_await refreshLocalOnly();
+}
+
+QCoro::Task<void> RepoController::refreshLocalOnly()
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto result = co_await m_repo->localOnlyOids();
+    if (!self || !result)
+        co_return;
+    QSet<QString> oids;
+    oids.reserve(static_cast<int>(result->size()));
+    for (const auto& oid : *result)
+        oids.insert(QString::fromStdString(oid));
+    emit localOnlyOidsReady(std::move(oids));
 }
 
 QCoro::Task<void> RepoController::refreshGraph(unsigned limit)
@@ -945,6 +963,9 @@ QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
     if (!self)
         co_return;
     co_await refreshSyncStatus();
+    if (!self)
+        co_return;
+    co_await refreshLocalOnly(); // remote-tracking refs moved — pushed-ness changed
 }
 
 QCoro::Task<void> RepoController::pull(gittide::Credentials cred)
@@ -1003,6 +1024,9 @@ QCoro::Task<void> RepoController::push(QString branch, bool setUpstream, gittide
     if (!self)
         co_return;
     co_await refreshSyncStatus();
+    if (!self)
+        co_return;
+    co_await refreshLocalOnly(); // local commits are now on the remote
 }
 
 QCoro::Task<void> RepoController::loadPullStrategy()

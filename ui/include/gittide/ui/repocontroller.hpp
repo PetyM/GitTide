@@ -1,5 +1,6 @@
 #pragma once
 #include <QHash>
+#include <QSet>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -78,6 +79,10 @@ public slots:
     QCoro::Task<void> commit(gittide::CommitRequest req);
     QCoro::Task<void> refreshHistory(unsigned limit = 1000);
     QCoro::Task<void> refreshGraph(unsigned limit = 1000);
+    /// Recompute just the local-only (unpushed) OID set and emit localOnlyOidsReady.
+    /// Cheaper than a full refreshHistory; used after fetch/push, where HEAD/history
+    /// is unchanged but what is pushed just changed.
+    QCoro::Task<void> refreshLocalOnly();
     QCoro::Task<void> refreshBranches();
     QCoro::Task<void> createBranch(QString name, QString fromOid, bool checkout);
     QCoro::Task<void> switchBranch(QString name);
@@ -186,6 +191,10 @@ signals:
     void historyReady(gittide::GraphLayout layout);
     void graphReady(gittide::GraphLayout layout);
     void refTipsReady(QHash<QString, QStringList> oidToLabels);
+    /// OIDs reachable from HEAD but no remote-tracking ref — the local-only,
+    /// not-yet-pushed commits. Drives the History "local only" cue. Re-emitted by
+    /// refreshHistory and after fetch/pull/push change what is pushed.
+    void localOnlyOidsReady(QSet<QString> oids);
     void operationFailed(const QString& message);
     void deleteFailedUnmerged(const QString& name);
     void branchesChanged(std::vector<gittide::BranchInfo>);

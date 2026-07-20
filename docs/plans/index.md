@@ -56,6 +56,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 36 — Credentials & identity management (Phase 1: identity)](2026-07-06-plan36-identity.md) | 2026-07-06 | done | product · engineering · core · ui |
 | [Plan 37 — Credentials Phase 2: keychain secrets, SSH keys, host tokens](2026-07-06-plan37-keychain-secrets.md) | 2026-07-06 | done | engineering · core · ui |
 | [Plan 38 — Credentials Phase 3: forge validation + central UI](2026-07-06-plan38-forge-central-ui.md) | 2026-07-06 | done | product · engineering · ui |
+| [Plan 39 — Author avatars + local-only vs pushed commits](2026-07-20-plan39-avatars-and-local-remote.md) | 2026-07-20 | done | product · design · engineering · core · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

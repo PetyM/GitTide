@@ -8,6 +8,7 @@
 
 #include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/repocontroller.hpp"
+#include "support/temprepo.hpp"
 
 using gittide::ui::RepoController;
 
@@ -264,6 +265,34 @@ private slots:
         const auto layout = historySpy.last().at(0).value<gittide::GraphLayout>();
         QVERIFY(layout.rows.size() >= 2); // initial commit + new commit
         std::filesystem::remove_all(dir);
+    }
+
+    void refresh_history_emits_local_only_oids()
+    {
+        qRegisterMetaType<QSet<QString>>("QSet<QString>");
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("c1");
+        tmp.addBareRemote("origin");
+        tmp.pushBranch("origin", "master"); // origin/master at c1
+        tmp.writeFile("a.txt", "two\n");
+        tmp.commitAll("c2"); // local-only
+
+        RepoController controller;
+        controller.open(QString::fromStdString(tmp.path().generic_string()));
+        QSignalSpy localSpy(&controller, &RepoController::localOnlyOidsReady);
+        QSignalSpy historySpy(&controller, &RepoController::historyReady);
+        QCoro::waitFor(controller.refreshHistory());
+
+        QVERIFY(historySpy.count() >= 1);
+        QVERIFY(localSpy.count() >= 1);
+        const auto layout = historySpy.last().at(0).value<gittide::GraphLayout>();
+        const auto oids   = localSpy.last().at(0).value<QSet<QString>>();
+        // Exactly the tip commit (c2) is local-only; c1 is on origin/master.
+        QCOMPARE(oids.size(), 1);
+        const QString tip = QString::fromStdString(layout.rows.front().commit.oid);
+        QVERIFY(oids.contains(tip));
     }
 
     void refresh_branches_emits_branches_and_head()

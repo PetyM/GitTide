@@ -238,6 +238,7 @@ RowLayout {
 
                     Avatar {
                         name: model.author
+                        email: model.authorEmail
                         Layout.alignment: Qt.AlignVCenter
                     }
 
@@ -248,7 +249,9 @@ RowLayout {
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             text: model.summary
-                            color: theme.textPrimary
+                            // Local-only (unpushed) commits stay full strength;
+                            // already-pushed ones dim, emphasising what isn't shared.
+                            color: model.isLocalOnly ? theme.textPrimary : theme.textSecondary
                             font.pixelSize: 13
                         }
                         RowLayout {
@@ -272,6 +275,22 @@ RowLayout {
                                 font.pixelSize: 11
                             }
                         }
+                    }
+
+                    // Unpushed badge: a shape/glyph cue (not colour alone) marking
+                    // a commit that is not yet on any remote. Paired with the dim
+                    // treatment above and the hollow graph dot in the Graph tab.
+                    Label {
+                        objectName: "localOnlyBadge"
+                        visible: model.isLocalOnly
+                        text: "↑" // upwards arrow — "needs pushing"
+                        color: theme.textSecondary
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        Layout.alignment: Qt.AlignVCenter
+                        ToolTip.visible: badgeHover.hovered
+                        ToolTip.text: qsTr("Local only — not yet pushed")
+                        HoverHandler { id: badgeHover }
                     }
 
                 }

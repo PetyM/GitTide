@@ -151,6 +151,17 @@ QCoro::Task<gittide::Expected<std::vector<gittide::RefTip>>> AsyncRepo::refTips(
         });
 }
 
+QCoro::Task<gittide::Expected<std::vector<std::string>>> AsyncRepo::localOnlyOids()
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.localOnlyOids();
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::resetIndexToHead()
 {
     auto impl = m_impl;

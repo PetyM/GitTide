@@ -11,6 +11,7 @@ struct CommitNode
     std::string oid;                  // full SHA-1 hex
     std::string summary;              // first line of commit message
     std::string author;               // author name
+    std::string email;                // author email (for avatar resolution; may be empty)
     int64_t time = 0;                 // author unix timestamp
     std::vector<std::string> parents; // parent OIDs (empty = initial commit)
     int lane = 0;                     // column index; 0 = leftmost; filled by GraphBuilder

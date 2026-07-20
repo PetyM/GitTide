@@ -1,8 +1,11 @@
 #include "gittide/ui/qmlcontext.hpp"
 
 #include <QQmlContext>
+#include <QQmlEngine>
 #include <QtQml>
 
+#include "gittide/ui/avatarimageprovider.hpp"
+#include "gittide/ui/avatarservice.hpp"
 #include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/graphcolumn.hpp"
 #include "gittide/ui/hostlistmodel.hpp"
@@ -26,9 +29,20 @@ void registerQmlTypes()
 }
 
 void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoModel, ProjectController* projectController,
-                       RepoViewModel* repoVm, QmlLog* log, const QString& appVersion, CredentialManager* credentials)
+                       RepoViewModel* repoVm, QmlLog* log, const QString& appVersion, CredentialManager* credentials,
+                       AvatarService* avatars)
 {
     registerQmlTypes();
+
+    // The avatar service is always available to QML (a default instance when the
+    // caller passes none, mirroring `log`), so Avatar.qml's `avatarService.*`
+    // bindings resolve in every test that loads Main.qml. Its image provider is
+    // registered on the owning engine so `image://avatar/<hash>` resolves.
+    AvatarService* avatarSvc = avatars ? avatars : new AvatarService(ctx);
+    ctx->setContextProperty(QStringLiteral("avatarService"), avatarSvc);
+    if (QQmlEngine* engine = ctx->engine(); engine && !engine->imageProvider(QStringLiteral("avatar")))
+        engine->addImageProvider(QStringLiteral("avatar"), new AvatarImageProvider(avatarSvc));
+
     ctx->setContextProperty(QStringLiteral("theme"), theme);
     ctx->setContextProperty(QStringLiteral("repoModel"), repoModel);
     ctx->setContextProperty(QStringLiteral("projectController"), projectController);

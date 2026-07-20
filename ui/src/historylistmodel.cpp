@@ -37,6 +37,17 @@ void HistoryListModel::setRefTips(const QHash<QString, QStringList>& oidToLabels
     }
 }
 
+void HistoryListModel::setLocalOnlyOids(const QSet<QString>& oids)
+{
+    m_localOnly = oids;
+    if (!m_layout.rows.empty())
+    {
+        emit dataChanged(index(0, 0),
+                         index(static_cast<int>(m_layout.rows.size()) - 1, 0),
+                         {IsLocalOnlyRole});
+    }
+}
+
 int HistoryListModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())
@@ -62,6 +73,8 @@ QVariant HistoryListModel::data(const QModelIndex& index, int role) const
         return QString::fromStdString(gr.commit.summary);
     case AuthorRole:
         return QString::fromStdString(gr.commit.author);
+    case AuthorEmailRole:
+        return QString::fromStdString(gr.commit.email);
     case DateRole:
         return QDateTime::fromSecsSinceEpoch(gr.commit.time).toString(QStringLiteral("yyyy-MM-dd hh:mm"));
     case OidRole:
@@ -74,6 +87,8 @@ QVariant HistoryListModel::data(const QModelIndex& index, int role) const
         return m_oidToLocalBranch.value(oid);
     case RefLabelsRole:
         return m_oidToRefLabels.value(oid);
+    case IsLocalOnlyRole:
+        return m_localOnly.contains(oid);
     default:
         return {};
     }
@@ -85,12 +100,14 @@ QHash<int, QByteArray> HistoryListModel::roleNames() const
         {GraphRole, QByteArrayLiteral("graphRow")},
         {SummaryRole, QByteArrayLiteral("summary")},
         {AuthorRole, QByteArrayLiteral("author")},
+        {AuthorEmailRole, QByteArrayLiteral("authorEmail")},
         {DateRole, QByteArrayLiteral("date")},
         {OidRole, QByteArrayLiteral("oid")},
         {ShortOidRole, QByteArrayLiteral("shortOid")},
         {IsHeadRole, QByteArrayLiteral("isHead")},
         {LocalBranchNameRole, QByteArrayLiteral("localBranchName")},
         {RefLabelsRole, QByteArrayLiteral("refLabels")},
+        {IsLocalOnlyRole, QByteArrayLiteral("isLocalOnly")},
     };
 }
 

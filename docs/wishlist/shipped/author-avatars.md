@@ -3,7 +3,8 @@
 | | |
 |--|--|
 | **Added** | 2026-06-17 |
-| **Status** | `partly shipped` |
+| **Status** | `shipped` (Gravatar source; forge-API source deferred to a follow-up) |
+| **Shipped** | 2026-07-20 |
 | **Touches** | product (avatar in History rows), design (avatar size/placement, fallback/placeholder), engineering (ui-side avatar fetch + cache; **not** core) |
 
 ## What
@@ -57,7 +58,16 @@ where many contributors flow past. Low functional risk, high perceived quality.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (avatar in History), spec/design (size/placement/fallback), spec/engineering (ui avatar service + cache) · plan: plans/<file>
-- Avatar source (Gravatar vs forge API vs local-only) and the network/privacy default → log in decisions.md
--->
+Graduated:
+
+- Designed in: [`spec/product`](../../spec/product/product.md#history-tab) (avatar in
+  History rows), [`spec/design`](../../spec/design/design.md#qml-history-view)
+  (size/placement/fallback), [`spec/engineering`](../../spec/engineering/engineering.md#author-avatars)
+  (the `ui/` `AvatarService` + image provider + cache).
+- Plan: [`plans/2026-07-20-plan39-avatars-and-local-remote.md`](../../plans/2026-07-20-plan39-avatars-and-local-remote.md).
+- Avatar source (Gravatar-first, forge deferred) and the network-on default →
+  **D52** in [`decisions.md`](../../decisions.md).
+- **Shipped:** v1 uses Gravatar (`d=identicon` fallback) with instant initials and
+  a mem+disk cache; network loading defaults **on** (session-only toggle). Forge
+  (GitHub/GitLab) avatar sources remain a future refinement — the resolution chain
+  is ordered so a forge step can prepend to Gravatar.

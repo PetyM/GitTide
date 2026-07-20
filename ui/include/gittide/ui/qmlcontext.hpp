@@ -12,6 +12,7 @@ class ProjectController;
 class RepoViewModel;
 class QmlLog;
 class CredentialManager;
+class AvatarService;
 
 // Single source of the QML context wiring used by both the app entry point and
 // the shell test. Sets the context properties Main.qml binds to: `theme`,
@@ -23,7 +24,7 @@ class CredentialManager;
 // string so existing callers (tests) compile unchanged.
 void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoModel, ProjectController* projectController,
                        RepoViewModel* repoVm, QmlLog* log = nullptr, const QString& appVersion = {},
-                       CredentialManager* credentials = nullptr);
+                       CredentialManager* credentials = nullptr, AvatarService* avatars = nullptr);
 
 /// Register C++ types exposed to QML (currently GraphColumn in module
 /// "GitTide" 1.0). Idempotent — safe to call once per process or per engine.

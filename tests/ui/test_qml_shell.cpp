@@ -4,6 +4,7 @@
 #include <QAbstractItemModel>
 #include <QSignalSpy>
 
+#include "gittide/ui/avatarservice.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
@@ -290,6 +291,43 @@ private slots:
 
         // The controller surfaces the active project's name for the face.
         QCOMPARE(controller.activeProjectName(), QStringLiteral("Work"));
+    }
+
+    void avatar_service_and_provider_are_wired()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        AvatarService avatars;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr,
+                          nullptr, QString(), nullptr, &avatars);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        // The service is reachable from QML and the image provider resolves.
+        QCOMPARE(engine.rootContext()->contextProperty(QStringLiteral("avatarService")).value<AvatarService*>(),
+                 &avatars);
+        QVERIFY(engine.imageProvider(QStringLiteral("avatar")) != nullptr);
+    }
+
+    // Even with no AvatarService passed, a default one is installed so Main.qml's
+    // Avatar bindings resolve (mirrors the `log` fallback).
+    void avatar_service_defaults_when_absent()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QVERIFY(engine.rootContext()->contextProperty(QStringLiteral("avatarService")).value<AvatarService*>()
+                != nullptr);
     }
 
     void appVersion_context_property_is_set()

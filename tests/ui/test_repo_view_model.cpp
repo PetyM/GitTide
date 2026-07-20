@@ -225,6 +225,33 @@ private slots:
         QVERIFY(!vm.repoOpen());
     }
 
+    // The controller's localOnlyOidsReady reaches the history model, so a not-yet-
+    // pushed commit reports IsLocalOnlyRole == true and a pushed one false.
+    void history_marks_unpushed_commits_local_only()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("c1");
+        tmp.addBareRemote("origin");
+        tmp.pushBranch("origin", "master"); // origin/master at c1
+        tmp.writeFile("a.txt", "two\n");
+        tmp.commitAll("c2"); // local-only
+
+        RepoViewModel vm;
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QVERIFY(historySpy.wait(15000));
+
+        auto* h = vm.history();
+        QCOMPARE(h->rowCount(QModelIndex()), 2);
+        // The local-only set arrives just after the layout; poll until it lands.
+        QTRY_VERIFY_WITH_TIMEOUT(
+            h->data(h->index(0, 0), gittide::ui::HistoryListModel::IsLocalOnlyRole).toBool(), 15000);
+        QCOMPARE(h->data(h->index(0, 0), gittide::ui::HistoryListModel::IsLocalOnlyRole).toBool(), true);  // c2
+        QCOMPARE(h->data(h->index(1, 0), gittide::ui::HistoryListModel::IsLocalOnlyRole).toBool(), false); // c1 pushed
+    }
+
     // A submodule's working directory is a real git repo; selecting it in the
     // tree opens it as a first-class repo (its own Changes/History).
     void open_submodule_workdir_as_first_class_repo()

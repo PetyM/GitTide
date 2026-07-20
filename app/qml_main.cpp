@@ -11,6 +11,7 @@
 #include "gittide/log.hpp"
 #include "gittide/projectstore.hpp"
 #include "gittide/version.hpp"
+#include "gittide/ui/avatarservice.hpp"
 #include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/logging.hpp"
 #include "gittide/ui/projectcontroller.hpp"
@@ -82,6 +83,18 @@ int main(int argc, char** argv)
 
     QmlTheme qmlTheme(&theme);
 
+    // Author-avatar service: caches Gravatar images under the app cache dir and
+    // serves them to the History rows via the "avatar" image provider. Network
+    // loading defaults ON (only email md5 hashes leave the machine); the setting
+    // is session-only for now, like the theme mode (persistence is deferred).
+    AvatarService avatars;
+    avatars.setCacheDir(QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+                            .filePath(QStringLiteral("avatars")));
+    {
+        QSettings s;
+        avatars.setNetworkEnabled(s.value(QStringLiteral("avatarsNetworkEnabled"), true).toBool());
+    }
+
     RepoViewModel repoVm;
     repoVm.setCredentialManager(&credentials); // keychain-backed sync credentials
     // Materialize the resolved identity into a repo's git config when it becomes
@@ -93,7 +106,7 @@ int main(int argc, char** argv)
     installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm,
                       nullptr,
                       QString::fromStdString(std::string(gittide::kVersion)),
-                      &credentials);
+                      &credentials, &avatars);
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return 1;

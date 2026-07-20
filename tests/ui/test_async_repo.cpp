@@ -224,6 +224,29 @@ private slots:
         std::filesystem::remove_all(dir);
     }
 
+    void localOnlyOidsReportsUnpushedCommits()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("c1");
+        tmp.addBareRemote("origin");
+        tmp.pushBranch("origin", "master"); // origin/master at c1
+        tmp.writeFile("a.txt", "two\n");
+        tmp.commitAll("c2"); // local-only
+
+        auto repo = gittide::ui::AsyncRepo::open(tmp.path());
+        QVERIFY(repo.has_value());
+
+        auto localOnly = QCoro::waitFor(repo->localOnlyOids());
+        QVERIFY(localOnly.has_value());
+        QCOMPARE(localOnly->size(), size_t(1));
+
+        auto log = QCoro::waitFor(repo->log());
+        QVERIFY(log.has_value());
+        QCOMPARE(localOnly->front(), log->front().oid); // the newest (c2) is the unpushed one
+    }
+
     void stashListRoundTrips()
     {
         gittide::test::TempRepo tmp;

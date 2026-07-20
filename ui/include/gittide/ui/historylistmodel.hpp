@@ -1,6 +1,7 @@
 #pragma once
 #include <QAbstractListModel>
 #include <QHash>
+#include <QSet>
 #include <QString>
 
 #include "gittide/graph.hpp"
@@ -23,12 +24,14 @@ public:
         GraphRole = Qt::UserRole + 1, // QVariant<gittide::GraphRow>
         SummaryRole,
         AuthorRole,
+        AuthorEmailRole,    // author email; drives avatar resolution (may be empty)
         DateRole,           // pre-formatted "yyyy-MM-dd hh:mm"
         OidRole,            // full 40-char SHA
         ShortOidRole,       // first 7 chars
         IsHeadRole,         // true when oid == the layout's HEAD oid
         LocalBranchNameRole, // short name of a local branch whose tip is this commit; empty otherwise
         RefLabelsRole,       // QStringList of ref names (branch/tag) tipped here; graph chips
+        IsLocalOnlyRole,     // true when this commit is not yet on any remote (unpushed)
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -43,6 +46,10 @@ public:
 
     /// Update the oid → ref-label-list map used by RefLabelsRole (graph chips).
     void setRefTips(const QHash<QString, QStringList>& oidToLabels);
+
+    /// Update the set of local-only (unpushed) commit OIDs used by IsLocalOnlyRole.
+    /// Call after setLayout or whenever what is pushed changes (fetch/pull/push).
+    void setLocalOnlyOids(const QSet<QString>& oids);
 
     int laneCount() const
     {
@@ -61,6 +68,7 @@ private:
     QString                   m_headOid;
     QHash<QString, QString>   m_oidToLocalBranch; // tip oid → local branch name
     QHash<QString, QStringList> m_oidToRefLabels; // tip oid → [branch/tag names]
+    QSet<QString>             m_localOnly;        // oids of unpushed commits
 };
 
 } // namespace gittide::ui

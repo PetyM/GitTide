@@ -384,6 +384,56 @@ the place that touches the index. This shapes two flows.
   so the UI renders both through one widget. Per-symbol contracts live in the
   `gitrepo.hpp` Doxygen.
 
+### Author avatars
+
+Resolving a commit author's email to an image is a **`ui/` concern, never `core/`**
+(no Qt in core; core stays offline/deterministic). Core owes only the author
+**email**, now carried on `CommitNode.email` (populated in `nodeFromCommit`) and
+surfaced as the `authorEmail` model role.
+
+- **`AvatarService`** (`ui/src/avatarservice.cpp`) resolves an email to a `QImage`
+  through an ordered chain, first hit wins: in-memory cache → on-disk cache under
+  the app cache dir keyed by `md5(email)` (with a TTL and a `.miss` negative-cache
+  marker so a missing avatar is not re-probed on every scroll) → the network. v1's
+  network step is **Gravatar only**: a `d=404` probe, then `d=identicon` on 404
+  (which always renders). It uses the same async-HTTP shape as `ForgeClient`
+  (`QNetworkAccessManager` + `co_await qCoro(reply, &QNetworkReply::finished)`), and
+  the manager, cache dir, and Gravatar base are injectable so offscreen tests never
+  touch the real network. Forge (GitHub/GitLab) sources are a later increment that
+  prepends a step to the chain (D52).
+- **`AvatarImageProvider`** (a `QQuickAsyncImageProvider`) bridges the service to
+  `Image { source: "image://avatar/<md5-hash>" }`, so the engine's per-source pixmap
+  cache dedups identical authors across the virtualized rows for free. Because
+  `requestImageResponse` runs on the QML pixmap-reader thread while the service and
+  its `QNetworkAccessManager` live on the main thread, the provider **hops the fetch
+  onto the service's thread** (`QMetaObject::invokeMethod`) and marshals the finished
+  image back to the response — touching the `QNAM` off-thread would crash. The
+  service is exposed as the `avatarService` context property and its provider
+  registered on the engine in `installQmlContext` (a default instance is installed
+  when none is passed, so `Avatar.qml`'s bindings resolve in every shell test).
+  Network loading is a toggle (`AvatarService::networkEnabled`), **default on**,
+  session-only for now like the theme mode.
+
+### Local-only vs pushed commits
+
+A History commit is **local-only** when it is reachable from HEAD but from no
+remote-tracking ref. The set is computed in `core/` by
+**`GitRepo::localOnlyOids()`** — a revwalk that pushes HEAD and hides
+`refs/remotes/*`, yielding exactly the unpushed OIDs (empty when HEAD is fully
+pushed or unborn; every HEAD commit when there is no remote). This keeps
+`log`/`logAllRefs`/`GraphBuilder` pure and uncoupled from remote state, and costs
+only O(ahead); it is preferred over a `bool pushed` field on `CommitNode` (D53).
+
+`AsyncRepo` wraps it as a `QCoro::Task`; `RepoController::refreshHistory` emits
+`localOnlyOidsReady(QSet<QString>)` right after `historyReady` (via the shared
+`refreshLocalOnly` helper), and — because fetch/pull/push change what is pushed
+without touching HEAD — the fetch and push handlers also call `refreshLocalOnly`
+(pull already re-runs `refreshHistory`). `RepoViewModel::onLocalOnly` feeds the set
+to `HistoryListModel::setLocalOnlyOids`, backing the `isLocalOnly` role (mirroring
+the `setRefTips`/`setLocalBranchTips` oid-map pattern). The cue is rendered per
+[design](../design/design.md#qml-history-view): a row badge + dim in History, a
+hollow `GraphColumn` dot in the Graph tab.
+
 ## Logging & diagnostics
 
 GitTide is observable across every layer through one categorised, level-controlled

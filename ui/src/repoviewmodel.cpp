@@ -41,6 +41,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::historyReady, this, &RepoViewModel::onHistory);
     connect(m_controller, &RepoController::graphReady,   this, &RepoViewModel::onGraph);
     connect(m_controller, &RepoController::refTipsReady, this, &RepoViewModel::onRefTips);
+    connect(m_controller, &RepoController::localOnlyOidsReady, this, &RepoViewModel::onLocalOnly);
     connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
     connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::rangeFilesReady, this, &RepoViewModel::onRangeFiles);
@@ -447,6 +448,14 @@ void RepoViewModel::onGraph(const gittide::GraphLayout& layout)
 void RepoViewModel::onRefTips(const QHash<QString, QStringList>& oidToLabels)
 {
     m_graph->setRefTips(oidToLabels);
+}
+
+void RepoViewModel::onLocalOnly(const QSet<QString>& oids)
+{
+    // The set is computed from HEAD's ancestry (refreshHistory); apply it to both
+    // the History list and the all-refs Graph so the unpushed cue shows in each.
+    m_history->setLocalOnlyOids(oids);
+    m_graph->setLocalOnlyOids(oids);
 }
 
 void RepoViewModel::applyHistoryIfReady()

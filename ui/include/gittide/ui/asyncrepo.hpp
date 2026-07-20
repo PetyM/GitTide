@@ -52,6 +52,7 @@ public:
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> log(unsigned limit = 1000);
     QCoro::Task<gittide::Expected<std::vector<gittide::CommitNode>>> logAllRefs(unsigned limit = 1000);
     QCoro::Task<gittide::Expected<std::vector<gittide::RefTip>>>     refTips();
+    QCoro::Task<gittide::Expected<std::vector<std::string>>>         localOnlyOids();
 
     QCoro::Task<gittide::Expected<void>> resetIndexToHead();
     QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> commitFiles(QString oid);

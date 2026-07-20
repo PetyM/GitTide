@@ -412,6 +412,39 @@ an entry with a newer one if it changes.
   JSON so validation is exercised with no live network. → `ui/forgeclient.{hpp,cpp}`,
   [Plan 38](plans/2026-07-06-plan38-forge-central-ui.md)
 
+- **D52 — Author avatars are Gravatar-first (forge deferred), fetched by a `ui/`
+  `AvatarService`, network-on by default.** v1 resolves an author email to an image
+  via mem → disk (keyed by `md5(email)`, with a TTL + negative-cache marker) →
+  Gravatar (`d=404` probe, then `d=identicon`); the decoded image reaches QML through
+  an async `image://avatar/<hash>` provider. Network loading defaults **on** — only
+  an MD5 hash leaves the machine (industry-standard; GitHub Desktop / GitKraken
+  behave the same) — behind a session-only toggle. *Why:* Gravatar needs no auth,
+  host detection, or per-user API calls and works for every repo, so it ships the
+  recognisability win immediately; GitHub has no clean public email→avatar endpoint
+  (would need a token + commits-API lookups), and GitLab's `avatar?email=` only helps
+  GitLab remotes. *Rejected:* forge-API-primary in v1 (token/host/rate-limit
+  plumbing for marginal coverage — the resolution chain is left ordered so a forge
+  step can prepend later); network-off-by-default (hurts the out-of-box polish for a
+  hash-only request); an avatar path through `core/` (violates no-Qt-in-core and
+  core's offline determinism). *Threading:* the provider hops the fetch off the QML
+  pixmap-reader thread onto the service's thread, since its `QNetworkAccessManager`
+  is main-thread-affine. → [`engineering`](spec/engineering/engineering.md#author-avatars),
+  [Plan 39](plans/2026-07-20-plan39-avatars-and-local-remote.md)
+
+- **D53 — Local-only commits are computed in `core/` by hiding `refs/remotes/*` in a
+  revwalk, and cued by shape + dim, never colour alone.** `GitRepo::localOnlyOids()`
+  pushes HEAD and hides every remote-tracking tip, returning exactly the unpushed
+  OIDs; the History cue is a `↑` row badge + dimmed-pushed / full-strength-local
+  text, and a hollow `GraphColumn` dot. *Why:* the revwalk keeps the commit walk and
+  `GraphBuilder` uncoupled from remote state and costs only O(ahead), and it maps
+  onto the model's existing oid-map role pattern; the combined shape/dim cue honours
+  the never-colour-alone invariant (D19). It rides the History refresh cascade and
+  re-emits after fetch/pull/push so pushed-ness stays live. *Rejected:* a `bool
+  pushed` field on `CommitNode` (forces every `log` caller to pay for remote
+  resolution and couples graph layout to sync state); a colour-only treatment. →
+  [`engineering`](spec/engineering/engineering.md#local-only-vs-pushed-commits),
+  [Plan 39](plans/2026-07-20-plan39-avatars-and-local-remote.md)
+
 ## Design
 
 - **D17 — One accent (Material Blue brand); never a second hue** for emphasis.

@@ -128,6 +128,7 @@ gittide::GraphLayout twoRowLayout()
     head.commit.oid     = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     head.commit.summary = "second";
     head.commit.author  = "Ada";
+    head.commit.email   = "ada@example.com";
     head.commit.time    = 0;
     head.commit.lane    = 0;
     head.lineFromAbove  = false;
@@ -163,6 +164,7 @@ private slots:
         const QModelIndex top = model.index(0, 0);
         QCOMPARE(model.data(top, HistoryListModel::SummaryRole).toString(), QStringLiteral("second"));
         QCOMPARE(model.data(top, HistoryListModel::AuthorRole).toString(), QStringLiteral("Ada"));
+        QCOMPARE(model.data(top, HistoryListModel::AuthorEmailRole).toString(), QStringLiteral("ada@example.com"));
         QCOMPARE(model.data(top, HistoryListModel::ShortOidRole).toString(), QStringLiteral("aaaaaaa"));
         QCOMPARE(model.data(top, HistoryListModel::IsHeadRole).toBool(), true);
         QVERIFY(model.data(top, HistoryListModel::GraphRole).canConvert<gittide::GraphRow>());
@@ -175,6 +177,27 @@ private slots:
         QCOMPARE(names.value(HistoryListModel::SummaryRole), QByteArrayLiteral("summary"));
         QCOMPARE(names.value(HistoryListModel::GraphRole), QByteArrayLiteral("graphRow"));
         QCOMPARE(names.value(HistoryListModel::IsHeadRole), QByteArrayLiteral("isHead"));
+        QCOMPARE(names.value(HistoryListModel::AuthorEmailRole), QByteArrayLiteral("authorEmail"));
+        QCOMPARE(names.value(HistoryListModel::IsLocalOnlyRole), QByteArrayLiteral("isLocalOnly"));
+    }
+
+    void local_only_role_reflects_unpushed_set()
+    {
+        HistoryListModel model;
+        model.setLayout(twoRowLayout(), QStringLiteral("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+
+        // Nothing marked yet → all pushed.
+        const QModelIndex top    = model.index(0, 0);
+        const QModelIndex bottom = model.index(1, 0);
+        QCOMPARE(model.data(top, HistoryListModel::IsLocalOnlyRole).toBool(), false);
+
+        // Mark the HEAD (row 0) commit as local-only.
+        QSet<QString> localOnly;
+        localOnly.insert(QStringLiteral("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        model.setLocalOnlyOids(localOnly);
+
+        QCOMPARE(model.data(top, HistoryListModel::IsLocalOnlyRole).toBool(), true);
+        QCOMPARE(model.data(bottom, HistoryListModel::IsLocalOnlyRole).toBool(), false);
     }
 
     void history_model_populates_after_open()
@@ -241,14 +264,20 @@ private slots:
         QCOMPARE(item.implicitWidth(), qreal(3 * GraphColumn::kLaneWidth));
 
         // The QML type is registered under the GitTide module.
+        // localOnly is a paintable state flag; default false, round-trips.
+        QCOMPARE(item.localOnly(), false);
+        item.setLocalOnly(true);
+        QCOMPARE(item.localOnly(), true);
+
         registerQmlTypes();
         QQmlEngine engine;
         QQmlComponent comp(&engine);
-        comp.setData("import GitTide 1.0\nGraphColumn { laneCount: 2 }", QUrl());
+        comp.setData("import GitTide 1.0\nGraphColumn { laneCount: 2; localOnly: true }", QUrl());
         QVERIFY2(comp.isReady(), qPrintable(comp.errorString()));
         std::unique_ptr<QObject> obj(comp.create());
         QVERIFY(obj != nullptr);
         QCOMPARE(obj->property("laneCount").toInt(), 2);
+        QCOMPARE(obj->property("localOnly").toBool(), true);
     }
 
     void selecting_a_commit_loads_its_files_and_diff()

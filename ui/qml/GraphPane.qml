@@ -142,6 +142,7 @@ RowLayout {
                         headColor: theme.head
                         laneCount: repoVm && repoVm.graph ? repoVm.graph.laneCount : 1
                         head: model.isHead
+                        localOnly: model.isLocalOnly // hollow dot for unpushed commits
                     }
 
                     // Branch/tag chips for ref tips (RefLabelsRole).
@@ -167,6 +168,7 @@ RowLayout {
 
                     Avatar {
                         name: model.author
+                        email: model.authorEmail
                         Layout.alignment: Qt.AlignVCenter
                     }
 

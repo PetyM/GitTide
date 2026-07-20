@@ -36,6 +36,8 @@ add_executable(gittide_core_tests
   test_graph_builder.cpp
   core/test_gitrepo_logallrefs.cpp
   core/test_submodule_detail.cpp
+  core/test_commit_email.cpp
+  core/test_git_repo_local_only.cpp
   support/temprepo.cpp
   support/git_config_isolation.cpp
 )
@@ -61,6 +63,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_credential_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_secret_store.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_forge_client.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_avatar_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_list_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_project_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_repo_controller.cpp

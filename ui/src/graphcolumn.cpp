@@ -49,6 +49,13 @@ void GraphColumn::setHead(bool head)
     update();
 }
 
+void GraphColumn::setLocalOnly(bool localOnly)
+{
+    m_localOnly = localOnly;
+    emit changed();
+    update();
+}
+
 QColor GraphColumn::laneColor(int lane) const
 {
     if (m_laneColors.isEmpty())
@@ -95,10 +102,20 @@ void GraphColumn::paint(QPainter* painter)
         painter->drawLine(laneX(e.fromLane), mid, laneX(e.toLane), bot);
     }
 
-    // 4. Commit dot — lane colour, or white for HEAD.
+    // 4. Commit dot — lane colour, or white for HEAD. A local-only (not-yet-pushed)
+    //    commit is drawn hollow: stroked outline, transparent fill — a shape cue
+    //    paired with the row's badge so state is never signalled by colour alone.
     const QColor dot = m_head ? m_headColor : laneColor(row.commit.lane);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(dot);
+    if (m_localOnly)
+    {
+        painter->setPen(QPen(dot, 1.5));
+        painter->setBrush(Qt::NoBrush);
+    }
+    else
+    {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dot);
+    }
     painter->drawEllipse(QPoint(cx, mid), kDotRadius, kDotRadius);
 }
 

@@ -926,7 +926,8 @@ std::optional<gittide::CommitNode> nodeFromCommit(git_repository* repo, const gi
     const char* msg = git_commit_summary(c);
     node.summary    = msg ? msg : "";
     const git_signature* author = git_commit_author(c);
-    node.author = author ? author->name : "";
+    node.author = author && author->name ? author->name : "";
+    node.email  = author && author->email ? author->email : "";
     node.time   = author ? author->when.time : 0;
 
     unsigned nparents = git_commit_parentcount(c);
@@ -2582,6 +2583,41 @@ Expected<std::pair<int, int>> GitRepo::aheadBehind(std::string localOid, std::st
         return std::unexpected(lastGitError(rc));
 
     return std::pair<int, int>{static_cast<int>(ahead), static_cast<int>(behind)};
+}
+
+Expected<std::vector<std::string>> GitRepo::localOnlyOids() const
+{
+    git_revwalk* walk = nullptr;
+    int          rc   = git_revwalk_new(&walk, m_repo);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    rc = git_revwalk_push_head(walk);
+    if (rc < 0)
+    {
+        git_revwalk_free(walk);
+        // Unborn/missing HEAD => nothing to walk, so nothing is local-only.
+        if (git_repository_head_unborn(m_repo) > 0)
+            return std::vector<std::string>{};
+        return std::unexpected(lastGitError(rc));
+    }
+
+    // Hiding every remote-tracking tip leaves exactly the commits reachable from
+    // HEAD but from no remote — the not-yet-pushed set. A missing glob (no remotes)
+    // is not fatal: then nothing is hidden and every HEAD commit is local-only.
+    git_revwalk_hide_glob(walk, "refs/remotes/*");
+
+    std::vector<std::string> result;
+    git_oid                  oid;
+    while (git_revwalk_next(&oid, walk) == 0)
+    {
+        char hex[GIT_OID_SHA1_HEXSIZE + 1];
+        git_oid_tostr(hex, sizeof(hex), &oid);
+        result.emplace_back(hex);
+    }
+
+    git_revwalk_free(walk);
+    return result;
 }
 
 Expected<PullStrategy> GitRepo::pullStrategy() const

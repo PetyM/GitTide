@@ -99,8 +99,16 @@ context menu on a file or a line selection.
 ### History tab
 
 Read HEAD-branch commit history and inspect any commit's diff in the same panel.
-The list column shows a virtualized **commit list** (initials avatar · summary ·
-author · date) — no graph lane column. Selecting a row opens the three-part
+The list column shows a virtualized **commit list** (avatar · summary · author ·
+date) — no graph lane column. Each row's **avatar** shows the author's real image
+(Gravatar, resolved from the commit email) over an instant initials placeholder, so
+a large history is scannable by face without rows ever jumping; loading avatars
+from the network is a setting, on by default. **Local-only commits** — those not
+yet on any remote — are marked so the user sees at a glance what hasn't been shared:
+a trailing **`↑` badge** on the row, and pushed commits are **dimmed** while
+local-only ones stay full strength (in the Graph tab the same commits get a
+**hollow** dot). The cue updates live as commits are made, fetched, or pushed.
+Selecting a row opens the three-part
 **commit detail** flow: (1) the **changed-files list** of that commit (read-only,
 no checkboxes) fills the detail pane; (2) picking a file shows its **diff**
 read-only (no per-line checkboxes); and (3) a **Checkout** button detaches HEAD
