@@ -11,7 +11,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install transport deps (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libssl-dev libssh2-1-dev libsecret-1-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libssh2-1-dev libsecret-1-dev g++-14
+          # GCC 13 (ubuntu-latest's default) ICEs in morph_fn_to_coro when compiling
+          # our QCoro coroutine code; GCC 14 fixed that class of coroutine bugs.
+          echo "CC=gcc-14"  >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
       - name: Install transport deps (macOS)
         if: runner.os == 'macOS'
         run: brew install libssh2
