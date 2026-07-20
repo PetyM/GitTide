@@ -2,8 +2,12 @@
 #include <QSignalSpy>
 #include <QAbstractItemModel>
 #include <QClipboard>
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QRandomGenerator>
+#include <QThreadPool>
+
+#include <system_error>
 
 #include <filesystem>
 #include <fstream>
@@ -16,6 +20,25 @@
 using gittide::ui::RepoViewModel;
 
 namespace repo_view_model_test {
+
+// Tear down a test repo directory. An async git op may still be finishing on a
+// worker thread, holding file handles that make remove_all fail with "Directory
+// not empty" on Windows/macOS (POSIX unlink-while-open hides this on Linux). Drain
+// the pool and pump the event loop so in-flight workers finish and pending
+// coroutine continuations settle, retrying until the tree is gone.
+inline void remove_repo_dir(const std::filesystem::path& dir)
+{
+    for (int attempt = 0; attempt < 100; ++attempt)
+    {
+        QThreadPool::globalInstance()->waitForDone();
+        QCoreApplication::processEvents();
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);
+        if (!ec)
+            return;
+    }
+    std::filesystem::remove_all(dir); // last attempt surfaces a genuine error
+}
 
 // Self-contained dirty repo: one committed file "a.txt", then a worktree edit
 // (mirrors make_dirty_repo() in test_repo_controller.cpp).
@@ -118,7 +141,7 @@ private slots:
         QVERIFY(branchSpy.wait(3000));
         QVERIFY(!vm.currentBranch().isEmpty());
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // D35: resync() re-reads the working tree, so an external change (made while
@@ -138,7 +161,7 @@ private slots:
         vm.resync();
 
         QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(QModelIndex()), 2, 3000);
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // A refresh must not silently grow a partial selection: if the user has
@@ -169,7 +192,7 @@ private slots:
         QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("external.txt"))), Check::Unchecked);
         QCOMPARE(vm.checkedCount(), 0);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // When everything is checked, new files/changes inherit that and come in
@@ -192,7 +215,7 @@ private slots:
         QCOMPARE(vm.changedFiles()->checkState(vm.changedFiles()->rowForPath(QStringLiteral("external.txt"))), Check::Checked);
         QCOMPARE(vm.checkedCount(), 2);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void resync_when_closed_is_safe_noop()
@@ -254,7 +277,7 @@ private slots:
         // set via applyPullDefault(), which persists across repo switches.
         QCOMPARE(vm.syncing(), false);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void select_file_populates_diff()
@@ -272,7 +295,7 @@ private slots:
         QVERIFY(vm.diffLines()->rowCount(QModelIndex()) > 0);
         QCOMPARE(vm.activeFile(), QStringLiteral("a.txt"));
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void commit_succeeds_and_clears_changes()
@@ -292,7 +315,7 @@ private slots:
         // commitSelection refreshes status after committing → worktree clean.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void create_and_switch_branch_updates_model_and_head()
@@ -309,7 +332,7 @@ private slots:
         vm.switchBranch(QStringLiteral("feature"));
         QTRY_COMPARE_WITH_TIMEOUT(vm.currentBranch(), QStringLiteral("feature"), 3000);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // Unchecking one of two added lines must drive the file to Partial and stage
@@ -358,7 +381,7 @@ private slots:
         // One line was left unstaged → the file is still dirty after the commit.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void discardFile_restores_clean_status()
@@ -376,7 +399,7 @@ private slots:
         QVERIFY(statusSpy.wait(3000));
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0); // clean after discard
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // The dirty property must NOTIFY on a clean→dirty transition: a QML binding
@@ -407,7 +430,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(vm.dirty(), 3000);
         QVERIFY(dirtySpy.count() >= 1);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void copyToClipboard_sets_system_clipboard()
@@ -433,7 +456,7 @@ private slots:
         QVERIFY(diffSpy.wait(3000));
         QVERIFY(!vm.activeFile().isEmpty());
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void select_file_at_row_ignores_out_of_bounds()
@@ -476,7 +499,7 @@ private slots:
         vm.selectCommitAtRow(0);
         QTRY_VERIFY_WITH_TIMEOUT(!vm.selectedCommit().isEmpty(), 3000);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void select_commit_file_at_row_ignores_out_of_bounds()
@@ -517,7 +540,7 @@ private slots:
                                gittide::ui::HistoryListModel::SummaryRole).toString(),
             QStringLiteral("after reword"), 3000);
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     void range_selection_shows_combined_files_and_header()
@@ -578,7 +601,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(vm.property("historyDetailHeader").toString().isEmpty(), 3000);
         QVERIFY(vm.property("historyDetailHint").toString().isEmpty());
 
-        std::filesystem::remove_all(dir);
+        repo_view_model_test::remove_repo_dir(dir);
     }
 
     // Finding 2: A repo opened that already has stashes (made in a prior session
