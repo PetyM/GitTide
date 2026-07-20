@@ -5,6 +5,15 @@
 
 #include "gittide/gitrepo.hpp"
 
+namespace {
+// The 7-hex OID the delegate shows for a submodule: the CURRENT checkout when
+// initialised, else the pinned OID (empty for uninitialised).
+QString submoduleDisplayOid(const gittide::SubmoduleNode& s)
+{
+    return QString::fromStdString(s.headShortOid.empty() ? s.shortOid : s.headShortOid);
+}
+} // namespace
+
 namespace gittide::ui {
 
 RepoListModel::RepoListModel(QObject* parent)
@@ -21,9 +30,14 @@ void RepoListModel::appendSubmodules(Node& parent, const std::vector<gittide::Su
         node->path        = QString::fromStdString(s.path.generic_string());
         node->isSubmodule = true;
         node->missing     = s.status == gittide::SubmoduleStatus::Uninitialized;
-        node->shortOid    = QString::fromStdString(s.shortOid);
         node->status      = s.status;
         node->parent      = &parent;
+        node->shortOid    = submoduleDisplayOid(s);
+        node->branch      = QString::fromStdString(s.branch);
+        node->detached    = s.detached;
+        node->dirtyCount  = s.dirtyCount;
+        node->ahead       = s.ahead;
+        node->behind      = s.behind;
         appendSubmodules(*node, s.children);
         parent.children.push_back(std::move(node));
     }
@@ -317,7 +331,12 @@ bool RepoListModel::submodulesEqual(const Node& node,
         if (!c.isSubmodule
             || c.path != QString::fromStdString(s.path.generic_string())
             || c.status != s.status
-            || c.shortOid != QString::fromStdString(s.shortOid)
+            || c.shortOid != submoduleDisplayOid(s)
+            || c.branch != QString::fromStdString(s.branch)
+            || c.detached != s.detached
+            || c.dirtyCount != s.dirtyCount
+            || c.ahead != s.ahead
+            || c.behind != s.behind
             || !submodulesEqual(c, s.children))
             return false;
     }
@@ -351,15 +370,25 @@ void RepoListModel::reconcileChildren(Node& parent, const QModelIndex& parentIdx
         {
             Node&       c       = *parent.children[i];
             const auto& s       = subs[i];
-            const QString oid     = QString::fromStdString(s.shortOid);
+            const QString oid     = submoduleDisplayOid(s);
             const bool    missing = s.status == gittide::SubmoduleStatus::Uninitialized;
-            if (c.status != s.status || c.shortOid != oid || c.missing != missing)
+            const QString branch  = QString::fromStdString(s.branch);
+            if (c.status != s.status || c.shortOid != oid || c.missing != missing
+                || c.branch != branch || c.detached != s.detached
+                || c.dirtyCount != s.dirtyCount || c.ahead != s.ahead || c.behind != s.behind)
             {
                 c.status              = s.status;
                 c.shortOid            = oid;
                 c.missing             = missing;
+                c.branch              = branch;
+                c.detached            = s.detached;
+                c.dirtyCount          = s.dirtyCount;
+                c.ahead               = s.ahead;
+                c.behind              = s.behind;
                 const QModelIndex idx = index(static_cast<int>(i), 0, parentIdx);
-                emit dataChanged(idx, idx, {StatusRole, ShortOidRole, MissingRole});
+                emit dataChanged(idx, idx, {StatusRole, ShortOidRole, MissingRole,
+                                            BranchRole, DetachedRole, DirtyCountRole,
+                                            AheadRole, BehindRole});
             }
             reconcileChildren(c, index(static_cast<int>(i), 0, parentIdx), s.children);
         }

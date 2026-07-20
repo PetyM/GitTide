@@ -281,6 +281,79 @@ private slots:
         QCOMPARE(model.data(aIdx, RepoListModel::ShortOidRole).toString(), QStringLiteral("ddd2222"));
     }
 
+    void submodule_row_exposes_branch_dirty_and_ahead()
+    {
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos({RepoRef{.path = "/tmp/gittide-root", .alias = "root"}});
+
+        SubmoduleNode sub;
+        sub.name         = "libc";
+        sub.path         = "/tmp/gittide-root/libc";
+        sub.status       = SubmoduleStatus::Dirty;
+        sub.shortOid     = "pin1234";       // pinned
+        sub.branch       = "";              // detached
+        sub.detached     = true;
+        sub.headShortOid = "cur5678";       // current checkout
+        sub.dirtyCount   = 3;
+        sub.ahead        = 2;
+        sub.behind       = 0;
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {sub});
+
+        const QModelIndex top = model.index(0, 0);
+        const QModelIndex idx = model.index(0, 0, top);
+        QVERIFY(idx.isValid());
+        QCOMPARE(model.data(idx, RepoListModel::DetachedRole).toBool(), true);
+        QCOMPARE(model.data(idx, RepoListModel::DirtyCountRole).toInt(), 3);
+        QCOMPARE(model.data(idx, RepoListModel::AheadRole).toInt(), 2);
+        QCOMPARE(model.data(idx, RepoListModel::BehindRole).toInt(), 0);
+        // The row shows the CURRENT checkout, not the pinned commit.
+        QCOMPARE(model.data(idx, RepoListModel::ShortOidRole).toString(), QStringLiteral("cur5678"));
+    }
+
+    void applySubmodules_updates_detail_in_place()
+    {
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        auto makeSub = [](int ahead, int dirty, const char* head)
+        {
+            SubmoduleNode s;
+            s.name         = "libc";
+            s.path         = "/tmp/gittide-root/libc";
+            s.status       = SubmoduleStatus::Dirty;
+            s.shortOid     = "pin1234";
+            s.detached     = true;
+            s.headShortOid = head;
+            s.dirtyCount   = dirty;
+            s.ahead        = ahead;
+            return s;
+        };
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos({RepoRef{.path = "/tmp/gittide-root", .alias = "root"}});
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {makeSub(1, 1, "aaa0001")});
+
+        const QModelIndex top = model.index(0, 0);
+        const QModelIndex idx = model.index(0, 0, top);
+
+        // A branch/pin move: same submodule, new ahead/dirty/current-oid.
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        model.applySubmodules(QStringLiteral("/tmp/gittide-root"), {makeSub(3, 5, "bbb0002")});
+
+        QCOMPARE(removed.count(), 0);   // in-place, not a destructive rebuild
+        QCOMPARE(inserted.count(), 0);
+        QCOMPARE(model.index(0, 0, top), idx); // same node identity
+        QCOMPARE(model.data(idx, RepoListModel::AheadRole).toInt(), 3);
+        QCOMPARE(model.data(idx, RepoListModel::DirtyCountRole).toInt(), 5);
+        QCOMPARE(model.data(idx, RepoListModel::ShortOidRole).toString(), QStringLiteral("bbb0002"));
+    }
+
     void applySubmodules_insertsThenNoOpsWhenUnchanged()
     {
         using gittide::SubmoduleNode;
