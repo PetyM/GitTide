@@ -28,6 +28,12 @@ TempRepo::TempRepo()
     : m_dir(unique_dir())
 {
     std::filesystem::create_directories(m_dir);
+    // Resolve symlinks in the temp path. On macOS $TMPDIR lives under /var, itself
+    // a symlink to /private/var, and libgit2 reports the *realpath* as the repo
+    // workdir. Canonicalising here keeps path() byte-equal to what the git engine
+    // returns, so absolute-path assertions (e.g. submodule paths) hold on every
+    // platform instead of only where temp dirs aren't symlinked.
+    m_dir = std::filesystem::canonical(m_dir);
     check(git_repository_init(&m_repo, toGitPath(m_dir).c_str(), /*is_bare=*/0), "git_repository_init failed");
 
     // CI's Windows runners ship a global core.autocrlf=true, which rewrites
