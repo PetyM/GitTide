@@ -191,5 +191,7 @@ int main(int argc, char** argv)
     // Deliberately do not git_libgit2_shutdown(): with the workers now joined the
     // remaining libgit2 state is freed at static teardown; the process is exiting
     // anyway, so leaving it initialised is harmless.
+    fprintf(stderr, "[ui-test] main returning status=%d\n", status);
+    fflush(stderr);
     return status;
 }

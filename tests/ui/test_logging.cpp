@@ -107,6 +107,13 @@ private slots:
         const QString backup  = logFile + QStringLiteral(".1");
         QVERIFY(QFile::exists(logFile));
         QVERIFY2(QFile::exists(backup), "rotation should have produced a .1 backup");
+
+        // Tear the file sink down *here*, before the QTemporaryDir is removed at end
+        // of scope: otherwise the sink keeps gittide.log open, which blocks the
+        // directory's removal on Windows and leaves a live sink pointing at a
+        // deleted path into process teardown.
+        setLogBackend({});
+        qInstallMessageHandler(nullptr);
     }
 };
 
