@@ -4,6 +4,7 @@
 #include <QQmlContext>
 
 #include "gittide/gitrepo.hpp"
+#include "gittide/submodule.hpp"
 #include "gittide/ui/historylistmodel.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
@@ -26,6 +27,7 @@ private slots:
     void detachedHeadCannotPublish();
     void checkoutRemoteBranchCreatesTrackingLocal();
     void sidebar_repo_row_exposes_branch_and_dirty();
+    void sidebar_submodule_row_exposes_detail();
 };
 
 void TestQmlSync::sidebar_exposes_fetchAll_button()
@@ -190,6 +192,44 @@ void TestQmlSync::sidebar_repo_row_exposes_branch_and_dirty()
     const QModelIndex i0 = repoModel.index(0, 0);
     QVERIFY(!repoModel.data(i0, RepoListModel::BranchRole).toString().isEmpty());
     QVERIFY(repoModel.data(i0, RepoListModel::DirtyCountRole).toInt() >= 1);
+}
+
+void TestQmlSync::sidebar_submodule_row_exposes_detail()
+{
+    using gittide::SubmoduleNode;
+    using gittide::SubmoduleStatus;
+
+    ThemeManager mgr;
+    mgr.setMode(ThemeManager::Mode::Dark);
+    QmlTheme theme(&mgr);
+    RepoListModel repoModel;
+    repoModel.setRepos({gittide::RepoRef{.path = "/tmp/gittide-qml-root", .alias = "root"}});
+
+    SubmoduleNode sub;
+    sub.name         = "libc";
+    sub.path         = "/tmp/gittide-qml-root/libc";
+    sub.status       = SubmoduleStatus::Dirty;
+    sub.detached     = true;
+    sub.headShortOid = "cur5678";
+    sub.dirtyCount   = 2;
+    sub.ahead        = 1;
+    repoModel.applySubmodules(QStringLiteral("/tmp/gittide-qml-root"), {sub});
+
+    gittide::ProjectStore store;
+    auto& p = store.createProject("P");
+    ProjectController controller(&store);
+    controller.activate(QString::fromStdString(p.id));
+
+    QQmlApplicationEngine engine;
+    installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+    engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+    QVERIFY(!engine.rootObjects().isEmpty()); // loads with the extended delegate, no fatal QML error
+
+    const QModelIndex top = repoModel.index(0, 0);
+    const QModelIndex idx = repoModel.index(0, 0, top);
+    QVERIFY(idx.isValid());
+    QCOMPARE(repoModel.data(idx, RepoListModel::DirtyCountRole).toInt(), 2);
+    QCOMPARE(repoModel.data(idx, RepoListModel::AheadRole).toInt(), 1);
 }
 
 #include "test_qml_sync.moc"

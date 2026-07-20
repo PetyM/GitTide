@@ -221,7 +221,7 @@ Rectangle {
 
             delegate: TreeViewDelegate {
                 id: row
-                implicitHeight: row.isSub ? 30 : 46
+                implicitHeight: row.uninit ? 30 : 46
                 indentation: 16
                 // Drop the built-in indicator: its tap-to-toggle proved unreliable
                 // here. We draw our own chevron in the content row with a MouseArea
@@ -295,23 +295,6 @@ Rectangle {
                                 Layout.fillWidth: true
                             }
 
-                            // Submodule: pinned short OID (mono) — hidden when uninitialised.
-                            Label {
-                                visible: row.isSub && !row.uninit
-                                text: model.shortOid
-                                color: theme.textMuted
-                                font.family: "monospace"
-                                font.pixelSize: 11
-                            }
-                            // Submodule: status dot (dirty amber / clean green @0.55).
-                            Rectangle {
-                                visible: row.isSub && !row.uninit
-                                implicitWidth: 7
-                                implicitHeight: 7
-                                radius: 3.5
-                                color: model.status === 1 ? theme.stateModified : theme.stateAdded
-                                opacity: model.status === 1 ? 1.0 : 0.55
-                            }
                             // Submodule: inline initialise affordance (uninitialised only).
                             AppButton {
                                 variant: "primary"
@@ -336,9 +319,9 @@ Rectangle {
                                 color: theme.stateModified
                             }
 
-                            // Repository: dirty/clean badge (amber dot + count, or a subtle check).
+                            // Dirty/clean badge — repos and initialised submodules.
                             RowLayout {
-                                visible: !row.isSub && !model.missing
+                                visible: !model.missing && !row.uninit
                                 spacing: 4
                                 Rectangle {
                                     visible: model.dirtyCount > 0
@@ -394,15 +377,16 @@ Rectangle {
                             }
                         }
 
-                        // LINE 2 — branch + ahead/behind (repositories only).
+                        // LINE 2 — branch + ahead/behind. Repos and initialised
+                        // submodules; sync indicators right-aligned into a column.
                         RowLayout {
-                            visible: !row.isSub && !model.missing
+                            visible: !model.missing && !row.uninit
                             spacing: 6
 
                             // Branch glyph (hidden when detached).
                             Label {
                                 visible: !model.detached
-                                text: "⎇"   // ⎇
+                                text: "⎇"
                                 color: theme.textSecondary
                                 font.pixelSize: 11
                             }
@@ -413,7 +397,8 @@ Rectangle {
                                 elide: Text.ElideRight
                                 Layout.maximumWidth: 180
                             }
-                            // Detached: the short commit id after the label.
+                            // Detached: the current short commit id (repo's own, or
+                            // the submodule's current checkout).
                             Label {
                                 visible: model.detached
                                 text: model.shortOid
@@ -421,27 +406,34 @@ Rectangle {
                                 font.family: "monospace"
                                 font.pixelSize: 11
                             }
-                            // Ahead / behind (only with an upstream, non-detached).
+
+                            // Spacer → push the sync indicators to the right edge.
+                            Item { Layout.fillWidth: true }
+
+                            // Ahead / behind. Repos: only with an upstream and not
+                            // detached. Submodules: vs the pinned commit, shown even
+                            // when detached (the usual submodule state).
                             Label {
-                                visible: !model.detached && model.hasUpstream && model.ahead > 0
-                                text: "↑" + model.ahead   // ↑N
+                                visible: model.ahead > 0
+                                         && (row.isSub || (!model.detached && model.hasUpstream))
+                                text: "↑" + model.ahead
                                 color: theme.stateAdded
                                 font.pixelSize: 11
                             }
                             Label {
-                                visible: !model.detached && model.hasUpstream && model.behind > 0
-                                text: "↓" + model.behind   // ↓N
+                                visible: model.behind > 0
+                                         && (row.isSub || (!model.detached && model.hasUpstream))
+                                text: "↓" + model.behind
                                 color: theme.stateIncoming
                                 font.pixelSize: 11
                             }
-                            // No upstream → dash (non-detached).
+                            // Repo with no upstream → dash (submodules never show this).
                             Label {
-                                visible: !model.detached && !model.hasUpstream
-                                text: "—"   // —
+                                visible: !row.isSub && !model.detached && !model.hasUpstream
+                                text: "—"
                                 color: theme.textMuted
                                 font.pixelSize: 11
                             }
-                            Item { Layout.fillWidth: true }   // left-align the status row
                         }
                     }
                 }
