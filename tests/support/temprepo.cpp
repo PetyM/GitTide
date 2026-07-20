@@ -22,6 +22,18 @@ void check(int rc, const char* what)
     if (rc < 0)
         throw std::runtime_error(what);
 }
+// Build a file:// URL libgit2 accepts from a local absolute path. The authority
+// component is empty, so the path must be absolute *after* the "//" — i.e. begin
+// with a slash. Unix paths already do (/tmp/x -> file:///tmp/x); Windows paths
+// start with a drive letter (C:/x), so without a leading slash we'd emit
+// file://C:/x, where "C:" is misread as the host and the clone/fetch fails.
+std::string file_url(const std::filesystem::path& p)
+{
+    std::string gp = p.generic_string();
+    if (gp.empty() || gp.front() != '/')
+        gp.insert(gp.begin(), '/');
+    return "file://" + gp;
+}
 } // namespace
 
 TempRepo::TempRepo()
@@ -130,7 +142,7 @@ void TempRepo::setIdentity(std::string_view name, std::string_view email)
 void TempRepo::addSubmodule(std::string_view name, const std::filesystem::path& childRepoPath)
 {
     // libgit2 clones local paths via a file:// URL.
-    const std::string url     = "file://" + childRepoPath.generic_string();
+    const std::string url     = file_url(childRepoPath);
     const std::string subName = std::string(name);
 
     git_submodule* sm = nullptr;
@@ -195,7 +207,7 @@ std::filesystem::path TempRepo::addBareRemote(std::string_view name)
     check(git_repository_init(&bare_repo, toGitPath(bare).c_str(), /*is_bare=*/1), "git_repository_init (bare) failed");
     git_repository_free(bare_repo);
 
-    std::string url    = "file://" + bare.generic_string();
+    std::string url    = file_url(bare);
     git_remote* remote = nullptr;
     check(git_remote_create(&remote, m_repo, std::string(name).c_str(), url.c_str()), "git_remote_create failed");
     git_remote_free(remote);
