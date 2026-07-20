@@ -84,5 +84,4 @@ becomes the central **Credentials** dialog.
 - **Spec:** product & engineering §Identity & credentials updated; **D51** logged.
 - **Tests:** `test_forge_client.cpp` (3). Full UI suite green (395).
 - **Follow-ups (not blockers):** an SSH agent/keyfile picker inside the sync auth
-  dialog; forge features beyond token validation (PRs/issues) remain out of scope;
-  add `libsecret-1-dev` to the Linux CI job (shared with Plan 37).
+  dialog; forge features beyond token validation (PRs/issues) remain out of scope.

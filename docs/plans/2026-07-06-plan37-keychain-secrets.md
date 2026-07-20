@@ -48,8 +48,8 @@ for a remote URL from stored metadata + keychain secrets (`credentialsForRemote`
 - [x] `find_package(Qt6Keychain QUIET)` then FetchContent fallback
   (`frankosterfeld/qtkeychain` `v0.14.0`, `BUILD_WITH_QT6 ON`, static). Aliased to
   `Qt6Keychain::Qt6Keychain`, linked PRIVATE to `gittide_ui`; include dirs pulled
-  in manually (QtKeychain doesn't export them, like libgit2). *TODO:* add
-  `libsecret-1-dev` to `.github/workflows/ci.yml`.
+  in manually (QtKeychain doesn't export them, like libgit2). `libsecret-1-dev`
+  added to the Linux job in `.github/workflows/ci.yml`.
 
 ## Task 3: SecretStore seam ✅
 
@@ -113,4 +113,4 @@ for a remote URL from stored metadata + keychain secrets (`credentialsForRemote`
   `test_credential_manager` (credentialsForRemote ×4).
 - **Deferred to Plan 38:** the dialog's SSH agent/keyfile picker and per-host
   token *management UI* land with the central credentials dialog + forge validation.
-- **CI TODO:** add `libsecret-1-dev` to the Linux job.
+- **CI:** `libsecret-1-dev` added to the Linux job (QtKeychain backend).
