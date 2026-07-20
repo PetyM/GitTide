@@ -34,4 +34,4 @@ jobs:
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Test
-        run: ctest --test-dir build --output-on-failure --build-config Release
+        run: ctest --test-dir build --output-on-failure --build-config Release --test-output-size-failed 0
