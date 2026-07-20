@@ -59,21 +59,24 @@ endif()
 if(GITGUI_BUILD_UI)
   find_package(Qt6 REQUIRED COMPONENTS Gui Test Concurrent Svg Qml Quick QuickControls2 QuickTest Network)
 
-  # Some Qt 6.x macOS builds carry the legacy AGL framework in Qt6::Gui's link
-  # interface. The current Xcode SDK removed AGL, so anything linking Qt Gui fails
-  # with "framework 'AGL' not found". We don't use AGL (Quick renders via Metal),
-  # so strip it from the interface link libraries. No-op where AGL isn't present
-  # (recent Qt, non-Apple), so it's safe on every platform.
-  if(APPLE)
-    foreach(_qt_comp Gui OpenGL Widgets Quick)
-      if(TARGET Qt6::${_qt_comp})
-        get_target_property(_qt_ill Qt6::${_qt_comp} INTERFACE_LINK_LIBRARIES)
-        if(_qt_ill)
-          list(FILTER _qt_ill EXCLUDE REGEX "(^|/|-framework )AGL($|\\.framework)")
-          set_property(TARGET Qt6::${_qt_comp} PROPERTY INTERFACE_LINK_LIBRARIES "${_qt_ill}")
-        endif()
-      endif()
-    endforeach()
+  # Qt's FindWrapOpenGL.cmake puts the legacy AGL framework in the
+  # WrapOpenGL::WrapOpenGL link interface, which Qt6::Gui pulls in transitively.
+  # The current Xcode SDK removed AGL, so anything linking Qt Gui (our app,
+  # tests) fails with "framework 'AGL' not found". We render via Metal and never
+  # use AGL, so strip it. Covers the combined "-framework AGL" element, the split
+  # "-framework;AGL" pair, and a bare AGL/AGL.framework entry. No-op where AGL
+  # isn't present (recent Qt, non-Apple), so it's safe everywhere.
+  if(APPLE AND TARGET WrapOpenGL::WrapOpenGL)
+    get_target_property(_ogl WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+    message(STATUS "GitTide: WrapOpenGL link libs = [${_ogl}]")
+    if(_ogl)
+      string(REPLACE "-framework;AGL" "" _ogl "${_ogl}")
+      string(REPLACE "-framework AGL" "" _ogl "${_ogl}")
+      list(FILTER _ogl EXCLUDE REGEX "(^|/)AGL(\\.framework)?$")
+      list(REMOVE_ITEM _ogl "")
+      set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY INTERFACE_LINK_LIBRARIES "${_ogl}")
+      message(STATUS "GitTide: WrapOpenGL link libs after AGL strip = [${_ogl}]")
+    endif()
   endif()
 
   # --- OS keychain (secret storage) ---
