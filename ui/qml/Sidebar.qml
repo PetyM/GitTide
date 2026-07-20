@@ -388,12 +388,12 @@ Rectangle {
                             Label {
                                 visible: !model.detached
                                 text: "⎇"
-                                color: theme.textSecondary
+                                color: theme.accent
                                 font.pixelSize: 11
                             }
                             Label {
                                 text: model.detached ? "detached" : model.branch
-                                color: theme.textSecondary
+                                color: theme.accent
                                 font.pixelSize: 12
                                 elide: Text.ElideRight
                                 Layout.maximumWidth: 180
