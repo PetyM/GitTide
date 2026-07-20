@@ -72,11 +72,28 @@
 #include <QtTest/QtTest>
 #include <git2.h>
 
+// Wrap each test class so a C++ exception escaping its fixture/slots (e.g. a
+// TempRepo git op throwing) is reported with the class name and marked failed,
+// instead of aborting the whole binary — which otherwise loses the per-class
+// output and leaves us guessing which test died (notably on Windows CI).
 #define RUN(T)                                                                                                                 \
     do                                                                                                                         \
     {                                                                                                                          \
-        T t;                                                                                                                   \
-        status |= QTest::qExec(&t, argc, argv);                                                                                 \
+        try                                                                                                                    \
+        {                                                                                                                      \
+            T t;                                                                                                               \
+            status |= QTest::qExec(&t, argc, argv);                                                                            \
+        }                                                                                                                      \
+        catch (const std::exception& e)                                                                                        \
+        {                                                                                                                      \
+            qWarning("UI test %s threw an exception: %s", #T, e.what());                                                       \
+            status |= 1;                                                                                                       \
+        }                                                                                                                      \
+        catch (...)                                                                                                            \
+        {                                                                                                                      \
+            qWarning("UI test %s threw a non-std exception", #T);                                                              \
+            status |= 1;                                                                                                       \
+        }                                                                                                                      \
     } while (0)
 
 int main(int argc, char** argv)
