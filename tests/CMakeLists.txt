@@ -33,6 +33,7 @@ add_executable(gittide_core_tests
   test_git_repo_watch.cpp
   test_graph_builder.cpp
   core/test_gitrepo_logallrefs.cpp
+  core/test_submodule_detail.cpp
   support/temprepo.cpp
   support/git_config_isolation.cpp
 )

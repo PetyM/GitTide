@@ -3,6 +3,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gittide/branchinfo.hpp"
@@ -160,6 +161,11 @@ public:
     // ref. hasUpstream is false (ahead/behind 0) when the branch has no upstream
     // or HEAD is unborn/detached. See SyncStatus.
     Expected<SyncStatus> syncStatus() const;
+
+    /// Commits `localOid` is ahead of / behind `baseOid`, via git_graph_ahead_behind
+    /// on this repository. Both OIDs must be reachable here (else an error). Returns
+    /// {ahead, behind}. Used for a submodule's current HEAD vs its pinned commit.
+    Expected<std::pair<int, int>> aheadBehind(std::string localOid, std::string baseOid) const;
 
     // Read/write the pull reconciliation strategy, persisted in git config
     // (pull.rebase: true => Rebase, absent/false => FastForwardOnly).

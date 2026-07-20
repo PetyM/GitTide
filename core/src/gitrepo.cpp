@@ -1033,11 +1033,13 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
     struct Payload
     {
         std::vector<SubmoduleNode>* out;
+        std::vector<std::string>*   pinnedFull; // full 40-hex pinned oid per node, "" if uninitialised
         const std::filesystem::path* wd;
         git_repository* repo;
     };
     std::vector<SubmoduleNode> result;
-    Payload payload{&result, &wd, m_repo};
+    std::vector<std::string>   pinnedFull;
+    Payload payload{&result, &pinnedFull, &wd, m_repo};
 
     auto cb = [](git_submodule* sm, const char* name, void* pl) -> int
     {
@@ -1052,6 +1054,7 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
         if (git_submodule_status(&flags, p->repo, node.name.c_str(), GIT_SUBMODULE_IGNORE_UNSPECIFIED) == 0)
             node.status = classifySubmodule(flags);
 
+        std::string pinnedHex;
         if (node.status != SubmoduleStatus::Uninitialized)
         {
             if (const git_oid* hid = git_submodule_head_id(sm))
@@ -1059,10 +1062,12 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
                 char hex[GIT_OID_HEXSZ + 1];
                 git_oid_tostr(hex, sizeof(hex), hid);
                 node.shortOid.assign(hex, hex + 7);
+                pinnedHex.assign(hex, hex + GIT_OID_HEXSZ);
             }
         }
 
         p->out->push_back(std::move(node));
+        p->pinnedFull->push_back(std::move(pinnedHex));
         return 0;
     };
 
@@ -1070,14 +1075,36 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
 
-    // Descend into each initialised submodule.
-    for (auto& node : result)
+    // Descend into each initialised submodule; fill per-submodule detail from its
+    // own repository (branch/dirty/current-oid + ahead/behind of current vs pin).
+    for (std::size_t i = 0; i < result.size(); ++i)
     {
+        SubmoduleNode& node = result[i];
         if (node.status == SubmoduleStatus::Uninitialized)
             continue;
         auto child = GitRepo::open(node.path);
         if (!child)
-            continue; // a broken child degrades to no children, not a fatal error
+            continue; // a broken child degrades to no detail, not a fatal error
+
+        if (auto hs = child->head())
+        {
+            node.branch       = hs->branch;
+            node.detached     = hs->detached;
+            node.headShortOid = hs->oid.size() >= 7 ? hs->oid.substr(0, 7) : hs->oid;
+            if (!hs->oid.empty() && !pinnedFull[i].empty())
+            {
+                // current HEAD ahead/behind of the pinned commit, on the submodule repo.
+                if (auto ab = child->aheadBehind(hs->oid, pinnedFull[i]))
+                {
+                    node.ahead  = ab->first;
+                    node.behind = ab->second;
+                }
+                // pinned commit absent (shallow) → aheadBehind fails → leave 0/0.
+            }
+        }
+        if (auto st = child->status())
+            node.dirtyCount = static_cast<int>(st->size());
+
         if (auto sub = child->submoduleTree())
             node.children = std::move(*sub);
     }
@@ -2532,6 +2559,23 @@ Expected<SyncStatus> GitRepo::syncStatus() const
     git_buf_dispose(&remote_buf);
 
     return out;
+}
+
+Expected<std::pair<int, int>> GitRepo::aheadBehind(std::string localOid, std::string baseOid) const
+{
+    git_oid local{};
+    git_oid base{};
+    if (int rc = git_oid_fromstr(&local, localOid.c_str()); rc < 0)
+        return std::unexpected(lastGitError(rc));
+    if (int rc = git_oid_fromstr(&base, baseOid.c_str()); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    std::size_t ahead = 0;
+    std::size_t behind = 0;
+    if (int rc = git_graph_ahead_behind(&ahead, &behind, m_repo, &local, &base); rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    return std::pair<int, int>{static_cast<int>(ahead), static_cast<int>(behind)};
 }
 
 Expected<PullStrategy> GitRepo::pullStrategy() const

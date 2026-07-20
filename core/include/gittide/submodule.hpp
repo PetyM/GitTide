@@ -20,6 +20,12 @@ struct SubmoduleNode
     std::string                name;                          // .gitmodules name (UTF-8)
     std::string                shortOid;                      // pinned gitlink commit, 7 hex; "" if Uninitialized
     SubmoduleStatus            status = SubmoduleStatus::Clean;
+    std::string                branch;                        // current branch; "" when detached or uninitialised
+    bool                       detached = false;              // submodule HEAD is detached
+    std::string                headShortOid;                  // current checked-out commit, 7 hex; "" if uninitialised
+    int                        dirtyCount = 0;                // working-tree changed files
+    int                        ahead      = 0;                // commits current HEAD is ahead of the pinned commit
+    int                        behind     = 0;                // commits current HEAD is behind the pinned commit
     std::vector<SubmoduleNode> children;                      // recursive; empty if Uninitialized or leaf
 };
 
