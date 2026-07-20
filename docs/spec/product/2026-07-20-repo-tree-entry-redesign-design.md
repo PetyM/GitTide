@@ -1,7 +1,8 @@
 # Design — Repo tree entry redesign (branch + sync + dirty)
 
-**Status:** planned
+**Status:** shipped
 **Date:** 2026-07-20
+**Shipped:** 2026-07-20 (Plan 33)
 **Realises:** an in-session wish to make each sidebar repo row show more useful
 state at a glance.
 

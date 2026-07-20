@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-20 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-07-20-repo-tree-entry-redesign-design.md`](../spec/product/2026-07-20-repo-tree-entry-redesign-design.md) |
 | **Depends on** | Plan 21 (live refresh / fleet poll), Plan 24 (submodule rows) |
 
@@ -737,8 +737,22 @@ git commit -m "docs: close out Plan 33 — repo tree entry redesign"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
+- **Shipped:** each top-level sidebar repo row is now a two-line entry — line 1
+  is the repo **name** (larger, `textPrimary`) with a right-aligned **dirty
+  badge** (amber dot + changed-file count, or a subtle green `✓` when clean);
+  line 2 is the current **branch** (smaller, `textSecondary`) with **ahead/behind**
+  arrows (`↑N` green / `↓N` incoming). No upstream renders a `—`; a detached HEAD
+  renders `detached <shortOid>` with no arrows. Submodule rows are unchanged.
+  State is seeded on load and refreshed live by the existing fleet poll. Verified
+  in the running app (screenshot): branch-over-hash, dash, clean check, dirty
+  count, and ahead arrow all render as designed.
+- **Spec updated:** [`spec/product/2026-07-20-repo-tree-entry-redesign-design.md`](../spec/product/2026-07-20-repo-tree-entry-redesign-design.md)
+  (Status: shipped); decision **D42** in [`decisions.md`](../decisions.md).
+- **Code:** `RepoListModel` gained `branch`/`detached`/`dirtyCount`/`hasUpstream`
+  roles + `setRepoHead` and a 4-arg `setSyncCounts`
+  (`ui/include/gittide/ui/repolistmodel.hpp`, `ui/src/repolistmodel.cpp`); state
+  is seeded in `RepoListModel::setRepos` and refreshed in
+  `ProjectController::pollRepos` (`ui/src/projectcontroller.cpp`); the two-line
+  delegate lives in `ui/qml/Sidebar.qml`. Tests:
+  `tests/ui/test_repo_list_model.cpp`, `tests/ui/test_project_controller.cpp`,
+  `tests/ui/test_qml_sync.cpp`.

@@ -367,6 +367,18 @@ an entry with a newer one if it changes.
   controls. → [`design`](spec/design/design.md),
   [`themed-controls design doc`](spec/product/2026-06-26-themed-controls-design.md)
 
+- **D42 — Sidebar repo rows show the current branch and working state, not a
+  commit hash.** Each top-level repo row is a two-line entry: name + dirty badge
+  (changed-file count, or a clean check), then the current branch + ahead/behind
+  arrows. No upstream shows `—`; a detached HEAD shows `detached <shortOid>`.
+  *Why:* the branch and dirty/sync state are what a user scans a multi-repo
+  project for; a raw hash carried little at-a-glance value. Per D19, every state
+  pairs a glyph with its colour. Row state is seeded in `RepoListModel::setRepos`
+  and refreshed on the existing fleet-poll path (no new watcher). *Rejected:*
+  keeping the name-only row; showing the HEAD short OID for repos (submodule rows
+  still show their pinned OID, whose identity *is* the commit). →
+  [`repo-tree-entry design doc`](spec/product/2026-07-20-repo-tree-entry-redesign-design.md)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a
