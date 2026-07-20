@@ -23,7 +23,6 @@
 #include "test_auth_error.cpp"
 #include "test_credential_manager.cpp"
 #include "test_forge_client.cpp"
-#include "test_avatar_service.cpp"
 #include "test_identity_list_model.cpp"
 #include "test_secret_store.cpp"
 #include "test_project_controller.cpp"
@@ -128,7 +127,6 @@ int main(int argc, char** argv)
     RUN(TestCredentialManager);
     RUN(TestSecretStore);
     RUN(TestForgeClient);
-    RUN(TestAvatarService);
     RUN(TestRepoListModel);
     RUN(TestProjectController);
     RUN(TestRepoController);
