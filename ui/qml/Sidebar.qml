@@ -221,7 +221,7 @@ Rectangle {
 
             delegate: TreeViewDelegate {
                 id: row
-                implicitHeight: 30
+                implicitHeight: row.isSub ? 30 : 46
                 indentation: 16
                 // Drop the built-in indicator: its tap-to-toggle proved unreliable
                 // here. We draw our own chevron in the content row with a MouseArea
@@ -257,10 +257,7 @@ Rectangle {
                 contentItem: RowLayout {
                     spacing: 8
 
-                    // Expand/collapse chevron. Fixed-width so leaf rows (no
-                    // children) keep their name aligned with expandable ones. Its
-                    // own MouseArea toggles the subtree and swallows the click so
-                    // the row's repo-open handler doesn't also fire.
+                    // Expand/collapse chevron (unchanged).
                     Item {
                         Layout.preferredWidth: 14
                         Layout.preferredHeight: 14
@@ -279,89 +276,173 @@ Rectangle {
                         }
                     }
 
-                    Label {
-                        // The model already resolves the display name (alias or
-                        // directory basename) for both repos and submodules.
-                        text: model.display
-                        color: (model.missing || row.uninit) ? theme.textMuted : theme.textPrimary
-                        font.pixelSize: 13
-                        font.weight: row.activeRepo ? Font.DemiBold : Font.Normal
-                        elide: Text.ElideRight
+                    // Name (line 1) + branch/sync (line 2, repos only).
+                    ColumnLayout {
                         Layout.fillWidth: true
-                    }
+                        spacing: 2
 
-                    // Submodule: pinned short OID (mono) — hidden when uninitialised.
-                    Label {
-                        visible: row.isSub && !row.uninit
-                        text: model.shortOid
-                        color: theme.textMuted
-                        font.family: "monospace"
-                        font.pixelSize: 11
-                    }
+                        // LINE 1 — name + trailing state.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
 
-                    // Submodule: status dot (dirty amber / clean green @0.55).
-                    Rectangle {
-                        visible: row.isSub && !row.uninit
-                        implicitWidth: 7
-                        implicitHeight: 7
-                        radius: 3.5
-                        color: model.status === 1 ? theme.stateModified : theme.stateAdded
-                        opacity: model.status === 1 ? 1.0 : 0.55
-                    }
+                            Label {
+                                text: model.display
+                                color: (model.missing || row.uninit) ? theme.textMuted : theme.textPrimary
+                                font.pixelSize: row.isSub ? 13 : 14
+                                font.weight: row.activeRepo ? Font.DemiBold : Font.Normal
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
 
-                    // Submodule: inline initialise affordance (uninitialised only).
-                    AppButton {
-                        variant: "primary"
-                        compact: true
-                        Layout.alignment: Qt.AlignVCenter
-                        visible: row.uninit && !model.submoduleBusy
-                        text: "Init"
-                        onClicked: { if (projectController) projectController.initSubmodule(model.ownerRepoPath, model.repoPath) }
-                    }
-                    // Spinner while an op runs on this row.
-                    BusyIndicator {
-                        running: model.submoduleBusy === true
-                        visible: running
-                        implicitWidth: 14
-                        implicitHeight: 14
-                    }
+                            // Submodule: pinned short OID (mono) — hidden when uninitialised.
+                            Label {
+                                visible: row.isSub && !row.uninit
+                                text: model.shortOid
+                                color: theme.textMuted
+                                font.family: "monospace"
+                                font.pixelSize: 11
+                            }
+                            // Submodule: status dot (dirty amber / clean green @0.55).
+                            Rectangle {
+                                visible: row.isSub && !row.uninit
+                                implicitWidth: 7
+                                implicitHeight: 7
+                                radius: 3.5
+                                color: model.status === 1 ? theme.stateModified : theme.stateAdded
+                                opacity: model.status === 1 ? 1.0 : 0.55
+                            }
+                            // Submodule: inline initialise affordance (uninitialised only).
+                            AppButton {
+                                variant: "primary"
+                                compact: true
+                                Layout.alignment: Qt.AlignVCenter
+                                visible: row.uninit && !model.submoduleBusy
+                                text: "Init"
+                                onClicked: { if (projectController) projectController.initSubmodule(model.ownerRepoPath, model.repoPath) }
+                            }
+                            // Spinner while an op runs on this row.
+                            BusyIndicator {
+                                running: model.submoduleBusy === true
+                                visible: running
+                                implicitWidth: 14
+                                implicitHeight: 14
+                            }
 
-                    // Repository: missing-on-disk warning.
-                    Label {
-                        visible: !row.isSub && model.missing === true
-                        text: "⚠"
-                        color: theme.stateModified
-                    }
+                            // Repository: missing-on-disk warning.
+                            Label {
+                                visible: !row.isSub && model.missing === true
+                                text: "⚠"
+                                color: theme.stateModified
+                            }
 
-                    // Fetch status: spinner while running, then a result glyph.
-                    // fetchState: 0 Idle, 1 Running, 2 UpToDate, 3 Updated, 4 Failed.
-                    BusyIndicator {
-                        running: model.fetchState === 1
-                        visible: running
-                        implicitWidth: 14
-                        implicitHeight: 14
-                    }
-                    Label {
-                        visible: model.fetchState === 3 && model.behind > 0
-                        text: "↓" + model.behind
-                        color: theme.accent
-                        font.pixelSize: 11
-                    }
-                    Label {
-                        visible: model.fetchState === 2
-                        text: "✓"
-                        color: theme.textMuted
-                        font.pixelSize: 11
-                    }
-                    Label {
-                        id: fetchFailedLabel
-                        visible: model.fetchState === 4
-                        text: "!"
-                        color: theme.stateDeleted
-                        font.pixelSize: 11
-                        ToolTip.text: model.fetchError
-                        ToolTip.visible: fetchFailHover.hovered
-                        HoverHandler { id: fetchFailHover }
+                            // Repository: dirty/clean badge (amber dot + count, or a subtle check).
+                            RowLayout {
+                                visible: !row.isSub && !model.missing
+                                spacing: 4
+                                Rectangle {
+                                    visible: model.dirtyCount > 0
+                                    implicitWidth: 7
+                                    implicitHeight: 7
+                                    radius: 3.5
+                                    color: theme.stateModified
+                                }
+                                Label {
+                                    visible: model.dirtyCount > 0
+                                    text: model.dirtyCount
+                                    color: theme.textSecondary
+                                    font.pixelSize: 11
+                                }
+                                Label {
+                                    visible: model.dirtyCount === 0
+                                    text: "✓"
+                                    color: theme.stateAdded
+                                    opacity: 0.6
+                                    font.pixelSize: 11
+                                }
+                            }
+
+                            // Fetch status: spinner while running, then a result glyph.
+                            // fetchState: 0 Idle, 1 Running, 2 UpToDate, 3 Updated, 4 Failed.
+                            BusyIndicator {
+                                running: model.fetchState === 1
+                                visible: running
+                                implicitWidth: 14
+                                implicitHeight: 14
+                            }
+                            Label {
+                                visible: model.fetchState === 3 && model.behind > 0
+                                text: "↓" + model.behind
+                                color: theme.accent
+                                font.pixelSize: 11
+                            }
+                            Label {
+                                visible: model.fetchState === 2
+                                text: "✓"
+                                color: theme.textMuted
+                                font.pixelSize: 11
+                            }
+                            Label {
+                                id: fetchFailedLabel
+                                visible: model.fetchState === 4
+                                text: "!"
+                                color: theme.stateDeleted
+                                font.pixelSize: 11
+                                ToolTip.text: model.fetchError
+                                ToolTip.visible: fetchFailHover.hovered
+                                HoverHandler { id: fetchFailHover }
+                            }
+                        }
+
+                        // LINE 2 — branch + ahead/behind (repositories only).
+                        RowLayout {
+                            visible: !row.isSub && !model.missing
+                            spacing: 6
+
+                            // Branch glyph (hidden when detached).
+                            Label {
+                                visible: !model.detached
+                                text: "⎇"   // ⎇
+                                color: theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                            Label {
+                                text: model.detached ? "detached" : model.branch
+                                color: theme.textSecondary
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                                Layout.maximumWidth: 180
+                            }
+                            // Detached: the short commit id after the label.
+                            Label {
+                                visible: model.detached
+                                text: model.shortOid
+                                color: theme.textMuted
+                                font.family: "monospace"
+                                font.pixelSize: 11
+                            }
+                            // Ahead / behind (only with an upstream, non-detached).
+                            Label {
+                                visible: !model.detached && model.hasUpstream && model.ahead > 0
+                                text: "↑" + model.ahead   // ↑N
+                                color: theme.stateAdded
+                                font.pixelSize: 11
+                            }
+                            Label {
+                                visible: !model.detached && model.hasUpstream && model.behind > 0
+                                text: "↓" + model.behind   // ↓N
+                                color: theme.stateIncoming
+                                font.pixelSize: 11
+                            }
+                            // No upstream → dash (non-detached).
+                            Label {
+                                visible: !model.detached && !model.hasUpstream
+                                text: "—"   // —
+                                color: theme.textMuted
+                                font.pixelSize: 11
+                            }
+                            Item { Layout.fillWidth: true }   // left-align the status row
+                        }
                     }
                 }
 

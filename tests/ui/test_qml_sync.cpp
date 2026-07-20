@@ -25,6 +25,7 @@ private slots:
     void pullRebaseRoundTrips();
     void detachedHeadCannotPublish();
     void checkoutRemoteBranchCreatesTrackingLocal();
+    void sidebar_repo_row_exposes_branch_and_dirty();
 };
 
 void TestQmlSync::sidebar_exposes_fetchAll_button()
@@ -158,6 +159,37 @@ void TestQmlSync::checkoutRemoteBranchCreatesTrackingLocal()
     QTRY_VERIFY_WITH_TIMEOUT(vm.hasUpstream(), 5000);
     QCOMPARE(vm.aheadCount(), 0);
     QCOMPARE(vm.behindCount(), 0);
+}
+
+void TestQmlSync::sidebar_repo_row_exposes_branch_and_dirty()
+{
+    using namespace gittide::test;
+    ThemeManager mgr;
+    mgr.setMode(ThemeManager::Mode::Dark);
+    QmlTheme theme(&mgr);
+    RepoListModel repoModel;
+
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one\n");
+    repo.commitAll("c1");
+    repo.writeFile("a.txt", "two\n"); // dirty
+    repoModel.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
+
+    gittide::ProjectStore store;
+    auto& p = store.createProject("P");
+    ProjectController controller(&store);
+    controller.activate(QString::fromStdString(p.id));
+
+    QQmlApplicationEngine engine;
+    installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+    engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+    QVERIFY(!engine.rootObjects().isEmpty()); // Main.qml + redesigned delegate load, no fatal QML error
+
+    // The data the two-line delegate binds is present on the row.
+    const QModelIndex i0 = repoModel.index(0, 0);
+    QVERIFY(!repoModel.data(i0, RepoListModel::BranchRole).toString().isEmpty());
+    QVERIFY(repoModel.data(i0, RepoListModel::DirtyCountRole).toInt() >= 1);
 }
 
 #include "test_qml_sync.moc"
