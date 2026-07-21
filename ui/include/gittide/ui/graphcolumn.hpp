@@ -26,6 +26,7 @@ class GraphColumn : public QQuickPaintedItem
 public:
     static constexpr int kLaneWidth = 16;
     static constexpr int kDotRadius = 4;
+    static constexpr int kRowHeight = 48; // baseline row height; dot centres on the first line
 
     explicit GraphColumn(QQuickItem* parent = nullptr);
 
