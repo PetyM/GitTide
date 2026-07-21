@@ -24,6 +24,8 @@ AppDialog {
             spacing: 0
             AppTabButton { text: "Appearance"; implicitWidth: 110 }
             AppTabButton { text: "Git"; implicitWidth: 110 }
+            AppTabButton { text: "Identity"; implicitWidth: 110 }
+            AppTabButton { text: "Accounts"; implicitWidth: 110 }
         }
 
         StackLayout {
@@ -32,6 +34,22 @@ AppDialog {
 
             OptionsAppearanceTab { appSettings: dialog.appSettings }
             OptionsGitTab { appSettings: dialog.appSettings }
+            Flickable {
+                implicitHeight: Math.min(identityTab.implicitHeight, 480)
+                contentHeight: identityTab.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                OptionsIdentityTab { id: identityTab; width: parent.width }
+            }
+            Flickable {
+                implicitHeight: Math.min(accountsTab.implicitHeight, 480)
+                contentHeight: accountsTab.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                OptionsAccountsTab { id: accountsTab; width: parent.width }
+            }
         }
     }
 

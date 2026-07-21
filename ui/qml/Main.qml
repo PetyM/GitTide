@@ -273,7 +273,6 @@ ApplicationWindow {
         id: optionsDialog
         appSettings: appSettings
     }
-    IdentityDialog { id: identityDialog }
     AboutDialog { id: aboutDialog }
     BranchPickerDialog {
         id: rebaseTargetDialog
