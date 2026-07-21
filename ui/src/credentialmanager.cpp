@@ -63,6 +63,20 @@ CredentialManager::CredentialManager(gittide::CredentialsStore* store, std::file
         m_ownedSecrets = std::make_unique<KeychainSecretStore>();
         m_secrets      = m_ownedSecrets.get();
     }
+
+    // First-run convenience: if we hold no identities yet but the user already
+    // has a global git identity, adopt it as the Global identity so the Identity
+    // tab is not empty. Guarded on emptiness ⇒ genuinely one-time (never
+    // resurrects a deleted identity, never runs once the user has any).
+    if (m_store->identities().empty())
+    {
+        if (auto gid = gittide::GitRepo::globalIdentity();
+            gid.has_value() && !gid->name.empty() && !gid->email.empty())
+        {
+            const auto& id = m_store->addIdentity(gid->name, gid->email);
+            setGlobalIdentity(QString::fromStdString(id.id));
+        }
+    }
 }
 
 CredentialManager::~CredentialManager() = default;
