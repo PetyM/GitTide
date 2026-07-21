@@ -779,6 +779,7 @@ void RepoViewModel::selectCommit(const QString& oid)
     // never linger while the new commit's data loads asynchronously.
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
+    clearCommitDetail(); // blank the medallion too, so it never shows new-hash + old-details
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
     QCoro::connect(m_controller->refreshCommitFiles(oid), this, [] {});
