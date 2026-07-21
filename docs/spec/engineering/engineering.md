@@ -214,8 +214,14 @@ reading the login/name/email to confirm the token and pre-fill an identity
 (`CredentialManager::validateAndAddHost`). It awaits the reply with QCoro's signal
 support (`qCoro(reply, &QNetworkReply::finished)`), so only `Qt6::Network` is added,
 not a QCoro network module. `CredentialManager` owns `IdentityListModel` /
-`HostListModel` / `SshKeyListModel`; the central **Credentials** dialog
-(`IdentityDialog.qml`) is the one management surface (D51).
+`HostListModel` / `SshKeyListModel`; credential management lives in the **Options**
+dialog's **Identity** and **Accounts** tabs (`OptionsIdentityTab.qml` /
+`OptionsAccountsTab.qml`, D51) — the earlier standalone `IdentityDialog.qml`
+Credentials dialog was removed in Plan 40 and its content folded into those tabs.
+On first run, if the identity store is empty, `CredentialManager` seeds one
+Global identity from the user's global git config (via the static
+`GitRepo::globalIdentity()`, which reads `user.name`/`user.email` without an
+open repo) so the Identity tab isn't empty.
 
 **Transfer progress.** Each network call carries a `ProgressCallback`
 (`std::function<bool(unsigned received, unsigned total)>`, core-owned, pure

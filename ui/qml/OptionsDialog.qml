@@ -2,135 +2,53 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// App-level settings: theme mode and pull default. Changes apply instantly (no
-// OK/Cancel). Receives appSettings from Main.qml — writes go to the shared
-// Settings instance so they auto-persist and trigger Main.qml bindings.
+// App settings, tabbed. Appearance/Git write to appSettings (instant, auto-persist);
+// Identity/Accounts manage credentials (added in Task 4). No OK/Cancel — Close only.
 AppDialog {
     id: dialog
     objectName: "optionsDialog"
     title: "Options"
-    width: 360
+    width: 560
     padding: 20
 
     required property var appSettings
 
-    // Raised when the user opens identity management (Main.qml opens the dialog).
-    signal identityRequested()
-
     contentItem: ColumnLayout {
-        spacing: 20
+        spacing: 16
 
-        // Theme section
-        ColumnLayout {
-            spacing: 8
-
-            Label {
-                text: "Theme"
-                color: theme.textMuted
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
-
-            ButtonGroup { id: themeGroup }
-
-            RowLayout {
-                spacing: 16
-
-                AppRadioButton {
-                    objectName: "themeSystemRadio"
-                    text: "System"
-                    ButtonGroup.group: themeGroup
-                    checked: dialog.appSettings.themeMode === 0
-                    onClicked: {
-                        dialog.appSettings.themeMode = 0
-                        theme.setMode(0)
-                    }
-                }
-                AppRadioButton {
-                    objectName: "themeDarkRadio"
-                    text: "Dark"
-                    ButtonGroup.group: themeGroup
-                    checked: dialog.appSettings.themeMode === 1
-                    onClicked: {
-                        dialog.appSettings.themeMode = 1
-                        theme.setMode(1)
-                    }
-                }
-                AppRadioButton {
-                    objectName: "themeLightRadio"
-                    text: "Light"
-                    ButtonGroup.group: themeGroup
-                    checked: dialog.appSettings.themeMode === 2
-                    onClicked: {
-                        dialog.appSettings.themeMode = 2
-                        theme.setMode(2)
-                    }
-                }
-            }
-        }
-
-        Rectangle {
+        TabBar {
+            id: tabBar
+            objectName: "optionsTabBar"
             Layout.fillWidth: true
-            height: 1
-            color: theme.border
+            background: null
+            spacing: 0
+            AppTabButton { text: "Appearance"; implicitWidth: 110 }
+            AppTabButton { text: "Git"; implicitWidth: 110 }
+            AppTabButton { text: "Identity"; implicitWidth: 110 }
+            AppTabButton { text: "Accounts"; implicitWidth: 110 }
         }
 
-        // Pull default section
-        ColumnLayout {
-            spacing: 8
-
-            Label {
-                text: "Pull default"
-                color: theme.textMuted
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
-
-            ButtonGroup { id: pullGroup }
-
-            RowLayout {
-                spacing: 16
-
-                AppRadioButton {
-                    objectName: "pullMergeRadio"
-                    text: "Merge"
-                    ButtonGroup.group: pullGroup
-                    checked: !dialog.appSettings.pullRebase
-                    onClicked: dialog.appSettings.pullRebase = false
-                }
-                AppRadioButton {
-                    objectName: "pullRebaseRadio"
-                    text: "Rebase"
-                    ButtonGroup.group: pullGroup
-                    checked: dialog.appSettings.pullRebase
-                    onClicked: dialog.appSettings.pullRebase = true
-                }
-            }
-        }
-
-        Rectangle {
+        StackLayout {
             Layout.fillWidth: true
-            height: 1
-            color: theme.border
-        }
+            currentIndex: tabBar.currentIndex
 
-        // Git identity section
-        ColumnLayout {
-            spacing: 8
-            Layout.fillWidth: true
-
-            Label {
-                text: "Git identity"
-                color: theme.textMuted
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
+            OptionsAppearanceTab { appSettings: dialog.appSettings }
+            OptionsGitTab { appSettings: dialog.appSettings }
+            Flickable {
+                implicitHeight: Math.min(identityTab.implicitHeight, 480)
+                contentHeight: identityTab.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                OptionsIdentityTab { id: identityTab; width: parent.width }
             }
-
-            AppButton {
-                objectName: "manageIdentitiesButton"
-                variant: "secondary"
-                text: "Manage identities…"
-                onClicked: dialog.identityRequested()
+            Flickable {
+                implicitHeight: Math.min(accountsTab.implicitHeight, 480)
+                contentHeight: accountsTab.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar {}
+                OptionsAccountsTab { id: accountsTab; width: parent.width }
             }
         }
     }

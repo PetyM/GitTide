@@ -2769,6 +2769,27 @@ Expected<ConfigIdentity> GitRepo::effectiveIdentity() const
     return id;
 }
 
+Expected<ConfigIdentity> GitRepo::globalIdentity()
+{
+    git_config* cfg = nullptr;
+    int         rc  = git_config_open_default(&cfg);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_config, decltype(&git_config_free)> guard(cfg, git_config_free);
+
+    ConfigIdentity id;
+    auto           readKey = [&](const char* key, std::string& out)
+    {
+        git_buf buf = GIT_BUF_INIT;
+        if (git_config_get_string_buf(&buf, cfg, key) == 0)
+            out.assign(buf.ptr, buf.size);
+        git_buf_dispose(&buf);
+    };
+    readKey("user.name", id.name);
+    readKey("user.email", id.email);
+    return id;
+}
+
 Expected<LocalIdentityInfo> GitRepo::localIdentity() const
 {
     git_config* cfg = nullptr;

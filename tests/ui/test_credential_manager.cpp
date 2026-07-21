@@ -1,6 +1,8 @@
 #include <QRandomGenerator>
 #include <QtTest/QtTest>
 #include <filesystem>
+#include <fstream>
+#include <git2.h>
 #include <qcorotask.h>
 #include <string>
 
@@ -148,6 +150,53 @@ private slots:
         auto c = QCoro::waitFor(cm.credentialsForRemote(QStringLiteral("https://gitlab.com/o/r.git")));
         QCOMPARE(QString::fromStdString(c.username), QStringLiteral("me"));
         QCOMPARE(QString::fromStdString(c.password), QStringLiteral("tok"));
+    }
+
+    void seeds_identity_from_global_config_when_store_empty()
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = fs::temp_directory_path()
+            / ("gittide_seed_" + std::to_string(::QRandomGenerator::global()->generate()));
+        fs::create_directories(dir);
+        { std::ofstream cfg(dir / ".gitconfig");
+          cfg << "[user]\n\tname = Seed Sam\n\temail = sam@seed.com\n"; }
+        git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL,
+                         dir.generic_string().c_str());
+
+        ProjectStore     projects;
+        CredentialsStore creds; // empty
+        CredentialManager cm(&creds, tempCredPath(), &projects);
+
+        QCOMPARE(int(creds.identities().size()), 1);
+        QCOMPARE(QString::fromStdString(creds.identities().front().name), QStringLiteral("Seed Sam"));
+        QCOMPARE(cm.globalIdentityId(),
+                 QString::fromStdString(creds.identities().front().id));
+
+        git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, "");
+        fs::remove_all(dir);
+    }
+
+    void does_not_seed_when_store_already_has_identity()
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = fs::temp_directory_path()
+            / ("gittide_noseed_" + std::to_string(::QRandomGenerator::global()->generate()));
+        fs::create_directories(dir);
+        { std::ofstream cfg(dir / ".gitconfig");
+          cfg << "[user]\n\tname = Seed Sam\n\temail = sam@seed.com\n"; }
+        git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL,
+                         dir.generic_string().c_str());
+
+        ProjectStore     projects;
+        CredentialsStore creds;
+        creds.addIdentity("Existing Ed", "ed@x.com"); // store not empty
+        CredentialManager cm(&creds, tempCredPath(), &projects);
+
+        QCOMPARE(int(creds.identities().size()), 1); // no extra seeded identity
+        QCOMPARE(QString::fromStdString(creds.identities().front().name), QStringLiteral("Existing Ed"));
+
+        git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, "");
+        fs::remove_all(dir);
     }
 };
 

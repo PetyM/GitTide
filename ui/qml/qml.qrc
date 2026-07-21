@@ -29,6 +29,7 @@
     <file>AppScrollBar.qml</file>
     <file>WheelScroller.qml</file>
     <file>AppRadioButton.qml</file>
+    <file>AppTabButton.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
     <file>AppMenuSeparator.qml</file>
@@ -47,7 +48,10 @@
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
     <file>OptionsDialog.qml</file>
-    <file>IdentityDialog.qml</file>
+    <file>OptionsAppearanceTab.qml</file>
+    <file>OptionsGitTab.qml</file>
+    <file>OptionsIdentityTab.qml</file>
+    <file>OptionsAccountsTab.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
     <file>BranchPickerDialog.qml</file>

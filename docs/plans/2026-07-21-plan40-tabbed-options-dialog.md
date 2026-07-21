@@ -6,7 +6,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-21 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-07-21-tabbed-options-dialog-design.md`](../spec/product/2026-07-21-tabbed-options-dialog-design.md) |
 | **Depends on** | Plan 36 (identity), Plan 38 (forge central UI) |
 
@@ -1035,7 +1035,46 @@ git commit -m "docs: close out Plan 40 (tabbed Options dialog + identity seed)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`. Shipped: <summary>. Spec updated:
-> <sections>. Code: `ui/qml/OptionsDialog.qml` + `OptionsAppearanceTab/GitTab/
-> IdentityTab/AccountsTab.qml`, `AppTabButton.qml`; `GitRepo::globalIdentity()`;
-> `CredentialManager` first-run seed. Deleted: `IdentityDialog.qml`, the View menu.
+Shipped 2026-07-21 on branch `plan40-tabbed-options` (commits `de10b3c..18e4ead`).
+
+- **Tabbed Options dialog.** `ui/qml/OptionsDialog.qml` is now a `TabBar`
+  (`optionsTabBar`, built from the new shared `ui/qml/AppTabButton.qml`) over a
+  `StackLayout` with four tab components: `OptionsAppearanceTab.qml` (theme),
+  `OptionsGitTab.qml` (pull default), `OptionsIdentityTab.qml` (git identities +
+  Global/Project/Repo assignment), `OptionsAccountsTab.qml` (host tokens + SSH
+  keys). `AppTabButton` was extracted from `WorkingPane.qml`'s former inline
+  `MainTab` and is reused there.
+- **Credentials dialog removed.** `ui/qml/IdentityDialog.qml` deleted; its content
+  lives in the Identity/Accounts tabs. `Main.qml` no longer instantiates it and
+  the "Manage identities…" button is gone.
+- **View menu removed on every platform.** `AppMenuBar.qml` (Windows/Linux) and
+  `NativeMenuBar.qml` (macOS) both dropped View ▸ Theme; theme is reached only via
+  Options → Appearance.
+- **First-run identity seed.** New static `GitRepo::globalIdentity()`
+  (`core`, `git_config_open_default`) reads the user's global `user.name`/`user.email`
+  with no open repo; `CredentialManager`'s constructor seeds one Global identity
+  from it when its store is empty, so the Identity tab isn't blank for
+  already-configured users.
+- **Spec updated:** `docs/spec/product/app-menu.md` (§4 tabbed dialog, §7/§8.2
+  menu bar → File · Edit · Repository, file tables), `docs/spec/engineering/engineering.md`
+  (D51 credential surface → Options Identity/Accounts tabs + the seed),
+  `docs/spec/product/product.md` (Options → Identity/Accounts flow). Design spec
+  `docs/spec/product/2026-07-21-tabbed-options-dialog-design.md` marked shipped.
+- **Tests:** core `globalIdentity` reader (2 cases), UI `options_dialog_has_tab_bar`,
+  `identity_moved_into_options_tabs`, menu bar three-buttons, and CredentialManager
+  seed/no-seed (2 cases). Full suite 203/203 green.
+- **Known minors (deferred, non-blocking — from the final whole-branch review):**
+  - `GitRepo::globalIdentity()` and `effectiveIdentity()` share a near-identical
+    `readKey` body — candidate for a shared `readIdentity(git_config*)` helper.
+  - Both `NativeMenuBar.qml` and `AppMenuBar.qml` still declare an unused
+    `appSettings` property (only the removed theme items read it). Removing it
+    means also dropping the injection at each bind site (Main.qml / TitleBar /
+    the menu-bar test's `setProperty` stub) — deferred to avoid unrelated churn.
+  - Assignment-badge refresh in the Identity tab now keys off
+    `credentialManager.changed()` / `repoVm.changed()` (plus one
+    `Component.onCompleted`) instead of the old on-open `refreshAssignments()`.
+    Covered for the realistic triggers; the residual gap is an *active-project*
+    change with no accompanying repo/credential change leaving `projectDefaultId`
+    stale — fix would be a `Connections` on the project controller's
+    active-project signal, or re-running `refreshAssignments()` on
+    `optionsDialog.opened`.
