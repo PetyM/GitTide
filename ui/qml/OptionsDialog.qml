@@ -3,7 +3,8 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // App settings, tabbed. Appearance/Git write to appSettings (instant, auto-persist);
-// Identity/Accounts manage credentials (added in Task 4). No OK/Cancel — Close only.
+// Identity/Accounts manage credentials. No OK/Cancel and no footer — settings apply
+// live; the header ✕ (AppDialog, closable) and Escape dismiss it.
 AppDialog {
     id: dialog
     objectName: "optionsDialog"
@@ -53,15 +54,7 @@ AppDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Layout.margins: 16
-        Item { Layout.fillWidth: true }
-        AppButton {
-            objectName: "optionsCloseButton"
-            variant: "secondary"
-            text: "Close"
-            onClicked: dialog.close()
-        }
-    }
+    // No footer button — the header ✕ (AppDialog, closable) and Escape close the
+    // dialog; a redundant Close button just added visual weight.
+    footer: null
 }
