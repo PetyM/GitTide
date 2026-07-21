@@ -58,6 +58,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 38 — Credentials Phase 3: forge validation + central UI](2026-07-06-plan38-forge-central-ui.md) | 2026-07-06 | done | product · engineering · ui |
 | [Plan 39 — Author avatars + local-only vs pushed commits](2026-07-20-plan39-avatars-and-local-remote.md) | 2026-07-20 | done | product · design · engineering · core · ui |
 | [Plan 40 — Tabbed Options dialog + git-config identity seed](2026-07-21-plan40-tabbed-options-dialog.md) | 2026-07-21 | done | product · engineering · core · ui |
+| [Plan 41 — Project Options dialog (per-project/per-repo identity)](2026-07-21-plan41-project-options.md) | 2026-07-21 | done | product · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

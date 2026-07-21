@@ -52,6 +52,7 @@
     <file>OptionsGitTab.qml</file>
     <file>OptionsIdentityTab.qml</file>
     <file>OptionsAccountsTab.qml</file>
+    <file>ProjectOptionsDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>
     <file>BranchPickerDialog.qml</file>

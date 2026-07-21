@@ -2,6 +2,7 @@
 
 #include <QPointer>
 #include <QTimer>
+#include <QVariantMap>
 #include <QtConcurrent>
 #include <algorithm>
 #include <core/qcorofuture.h>
@@ -12,6 +13,7 @@
 #include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/autherror.hpp"
 #include "gittide/ui/credentialmanager.hpp"
+#include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/projectlistmodel.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 
@@ -346,6 +348,22 @@ QString ProjectController::lastActiveRepo() const
         }
     }
     return {};
+}
+
+QVariantList ProjectController::activeProjectRepos() const
+{
+    QVariantList out;
+    for (const auto& r : activeRepos())
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("path"), QString::fromStdString(r.path));
+        QString name = QString::fromStdString(r.alias);
+        if (name.isEmpty())
+            name = pathToQString(std::filesystem::path(r.path).filename());
+        m.insert(QStringLiteral("name"), name);
+        out.append(m);
+    }
+    return out;
 }
 
 void ProjectController::removeProject()

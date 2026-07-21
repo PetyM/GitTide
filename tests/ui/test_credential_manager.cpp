@@ -152,6 +152,42 @@ private slots:
         QCOMPARE(QString::fromStdString(c.password), QStringLiteral("tok"));
     }
 
+    void identity_choices_lists_all_identities()
+    {
+        ProjectStore     projects;
+        CredentialsStore creds;
+        auto& a = creds.addIdentity("Alice", "alice@x.com");
+        auto& b = creds.addIdentity("Bob", "bob@x.com");
+
+        CredentialManager cm(&creds, tempCredPath(), &projects);
+        const QVariantList rows = cm.identityChoices();
+
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows.at(0).toMap().value("id").toString(), QString::fromStdString(a.id));
+        QCOMPARE(rows.at(0).toMap().value("name").toString(), QStringLiteral("Alice"));
+        QCOMPARE(rows.at(0).toMap().value("email").toString(), QStringLiteral("alice@x.com"));
+        QCOMPARE(rows.at(1).toMap().value("id").toString(), QString::fromStdString(b.id));
+    }
+
+    void inherited_identity_prefers_project_default_then_global()
+    {
+        ProjectStore     projects;
+        CredentialsStore creds;
+        auto& g = creds.addIdentity("Global Gwen", "gwen@x.com");
+        auto& p = creds.addIdentity("Project Pat", "pat@x.com");
+        creds.setGlobalIdentity(g.id);
+        creds.setProjectDefault("proj-1", p.id);
+
+        CredentialManager cm(&creds, tempCredPath(), &projects);
+
+        // Project with a default → its default id.
+        QCOMPARE(cm.inheritedIdentityId(QStringLiteral("proj-1")), QString::fromStdString(p.id));
+        // Project without a default → the global id.
+        QCOMPARE(cm.inheritedIdentityId(QStringLiteral("proj-none")), QString::fromStdString(g.id));
+        // Empty project id → the global id.
+        QCOMPARE(cm.inheritedIdentityId(QString()), QString::fromStdString(g.id));
+    }
+
     void seeds_identity_from_global_config_when_store_empty()
     {
         namespace fs = std::filesystem;

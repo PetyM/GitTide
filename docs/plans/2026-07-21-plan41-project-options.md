@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-21 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-07-21-project-options-design.md`](../spec/product/2026-07-21-project-options-design.md); [`spec/product/product.md` §Identity & credentials](../spec/product/product.md) |
 | **Depends on** | Plan 36 (identity), Plan 40 (tabbed Options) |
 
@@ -672,7 +672,7 @@ git commit -m "refactor(ui): Identity tab keeps global assignment only (project/
 - Modify: `docs/plans/index.md` (add the Plan 41 row)
 - Modify: `docs/spec/product/2026-07-21-project-options-design.md` (Status → shipped)
 
-- [ ] **Step 1: Update `product.md`**
+- [x] **Step 1: Update `product.md`**
 
 In the **Identity & credentials** section (around lines 165–200), reflect the
 new split: the Options → Identity tab manages identities + the **global**
@@ -682,11 +682,11 @@ Identity tab handles "global / per-project / per-repo" assignment with wording
 that points per-project/per-repo assignment to Project Options. Keep the
 resolution-order description (repo override → project default → global) intact.
 
-- [ ] **Step 2: Fill this plan's Outcome + flip Status**
+- [x] **Step 2: Fill this plan's Outcome + flip Status**
 
 Set **Status** to `done` and complete the Outcome section below.
 
-- [ ] **Step 3: Add the index row**
+- [x] **Step 3: Add the index row**
 
 In `docs/plans/index.md`, append after the Plan 40 row:
 
@@ -694,12 +694,12 @@ In `docs/plans/index.md`, append after the Plan 40 row:
 | [Plan 41 — Project Options dialog (per-project/per-repo identity)](2026-07-21-plan41-project-options.md) | 2026-07-21 | done | product · ui |
 ```
 
-- [ ] **Step 4: Flip the design spec Status**
+- [x] **Step 4: Flip the design spec Status**
 
 In `docs/spec/product/2026-07-21-project-options-design.md`, change
 `**Status:** planned` → `**Status:** shipped` and add a `**Shipped:**` line.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/
@@ -710,8 +710,24 @@ git commit -m "docs: close out Plan 41 (Project Options dialog)"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <sections>.
-> - Code: <files/types>.
+- Shipped: a **Project Options** dialog, reached from the Sidebar project
+  switcher, that owns per-project and per-repo git identity assignment for the
+  active project — picking a project-wide default and, per listed repo,
+  inheriting or overriding it. The global **Options → Identity** tab was
+  simplified to manage only the identity catalogue and the global default;
+  project/repo assignment moved out of it entirely. No change to the
+  underlying resolution order (repo override → project default → global) or
+  the git-config write path.
+- Spec updated: `spec/product/product.md` §Identity & credentials (Identity
+  tab scope narrowed to catalogue + global; Project Options dialog documented
+  as the project/repo assignment surface); design spec
+  `spec/product/2026-07-21-project-options-design.md` flipped to `shipped`.
+- Code: `ui/qml/ProjectOptionsDialog.qml` (new — project-default combo +
+  per-repo override list); `ui/qml/Sidebar.qml` (`projectOptionsRequested()`
+  signal + `projectOptionsItem` menu entry); `ui/qml/Main.qml` (dialog
+  instantiation + wiring); `CredentialManager::identityChoices()` /
+  `CredentialManager::inheritedIdentityId()` (new read helpers for the
+  dialog's combo models); `ProjectController::activeProjectRepos()` (new
+  helper listing the active project's repos as `{path, name}`);
+  `ui/qml/OptionsIdentityTab.qml` (simplified — dropped the per-identity
+  Project/Repo assignment buttons, kept catalogue + Global button).

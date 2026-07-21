@@ -6,6 +6,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 #include <qcorotask.h>
 
 #include "gittide/sync.hpp" // gittide::Credentials
@@ -67,6 +68,14 @@ public:
     // --- Display helpers for the settings UI ---
     Q_INVOKABLE QString repoOverrideId(const QString& repoPath) const;
     Q_INVOKABLE QString projectDefaultId(const QString& projectId) const;
+
+    /// The catalogue as a plain array for QML combo models: one
+    /// { id, name, email } map per identity, in store order.
+    Q_INVOKABLE QVariantList identityChoices() const;
+
+    /// The identity id a repo inherits with no override: the project's default
+    /// if set, else the global identity. Empty projectId ⇒ the global id.
+    Q_INVOKABLE QString inheritedIdentityId(const QString& projectId) const;
 
     // --- Host accounts (HTTPS/forge tokens). The token goes to the keychain. ---
     Q_INVOKABLE void addHost(const QString& host, const QString& kind, const QString& apiBase,

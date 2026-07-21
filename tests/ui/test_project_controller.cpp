@@ -121,6 +121,33 @@ private slots:
         QCOMPARE(spy.count(), 0);
     }
 
+    void active_project_repos_lists_path_and_name()
+    {
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id    = "id-a",
+                    .name  = "Work",
+                    .repos = {RepoRef{.path = "/home/u/api", .alias = "api"},
+                              RepoRef{.path = "/home/u/web-client", .alias = ""}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        const QVariantList rows = controller.activeProjectRepos();
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows.at(0).toMap().value("path").toString(), QStringLiteral("/home/u/api"));
+        QCOMPARE(rows.at(0).toMap().value("name").toString(), QStringLiteral("api"));       // alias
+        QCOMPARE(rows.at(1).toMap().value("path").toString(), QStringLiteral("/home/u/web-client"));
+        QCOMPARE(rows.at(1).toMap().value("name").toString(), QStringLiteral("web-client")); // basename
+    }
+
+    void active_project_repos_empty_without_active_project()
+    {
+        ProjectStore      store;
+        ProjectController controller(&store);
+        QCOMPARE(controller.activeProjectRepos().size(), 0);
+    }
+
     void activeProjectName_tracks_active_project()
     {
         ProjectStore store;

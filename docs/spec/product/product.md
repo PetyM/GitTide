@@ -177,9 +177,11 @@ line.
   and rebase (and the CLI) sees it. This is applied when an assignment changes and
   when a repo becomes active. A local identity **you** set by hand (via the CLI)
   is recognised as such and **never overwritten** — GitTide only touches identity
-  it owns (marked with a `gittide.identity` key). Managed from the **Options →
-  Identity** tab: add identities, pick the global one, and set the
-  open repo's override.
+  it owns (marked with a `gittide.identity` key). The **Options → Identity**
+  tab manages the identity catalogue and the **global** default; per-project
+  and per-repo assignment is set from the **Project Options** dialog, reached
+  from the sidebar's project switcher, which lists every repo in the active
+  project alongside a project-wide default.
 - **Secrets stay in the OS keychain.** HTTPS tokens and SSH-key passphrases live in
   the platform keychain (macOS Keychain / libsecret / Windows Credential Store) —
   **never** written to GitTide's own files. The non-secret metadata (identity
@@ -192,15 +194,18 @@ line.
   hold the login and a token used for HTTPS git auth; adding a token validates it
   against the host API to confirm it and pre-fill an identity.
 
-All of the above is reachable from the **Options** dialog's **Identity** and
-**Accounts** tabs: Identity manages identities and their global / per-project /
-per-repo assignment; Accounts adds forge host accounts (token validated + saved
-to the keychain) and registers SSH keys (passphrase to the keychain). On first
-run, if no identities exist yet, one Global identity is seeded from the user's
-existing global git config so the Identity tab isn't empty. Remaining out of
-scope: forge features beyond token validation (PRs/issues), and an SSH
-agent/keyfile picker inside the sync auth prompt. See
-[network-sync](network-sync.md) and Plans 36–38, 40.
+Most of the above is reachable from the **Options** dialog's **Identity** and
+**Accounts** tabs: Identity manages the identity catalogue and the global
+default; Accounts adds forge host accounts (token validated + saved to the
+keychain) and registers SSH keys (passphrase to the keychain). Per-project and
+per-repo identity assignment lives instead in the **Project Options** dialog
+(sidebar project switcher → *Project options…*), which shows the active
+project's repos and lets each inherit or override. On first run, if no
+identities exist yet, one Global identity is seeded from the user's existing
+global git config so the Identity tab isn't empty. Remaining out of scope:
+forge features beyond token validation (PRs/issues), and an SSH agent/keyfile
+picker inside the sync auth prompt. See [network-sync](network-sync.md) and
+Plans 36–38, 40–41.
 
 #### Fleet fetch
 

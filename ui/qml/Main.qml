@@ -135,6 +135,7 @@ ApplicationWindow {
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
                 onDeleteProjectRequested: deleteProjectDialog.open()
+                onProjectOptionsRequested: projectOptionsDialog.openDialog()
                 // Tab cycle: repo tree → working pane (forward) / its last element
                 // (reverse).
                 onTabNext: workingPane.takeFocus()
@@ -272,6 +273,9 @@ ApplicationWindow {
     OptionsDialog {
         id: optionsDialog
         appSettings: appSettings
+    }
+    ProjectOptionsDialog {
+        id: projectOptionsDialog
     }
     AboutDialog { id: aboutDialog }
     BranchPickerDialog {
