@@ -13,6 +13,7 @@
 #include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/autherror.hpp"
 #include "gittide/ui/credentialmanager.hpp"
+#include "gittide/ui/metatypes.hpp"
 #include "gittide/ui/projectlistmodel.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 
@@ -358,10 +359,7 @@ QVariantList ProjectController::activeProjectRepos() const
         m.insert(QStringLiteral("path"), QString::fromStdString(r.path));
         QString name = QString::fromStdString(r.alias);
         if (name.isEmpty())
-        {
-            const auto u8 = std::filesystem::path(r.path).filename().generic_u8string();
-            name = QString::fromStdString(std::string(u8.begin(), u8.end()));
-        }
+            name = pathToQString(std::filesystem::path(r.path).filename());
         m.insert(QStringLiteral("name"), name);
         out.append(m);
     }

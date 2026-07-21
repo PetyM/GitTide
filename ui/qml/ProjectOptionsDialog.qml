@@ -49,6 +49,11 @@ AppDialog {
         return 0
     }
 
+    // Deliberately a snapshot, not a live binding: choices/repos and the
+    // "(Inherit — X)" labels they feed are captured once on open and do not
+    // react to identity/store changes while the dialog is up. That's sound
+    // because this dialog is modal — nothing else can mutate identities or
+    // project repos concurrently — so don't "fix" this into reactive bindings.
     function refresh() {
         choices = ready ? credentialManager.identityChoices() : []
         repos = (typeof projectController !== "undefined" && projectController)
@@ -74,7 +79,10 @@ AppDialog {
             Layout.fillWidth: true
             textRole: "label"
             enabled: dialog.ready
-            property var rows: dialog.comboModel(dialog.ready ? credentialManager.inheritedIdentityId(dialog.pid) : "")
+            // Project-level "inherit" falls back to the GLOBAL identity (not the
+            // project default — that's what this combo itself sets). Pass "" so
+            // inheritedIdentityId resolves straight to the global id/name.
+            property var rows: dialog.comboModel(dialog.ready ? credentialManager.inheritedIdentityId("") : "")
             model: rows
             currentIndex: dialog.indexForId(rows, dialog.ready ? credentialManager.projectDefaultId(dialog.pid) : "")
             onActivated: (index) => {
