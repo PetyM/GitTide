@@ -29,6 +29,7 @@
     <file>AppScrollBar.qml</file>
     <file>WheelScroller.qml</file>
     <file>AppRadioButton.qml</file>
+    <file>AppTabButton.qml</file>
     <file>AppMenu.qml</file>
     <file>AppMenuItem.qml</file>
     <file>AppMenuSeparator.qml</file>
