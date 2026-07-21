@@ -38,8 +38,14 @@ ComboBox {
         height: 28
         highlighted: combo.highlightedIndex === index
         contentItem: Label {
-            text: combo.textRole.length ? (model[combo.textRole] ?? "")
-                                        : (modelData ?? "")
+            // Resolve the label. For a JS array-of-objects model the role lives on
+            // `modelData` (the element), not `model` — so prefer modelData when it's
+            // an object; fall back to `model[role]` for C++/ListModel role models.
+            text: combo.textRole.length
+                  ? ((modelData !== undefined && modelData !== null && typeof modelData === "object")
+                     ? (modelData[combo.textRole] ?? "")
+                     : (model[combo.textRole] ?? ""))
+                  : (modelData ?? "")
             color: theme.textPrimary
             font.pixelSize: 12
             verticalAlignment: Text.AlignVCenter
