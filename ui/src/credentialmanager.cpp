@@ -1,5 +1,7 @@
 #include <algorithm>
 
+#include <QVariantMap>
+
 #include <gittide/credentialsstore.hpp>
 #include <gittide/gitrepo.hpp>
 #include <gittide/log.hpp>
@@ -161,6 +163,31 @@ QString CredentialManager::repoOverrideId(const QString& repoPath) const
 QString CredentialManager::projectDefaultId(const QString& projectId) const
 {
     return QString::fromStdString(m_store->projectDefault(projectId.toStdString()));
+}
+
+QVariantList CredentialManager::identityChoices() const
+{
+    QVariantList out;
+    for (const auto& id : m_store->identities())
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("id"), QString::fromStdString(id.id));
+        m.insert(QStringLiteral("name"), QString::fromStdString(id.name));
+        m.insert(QStringLiteral("email"), QString::fromStdString(id.email));
+        out.append(m);
+    }
+    return out;
+}
+
+QString CredentialManager::inheritedIdentityId(const QString& projectId) const
+{
+    if (!projectId.isEmpty())
+    {
+        const std::string pd = m_store->projectDefault(projectId.toStdString());
+        if (!pd.empty())
+            return QString::fromStdString(pd);
+    }
+    return QString::fromStdString(m_store->globalIdentity());
 }
 
 std::vector<std::string> CredentialManager::candidateProjectIds(const std::string& repoPath) const
