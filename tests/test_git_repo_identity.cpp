@@ -2,6 +2,7 @@
 #include <git2.h>
 
 #include <filesystem>
+#include <fstream>
 #include <random>
 #include <string>
 
@@ -125,4 +126,38 @@ TEST_CASE("setGlobalIdentity writes the global config, creating it if absent", "
     // Restore isolation for subsequent tests.
     git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, "");
     fs::remove_all(gdir);
+}
+
+TEST_CASE("globalIdentity reads user.name/user.email from global config", "[identity]")
+{
+    namespace fs = std::filesystem;
+    const fs::path dir = fs::temp_directory_path()
+        / ("gittide_gid_" + std::to_string(std::random_device{}()));
+    fs::create_directories(dir);
+    {
+        std::ofstream cfg(dir / ".gitconfig");
+        cfg << "[user]\n\tname = Global Gwen\n\temail = gwen@global.com\n";
+    }
+
+    // Point libgit2's GLOBAL search path at our temp dir for this case only.
+    git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL,
+                     dir.generic_string().c_str());
+
+    auto id = GitRepo::globalIdentity();
+    REQUIRE(id.has_value());
+    REQUIRE(id->name == "Global Gwen");
+    REQUIRE(id->email == "gwen@global.com");
+
+    // Restore suite isolation so later cases don't see this config.
+    git_libgit2_opts(GIT_OPT_SET_SEARCH_PATH, GIT_CONFIG_LEVEL_GLOBAL, "");
+    fs::remove_all(dir);
+}
+
+TEST_CASE("globalIdentity returns empty (not error) when keys are unset", "[identity]")
+{
+    // Suite isolation already blanks the GLOBAL search path, so no keys exist.
+    auto id = GitRepo::globalIdentity();
+    REQUIRE(id.has_value());
+    REQUIRE(id->name.empty());
+    REQUIRE(id->email.empty());
 }

@@ -226,6 +226,11 @@ public:
     // for display. name/email may be empty if unset at every level.
     Expected<ConfigIdentity> effectiveIdentity() const;
 
+    // The identity from the merged DEFAULT config (global/system/xdg) with NO
+    // open repo — what a fresh checkout would inherit. Missing keys yield empty
+    // strings (not an error). Static counterpart to setGlobalIdentity().
+    static Expected<ConfigIdentity> globalIdentity();
+
     // The LOCAL-level identity plus whether GitTide's ownership marker is present,
     // so the UI can distinguish GitTide-managed from CLI-set local config.
     Expected<LocalIdentityInfo> localIdentity() const;
