@@ -1,6 +1,6 @@
 # History & Graph refinements + commit medallion — design
 
-**Status:** planned · **Date:** 2026-07-21
+**Status:** shipped · **Date:** 2026-07-21 · **Plan:** [Plan 43](../../plans/2026-07-21-plan43-history-graph-medallion.md)
 
 Three related UI refinements to the History tab, the Graph tab, and the
 commit-detail panel, plus the small backend needed to feed the new panel.

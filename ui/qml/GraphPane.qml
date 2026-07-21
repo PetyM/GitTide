@@ -85,7 +85,11 @@ RowLayout {
 
             delegate: Rectangle {
                 width: ListView.view.width
-                height: 48
+                readonly property int refCount:
+                    (typeof refLabels !== "undefined" && refLabels) ? refLabels.length : 0
+                readonly property int kRefColW: 120
+                readonly property int kRowH: 48
+                height: Math.max(kRowH, 8 + refCount * 18) // 8 = top+bottom pad, 18 = chip+gap
                 color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
 
                 // Accent left border on the selected row.
@@ -130,6 +134,7 @@ RowLayout {
 
                 RowLayout {
                     anchors.fill: parent
+                    anchors.topMargin: 0
                     anchors.leftMargin: 8
                     anchors.rightMargin: 12
                     spacing: 8
@@ -145,23 +150,36 @@ RowLayout {
                         localOnly: model.isLocalOnly // hollow dot for unpushed commits
                     }
 
-                    // Branch/tag chips for ref tips (RefLabelsRole).
-                    Repeater {
-                        model: (typeof refLabels !== "undefined" && refLabels) ? refLabels : []
-                        delegate: Rectangle {
-                            radius: 3
-                            color: theme.surfaceRaised
-                            border.width: 1
-                            border.color: theme.border
-                            implicitHeight: 16
-                            implicitWidth: chipLabel.implicitWidth + 10
-                            Layout.alignment: Qt.AlignVCenter
-                            Label {
-                                id: chipLabel
-                                anchors.centerIn: parent
-                                text: modelData
-                                color: theme.textSecondary
-                                font.pixelSize: 10
+                    // Branch/tag chips, stacked vertically in a fixed-width column
+                    // so the summary text starts at the same X on every row.
+                    ColumnLayout {
+                        Layout.preferredWidth: kRefColW
+                        Layout.minimumWidth: kRefColW
+                        Layout.maximumWidth: kRefColW
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: (kRowH - 16) / 2 // align first chip with the first line
+                        spacing: 2
+                        Repeater {
+                            model: (typeof refLabels !== "undefined" && refLabels) ? refLabels : []
+                            delegate: Rectangle {
+                                radius: 3
+                                color: theme.surfaceRaised
+                                border.width: 1
+                                border.color: theme.border
+                                implicitHeight: 16
+                                Layout.preferredWidth: Math.min(chipLabel.implicitWidth + 10, kRefColW)
+                                Layout.alignment: Qt.AlignLeft
+                                Label {
+                                    id: chipLabel
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 5
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 10
+                                    text: modelData
+                                    elide: Text.ElideRight
+                                    color: theme.textSecondary
+                                    font.pixelSize: 10
+                                }
                             }
                         }
                     }
@@ -169,11 +187,14 @@ RowLayout {
                     Avatar {
                         name: model.author
                         email: model.authorEmail
-                        Layout.alignment: Qt.AlignVCenter
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 12
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 6
                         spacing: 2
                         Label {
                             Layout.fillWidth: true

@@ -73,8 +73,8 @@ void GraphColumn::paint(QPainter* painter)
 
     const int top = 0;
     const int bot = static_cast<int>(height());
-    const int mid = bot / 2;
-    const int cx  = laneX(row.commit.lane);
+    const int dotY = kRowHeight / 2; // fixed: centre of the first line, not of the row
+    const int cx   = laneX(row.commit.lane);
 
     auto pen = [&](int lane)
     {
@@ -92,14 +92,14 @@ void GraphColumn::paint(QPainter* painter)
     if (row.lineFromAbove)
     {
         pen(row.commit.lane);
-        painter->drawLine(cx, top, cx, mid);
+        painter->drawLine(cx, top, cx, dotY);
     }
 
     // 3. Outgoing edges to parent lanes (bottom half), coloured by destination lane.
     for (const auto& e : row.outEdges)
     {
         pen(e.toLane);
-        painter->drawLine(laneX(e.fromLane), mid, laneX(e.toLane), bot);
+        painter->drawLine(laneX(e.fromLane), dotY, laneX(e.toLane), bot);
     }
 
     // 4. Commit dot — lane colour, or white for HEAD. A local-only (not-yet-pushed)
@@ -116,7 +116,7 @@ void GraphColumn::paint(QPainter* painter)
         painter->setPen(Qt::NoPen);
         painter->setBrush(dot);
     }
-    painter->drawEllipse(QPoint(cx, mid), kDotRadius, kDotRadius);
+    painter->drawEllipse(QPoint(cx, dotY), kDotRadius, kDotRadius);
 }
 
 } // namespace gittide::ui

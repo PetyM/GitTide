@@ -29,30 +29,96 @@ ColumnLayout {
         padding: 8
     }
 
-    // Header: selected commit short-oid (empty when nothing selected).
-    // Hidden when a range header or hint is active (range mode uses its own header).
-    RowLayout {
+    // Commit medallion: summary, body, author, stats, copyable hash.
+    // Shown only for a single-commit selection (range/stash keep their own header).
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.margins: 12
-        visible: repoVm && repoVm.historyDetailHeader.length === 0
+        spacing: 6
+        visible: repoVm && repoVm.selectedCommit.length > 0
+                 && repoVm.historyDetailHeader.length === 0
                  && repoVm.historyDetailHint.length === 0
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                text: repoVm ? repoVm.detailSummary : ""
+                color: theme.textPrimary
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+                wrapMode: Text.WordWrap
+            }
+            AppButton {
+                objectName: "checkoutCommitButton"
+                variant: "secondary"
+                text: "Checkout"
+                onClicked: if (repoVm) repoVm.checkoutCommit(repoVm.selectedCommit)
+            }
+        }
+
         Label {
             Layout.fillWidth: true
-            text: repoVm && repoVm.selectedCommit.length > 0
-                  ? ("Commit " + repoVm.selectedCommit.substring(0, 7))
-                  : "Select a commit"
+            visible: repoVm && repoVm.detailBody.length > 0
+            text: repoVm ? repoVm.detailBody : ""
             color: theme.textSecondary
-            font.family: "monospace"
             font.pixelSize: 12
+            wrapMode: Text.WordWrap
         }
-        AppButton {
-            objectName: "checkoutCommitButton"
-            variant: "secondary"
-            visible: repoVm && repoVm.selectedCommit.length > 0
-                     && repoVm.historyDetailHeader.length === 0
-                     && repoVm.historyDetailHint.length === 0
-            text: "Checkout"
-            onClicked: if (repoVm) repoVm.checkoutCommit(repoVm.selectedCommit)
+
+        Label {
+            Layout.fillWidth: true
+            text: repoVm ? (repoVm.detailAuthor
+                            + (repoVm.detailAuthorEmail.length > 0
+                               ? " <" + repoVm.detailAuthorEmail + ">" : "")
+                            + "  ·  " + repoVm.detailDate) : ""
+            color: theme.textMuted
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+
+        RowLayout {
+            spacing: 12
+            Label {
+                text: (repoVm ? repoVm.detailFilesChanged : 0)
+                      + (repoVm && repoVm.detailFilesChanged === 1 ? " file changed" : " files changed")
+                color: theme.textMuted
+                font.pixelSize: 11
+            }
+            Label {
+                text: "+" + (repoVm ? repoVm.detailAdditions : 0)
+                color: theme.stateAdded
+                font.family: "monospace"
+                font.pixelSize: 11
+            }
+            Label {
+                text: "−" + (repoVm ? repoVm.detailDeletions : 0)
+                color: theme.stateDeleted
+                font.family: "monospace"
+                font.pixelSize: 11
+            }
+            Item { Layout.fillWidth: true }
+        }
+
+        RowLayout {
+            spacing: 6
+            Label {
+                text: repoVm && repoVm.selectedCommit.length > 0
+                      ? repoVm.selectedCommit.substring(0, 10) : ""
+                color: theme.textMuted
+                font.family: "monospace"
+                font.pixelSize: 11
+            }
+            AppButton {
+                objectName: "copyHashButton"
+                variant: "secondary"
+                text: "Copy"
+                visible: repoVm && repoVm.selectedCommit.length > 0
+                onClicked: if (repoVm) repoVm.copyToClipboard(repoVm.selectedCommit)
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Copy full commit hash")
+            }
         }
     }
 

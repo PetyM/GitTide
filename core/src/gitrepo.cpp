@@ -2289,6 +2289,56 @@ Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
     return result;
 }
 
+Expected<CommitDetail> GitRepo::commitDetail(std::string oidHex) const
+{
+    git_oid oid;
+    int rc = git_oid_fromstr(&oid, oidHex.c_str());
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+
+    git_commit* commit = nullptr;
+    rc                 = git_commit_lookup(&commit, m_repo, &oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> commit_guard(commit, git_commit_free);
+
+    CommitDetail out;
+    if (const char* s = git_commit_summary(commit))
+        out.summary = s;
+    if (const char* b = git_commit_body(commit))
+        out.body = b;
+    if (const git_signature* a = git_commit_author(commit))
+    {
+        out.authorName  = a->name ? a->name : "";
+        out.authorEmail = a->email ? a->email : "";
+        out.authorTime  = a->when.time;
+    }
+
+    git_tree* tree       = nullptr;
+    git_tree* parentTree = nullptr;
+    if (auto r = commitTrees(oidHex, &tree, &parentTree); !r)
+        return std::unexpected(r.error());
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> tree_guard(tree, git_tree_free);
+    std::unique_ptr<git_tree, decltype(&git_tree_free)> parent_guard(parentTree, git_tree_free);
+
+    git_diff* raw = nullptr;
+    rc            = git_diff_tree_to_tree(&raw, m_repo, parentTree, tree, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    git_diff_stats* stats = nullptr;
+    rc                    = git_diff_get_stats(&stats, raw);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    out.filesChanged = static_cast<int>(git_diff_stats_files_changed(stats));
+    out.additions    = static_cast<int>(git_diff_stats_insertions(stats));
+    out.deletions    = static_cast<int>(git_diff_stats_deletions(stats));
+    git_diff_stats_free(stats);
+
+    return out;
+}
+
 Expected<DiffResult> GitRepo::commitDiff(std::string oid, const std::filesystem::path& file) const
 {
     git_tree* tree       = nullptr;

@@ -51,6 +51,7 @@ RepoController::RepoController(QObject* parent, int watchDebounceMs)
     connect(m_watcher, &RepoWatcher::gitDirChanged, this, [this]() { QCoro::connect(onWatchGitDir(), this, []() {}); });
 
     qRegisterMetaType<std::vector<gittide::FileStatus>>();
+    qRegisterMetaType<gittide::CommitDetail>();
     qRegisterMetaType<gittide::DiffResult>();
     qRegisterMetaType<gittide::StageSelection>();
     qRegisterMetaType<gittide::CommitRequest>();
@@ -693,6 +694,22 @@ QCoro::Task<void> RepoController::refreshCommitFiles(QString oid)
         co_return;
     }
     emit commitFilesReady(oid, *files);
+}
+
+QCoro::Task<void> RepoController::refreshCommitDetail(QString oid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto detail = co_await m_repo->commitDetail(oid);
+    if (!self)
+        co_return;
+    if (!detail)
+    {
+        emit operationFailed(QString::fromStdString(detail.error().message));
+        co_return;
+    }
+    emit commitDetailReady(oid, *detail);
 }
 
 QCoro::Task<void> RepoController::refreshCommitDiff(QString oid, QString path)

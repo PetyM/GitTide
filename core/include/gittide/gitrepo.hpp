@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <optional>
@@ -45,6 +46,20 @@ struct ConfigIdentity
 {
     std::string name;
     std::string email;
+};
+
+/// Summary/body split, author identity, and +/- line + files-changed stats for a
+/// single commit, as computed by GitRepo::commitDetail().
+struct CommitDetail
+{
+    std::string summary;        // first line of the message
+    std::string body;           // remaining message lines (may be empty)
+    std::string authorName;
+    std::string authorEmail;
+    int64_t     authorTime = 0; // author unix timestamp
+    int filesChanged = 0;
+    int additions    = 0;
+    int deletions    = 0;
 };
 
 /// The repo's LOCAL-level (`.git/config`) identity, plus whether GitTide wrote it.
@@ -149,6 +164,11 @@ public:
     // first parent (root commit: relative to an empty tree). Flags use Index* to mean
     // added / modified / deleted, matching the working-changes display model.
     Expected<std::vector<FileStatus>> commitFiles(std::string oid) const;
+
+    // Summary/body split, author identity, and +/- line + files-changed stats for
+    // the commit identified by the 40-char hex oid, computed against its first
+    // parent (root commit: against an empty tree). Mirrors commitFiles()'s diff base.
+    Expected<CommitDetail> commitDetail(std::string oid) const;
 
     // Diff one file inside the commit identified by the 40-char hex oid against its
     // first parent (root commit: against an empty tree). Mirrors diff()'s DiffResult.
