@@ -60,7 +60,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 40 — Tabbed Options dialog + git-config identity seed](2026-07-21-plan40-tabbed-options-dialog.md) | 2026-07-21 | done | product · engineering · core · ui |
 | [Plan 41 — Project Options dialog (per-project/per-repo identity)](2026-07-21-plan41-project-options.md) | 2026-07-21 | done | product · ui |
 | [Plan 42 — Window state restore + titlebar control glyphs](2026-07-21-plan42-window-state-and-controls.md) | 2026-07-21 | done | product · ui |
-| [Plan 43 — History/graph refinements + commit medallion](2026-07-21-plan43-history-graph-medallion.md) | 2026-07-21 | planned | product · engineering · core · ui |
+| [Plan 43 — History/graph refinements + commit medallion](2026-07-21-plan43-history-graph-medallion.md) | 2026-07-21 | done | product · engineering · core · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

@@ -8,7 +8,7 @@
 | | |
 |--|--|
 | **Date** | 2026-07-21 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`spec/product/2026-07-21-history-graph-commit-medallion-design.md`](../spec/product/2026-07-21-history-graph-commit-medallion-design.md) |
 | **Depends on** | Plan 9a/9b (commit selection + history diff), Plan 5b (history/graph view) |
 
@@ -757,13 +757,36 @@ git commit -m "feat(ui): fixed ref column with stacked chips aligns graph text"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: `spec/product/2026-07-21-history-graph-commit-medallion-design.md`
->   moved to reflect shipped behaviour; `spec/product/product.md` +
->   `spec/product/2026-06-26-history-graph-tab-design.md` note the fixed-column
->   graph and the medallion.
-> - Code: `GitRepo::commitDetail`, `RepoController::refreshCommitDetail`,
->   `RepoViewModel` detail props, `CommitDetail.qml` medallion, `GraphPane.qml`
->   columns, `GraphColumn` top-anchored dot.
+Shipped across 7 task commits (`e209019..dce7e71`) plus one final-review fix
+(`73bd0f6`), all TDD/test-first with per-task review and an opus whole-branch
+review.
+
+- **Shipped:**
+  - History list rows no longer show the short hash (author + date only);
+    the Graph tab keeps its hash.
+  - The Graph tab aligns into fixed columns: branch/tag chips sit in a
+    fixed-width (120px) column, stacked vertically, and the row grows in height
+    to fit multiple refs — so the summary text starts at the same X on every
+    row. The commit dot is anchored to the first line (fixed offset) so it stays
+    put as rows grow; lane connectors span the full row height.
+  - The commit-detail panel shows a medallion: summary, body (when present),
+    author + date, a stats row (`N files changed` · green `+adds` · red
+    `−dels`), and a short hash with a Copy button that copies the full 40-char
+    oid. It blanks synchronously on selection change (no stale-details window).
+- **Backend:** `GitRepo::commitDetail(oid)` computes summary/body/author +
+  files-changed/±line stats via `git_diff_get_stats` on the commit-vs-first-parent
+  diff (reusing `commitTrees()`); surfaced through `AsyncRepo::commitDetail`,
+  `RepoController::refreshCommitDetail`/`commitDetailReady`, and eight
+  `RepoViewModel` `detail*` Q_PROPERTYs fetched on `selectCommit`.
+- **Code:** `core/src/gitrepo.cpp` (`commitDetail`), `ui/src/asyncrepo.cpp`,
+  `ui/src/repocontroller.cpp`, `ui/src/repoviewmodel.cpp`, `ui/qml/CommitDetail.qml`,
+  `ui/qml/HistoryPane.qml`, `ui/qml/GraphPane.qml`, `ui/src/graphcolumn.cpp`.
+- **Tests:** `tests/core/test_commit_detail.cpp` (message split, author, ±stats,
+  root-commit-vs-empty-tree); `gittide_ui_tests` green throughout.
+- **Deferred Minors (non-blocking):** `kRowHeight=48` duplicated across
+  `GraphColumn` (C++) and `GraphPane.qml`; summary text vertical-centre vs dot
+  (cosmetic, wants a visual pass); redundant `git_commit_lookup` in
+  `commitDetail`.
+- **Spec:** design doc
+  `spec/product/2026-07-21-history-graph-commit-medallion-design.md` describes the
+  shipped behaviour and remains the reference for this change.
