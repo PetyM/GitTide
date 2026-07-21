@@ -1,7 +1,8 @@
 # Design — Tabbed Options dialog + folded-in Git identity
 
-**Status:** planned
+**Status:** shipped
 **Date:** 2026-07-21
+**Shipped:** 2026-07-21 (Plan 40)
 **Realises:** an in-session wish to make the Options dialog a proper multi-tab
 settings surface, fold Git identity/credentials into it as its own tab (no more
 secondary dialog), drop the now-redundant **View** app menu, and seed the

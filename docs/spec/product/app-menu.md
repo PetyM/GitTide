@@ -20,8 +20,9 @@ place ([§4](#4-optionsdialogqml)). App settings persist via `QSettings`
 A classic horizontal **text menu bar** (File · Edit · Repository) sits to
 the right of the app icon and hosts the per-repo actions — open folder, undo,
 discard all, merge, rebase, stash/pop. See [§7](#7-menu-bar-file--edit--repository).
-Theme lives only in Options → Appearance ([§4](#4-optionsdialogqml)); on macOS the
-native system menu bar additionally keeps its own View ▸ Theme submenu ([§8.2](#82-native-system-menu-bar--nativemenubarqml)).
+Theme lives only in Options → Appearance ([§4](#4-optionsdialogqml)) on every
+platform — neither the in-window bar nor the macOS native system menu bar
+([§8.2](#82-native-system-menu-bar--nativemenubarqml)) carries a View menu.
 
 ---
 
@@ -331,9 +332,9 @@ The title bar gains a classic horizontal **text menu bar** to the right of the a
 icon. The app-icon popup (§3) keeps only app-level items (Options / About / Quit);
 every repository operation lives under one of three text menus. This replaces
 cramming repo actions under the icon and gives the actions room to grow. There is
-no View menu here — theme lives only in Options → Appearance (§4); the macOS
-native system menu bar is a separate component and keeps its own View ▸ Theme
-submenu (§8.2).
+no View menu here — theme lives only in Options → Appearance (§4). The macOS
+native system menu bar (§8.2) dropped its View ▸ Theme submenu for the same
+reason, so no platform exposes a View menu.
 
 ### 7.1 Layout in the title bar
 
@@ -501,25 +502,22 @@ the in-window `AppMenuBar` (§7).
 It mirrors the §7 action set and the §3 app-icon popup, and **emits the same
 signals** `TitleBar` does, so `Main.qml` binds them (via a `Connections` on the
 loader item) to the *identical* handlers as the custom bar — one source of
-behaviour, two front-ends. Unlike §7's in-window bar (which dropped its View
-menu — theme now lives only in Options → Appearance, §4), this native bar keeps
-its own View ▸ Theme submenu, matching platform convention for the system menu
-bar. Menu layout:
+behaviour, two front-ends. Like §7's in-window bar, this native bar has **no
+View menu** — theme lives only in Options → Appearance (§4). Menu layout:
 
 ```
-GitTide (app menu)     File            Edit                 View          Repository
-  About GitTide          Open repo       Undo last commit     Theme ▸        Merge into current branch…
-  Preferences… (⌘,)      folder          Discard all changes    System       Rebase current branch…
-  Quit (⌘Q)                                                     Dark         ─────────────
-                                                                Light        Stash all changes
-                                                                             Pop latest stash
+GitTide (app menu)     File            Edit                 Repository
+  About GitTide          Open repo       Undo last commit     Merge into current branch…
+  Preferences… (⌘,)      folder          Discard all changes  Rebase current branch…
+  Quit (⌘Q)                                                   ─────────────
+                                                              Stash all changes
+                                                              Pop latest stash
 ```
 
 The application-menu items use `Qt.labs.platform` **roles** (`AboutRole`,
 `PreferencesRole`, `QuitRole`) so macOS relocates them into the bold app menu
-with their conventional shortcuts. Enable/disable rules and theme wiring are
-identical to §7.3–§7.4 (bound to the same `repoVm` properties; theme items call
-`theme.setMode` + `appSettings.themeMode`).
+with their conventional shortcuts. Enable/disable rules are identical to
+§7.3–§7.4 (bound to the same `repoVm` properties).
 
 ### 8.3 Files created / modified (this change)
 
