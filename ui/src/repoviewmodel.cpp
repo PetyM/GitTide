@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <QClipboard>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -43,6 +44,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::refTipsReady, this, &RepoViewModel::onRefTips);
     connect(m_controller, &RepoController::localOnlyOidsReady, this, &RepoViewModel::onLocalOnly);
     connect(m_controller, &RepoController::commitFilesReady, this, &RepoViewModel::onCommitFiles);
+    connect(m_controller, &RepoController::commitDetailReady, this, &RepoViewModel::onCommitDetail);
     connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::rangeFilesReady, this, &RepoViewModel::onRangeFiles);
     connect(m_controller, &RepoController::rangeDiffReady, this, &RepoViewModel::onRangeDiff);
@@ -172,6 +174,7 @@ void RepoViewModel::open(const QString& path)
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
     m_selectedCommit.clear();
+    clearCommitDetail();
     m_activeCommitFile.clear();
     emit stashCountChanged();
     emit stashPreviewChanged();
@@ -197,6 +200,7 @@ void RepoViewModel::close()
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
     m_selectedCommit.clear();
+    clearCommitDetail();
     m_activeCommitFile.clear();
     m_branches->setBranches({});
     m_history->setLayout({}, {});
@@ -778,6 +782,7 @@ void RepoViewModel::selectCommit(const QString& oid)
     emit selectedCommitChanged();
     emit activeCommitFileChanged();
     QCoro::connect(m_controller->refreshCommitFiles(oid), this, [] {});
+    QCoro::connect(m_controller->refreshCommitDetail(oid), this, [] {});
 }
 
 void RepoViewModel::selectCommitFile(const QString& path)
@@ -820,6 +825,30 @@ void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide:
     // Auto-select the first file so its diff loads without an extra click.
     if (!files.empty())
         selectCommitFile(m_commitFiles->pathAt(0));
+}
+
+void RepoViewModel::onCommitDetail(const QString& oid, const gittide::CommitDetail& detail)
+{
+    if (oid != m_selectedCommit)
+        return; // a newer selection superseded this fetch
+    m_detailSummary      = QString::fromStdString(detail.summary);
+    m_detailBody         = QString::fromStdString(detail.body);
+    m_detailAuthor       = QString::fromStdString(detail.authorName);
+    m_detailAuthorEmail  = QString::fromStdString(detail.authorEmail);
+    m_detailDate         = QDateTime::fromSecsSinceEpoch(detail.authorTime)
+                               .toString(QStringLiteral("yyyy-MM-dd hh:mm"));
+    m_detailFilesChanged = detail.filesChanged;
+    m_detailAdditions    = detail.additions;
+    m_detailDeletions    = detail.deletions;
+    emit commitDetailChanged();
+}
+
+void RepoViewModel::clearCommitDetail()
+{
+    m_detailSummary.clear(); m_detailBody.clear();
+    m_detailAuthor.clear();  m_detailAuthorEmail.clear(); m_detailDate.clear();
+    m_detailFilesChanged = m_detailAdditions = m_detailDeletions = 0;
+    emit commitDetailChanged();
 }
 
 void RepoViewModel::onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result)
@@ -896,6 +925,7 @@ void RepoViewModel::applyRangeHint()
     m_rangeOld.clear();
     m_rangeNew.clear();
     m_selectedCommit.clear();
+    clearCommitDetail();
     m_activeCommitFile.clear();
     m_commitFiles->setFiles({});
     m_commitDiff->clear();
@@ -1184,6 +1214,7 @@ void RepoViewModel::exitStashPreview()
     m_stashPreviewIndex  = -1;
     m_stashPreviewLabel.clear();
     m_selectedCommit.clear();
+    clearCommitDetail();
     m_activeCommitFile.clear();
     m_commitFiles->setFiles({});
     m_commitDiff->clear();

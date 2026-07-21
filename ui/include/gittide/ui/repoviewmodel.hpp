@@ -67,6 +67,14 @@ class RepoViewModel : public QObject
     /// second click (the primary "get out of preview" affordance).
     Q_PROPERTY(int stashPreviewIndex READ stashPreviewIndex NOTIFY stashPreviewChanged)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
+    Q_PROPERTY(QString detailSummary READ detailSummary NOTIFY commitDetailChanged)
+    Q_PROPERTY(QString detailBody READ detailBody NOTIFY commitDetailChanged)
+    Q_PROPERTY(QString detailAuthor READ detailAuthor NOTIFY commitDetailChanged)
+    Q_PROPERTY(QString detailAuthorEmail READ detailAuthorEmail NOTIFY commitDetailChanged)
+    Q_PROPERTY(QString detailDate READ detailDate NOTIFY commitDetailChanged)
+    Q_PROPERTY(int detailFilesChanged READ detailFilesChanged NOTIFY commitDetailChanged)
+    Q_PROPERTY(int detailAdditions READ detailAdditions NOTIFY commitDetailChanged)
+    Q_PROPERTY(int detailDeletions READ detailDeletions NOTIFY commitDetailChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
     Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
     Q_PROPERTY(QString historyDetailHint READ historyDetailHint NOTIFY historyDetailChanged)
@@ -138,6 +146,14 @@ public:
     QString stashPreviewLabel() const { return m_stashPreviewLabel; }
     int stashPreviewIndex() const { return m_stashPreviewIndex; }
     QString selectedCommit() const;
+    QString detailSummary() const { return m_detailSummary; }
+    QString detailBody() const { return m_detailBody; }
+    QString detailAuthor() const { return m_detailAuthor; }
+    QString detailAuthorEmail() const { return m_detailAuthorEmail; }
+    QString detailDate() const { return m_detailDate; }
+    int detailFilesChanged() const { return m_detailFilesChanged; }
+    int detailAdditions() const { return m_detailAdditions; }
+    int detailDeletions() const { return m_detailDeletions; }
     QString activeCommitFile() const;
     QString historyDetailHeader() const { return m_detailHeader; }
     QString historyDetailHint() const { return m_detailHint; }
@@ -308,6 +324,7 @@ signals:
     void operationFailed(const QString& message);
     void branchDeleteUnmerged(const QString& name);
     void selectedCommitChanged();
+    void commitDetailChanged();
     void activeCommitFileChanged();
     void historyDetailChanged();
     void reorderableRunChanged();
@@ -367,6 +384,8 @@ private:
     void onLineToggled(int hunkIndex, int lineIndex, bool checked);
     void recomputeActiveFileState();
     void onCommitFiles(const QString& oid, const std::vector<gittide::FileStatus>& files);
+    void onCommitDetail(const QString& oid, const gittide::CommitDetail& detail);
+    void clearCommitDetail();
     void onCommitDiff(const QString& oid, const QString& path, const gittide::DiffResult& result);
     // Range-mode routing helpers (called by selectCommitRows):
     void applyRange(const QString& oldOid, const QString& newOid, int count);
@@ -409,6 +428,8 @@ private:
     QString                    m_remoteUrl;             // cached for auth-dialog persistence
     enum class PendingOp { None, Fetch, Pull, Push, Publish } m_pendingOp = PendingOp::None;
     QString                    m_selectedCommit;
+    QString                    m_detailSummary, m_detailBody, m_detailAuthor, m_detailAuthorEmail, m_detailDate;
+    int                        m_detailFilesChanged = 0, m_detailAdditions = 0, m_detailDeletions = 0;
     QString                    m_activeCommitFile;
     QString                    m_rangeOld;     ///< non-empty only in range mode
     QString                    m_rangeNew;
