@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// Horizontal text menu bar for the title bar (spec §7). Hosts File / Edit / View
-// / Repository. Each button opens its AppMenu. Per-repo items are enabled only
+// Horizontal text menu bar for the title bar (spec §7). Hosts File / Edit /
+// Repository. Each button opens its AppMenu. Per-repo items are enabled only
 // when a repo is open; destructive items use AppMenuItem.destructive.
 RowLayout {
     id: bar
@@ -57,32 +57,6 @@ RowLayout {
                 destructive: true
                 enabled: bar.repoReady && !!bar.repo && bar.repo.dirty
                 onTriggered: bar.discardAllRequested()
-            }
-        }
-    }
-
-    MenuBarButton {
-        objectName: "menuBtnView"
-        label: "View"
-        menu: AppMenu {
-            objectName: "menuView"
-            Menu {
-                title: "Theme"
-                AppMenuItem {
-                    objectName: "themeSystemItem"
-                    text: "System"
-                    onTriggered: { theme.setMode(0); if (bar.appSettings) bar.appSettings.themeMode = 0 }
-                }
-                AppMenuItem {
-                    objectName: "themeDarkItem"
-                    text: "Dark"
-                    onTriggered: { theme.setMode(1); if (bar.appSettings) bar.appSettings.themeMode = 1 }
-                }
-                AppMenuItem {
-                    objectName: "themeLightItem"
-                    text: "Light"
-                    onTriggered: { theme.setMode(2); if (bar.appSettings) bar.appSettings.themeMode = 2 }
-                }
             }
         }
     }

@@ -2,11 +2,11 @@
 // (Plan 29, Task 7). The bar is not yet mounted into TitleBar (Task 8), so this
 // test instantiates AppMenuBar.qml DIRECTLY via QQmlComponent — loaded by its QRC
 // URL so same-dir App* types (AppMenu/AppMenuItem) resolve — with a theme context
-// property and a stub repo/appSettings. It asserts the four menu-bar buttons exist
+// property and a stub repo/appSettings. It asserts the three menu-bar buttons exist
 // and each owns its AppMenu.
 //
 // What is tested:
-//   AppMenuBar instantiates and exposes File/Edit/View/Repository MenuBarButtons,
+//   AppMenuBar instantiates and exposes File/Edit/Repository MenuBarButtons,
 //   each with a non-null `menu`.
 
 #include <QtTest>
@@ -167,7 +167,7 @@ class TestQmlMenuBar : public QObject
 
 private slots:
 
-    void app_menu_bar_exposes_four_buttons_each_with_a_menu()
+    void app_menu_bar_exposes_three_buttons_each_with_a_menu()
     {
         ThemeManager mgr;
         mgr.setMode(ThemeManager::Mode::Dark);
@@ -188,7 +188,6 @@ private slots:
 
         for (const QString& name : {QStringLiteral("menuBtnFile"),
                                     QStringLiteral("menuBtnEdit"),
-                                    QStringLiteral("menuBtnView"),
                                     QStringLiteral("menuBtnRepository")})
         {
             QObject* btn = bar->findChild<QObject*>(name);
@@ -196,6 +195,7 @@ private slots:
             QObject* menu = btn->property("menu").value<QObject*>();
             QVERIFY2(menu != nullptr, qPrintable(name + " has no menu"));
         }
+        QVERIFY(bar->findChild<QObject*>(QStringLiteral("menuBtnView")) == nullptr);
     }
 
     // -----------------------------------------------------------------
