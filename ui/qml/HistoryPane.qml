@@ -262,12 +262,6 @@ RowLayout {
                                 font.pixelSize: 11
                             }
                             Label {
-                                text: model.shortOid
-                                color: theme.textMuted
-                                font.family: "monospace"
-                                font.pixelSize: 11
-                            }
-                            Label {
                                 Layout.fillWidth: true
                                 horizontalAlignment: Text.AlignRight
                                 text: model.date
