@@ -103,6 +103,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             appSettings: appSettings
             onOptionsRequested: optionsDialog.open()
+            onProjectOptionsRequested: projectOptionsDialog.openDialog()
             onAboutRequested: aboutDialog.open()
             onRebaseRequested: rebaseTargetDialog.open()
             onUndoLastCommitRequested: if (repoVm) repoVm.undoLastCommit()
@@ -135,7 +136,6 @@ ApplicationWindow {
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
                 onDeleteProjectRequested: deleteProjectDialog.open()
-                onProjectOptionsRequested: projectOptionsDialog.openDialog()
                 // Tab cycle: repo tree → working pane (forward) / its last element
                 // (reverse).
                 onTabNext: workingPane.takeFocus()
@@ -259,6 +259,7 @@ ApplicationWindow {
         target: nativeMenuLoader.item
         ignoreUnknownSignals: true
         function onOptionsRequested() { optionsDialog.open() }
+        function onProjectOptionsRequested() { projectOptionsDialog.openDialog() }
         function onAboutRequested() { aboutDialog.open() }
         function onOpenRepoFolderRequested() { if (repoVm) repoVm.openRepoFolder() }
         function onUndoLastCommitRequested() { if (repoVm) repoVm.undoLastCommit() }

@@ -21,6 +21,7 @@ Native.MenuBar {
 
     // App-level requests (mirror the TitleBar app-icon popup).
     signal optionsRequested()
+    signal projectOptionsRequested()
     signal aboutRequested()
     // Per-repo requests (mirror AppMenuBar).
     signal openRepoFolderRequested()
@@ -49,6 +50,11 @@ Native.MenuBar {
             role: Native.MenuItem.PreferencesRole
             shortcut: "Ctrl+,"   // Qt maps Ctrl → ⌘ on macOS
             onTriggered: bar.optionsRequested()
+        }
+        Native.MenuItem {
+            text: "Project options…"
+            enabled: projectController && projectController.activeProjectId.length > 0
+            onTriggered: bar.projectOptionsRequested()
         }
         Native.MenuItem {
             role: Native.MenuItem.QuitRole   // macOS supplies text + ⌘Q

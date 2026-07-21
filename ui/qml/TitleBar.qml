@@ -12,6 +12,7 @@ Rectangle {
     color: theme.surfaceRaised
 
     signal optionsRequested()
+    signal projectOptionsRequested()
     signal aboutRequested()
     signal rebaseRequested()
     signal undoLastCommitRequested()
@@ -113,6 +114,12 @@ Rectangle {
                     objectName: "optionsMenuItem"
                     text: "Options…"
                     onTriggered: titleBar.optionsRequested()
+                }
+                AppMenuItem {
+                    objectName: "projectOptionsItem"
+                    text: "Project options…"
+                    enabled: projectController && projectController.activeProjectId.length > 0
+                    onTriggered: titleBar.projectOptionsRequested()
                 }
                 AppMenuItem {
                     objectName: "aboutMenuItem"
