@@ -668,6 +668,11 @@ private slots:
         QVERIFY(opts->findChild<QObject*>(QStringLiteral("hostList")) != nullptr);
         QVERIFY(opts->findChild<QObject*>(QStringLiteral("sshKeyList")) != nullptr);
 
+        // Project/Repo assignment moved to Project Options — the Identity tab no
+        // longer carries those per-row buttons.
+        QVERIFY(opts->findChild<QObject*>(QStringLiteral("identityAssignProject")) == nullptr);
+        QVERIFY(opts->findChild<QObject*>(QStringLiteral("identityAssignRepo")) == nullptr);
+
         // The old secondary dialog and its launch button are gone.
         QVERIFY(root->findChild<QObject*>(QStringLiteral("identityDialog")) == nullptr);
         QVERIFY(root->findChild<QObject*>(QStringLiteral("manageIdentitiesButton")) == nullptr);
