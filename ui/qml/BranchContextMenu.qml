@@ -20,6 +20,7 @@ AppMenu {
     signal newBranchFromHere()
     signal rename()
     signal deleteBranch()
+    signal copyName()
     signal merge()
     signal rebase()
 
@@ -47,6 +48,13 @@ AppMenu {
         enabled: !menu.isHead
         destructive: true
         onTriggered: menu.deleteBranch()
+    }
+
+    AppMenuSeparator {}
+    AppMenuItem {
+        objectName: "copyNameItem"
+        text: "Copy name"
+        onTriggered: menu.copyName()
     }
 
     AppMenuSeparator {

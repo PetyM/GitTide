@@ -133,7 +133,7 @@ The menu stores `rowIndex` so `setFileChecked` can address the model row.
 **Properties:** `branchName: string`, `isHead: bool`, `isRemote: bool`
 
 **Signals:** `switchBranch()`, `newBranchFromHere()`, `rename()`, `deleteBranch()`,
-`merge()`
+`copyName()`, `merge()`, `rebase()`
 
 | Item | Rule |
 |------|------|
@@ -143,6 +143,8 @@ The menu stores `rowIndex` so `setFileChecked` can address the model row.
 | **Rename** | **Hidden** when `isRemote` |
 | **Delete** *(destructive)* | **Hidden** when `isRemote`; disabled when `isHead` |
 | — separator — | |
+| **Copy name** | Always enabled (incl. remotes) |
+| — separator — | |
 | **Merge into current** | **Hidden** when `isHead` |
 | **Rebase `<current>` onto `<name>`** | **Hidden** when `isHead` |
 
@@ -151,8 +153,15 @@ Wiring in `BranchDropdown.qml`: `onSwitchBranch → repoVm.switchBranch(name)`,
 (`NewBranchDialog` already supports a `sourceBranch` string that maps to `createBranch(name, from, checkout)`
 via the ViewModel — if it currently only accepts an OID, extend it to also accept a branch name),
 `onRename → renameBranchDialog.open()`,
-`onDeleteBranch → deleteBranchDialog.open()`, `onMerge → repoVm.startMerge(name)`,
-`onRebase → repoVm.startRebase(name)`.
+`onDeleteBranch → deleteBranchDialog.open()`, `onCopyName → repoVm.copyToClipboard(name)`,
+`onMerge → repoVm.startMerge(name)`, `onRebase → repoVm.startRebase(name)`.
+
+The branch row's right-click is handled by the same `MouseArea` as its left-click
+(`acceptedButtons: LeftButton | RightButton`), not a separate `TapHandler`. A
+`MouseArea` takes an exclusive grab on press and consumes the event, so a
+right-click cannot leak through the non-modal `BranchDropdown` popup to a
+right-click handler in the view behind it (notably `HistoryPane`'s commit context
+menu). A passive `TapHandler` does **not** consume, and previously fired both menus.
 
 The existing inline "Merge into current" button on branch rows is removed in favour
 of this menu item to avoid duplication.

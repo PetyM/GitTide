@@ -39,6 +39,7 @@ Popup {
         onNewBranchFromHere: { dropdown.newRequested(); dropdown.close() }
         onRename:            { dropdown.renameRequested(branchMenu.branchName); dropdown.close() }
         onDeleteBranch:      { dropdown.deleteRequested(branchMenu.branchName); dropdown.close() }
+        onCopyName:          { if (repoVm) repoVm.copyToClipboard(branchMenu.branchName); dropdown.close() }
         onMerge:             { if (repoVm) repoVm.startMerge(branchMenu.branchName); dropdown.close() }
         onRebase:            { if (repoVm) repoVm.startRebase(branchMenu.branchName); dropdown.close() }
     }
@@ -100,18 +101,21 @@ Popup {
                 opacity: model.remote ? 0.8 : 1.0
 
                 HoverHandler { id: hover }
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: {
-                        branchMenu.branchName = model.branchName
-                        branchMenu.isHead     = model.isHead
-                        branchMenu.isRemote   = model.remote
-                        branchMenu.popup()
-                    }
-                }
+                // Both buttons handled by one MouseArea. A MouseArea takes an
+                // exclusive grab on press and consumes the event, so a right-click
+                // never leaks through this non-modal popup to a right-click handler
+                // in the view behind (e.g. HistoryPane's commit context menu).
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: {
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.RightButton) {
+                            branchMenu.branchName = model.branchName
+                            branchMenu.isHead     = model.isHead
+                            branchMenu.isRemote   = model.remote
+                            branchMenu.popup()
+                            return
+                        }
                         if (repoVm) {
                             if (model.remote)
                                 repoVm.checkoutRemoteBranch(model.branchName)

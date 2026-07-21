@@ -162,7 +162,7 @@ public:
     Q_INVOKABLE void checkoutRemoteBranch(const QString&) {}
     Q_INVOKABLE void selectCommit(const QString&) {}
     Q_INVOKABLE void checkoutCommit(const QString&) {}
-    Q_INVOKABLE void copyToClipboard(const QString&) {}
+    Q_INVOKABLE void copyToClipboard(const QString& text) { emit copyToClipboardCalled(text); }
     Q_INVOKABLE void createBranch(const QString&, const QString&, bool) {}
     Q_INVOKABLE void continueRebase() {}
     Q_INVOKABLE void skipRebase() {}
@@ -240,6 +240,7 @@ signals:
     void changed();
     void committedOk();
     void startRebaseCalled(QString ref);
+    void copyToClipboardCalled(QString text);
 
 private:
     QString              m_currentBranch{ QStringLiteral("main") };
@@ -345,6 +346,43 @@ private slots:
 
         // Must NOT be visible when isHead=true.
         QCOMPARE(rebaseItem->property("visible").toBool(), false);
+    }
+
+    // -----------------------------------------------------------------
+    // BranchContextMenu: "Copy name" copies the branch name to the
+    // clipboard via repoVm.copyToClipboard(branchName).
+    // -----------------------------------------------------------------
+    void branch_context_menu_copy_name_item_triggers()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RebaseEntryStub stub;
+        stub.setCurrentBranch(QStringLiteral("main"));
+
+        QQmlApplicationEngine engine;
+        QObject* root = loadMain(engine, theme, repoModel, stub);
+        QVERIFY(root != nullptr);
+
+        QObject* contextMenu = root->findChild<QObject*>(QStringLiteral("branchContextMenu"));
+        QVERIFY2(contextMenu != nullptr, "branchContextMenu not found");
+
+        QVERIFY(contextMenu->setProperty("branchName", QStringLiteral("feature")));
+        QTest::qWait(50);
+
+        QObject* copyItem = contextMenu->findChild<QObject*>(QStringLiteral("copyNameItem"));
+        QVERIFY2(copyItem != nullptr, "copyNameItem not found inside branchContextMenu");
+
+        // Trigger it and assert the full chain fires:
+        //   onTriggered → menu.copyName() → BranchDropdown.onCopyName → repoVm.copyToClipboard(branchName)
+        QSignalSpy spy(&stub, &RebaseEntryStub::copyToClipboardCalled);
+        QVERIFY2(QMetaObject::invokeMethod(copyItem, "triggered"),
+                 "Could not invoke triggered on copyNameItem");
+
+        QTest::qWait(50);
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("feature"));
     }
 
     // -----------------------------------------------------------------
