@@ -2,6 +2,7 @@
 
 #include <QPointer>
 #include <QTimer>
+#include <QVariantMap>
 #include <QtConcurrent>
 #include <algorithm>
 #include <core/qcorofuture.h>
@@ -346,6 +347,25 @@ QString ProjectController::lastActiveRepo() const
         }
     }
     return {};
+}
+
+QVariantList ProjectController::activeProjectRepos() const
+{
+    QVariantList out;
+    for (const auto& r : activeRepos())
+    {
+        QVariantMap m;
+        m.insert(QStringLiteral("path"), QString::fromStdString(r.path));
+        QString name = QString::fromStdString(r.alias);
+        if (name.isEmpty())
+        {
+            const auto u8 = std::filesystem::path(r.path).filename().generic_u8string();
+            name = QString::fromStdString(std::string(u8.begin(), u8.end()));
+        }
+        m.insert(QStringLiteral("name"), name);
+        out.append(m);
+    }
+    return out;
 }
 
 void ProjectController::removeProject()

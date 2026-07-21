@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
 #include <atomic>
 #include <filesystem>
 #include <qcorotask.h>
@@ -113,6 +114,11 @@ public slots:
     // The active project's last-active repo path, or empty when none is stored or
     // the stored path no longer exists on disk (stale → caller falls back).
     Q_INVOKABLE QString lastActiveRepo() const;
+
+    // The active project's top-level repos as { path, name } maps for the
+    // Project Options dialog. name = alias if set, else the path basename.
+    // Empty when no project is active.
+    Q_INVOKABLE QVariantList activeProjectRepos() const;
 
     // Fetch the submodule tree for repoPath off-thread and refresh the model row.
     Q_INVOKABLE QCoro::Task<void> refreshSubmodules(QString repoPath);
