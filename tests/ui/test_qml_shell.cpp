@@ -5,12 +5,14 @@
 #include <QSignalSpy>
 
 #include "gittide/ui/avatarservice.hpp"
+#include "gittide/ui/credentialmanager.hpp"
 #include "gittide/ui/projectcontroller.hpp"
 #include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
 #include "gittide/ui/repolistmodel.hpp"
 #include "gittide/ui/repoviewmodel.hpp"
 #include "gittide/ui/thememanager.hpp"
+#include "gittide/credentialsstore.hpp"
 #include "gittide/projectstore.hpp"
 #include "support/temprepo.hpp"
 #include <git2.h>
@@ -717,6 +719,55 @@ private slots:
         QVERIFY(dlg != nullptr);
         QVERIFY(dlg->findChild<QObject*>(QStringLiteral("projectIdentityCombo")) != nullptr);
         QVERIFY(dlg->findChild<QObject*>(QStringLiteral("projectRepoList")) != nullptr);
+    }
+
+    // Locks final-review finding #1: the PROJECT-level identity combo's row 0
+    // ("Inherit — X") must resolve to the GLOBAL identity, even when the active
+    // project has its own project-default identity set. A regression to passing
+    // dialog.pid instead of "" would make row 0 show the project default's name.
+    void project_identity_combo_inherit_row_shows_global_name()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        gittide::ProjectStore store;
+        auto& proj = store.createProject("Work");
+
+        gittide::CredentialsStore creds;
+        auto& global = creds.addIdentity("Global Gwen", "gwen@x.com");
+        auto& projDefault = creds.addIdentity("Project Pat", "pat@x.com");
+        creds.setGlobalIdentity(global.id);
+        creds.setProjectDefault(proj.id, projDefault.id);
+
+        const auto credPath = std::filesystem::temp_directory_path()
+            / ("gittide_qsh_cred_" + std::to_string(::QRandomGenerator::global()->generate()) + ".json");
+        CredentialManager credentialManager(&creds, credPath, &store);
+
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(proj.id));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr, nullptr, {},
+                          &credentialManager, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QObject* dlg = root->findChild<QObject*>(QStringLiteral("projectOptionsDialog"));
+        QVERIFY(dlg != nullptr);
+        QVERIFY(QMetaObject::invokeMethod(dlg, "openDialog"));
+
+        QObject* combo = dlg->findChild<QObject*>(QStringLiteral("projectIdentityCombo"));
+        QVERIFY(combo != nullptr);
+        const QVariantList rows = combo->property("rows").toList();
+        QVERIFY(!rows.isEmpty());
+        const QString inheritLabel = rows.first().toMap().value("label").toString();
+
+        QVERIFY2(inheritLabel.contains(QStringLiteral("Global Gwen")),
+                 qPrintable(QStringLiteral("expected inherit row to name the global identity, got: ") + inheritLabel));
+        QVERIFY(!inheritLabel.contains(QStringLiteral("Project Pat")));
     }
 };
 
