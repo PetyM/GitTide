@@ -18,6 +18,13 @@ ApplicationWindow {
     minimumHeight: 560
     color: theme.surfaceBase
 
+    // False until the startup geometry restore has run. Guards the geometry
+    // persistence handlers so the transient Windowed state the window passes
+    // through while mapping (which fires onVisibilityChanged/onWidthChanged
+    // before Component.onCompleted) cannot clobber the stored geometry before
+    // we have read and applied it.
+    property bool _restored: false
+
     // App-level settings: persisted via QSettings (platform-native storage).
     // themeMode: 0=System 1=Dark 2=Light; default System.
     // pullRebase: global pull strategy; default true (rebase).
@@ -40,6 +47,8 @@ ApplicationWindow {
             window.restoreGeometry()
             window.showNormal()
         }
+        // Startup restore done — geometry handlers may persist from here on.
+        _restored = true
         if (repoVm) repoVm.applyPullDefault(appSettings.pullRebase)
         openFirstRepo()
         // Start the non-active-repo poll if we launch focused (D35).
@@ -72,13 +81,16 @@ ApplicationWindow {
         if (projectController) projectController.setWindowActive(active)
     }
 
-    // Persist geometry (skip Minimized so closing while minimised doesn't restore tiny)
-    onXChanged: if (window.visibility === Window.Windowed) appSettings.windowX = x
-    onYChanged: if (window.visibility === Window.Windowed) appSettings.windowY = y
-    onWidthChanged: if (window.visibility === Window.Windowed) appSettings.windowWidth = width
-    onHeightChanged: if (window.visibility === Window.Windowed) appSettings.windowHeight = height
+    // Persist geometry. Gated on `_restored` so the transient startup states
+    // don't overwrite the stored values before onCompleted has read them. Only
+    // save windowed geometry (Windowed) and skip Minimized/Hidden so closing
+    // while minimised doesn't persist a tiny/hidden state.
+    onXChanged: if (_restored && window.visibility === Window.Windowed) appSettings.windowX = x
+    onYChanged: if (_restored && window.visibility === Window.Windowed) appSettings.windowY = y
+    onWidthChanged: if (_restored && window.visibility === Window.Windowed) appSettings.windowWidth = width
+    onHeightChanged: if (_restored && window.visibility === Window.Windowed) appSettings.windowHeight = height
     onVisibilityChanged: {
-        if (visibility !== Window.Minimized && visibility !== Window.Hidden)
+        if (_restored && visibility !== Window.Minimized && visibility !== Window.Hidden)
             appSettings.windowVisibility = visibility
     }
 

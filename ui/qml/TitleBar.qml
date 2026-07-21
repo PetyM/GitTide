@@ -168,7 +168,7 @@ Rectangle {
                 onClicked: window.showMinimized()
             }
             WindowButton {
-                glyph: window.visibility === Window.Maximized ? "❐" : "⬜"
+                glyph: window.visibility === Window.Maximized ? "⧉" : "□"
                 ToolTip.visible: hovered
                 ToolTip.text: window.visibility === Window.Maximized ? "Restore" : "Maximise"
                 onClicked: window.visibility === Window.Maximized

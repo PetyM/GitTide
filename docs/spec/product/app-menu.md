@@ -56,6 +56,14 @@ it. Any write is auto-persisted by Qt immediately.
 (`x`, `y`, `width`, `height`, `visibility`). Default-maximised applies only on
 first launch (when no stored geometry exists).
 
+The geometry-persistence handlers (`onXChanged`/`onWidthChanged`/
+`onVisibilityChanged` etc.) are **gated on a `_restored` flag** that stays
+`false` until `Component.onCompleted` has read the stored values and applied
+them. Without this gate the transient `Windowed` state the window passes through
+while mapping fires those handlers *before* `onCompleted` runs, overwriting the
+stored `visibility` (e.g. Maximized → Windowed) so the next launch never
+restores maximised. See [§2](#2-frameless-window--titlebar).
+
 ### Pull default → RepoViewModel wiring
 
 `Settings.pullRebase` is propagated to `RepoViewModel` from QML:
@@ -98,11 +106,15 @@ minimumHeight: 560
 
 Geometry and visibility are restored from `Settings` on startup. On first launch
 (no stored geometry), the `ApplicationWindow` default `visibility: Window.Maximized`
-takes effect. Subsequent launches restore the last saved state. Restored windowed
-geometry is **clamped to the current screen's available area** (`window.restoreGeometry()`,
-using `Screen.desktopAvailable*` offset by the virtual-desktop origin) so a window
-saved on a now-absent or rearranged monitor — or with stale/negative coordinates —
-cannot launch partly off-screen.
+takes effect. Subsequent launches restore the last saved state — a saved
+Maximized state calls `window.showMaximized()`, otherwise the windowed geometry
+is restored. Restored windowed geometry is **clamped to the current screen's
+available area** (`window.restoreGeometry()`, using `Screen.desktopAvailable*`
+offset by the virtual-desktop origin) so a window saved on a now-absent or
+rearranged monitor — or with stale/negative coordinates — cannot launch partly
+off-screen. The `_restored` gate ([§1](#1-settings-persistence)) protects the
+stored visibility from being clobbered by the transient states the window passes
+through while mapping.
 
 ### TitleBar.qml
 
