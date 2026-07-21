@@ -31,7 +31,11 @@ ColumnLayout {
 
     // Commit medallion: summary, body, author, stats, copyable hash.
     // Shown only for a single-commit selection (range/stash keep their own header).
+    // A flat header block (no frame of its own) — the framed changed-files panel
+    // below provides the visual divide, so a second bordered card here would just
+    // compete with it.
     ColumnLayout {
+        id: medallion
         Layout.fillWidth: true
         Layout.margins: 12
         spacing: 6
@@ -67,18 +71,37 @@ ColumnLayout {
             wrapMode: Text.WordWrap
         }
 
-        Label {
+        // Author (with a small avatar) on the left, date pinned to the right
+        // edge — spread across the full width rather than crammed into one
+        // left-hugging line.
+        RowLayout {
             Layout.fillWidth: true
-            text: repoVm ? (repoVm.detailAuthor
-                            + (repoVm.detailAuthorEmail.length > 0
-                               ? " <" + repoVm.detailAuthorEmail + ">" : "")
-                            + "  ·  " + repoVm.detailDate) : ""
-            color: theme.textMuted
-            font.pixelSize: 11
-            elide: Text.ElideRight
+            spacing: 8
+            Avatar {
+                implicitWidth: 20
+                implicitHeight: 20
+                name: repoVm ? repoVm.detailAuthor : ""
+                email: repoVm ? repoVm.detailAuthorEmail : ""
+            }
+            Label {
+                Layout.fillWidth: true
+                text: repoVm ? (repoVm.detailAuthor
+                                + (repoVm.detailAuthorEmail.length > 0
+                                   ? " <" + repoVm.detailAuthorEmail + ">" : "")) : ""
+                color: theme.textMuted
+                font.pixelSize: 11
+                elide: Text.ElideRight
+            }
+            Label {
+                text: repoVm ? repoVm.detailDate : ""
+                color: theme.textMuted
+                font.pixelSize: 11
+            }
         }
 
+        // Stats on the left, short hash + copy icon pinned to the right edge.
         RowLayout {
+            Layout.fillWidth: true
             spacing: 12
             Label {
                 text: (repoVm ? repoVm.detailFilesChanged : 0)
@@ -99,10 +122,6 @@ ColumnLayout {
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
-        }
-
-        RowLayout {
-            spacing: 6
             Label {
                 text: repoVm && repoVm.selectedCommit.length > 0
                       ? repoVm.selectedCommit.substring(0, 10) : ""
@@ -110,12 +129,24 @@ ColumnLayout {
                 font.family: "monospace"
                 font.pixelSize: 11
             }
-            AppButton {
+            AbstractButton {
+                id: copyHashButton
                 objectName: "copyHashButton"
-                variant: "secondary"
-                text: "Copy"
+                implicitWidth: 24
+                implicitHeight: 24
                 visible: repoVm && repoVm.selectedCommit.length > 0
                 onClicked: if (repoVm) repoVm.copyToClipboard(repoVm.selectedCommit)
+                contentItem: Label {
+                    text: "⧉"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    font.pixelSize: 14
+                    color: copyHashButton.hovered ? theme.textPrimary : theme.textMuted
+                }
+                background: Rectangle {
+                    radius: 4
+                    color: copyHashButton.hovered ? theme.surfaceOverlay : "transparent"
+                }
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Copy full commit hash")
             }
@@ -141,10 +172,43 @@ ColumnLayout {
             SplitView.preferredHeight: 160
             SplitView.minimumHeight: 80
 
+            // Titled strip so the changed-files list reads as its own framed
+            // section, clearly distinct from the diff below the splitter.
+            Rectangle {
+                id: filesHeader
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 26
+                color: theme.surfaceOverlay
+
+                Label {
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    text: commitFilesList.count > 0
+                          ? "Changed files  ·  " + commitFilesList.count
+                          : "Changed files"
+                    color: theme.textMuted
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 1
+                    color: theme.border
+                }
+            }
+
             ListView {
                 id: commitFilesList
                 objectName: "commitFilesList"
-                anchors.fill: parent
+                anchors.top: filesHeader.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
                 clip: true
                 model: repoVm ? repoVm.commitFiles : null
 
@@ -225,7 +289,7 @@ ColumnLayout {
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
-                border.color: commitFilesList.activeFocus ? theme.focusBorder : "transparent"
+                border.color: commitFilesList.activeFocus ? theme.focusBorder : theme.border
                 border.width: 1
                 enabled: false
             }
