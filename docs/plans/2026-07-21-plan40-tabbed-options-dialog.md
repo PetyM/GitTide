@@ -1063,7 +1063,18 @@ Shipped 2026-07-21 on branch `plan40-tabbed-options` (commits `de10b3c..18e4ead`
 - **Tests:** core `globalIdentity` reader (2 cases), UI `options_dialog_has_tab_bar`,
   `identity_moved_into_options_tabs`, menu bar three-buttons, and CredentialManager
   seed/no-seed (2 cases). Full suite 203/203 green.
-- **Known minor (deferred):** `GitRepo::globalIdentity()` and `effectiveIdentity()`
-  share a near-identical `readKey` body — candidate for a shared
-  `readIdentity(git_config*)` helper. `NativeMenuBar.qml` still declares an unused
-  `appSettings` property (was only used by the removed theme items).
+- **Known minors (deferred, non-blocking — from the final whole-branch review):**
+  - `GitRepo::globalIdentity()` and `effectiveIdentity()` share a near-identical
+    `readKey` body — candidate for a shared `readIdentity(git_config*)` helper.
+  - Both `NativeMenuBar.qml` and `AppMenuBar.qml` still declare an unused
+    `appSettings` property (only the removed theme items read it). Removing it
+    means also dropping the injection at each bind site (Main.qml / TitleBar /
+    the menu-bar test's `setProperty` stub) — deferred to avoid unrelated churn.
+  - Assignment-badge refresh in the Identity tab now keys off
+    `credentialManager.changed()` / `repoVm.changed()` (plus one
+    `Component.onCompleted`) instead of the old on-open `refreshAssignments()`.
+    Covered for the realistic triggers; the residual gap is an *active-project*
+    change with no accompanying repo/credential change leaving `projectDefaultId`
+    stale — fix would be a `Connections` on the project controller's
+    active-project signal, or re-running `refreshAssignments()` on
+    `optionsDialog.opened`.

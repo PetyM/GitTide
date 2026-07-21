@@ -137,7 +137,7 @@ TapHandler {
 ```
 
 **App icon button:** 32×32 px, left side (Win/Linux) or after traffic lights
-(macOS). Click opens `appMenuPopup`. The text [menu bar](#7-menu-bar-file--edit--view--repository)
+(macOS). Click opens `appMenuPopup`. The text [menu bar](#7-menu-bar-file--edit--repository)
 (§7) sits immediately to the right of the icon; the drag area takes the remaining
 space.
 
@@ -187,7 +187,7 @@ ApplicationWindow (frameless)
 
 Opens on app-icon click. Implemented as `AppMenu` (existing component) anchored
 below the icon button. It holds **app-level** items only — repo operations live in
-the text [menu bar](#7-menu-bar-file--edit--view--repository) (§7):
+the text [menu bar](#7-menu-bar-file--edit--repository) (§7):
 
 ```
 Options…

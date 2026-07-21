@@ -113,10 +113,14 @@ constructor, if `m_store->identities().empty()`, call `GitRepo::globalIdentity()
 when it returns a non-empty **name and email**, `addIdentity(name, email)` and
 `setGlobalIdentity(newId)` so the seeded identity is marked Global. Guarded on
 `identities().empty()` ⇒ genuinely one-time — it never resurrects an identity the
-user later deletes, and never runs once they have any identity of their own. No
-git config is *written* by the seed beyond the normal `setGlobalIdentity`
-pointer (which already targets `~/.gitconfig` and is idempotent for the same
-name/email).
+user later deletes, and never runs once they have any identity of their own. The
+only git-config write is the normal `setGlobalIdentity` call, which targets
+`~/.gitconfig` and is value-idempotent for the same name/email. One consequence to
+note: `globalIdentity()` reads the *merged* default config (global/system/xdg)
+while `setGlobalIdentity` writes specifically to `~/.gitconfig`, so an identity
+inherited from a **system or XDG** config is materialized into the user's
+`~/.gitconfig` on first launch. This is intended (it pins the identity GitTide
+uses) and harmless, but it is a state change the user did not explicitly request.
 
 ## Testing (TDD — failing test first)
 
