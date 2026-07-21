@@ -14,6 +14,7 @@ Rectangle {
     signal initRequested()
     signal newProjectRequested()
     signal deleteProjectRequested()
+    signal projectOptionsRequested()
 
     // Tab handoff with the working pane — repoTree is the sidebar's single stop in
     // the global Tab cycle. tabNext fires on Tab, tabPrev on Shift+Tab.
@@ -177,6 +178,12 @@ Rectangle {
                 text: "Delete current project…"
                 enabled: projectController && projectController.activeProjectId.length > 0
                 onTriggered: sidebar.deleteProjectRequested()
+            }
+            AppMenuItem {
+                objectName: "projectOptionsItem"
+                text: "Project options…"
+                enabled: projectController && projectController.activeProjectId.length > 0
+                onTriggered: sidebar.projectOptionsRequested()
             }
         }
 

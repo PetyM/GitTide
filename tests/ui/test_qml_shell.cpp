@@ -689,6 +689,30 @@ private slots:
             QStringLiteral("shortcutsPopup"));
         QVERIFY(popup != nullptr);
     }
+
+    void project_options_dialog_and_menu_entry_exist()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        // Entry point in the project switcher menu.
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("projectOptionsItem")) != nullptr);
+
+        // The dialog and its two pickers are instantiated (hidden until opened).
+        QObject* dlg = root->findChild<QObject*>(QStringLiteral("projectOptionsDialog"));
+        QVERIFY(dlg != nullptr);
+        QVERIFY(dlg->findChild<QObject*>(QStringLiteral("projectIdentityCombo")) != nullptr);
+        QVERIFY(dlg->findChild<QObject*>(QStringLiteral("projectRepoList")) != nullptr);
+    }
 };
 
 #include "test_qml_shell.moc"
