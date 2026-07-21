@@ -178,7 +178,7 @@ line.
   when a repo becomes active. A local identity **you** set by hand (via the CLI)
   is recognised as such and **never overwritten** — GitTide only touches identity
   it owns (marked with a `gittide.identity` key). Managed from the **Options →
-  Manage identities…** dialog: add identities, pick the global one, and set the
+  Identity** tab: add identities, pick the global one, and set the
   open repo's override.
 - **Secrets stay in the OS keychain.** HTTPS tokens and SSH-key passphrases live in
   the platform keychain (macOS Keychain / libsecret / Windows Credential Store) —
@@ -192,12 +192,15 @@ line.
   hold the login and a token used for HTTPS git auth; adding a token validates it
   against the host API to confirm it and pre-fill an identity.
 
-All of the above is reachable from one **Credentials** dialog (Options → *Manage
-identities…*): manage identities and their global / per-project / per-repo
-assignment, add forge host accounts (token validated + saved to the keychain), and
-register SSH keys (passphrase to the keychain). Remaining out of scope: forge
-features beyond token validation (PRs/issues), and an SSH agent/keyfile picker
-inside the sync auth prompt. See [network-sync](network-sync.md) and Plans 36–38.
+All of the above is reachable from the **Options** dialog's **Identity** and
+**Accounts** tabs: Identity manages identities and their global / per-project /
+per-repo assignment; Accounts adds forge host accounts (token validated + saved
+to the keychain) and registers SSH keys (passphrase to the keychain). On first
+run, if no identities exist yet, one Global identity is seeded from the user's
+existing global git config so the Identity tab isn't empty. Remaining out of
+scope: forge features beyond token validation (PRs/issues), and an SSH
+agent/keyfile picker inside the sync auth prompt. See
+[network-sync](network-sync.md) and Plans 36–38, 40.
 
 #### Fleet fetch
 

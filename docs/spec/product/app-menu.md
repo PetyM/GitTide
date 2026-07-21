@@ -12,14 +12,16 @@
 GitTide gains a custom frameless title bar with an app icon menu on the left,
 replacing the native OS decorations **on Windows and Linux**. On **macOS** the
 window keeps native decorations and the menu moves to the system menu bar — see
-[§8](#8-macos-native-chrome--system-menu-bar). Behind it sits an **Options** dialog that
-consolidates theme and pull-default settings in one place. App settings persist
-via `QSettings` (platform-native storage). The window launches maximised with a
-minimum size.
+[§8](#8-macos-native-chrome--system-menu-bar). Behind it sits a **tabbed Options**
+dialog that consolidates appearance, git, identity, and account settings in one
+place ([§4](#4-optionsdialogqml)). App settings persist via `QSettings`
+(platform-native storage). The window launches maximised with a minimum size.
 
-A classic horizontal **text menu bar** (File · Edit · View · Repository) sits to
+A classic horizontal **text menu bar** (File · Edit · Repository) sits to
 the right of the app icon and hosts the per-repo actions — open folder, undo,
-discard all, theme, merge, rebase, stash/pop. See [§7](#7-menu-bar-file--edit--view--repository).
+discard all, merge, rebase, stash/pop. See [§7](#7-menu-bar-file--edit--repository).
+Theme lives only in Options → Appearance ([§4](#4-optionsdialogqml)); on macOS the
+native system menu bar additionally keeps its own View ▸ Theme submenu ([§8.2](#82-native-system-menu-bar--nativemenubarqml)).
 
 ---
 
@@ -202,34 +204,65 @@ menus (§7).
 
 ## 4. OptionsDialog.qml
 
-Modal dialog, `OverlayCard` background, width 360 px. No OK/Cancel — settings
-apply instantly on each change (live). Footer has a single **Close** button.
+Modal dialog, `OverlayCard` background, width 560 px. **Tabbed**: a `TabBar`
+(objectName `optionsTabBar`) over a `StackLayout` with four tabs, each its own
+component file. No OK/Cancel — settings apply instantly on each change (live).
+Footer has a single **Close** button.
 
-### Layout
+### Tabs
 
 ```
-Theme
-  ○ System   ○ Dark   ○ Light
-
-Pull default
-  ○ Merge (fast-forward)   ○ Rebase
-
-                           [Close]
+[Appearance] [Git] [Identity] [Accounts]
 ```
 
-Radio-group behaviour: `ButtonGroup` containing three `AppRadioButton` items per
-section.
+- **Appearance** (`OptionsAppearanceTab.qml`) — theme mode
+  `○ System   ○ Dark   ○ Light`.
+- **Git** (`OptionsGitTab.qml`) — pull default
+  `○ Merge (fast-forward)   ○ Rebase`.
+- **Identity** (`OptionsIdentityTab.qml`) — the named git identity catalogue
+  (add name + email) and Global / Project / Repo assignment per identity, backed
+  by `CredentialManager` / `IdentityListModel`. This is where the [named
+  identities](product.md#identity--credentials) flow now lives — the standalone
+  `IdentityDialog.qml` credentials dialog was removed and its content folded in
+  here and into Accounts below.
+- **Accounts** (`OptionsAccountsTab.qml`) — forge host accounts (HTTPS tokens,
+  validated against the host API and saved to the keychain) and SSH keys
+  (keyfile paths + keychain passphrase), backed by `HostListModel` /
+  `SshKeyListModel`.
+
+Each of Appearance/Git/Identity/Accounts is scrollable independently (Identity
+and Accounts wrap their content in a `Flickable` capped at 480 px tall) so the
+dialog height stays bounded as identities/accounts grow.
+
+Radio-group behaviour (Appearance, Git): `ButtonGroup` containing `AppRadioButton`
+items per section.
 
 On `AppRadioButton` check:
-- **Theme** → `theme.setMode(value)` + `appSettings.themeMode = value`
-- **Pull** → `appSettings.pullRebase = value` (propagates to RepoViewModel via
-  the `Main.qml` `Connections` above)
+- **Theme** (Appearance tab) → `theme.setMode(value)` + `appSettings.themeMode = value`
+- **Pull** (Git tab) → `appSettings.pullRebase = value` (propagates to
+  RepoViewModel via the `Main.qml` `Connections` above)
 
 ### AppRadioButton.qml
 
 New ~25-line component. A `RadioButton` with custom indicator: 16 px circle,
 hollow when unchecked, accent-filled with a smaller white circle when checked.
 Includes a text `Label` to its right.
+
+### AppTabButton.qml
+
+Shared flat tab-button primitive (also used by `WorkingPane`'s tab strip): active
+tab is `theme.textPrimary` (demibold) with a 2 px accent underline, inactive is
+`theme.textSecondary`, hover tints an inactive tab. Used inside the Options
+dialog's `TabBar`.
+
+### First-run identity seed
+
+If no identities exist yet when `CredentialManager` is constructed and the
+user's global git config already has `user.name` + `user.email` (read via the
+static `GitRepo::globalIdentity()`, no repo needed), one Global identity is
+seeded from it — so the Identity tab isn't empty on first run. One-time: guarded
+on the identity store being empty, so it never resurrects a deleted identity or
+re-runs once any identity exists.
 
 ---
 
@@ -259,9 +292,18 @@ Version string exposed as a `QString` context property `"appVersion"` in
 | `ui/qml/TitleBar.qml` | Custom frameless title bar |
 | `ui/qml/WindowButton.qml` | Reusable window-control button |
 | `ui/qml/EdgeResizer.qml` | Per-edge resize drag handler |
-| `ui/qml/OptionsDialog.qml` | Theme + pull-default settings |
+| `ui/qml/OptionsDialog.qml` | Tabbed settings dialog (Appearance/Git/Identity/Accounts) |
 | `ui/qml/AboutDialog.qml` | App info |
 | `ui/qml/AppRadioButton.qml` | Themed radio button with label |
+| `ui/qml/AppTabButton.qml` | Shared flat tab button (Options dialog + WorkingPane) |
+| `ui/qml/OptionsAppearanceTab.qml` | Options → Appearance tab (theme mode) |
+| `ui/qml/OptionsGitTab.qml` | Options → Git tab (pull default) |
+| `ui/qml/OptionsIdentityTab.qml` | Options → Identity tab (named identities + assignment) |
+| `ui/qml/OptionsAccountsTab.qml` | Options → Accounts tab (forge tokens + SSH keys) |
+
+**Removed:** `ui/qml/IdentityDialog.qml` (Plan 40) — the standalone Credentials
+dialog. Its content moved into `OptionsIdentityTab.qml` / `OptionsAccountsTab.qml`
+above; there is no longer a "Manage identities…" entry point outside Options.
 
 ### Modified files
 
@@ -277,24 +319,27 @@ Version string exposed as a `QString` context property `"appVersion"` in
 
 ---
 
-## 7. Menu bar (File · Edit · View · Repository)
+## 7. Menu bar (File · Edit · Repository)
 
 | | |
 |--|--|
-| **Designed** | 2026-06-30 |
+| **Designed** | 2026-06-30 · View menu removed 2026-07-21 |
 | **Status** | `shipped` |
-| **Plan** | [Plan 29](../../plans/2026-06-30-plan29-menu-bar.md) |
+| **Plan** | [Plan 29](../../plans/2026-06-30-plan29-menu-bar.md), [Plan 40](../../plans/2026-07-21-plan40-tabbed-options-dialog.md) |
 
 The title bar gains a classic horizontal **text menu bar** to the right of the app
 icon. The app-icon popup (§3) keeps only app-level items (Options / About / Quit);
-every repository operation lives under one of four text menus. This replaces
-cramming repo actions under the icon and gives the actions room to grow.
+every repository operation lives under one of three text menus. This replaces
+cramming repo actions under the icon and gives the actions room to grow. There is
+no View menu here — theme lives only in Options → Appearance (§4); the macOS
+native system menu bar is a separate component and keeps its own View ▸ Theme
+submenu (§8.2).
 
 ### 7.1 Layout in the title bar
 
 ```
-macOS:    [● ● ●] [icon] File Edit View Repository  [──── drag ────]
-Win/Lin:  [icon]  File Edit View Repository  [──── drag ────]  [─][□][✕]
+macOS:    [● ● ●] [icon] File Edit Repository  [──── drag ────]
+Win/Lin:  [icon]  File Edit Repository  [──── drag ────]  [─][□][✕]
 ```
 
 The bar is a `RowLayout` of `MenuBarButton`s placed in `TitleBar.qml` right after
@@ -309,16 +354,12 @@ All repository items are **per-repo** and act on the current repo via `repoVm`
 item is an `AppMenuItem`; `destructive: true` marks danger (red) actions.
 
 ```
-File                       Edit                      View
-  Open repository folder     Undo last commit          Theme ▸
-                             Discard all changes  (red)     System
-                                                            Dark
-Repository                                                  Light
-  Merge into current branch…
-  Rebase current branch…
-  ─────────────
-  Stash all changes
-  Pop latest stash
+File                       Edit                      Repository
+  Open repository folder     Undo last commit          Merge into current branch…
+                             Discard all changes  (red) Rebase current branch…
+                                                        ─────────────
+                                                         Stash all changes
+                                                         Pop latest stash
 ```
 
 Wiring (each item emits a `TitleBar` signal; `Main.qml` binds it, mirroring the
@@ -329,7 +370,6 @@ existing `optionsRequested`/`rebaseRequested` pattern):
 | **File** › Open repository folder | `openRepoFolderRequested()` → `repoVm.openRepoFolder()` | new VM `openRepoFolder()` |
 | **Edit** › Undo last commit | `undoLastCommitRequested()` → `repoVm.undoLastCommit()` | existing |
 | **Edit** › Discard all changes | `discardAllRequested()` → `discardAllDialog.open()` | confirm → `repoVm.discardAll()` |
-| **View** › Theme › System/Dark/Light | sets `appSettings.themeMode` + `theme.setMode(v)` | mirrors OptionsDialog (§4) |
 | **Repository** › Merge into current branch… | `mergeRequested()` → `mergeTargetDialog.open()` | picker → `repoVm.startMerge(ref)` |
 | **Repository** › Rebase current branch… | `rebaseRequested()` → `rebaseTargetDialog.open()` | existing → `repoVm.startRebase(ref)` |
 | **Repository** › Stash all changes | `stashRequested()` → `repoVm.stashChanges()` | new VM `stashChanges()` |
@@ -347,7 +387,6 @@ Every repo item requires an open repo. Binding source in parentheses:
 | Merge…/Rebase… | repo open **and** not `rebaseInProgress \|\| mergeInProgress` |
 | Stash all changes | repo open **and** working tree dirty (`repoVm.dirty`) |
 | Pop latest stash | repo open **and** `repoVm.stashAvailable` (new property) |
-| Theme items | always |
 
 The VM has no dirty flag today (`checkedCount` counts *checked* rows, not changed
 ones). Add a `RepoViewModel::dirty` (`Q_PROPERTY bool`, true when the
@@ -405,7 +444,7 @@ from any behavioural change into a separate commit** to preserve history.
 
 | File | Purpose |
 |------|---------|
-| `ui/qml/AppMenuBar.qml` | Horizontal text menu bar (File/Edit/View/Repository) |
+| `ui/qml/AppMenuBar.qml` | Horizontal text menu bar (File/Edit/Repository) |
 | `ui/qml/MenuBarButton.qml` | Flat themed text button that opens its `AppMenu` |
 | `ui/qml/BranchPickerDialog.qml` | Reusable branch picker (generalised from `RebaseTargetDialog`) |
 
@@ -462,7 +501,10 @@ the in-window `AppMenuBar` (§7).
 It mirrors the §7 action set and the §3 app-icon popup, and **emits the same
 signals** `TitleBar` does, so `Main.qml` binds them (via a `Connections` on the
 loader item) to the *identical* handlers as the custom bar — one source of
-behaviour, two front-ends. Menu layout:
+behaviour, two front-ends. Unlike §7's in-window bar (which dropped its View
+menu — theme now lives only in Options → Appearance, §4), this native bar keeps
+its own View ▸ Theme submenu, matching platform convention for the system menu
+bar. Menu layout:
 
 ```
 GitTide (app menu)     File            Edit                 View          Repository
