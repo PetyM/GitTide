@@ -50,20 +50,35 @@ The incoming/outgoing edge geometry keys off the dot's (now fixed) Y instead of
 
 ## 3. Commit medallion (right panel)
 
-Replace the bare `Commit <7hash>` header in `CommitDetail.qml` with a proper
-commit card, shown when a single commit is selected (range/stash modes keep their
-existing headers). Top-to-bottom:
+Replace the bare `Commit <7hash>` header in `CommitDetail.qml` with a flat
+medallion header, shown when a single commit is selected (range/stash modes keep
+their existing headers). It carries **no frame of its own** — the framed
+changed-files panel below (see §3.1) provides the visual divide, so a second
+bordered card here would just compete with it. The metadata **spreads across the
+full width** rather than hugging the left edge. Top-to-bottom:
 
-- **Summary** — first line, bold, primary colour, wrapping.
+- **Summary** — first line, bold, primary colour, wrapping; the **Checkout**
+  button sits on the right of this row.
 - **Body** — remaining message lines, muted, wrapped; hidden when empty.
-- **Author** — `name <email>` + author date. (Author only; no committer line.)
-- **Stats** — `N files changed` · green `+additions` · red `−deletions`.
-- **Hash** — short oid in mono, with a **copy button** that copies the full
-  40-char oid via the existing `repoVm.copyToClipboard(...)` path.
-- The existing **Checkout** button stays.
+- **Author** — a small circular **avatar** (`Avatar.qml`, keyed on the author
+  email) + `name <email>` on the left, with the **author date pinned to the
+  right edge** of the row. (Author only; no committer line.)
+- **Stats + hash** — one row: `N files changed` · green `+additions` · red
+  `−deletions` on the left; the short oid (mono) and a compact **copy icon**
+  (`⧉`, an `AbstractButton` with hover surface + tooltip) pinned to the right.
+  The icon copies the full 40-char oid via the existing
+  `repoVm.copyToClipboard(...)` path.
 
 Colours come from theme tokens (`theme.stateAdded` / `theme.stateDeleted` for the
 +/− stats, `theme.textMuted` etc.) — no hex literals.
+
+### 3.1 Changed-files panel framing
+
+The changed-files list (top pane of the detail `SplitView`) reads as its own
+framed section: a titled **`Changed files · N`** strip (`theme.surfaceOverlay`
+background with a `theme.border` divider under it) above the list, and a
+**persistent 1px `theme.border` frame** around the pane that switches to
+`theme.focusBorder` while the list has keyboard focus.
 
 ## 4. Backend to feed the medallion
 
