@@ -37,6 +37,7 @@ add_executable(gittide_core_tests
   core/test_gitrepo_logallrefs.cpp
   core/test_submodule_detail.cpp
   core/test_commit_email.cpp
+  core/test_commit_detail.cpp
   core/test_git_repo_local_only.cpp
   support/temprepo.cpp
   support/git_config_isolation.cpp
