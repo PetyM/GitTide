@@ -83,26 +83,6 @@ Native.MenuBar {
     }
 
     Native.Menu {
-        title: "View"
-        Native.Menu {
-            title: "Theme"
-            // Plain items (no ticks) — mirrors the in-window View ▸ Theme menu.
-            Native.MenuItem {
-                text: "System"
-                onTriggered: { theme.setMode(0); if (bar.appSettings) bar.appSettings.themeMode = 0 }
-            }
-            Native.MenuItem {
-                text: "Dark"
-                onTriggered: { theme.setMode(1); if (bar.appSettings) bar.appSettings.themeMode = 1 }
-            }
-            Native.MenuItem {
-                text: "Light"
-                onTriggered: { theme.setMode(2); if (bar.appSettings) bar.appSettings.themeMode = 2 }
-            }
-        }
-    }
-
-    Native.Menu {
         title: "Repository"
         Native.MenuItem {
             objectName: "nativeMergeItem"
