@@ -430,21 +430,24 @@ Rectangle {
                             // Spacer → push the sync indicators to the right edge.
                             Item { Layout.fillWidth: true }
 
-                            // Ahead / behind. Repos: only with an upstream and not
-                            // detached. Submodules: vs the pinned commit, shown even
-                            // when detached (the usual submodule state).
+                            // Ahead / behind. Repos: vs the upstream tracking ref
+                            // (green/blue = unpushed/unpulled), only with an upstream
+                            // and not detached. Submodules: vs the PINNED commit, in
+                            // amber (stateModified = gitlink drift, distinct from the
+                            // repo's push/pull colours), shown even when detached (the
+                            // usual submodule state).
                             Label {
                                 visible: model.ahead > 0
                                          && (row.isSub || (!model.detached && model.hasUpstream))
                                 text: "↑" + model.ahead
-                                color: theme.stateAdded
+                                color: row.isSub ? theme.stateModified : theme.stateAdded
                                 font.pixelSize: 11
                             }
                             Label {
                                 visible: model.behind > 0
                                          && (row.isSub || (!model.detached && model.hasUpstream))
                                 text: "↓" + model.behind
-                                color: theme.stateIncoming
+                                color: row.isSub ? theme.stateModified : theme.stateIncoming
                                 font.pixelSize: 11
                             }
                             // Repo with no upstream → dash (submodules never show this).
