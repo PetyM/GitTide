@@ -180,7 +180,7 @@ line.
   it owns (marked with a `gittide.identity` key). The **Options → Identity**
   tab manages the identity catalogue and the **global** default; per-project
   and per-repo assignment is set from the **Project Options** dialog, reached
-  from the sidebar's project switcher, which lists every repo in the active
+  from the app menu (next to Options), which lists every repo in the active
   project alongside a project-wide default.
 - **Secrets stay in the OS keychain.** HTTPS tokens and SSH-key passphrases live in
   the platform keychain (macOS Keychain / libsecret / Windows Credential Store) —
@@ -199,7 +199,7 @@ Most of the above is reachable from the **Options** dialog's **Identity** and
 default; Accounts adds forge host accounts (token validated + saved to the
 keychain) and registers SSH keys (passphrase to the keychain). Per-project and
 per-repo identity assignment lives instead in the **Project Options** dialog
-(sidebar project switcher → *Project options…*), which shows the active
+(app menu → *Project options…*, beside Options), which shows the active
 project's repos and lets each inherit or override. On first run, if no
 identities exist yet, one Global identity is seeded from the user's existing
 global git config so the Identity tab isn't empty. Remaining out of scope:

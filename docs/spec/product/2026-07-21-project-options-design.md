@@ -46,14 +46,18 @@ Options dialog (which then carries only global-scoped settings).
 
 ## Design
 
-### 1. Entry point — Sidebar project-switcher menu
+### 1. Entry point — app menu, next to Options
 
-Add a **"Project options…"** `AppMenuItem` to `projectMenu` (Sidebar.qml),
-between the project list and the New/Delete items, `enabled` only when
-`projectController.activeProjectId.length > 0`. It emits a new
-`projectOptionsRequested()` signal on `Sidebar`; `Main.qml` opens the dialog on
-that signal (mirroring the existing `newProjectRequested` / `deleteProjectRequested`
-wiring). No app-menu-bar entry — the action is contextual to the active project.
+Add a **"Project options…"** `AppMenuItem` to the app-icon popup (`appMenuPopup`
+in `TitleBar.qml`), directly under **Options…**, plus a matching item in the
+macOS native menu's Preferences group (`NativeMenuBar.qml`). Both are `enabled`
+only when `projectController.activeProjectId.length > 0`, emit a
+`projectOptionsRequested()` signal, and `Main.qml` opens the dialog on it
+(mirroring the existing `optionsRequested` wiring).
+
+It lives beside the classic Options so both settings surfaces share one home.
+(An earlier revision placed it in the Sidebar project-switcher menu; it moved to
+the app menu — code is ground truth.)
 
 ### 2. `ProjectOptionsDialog.qml` (new) — scoped to the active project
 
