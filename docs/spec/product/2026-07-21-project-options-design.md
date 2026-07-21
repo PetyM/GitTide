@@ -89,17 +89,18 @@ while it is open, so a static snapshot (no live model reactivity) is enough.
 
 ### 3. Backend additions (additive)
 
-Two helpers on `CredentialManager`, both driving the `(Inherit — …)` labels:
+Two helpers on `CredentialManager`:
 
-- `Q_INVOKABLE QString identityLabel(const QString& id) const` — the display
-  name of the identity with this id; empty string for an empty/unknown id. Lets
-  QML render an id (from `inheritedIdentityId`) as text without a manual
-  model scan.
+- `Q_INVOKABLE QVariantList identityChoices() const` — the catalogue as a plain
+  array, one `{ id, name, email }` map per identity, so QML can build a combo
+  model (prepending its own `(Inherit — …)` row) and map a `currentIndex` back
+  to an id without scanning a `QAbstractListModel`.
 - `Q_INVOKABLE QString inheritedIdentityId(const QString& projectId) const` —
-  the id a repo inherits when it has no override: the project default if
-  `projectId` is non-empty and set, else the global identity id. Passing an
-  empty `projectId` returns the global id (so the project picker's inherit row
-  can reuse it).
+  the id a repo inherits when it has no override, driving the `(Inherit — …)`
+  labels: the project default if `projectId` is non-empty and set, else the
+  global identity id. Passing an empty `projectId` returns the global id (so the
+  project picker's inherit row can reuse it). QML resolves the display name by
+  finding this id in `identityChoices()`.
 
 Active-project repo enumeration for section (b): add
 `Q_INVOKABLE QVariantList activeProjectRepos() const` on `ProjectController`,
@@ -150,9 +151,9 @@ self-corrects when reopened, and git falls back to global config meanwhile.
 
 ## Testing (TDD — failing test first)
 
-- **Manager (`test_credential_manager.cpp`)** — `identityLabel`: known id → its
-  name; empty/unknown → empty. `inheritedIdentityId`: repo has project default →
-  project default; no project default → global; empty `projectId` → global.
+- **Manager (`test_credential_manager.cpp`)** — `identityChoices`: one entry per
+  identity with matching id/name/email. `inheritedIdentityId`: project has a
+  default → that id; no project default → global; empty `projectId` → global.
 - **Controller (`test_project_controller.cpp`)** — `activeProjectRepos` returns
   one `{path,name}` per top-level repo of the active project (alias honoured,
   basename fallback); empty when no active project.
