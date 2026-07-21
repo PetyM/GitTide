@@ -272,7 +272,6 @@ ApplicationWindow {
     OptionsDialog {
         id: optionsDialog
         appSettings: appSettings
-        onIdentityRequested: identityDialog.openDialog()
     }
     IdentityDialog { id: identityDialog }
     AboutDialog { id: aboutDialog }

@@ -48,6 +48,8 @@
     <file>TitleBar.qml</file>
     <file>AboutDialog.qml</file>
     <file>OptionsDialog.qml</file>
+    <file>OptionsAppearanceTab.qml</file>
+    <file>OptionsGitTab.qml</file>
     <file>IdentityDialog.qml</file>
     <file>ShortcutsHelpPopup.qml</file>
     <file>RewordDialog.qml</file>

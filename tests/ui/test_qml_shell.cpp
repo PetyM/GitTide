@@ -413,6 +413,23 @@ private slots:
         QVERIFY(root->findChild<QObject*>(QStringLiteral("appMenuPopup")) != nullptr);
     }
 
+    void options_dialog_has_tab_bar()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+
+        QObject* root = engine.rootObjects().first();
+        QObject* opts = root->findChild<QObject*>(QStringLiteral("optionsDialog"));
+        QVERIFY(opts != nullptr);
+        QVERIFY(opts->findChild<QObject*>(QStringLiteral("optionsTabBar")) != nullptr);
+    }
+
     void theme_toggle_removed_from_sidebar()
     {
         ThemeManager mgr;
