@@ -184,6 +184,17 @@ QCoro::Task<gittide::Expected<std::vector<gittide::FileStatus>>> AsyncRepo::comm
         });
 }
 
+QCoro::Task<gittide::Expected<gittide::CommitDetail>> AsyncRepo::commitDetail(QString oid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, o = oid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.commitDetail(o);
+        });
+}
+
 QCoro::Task<gittide::Expected<gittide::DiffResult>> AsyncRepo::commitDiff(QString oid, std::filesystem::path file)
 {
     auto impl = m_impl;

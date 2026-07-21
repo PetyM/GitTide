@@ -96,6 +96,8 @@ public slots:
                                       std::vector<gittide::StageSelection> selections);
     // Read-only history diff:
     QCoro::Task<void> refreshCommitFiles(QString oid);
+    // Fetch summary/body/author/stats for a commit; emits commitDetailReady on success.
+    QCoro::Task<void> refreshCommitDetail(QString oid);
     QCoro::Task<void> refreshCommitDiff(QString oid, QString path);
     /// Load a stash commit's files (tracked + untracked) for preview; emits the
     /// same commitFilesReady signal so the ViewModel's commit models are reused.
@@ -200,6 +202,7 @@ signals:
     void branchesChanged(std::vector<gittide::BranchInfo>);
     void headChanged(gittide::HeadState);
     void commitFilesReady(QString oid, std::vector<gittide::FileStatus> files);
+    void commitDetailReady(QString oid, gittide::CommitDetail detail);
     void commitDiffReady(QString oid, QString path, gittide::DiffResult result);
     void commitMessageReady(QString oid, QString message);
     void rangeFilesReady(QString oldOid, QString newOid, std::vector<gittide::FileStatus> files);

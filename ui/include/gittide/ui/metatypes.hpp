@@ -7,6 +7,7 @@
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
 #include "gittide/filestatus.hpp"
+#include "gittide/gitrepo.hpp" // CommitDetail
 #include "gittide/graph.hpp"
 #include "gittide/merge.hpp"
 
@@ -45,6 +46,7 @@ Q_DECLARE_METATYPE(std::vector<gittide::StageSelection>)
 Q_DECLARE_METATYPE(gittide::DiffResult)
 Q_DECLARE_METATYPE(gittide::CommitRequest)
 Q_DECLARE_METATYPE(std::vector<gittide::FileStatus>)
+Q_DECLARE_METATYPE(gittide::CommitDetail)
 Q_DECLARE_METATYPE(gittide::DiffTarget)
 Q_DECLARE_METATYPE(gittide::GraphLayout)
 Q_DECLARE_METATYPE(gittide::GraphRow)
