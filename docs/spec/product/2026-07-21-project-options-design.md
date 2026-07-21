@@ -1,7 +1,8 @@
 # Design — Project Options dialog (per-project & per-repo identity)
 
-**Status:** planned
+**Status:** shipped
 **Date:** 2026-07-21
+**Shipped:** 2026-07-21 (Plan 41)
 **Realises:** finishing identity management — a dedicated **Project Options**
 surface, separate from the global **Options** dialog, where the user picks a
 project-wide identity and overrides identity per repository.
