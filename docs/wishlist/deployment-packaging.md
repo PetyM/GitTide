@@ -26,6 +26,21 @@ app to developers with the full Qt + libgit2 + CMake toolchain set up. Native
 packaging makes it a one-command (or one-click) install for normal users, and on
 Linux/macOS it wires GitTide into the system updater so upgrades are automatic.
 
+## Progress
+
+- **macOS self-contained `.app` — done** (2026-07-23). `cmake --build build
+  --target deploy_macos` produces a portable, ad-hoc-signed `GitTide.app` you can
+  drag to `/Applications` (or `cmake --install build --component gittide --prefix
+  /Applications`). See [decision D54](../decisions.md) and
+  [engineering → Build & test](../spec/engineering/engineering.md#build--test).
+  This is the *building block*; the wish stays open for the rest:
+  - **macOS**: an Apple Developer ID + **notarization** (today an unnotarized
+    bundle needs right-click → Open on a fresh Mac), a `.dmg`, and the Homebrew
+    Cask.
+  - **Linux** (`.deb` / apt) and **Windows** (`windeployqt` + `.exe` installer)
+    are untouched.
+  - A tagged **release CI pipeline** that builds, signs, and publishes.
+
 ## Notes (optional)
 
 - CMake already drives the build; **CPack** can generate `.deb`, `.dmg`, and a

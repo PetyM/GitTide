@@ -504,6 +504,18 @@ test-layer exception). Principles first: KISS, DRY, SOLID, YAGNI.
   scp-like `user@host:path`, and local/`file://` paths.
 - **Targets.** `gittide_core` (static lib), `gittide_ui` (static lib, AUTOMOC),
   `gittide_app` (executable), plus test targets below.
+- **Packaging.** On macOS `gittide_app` is a `MACOSX_BUNDLE` (`GitTide.app`,
+  icon + `Info.plist` from [`packaging/macos/`](../../../packaging/macos/)). The
+  `deploy_macos` target makes it self-contained and launchable via
+  [`packaging/macos/macdeploy.py`](../../../packaging/macos/macdeploy.py):
+  `macdeployqt` bundles Qt, then the script rewrites the absolute Homebrew-Qt
+  references macdeployqt leaves behind to `@rpath` and **ad-hoc codesigns** the
+  bundle (Apple Silicon SIGKILLs a process whose signature does not match the
+  pages it maps — D54). `cmake --install --component gittide` copies the finished
+  bundle verbatim (`install(DIRECTORY)`, not `install(TARGETS)`, so CMake does no
+  install-time RPATH/signature surgery). On Linux the same component installs a
+  `.desktop` entry + icon. Full native installers / notarization remain a wish
+  ([deployment-packaging](../../wishlist/deployment-packaging.md)).
 - **Tests.** Catch2 for `core/` (`gittide_core_tests`, one ctest entry per case
   via `catch_discover_tests`). Qt Test for `ui/` (`gittide_ui_tests`, a single
   aggregated binary run headless with `QT_QPA_PLATFORM=offscreen`). New UI
