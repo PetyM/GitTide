@@ -73,21 +73,23 @@ sequence — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Packaging
 
-**macOS — a self-contained `GitTide.app`.** After a normal build, run:
+**macOS — a self-contained `GitTide.app`.** A normal build produces a launchable
+`build/app/GitTide.app`: the `deploy_macos` target is part of `ALL`, so
+`cmake --build build` also copies the Qt frameworks and QML plugins into the
+bundle with `macdeployqt`, rewrites the residual absolute Qt references to
+`@rpath`, and ad-hoc codesigns the result — see
+[`packaging/macos/macdeploy.py`](packaging/macos/macdeploy.py). This is required
+for the app to launch at all: a bare build links the executable against Homebrew
+Qt, which then clashes with the bundled frameworks and fails to load the `cocoa`
+platform plugin.
 
-```bash
-cmake --build build --target deploy_macos
-```
-
-This produces `build/app/GitTide.app` (icon + `Info.plist` already baked in by
-the build), copies the Qt frameworks and QML plugins into it with `macdeployqt`,
-rewrites the residual absolute Qt references to `@rpath`, and ad-hoc codesigns
-the result — see [`packaging/macos/macdeploy.py`](packaging/macos/macdeploy.py).
+The deploy is gated behind a stamp file, so it only re-runs when the executable
+has actually been relinked — no-op and test-only builds stay fast and do not pay
+the ~90 MB Qt copy. (icon + `Info.plist` are baked into the bundle by the build.)
 The bundle is portable (no Homebrew Qt needed at runtime); drag it into
 `/Applications` — or `cmake --install build --component gittide --prefix
 /Applications`. It is ad-hoc signed, not notarised, so on another Mac the first
 launch needs right-click → **Open** (or *System Settings → Privacy & Security*).
-The step is kept out of the default build because it copies ~90 MB of Qt.
 
 **Linux** installs a `.desktop` entry and icon via the same `gittide` install
 component: `cmake --install build --component gittide`.

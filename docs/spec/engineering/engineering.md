@@ -520,7 +520,12 @@ test-layer exception). Principles first: KISS, DRY, SOLID, YAGNI.
   `macdeployqt` bundles Qt, then the script rewrites the absolute Homebrew-Qt
   references macdeployqt leaves behind to `@rpath` and **ad-hoc codesigns** the
   bundle (Apple Silicon SIGKILLs a process whose signature does not match the
-  pages it maps — D54). `cmake --install --component gittide` copies the finished
+  pages it maps — D54). `deploy_macos` is part of `ALL` and **mandatory for the
+  app to launch** — a bare build links the executable against Homebrew Qt, which
+  clashes with the bundled frameworks and fails to load the `cocoa` plugin. To
+  keep this off the incremental-build hot path, the deploy is gated behind a
+  stamp file that depends on the executable, so it re-runs only after a relink
+  (no-op/test builds skip the ~90 MB Qt copy). `cmake --install --component gittide` copies the finished
   bundle verbatim (`install(DIRECTORY)`, not `install(TARGETS)`, so CMake does no
   install-time RPATH/signature surgery). On Linux the same component installs a
   `.desktop` entry + icon. Full native installers / notarization remain a wish
