@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include <QDir>
 #include <QVariantMap>
 
 #include <gittide/credentialsstore.hpp>
@@ -59,6 +60,7 @@ CredentialManager::CredentialManager(gittide::CredentialsStore* store, std::file
     , m_hostModel(new HostListModel(store, this))
     , m_sshKeyModel(new SshKeyListModel(store, this))
     , m_forge(new ForgeClient(this))
+    , m_sshDir(qstringToPath(QDir::homePath() + QStringLiteral("/.ssh")))
 {
     if (!m_secrets)
     {
@@ -390,21 +392,26 @@ QCoro::Task<gittide::Credentials> CredentialManager::credentialsForRemote(QStrin
         co_return cred;
     }
 
-    // SSH: use the first configured keyfile (+ passphrase from the keychain); with
-    // no keyfile configured, fall back to the ssh-agent.
+    // SSH: prefer explicitly configured keyfiles (+ passphrase from the keychain).
+    // The user pointed us at a specific key, so honour it and skip the agent.
     if (!m_store->sshKeys().empty())
     {
-        const auto& k         = m_store->sshKeys().front();
-        cred.sshUseAgent      = false;
-        cred.sshPublicKeyPath = k.publicKeyPath;
-        cred.sshPrivateKeyPath = k.privateKeyPath;
-        if (k.hasPassphrase)
-            cred.sshPassphrase = (co_await m_secrets->read(sshPassphraseKey(k.id))).toStdString();
+        cred.sshUseAgent = false;
+        for (const auto& k : m_store->sshKeys())
+        {
+            gittide::SshKeyfile kf{k.privateKeyPath, k.publicKeyPath, {}};
+            if (k.hasPassphrase)
+                kf.passphrase = (co_await m_secrets->read(sshPassphraseKey(k.id))).toStdString();
+            cred.sshKeyfiles.push_back(std::move(kf));
+        }
+        co_return cred;
     }
-    else
-    {
-        cred.sshUseAgent = true;
-    }
+
+    // Nothing configured: mirror the CLI. Try the ssh-agent first, then the
+    // conventional default identity files under ~/.ssh — so a repo that works in
+    // the terminal (default key on disk, empty agent) also works here.
+    cred.sshUseAgent = true;
+    cred.sshKeyfiles = gittide::discoverDefaultSshKeyfiles(m_sshDir);
     co_return cred;
 }
 

@@ -124,19 +124,52 @@ private slots:
 
         CredentialManager cm(&creds, tempCredPath(), &projects, &secrets);
         auto c = QCoro::waitFor(cm.credentialsForRemote(QStringLiteral("git@github.com:octocat/repo.git")));
-        QVERIFY(!c.sshUseAgent);
-        QCOMPARE(QString::fromStdString(c.sshPrivateKeyPath), QStringLiteral("/home/u/.ssh/id_ed25519"));
-        QCOMPARE(QString::fromStdString(c.sshPassphrase), QStringLiteral("pass"));
+        QVERIFY(!c.sshUseAgent); // an explicitly configured key is honoured; no agent probe
+        QCOMPARE(c.sshKeyfiles.size(), size_t{1});
+        QCOMPARE(QString::fromStdString(c.sshKeyfiles[0].privateKeyPath), QStringLiteral("/home/u/.ssh/id_ed25519"));
+        QCOMPARE(QString::fromStdString(c.sshKeyfiles[0].passphrase), QStringLiteral("pass"));
     }
 
+    // No in-app key and an empty ~/.ssh ⇒ the agent is the only attempt.
     void credentials_for_ssh_falls_back_to_agent_without_keys()
     {
         ProjectStore        projects;
         CredentialsStore    creds;
         InMemorySecretStore secrets;
         CredentialManager   cm(&creds, tempCredPath(), &projects, &secrets);
+
+        const auto emptyDir = std::filesystem::temp_directory_path()
+                              / ("gittide_ssh_empty_" + std::to_string(::QRandomGenerator::global()->generate()));
+        std::filesystem::create_directories(emptyDir);
+        cm.setDefaultSshDir(emptyDir);
+
         auto c = QCoro::waitFor(cm.credentialsForRemote(QStringLiteral("git@github.com:o/r.git")));
         QVERIFY(c.sshUseAgent);
+        QVERIFY(c.sshKeyfiles.empty());
+        std::filesystem::remove_all(emptyDir);
+    }
+
+    // No in-app key but a default identity file on disk ⇒ agent first, then the
+    // discovered key — the CLI-parity path this plan adds.
+    void credentials_for_ssh_discovers_default_identity_file()
+    {
+        ProjectStore        projects;
+        CredentialsStore    creds;
+        InMemorySecretStore secrets;
+        CredentialManager   cm(&creds, tempCredPath(), &projects, &secrets);
+
+        const auto dir = std::filesystem::temp_directory_path()
+                         / ("gittide_ssh_def_" + std::to_string(::QRandomGenerator::global()->generate()));
+        std::filesystem::create_directories(dir);
+        std::ofstream(dir / "id_ed25519") << "x";
+        cm.setDefaultSshDir(dir);
+
+        auto c = QCoro::waitFor(cm.credentialsForRemote(QStringLiteral("git@github.com:o/r.git")));
+        QVERIFY(c.sshUseAgent);
+        QCOMPARE(c.sshKeyfiles.size(), size_t{1});
+        QCOMPARE(QString::fromStdString(c.sshKeyfiles[0].privateKeyPath),
+                 QString::fromStdString((dir / "id_ed25519").generic_string()));
+        std::filesystem::remove_all(dir);
     }
 
     void remember_host_token_persists_for_next_lookup()

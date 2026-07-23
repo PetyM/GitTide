@@ -171,12 +171,16 @@ Per-symbol contracts live in the `RepoWatcher` / `watchTargets` Doxygen.
 Fetch, pull, and push run through the same `AsyncRepo` / `QtConcurrent::run`
 worker model as all other git ops — they never block the UI thread. Before each
 network call, the ViewModel supplies a `Credentials` POD (`sshUseAgent`,
-`username`, `password`) containing the auth material for that session. A pure
-`chooseCredential` helper (`core/src/credentialselect.cpp`, no Qt) inspects the
-remote URL and the libgit2 `allowed_types` bitmask to decide between ssh-agent
-and HTTPS userpass — it is unit-testable without a live remote. The libgit2
-credential callback (`credentialTrampoline`) delegates to this helper; it never
-blocks for a UI dialog. HTTPS tokens are stored in a session map on the
+`username`, `password`, and an ordered `sshKeyfiles` vector) containing the auth
+material for that session. A pure `credentialAttempts` helper
+(`core/src/credentialselect.cpp`, no Qt) inspects the remote URL and the libgit2
+`allowed_types` bitmask and returns an **ordered plan** of attempts — for SSH,
+the agent first (when enabled) then each keyfile; for HTTPS, one userpass — and
+is unit-testable without a live remote. The libgit2 credential callback
+(`credentialTrampoline`) walks that plan one attempt per invocation: libgit2's
+libssh2 transport re-calls the callback while auth returns `GIT_EAUTH`, so trying
+the agent and then successive keyfiles mirrors OpenSSH. It never blocks for a UI
+dialog. HTTPS tokens are stored in a session map on the
 ViewModel and discarded on quit — secure keychain persistence is deferred (moving
 to the OS keychain, with the non-secret metadata in `credentials.json`; see below).
 
@@ -199,12 +203,17 @@ tokens, SSH passphrases) stay out of `core/` and out of `credentials.json`: they
 live in the OS keychain via a `ui/`-side `SecretStore` (QtKeychain;
 `InMemorySecretStore` for tests), read into the `Credentials` POD only at call
 time. `CredentialManager::credentialsForRemote(url)` assembles that POD — a matched
-host account's token for HTTPS, a configured keyfile (+ passphrase) or the ssh-agent
-for SSH — and `RepoViewModel`/`ProjectController` `co_await` it before dispatching
+host account's token for HTTPS; for SSH, the configured keyfiles (+ passphrase,
+agent off) when the user registered any, else the ssh-agent **plus the
+conventional default identity files** discovered under `~/.ssh` (the pure
+`discoverDefaultSshKeyfiles(sshDir)`; home resolution stays in `ui/`). That
+default-key fallback is what makes a repo which authenticates from the CLI (a
+key on disk, an empty agent) also work in the app. `RepoViewModel` /
+`ProjectController` `co_await` the POD before dispatching
 fetch/pull/push/clone/fleet-fetch; the auth-dialog fallback persists an entered
-token back to the keychain. Core's `Credentials` carries SSH-keyfile fields and
-`chooseCredential`/the trampoline handle a `SshKey` kind; `clone()` takes
-`Credentials` too. On a machine with no keyring the keychain job errors and GitTide
+token back to the keychain. Core's `Credentials` carries the `sshKeyfiles` list
+and `credentialAttempts`/the trampoline emit a `SshKey` attempt per keyfile;
+`clone()` takes `Credentials` too. On a machine with no keyring the keychain job errors and GitTide
 degrades to the per-session prompt (D50).
 
 **Forge validation.** Adding a host account validates the token against the host
