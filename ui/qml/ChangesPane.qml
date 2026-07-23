@@ -346,15 +346,11 @@ SplitView {
 
     // Confirmation guard before clearing the whole stash stack — destructive and
     // unrecoverable, so it must never fire on a single stray click.
-    Dialog {
+    AppDialog {
         id: clearStashesDialog
         objectName: "clearStashesDialog"
-        modal: true
         title: "Clear all stashes"
-        anchors.centerIn: parent
         width: 380
-        padding: 20
-        background: OverlayCard {}
 
         contentItem: Label {
             text: (repoVm && repoVm.stashes)
@@ -367,10 +363,7 @@ SplitView {
             wrapMode: Text.WordWrap
         }
 
-        footer: RowLayout {
-            spacing: 8
-            Layout.margins: 16
-            Item { Layout.fillWidth: true }
+        footer: DialogButtons {
             AppButton {
                 variant: "secondary"
                 text: "Cancel"

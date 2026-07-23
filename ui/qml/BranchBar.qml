@@ -132,16 +132,16 @@ Rectangle {
             onClicked: if (repoVm) repoVm.fetch()
         }
 
-        SyncButton { // Pull — behind count inline; only with an upstream
+        SyncButton { // Pull — shown only when the branch is actually behind
             text: "Pull"
-            visible: repoVm && repoVm.hasUpstream
+            visible: repoVm && repoVm.hasUpstream && repoVm.behindCount > 0
             badgeCount: repoVm ? repoVm.behindCount : -1
             onClicked: if (repoVm) repoVm.pull()
         }
 
-        SyncButton { // Push — ahead count inline; only with an upstream
+        SyncButton { // Push — shown only when the branch is actually ahead
             text: "Push"
-            visible: repoVm && repoVm.hasUpstream
+            visible: repoVm && repoVm.hasUpstream && repoVm.aheadCount > 0
             badgeCount: repoVm ? repoVm.aheadCount : -1
             onClicked: if (repoVm) repoVm.push()
         }
@@ -206,4 +206,15 @@ Rectangle {
     NewBranchDialog { id: newBranchDialog }
     RenameBranchDialog { id: renameBranchDialog }
     DeleteBranchDialog { id: deleteBranchDialog }
+
+    // Background auto-fetch so ahead/behind (and the Pull/Push affordances) stay
+    // fresh without a manual Fetch. Runs only for a branch that tracks an upstream,
+    // and is silent — an auth failure does NOT raise the credential dialog (unlike
+    // the manual Fetch button), so an unattended token prompt never pops on a timer.
+    Timer {
+        interval: 180000 // 3 minutes
+        repeat: true
+        running: repoVm && repoVm.repoOpen && repoVm.hasUpstream
+        onTriggered: if (repoVm && repoVm.hasUpstream && !repoVm.syncing) repoVm.autoFetch()
+    }
 }

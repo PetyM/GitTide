@@ -48,7 +48,13 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::commitDiffReady, this, &RepoViewModel::onCommitDiff);
     connect(m_controller, &RepoController::rangeFilesReady, this, &RepoViewModel::onRangeFiles);
     connect(m_controller, &RepoController::rangeDiffReady, this, &RepoViewModel::onRangeDiff);
-    connect(m_controller, &RepoController::operationFailed, this, &RepoViewModel::operationFailed);
+    connect(m_controller, &RepoController::operationFailed, this,
+            [this](const QString& message)
+            {
+                // A silent (auto) fetch swallows its errors — no toast on a timer.
+                if (!m_silentSync)
+                    emit operationFailed(message);
+            });
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
     connect(m_controller, &RepoController::syncStatusChanged, this,
@@ -72,7 +78,7 @@ RepoViewModel::RepoViewModel(QObject* parent)
                 emit syncProgressChanged();
             });
     connect(m_controller, &RepoController::authFailed, this,
-            [this](QString) { emit authRequired(); });
+            [this](QString) { if (!m_silentSync) emit authRequired(); });
     connect(m_controller, &RepoController::mergeStateChanged, this,
             [this](const gittide::MergeState& s) { m_merge = s; emit mergeStateChanged(); });
     connect(m_controller, &RepoController::mergeFinished, this,
@@ -976,10 +982,11 @@ QCoro::Task<gittide::Credentials> RepoViewModel::resolveCredentials()
     co_return gittide::Credentials{}; // ssh-agent default / unauthenticated https
 }
 
-QCoro::Task<void> RepoViewModel::runFetch()
+QCoro::Task<void> RepoViewModel::runFetch(bool silent)
 {
     QPointer<RepoViewModel> self = this;
     m_pendingOp                  = PendingOp::Fetch;
+    m_silentSync                 = silent;
     auto cred                    = co_await resolveCredentials();
     if (!self) // viewmodel closed/destroyed while resolving credentials
         co_return;
@@ -990,6 +997,7 @@ QCoro::Task<void> RepoViewModel::runPull()
 {
     QPointer<RepoViewModel> self = this;
     m_pendingOp                  = PendingOp::Pull;
+    m_silentSync                 = false;
     auto cred                    = co_await resolveCredentials();
     if (!self)
         co_return;
@@ -1000,6 +1008,7 @@ QCoro::Task<void> RepoViewModel::runPush(bool setUpstream)
 {
     QPointer<RepoViewModel> self = this;
     m_pendingOp                  = setUpstream ? PendingOp::Publish : PendingOp::Push;
+    m_silentSync                 = false;
     auto cred                    = co_await resolveCredentials();
     if (!self)
         co_return;
@@ -1008,7 +1017,16 @@ QCoro::Task<void> RepoViewModel::runPush(bool setUpstream)
 
 void RepoViewModel::fetch()
 {
-    QCoro::connect(runFetch(), this, [] {});
+    QCoro::connect(runFetch(/*silent=*/false), this, [] {});
+}
+
+void RepoViewModel::autoFetch()
+{
+    // Skip if a sync is already running so the timer never queues overlapping
+    // fetches; the manual Fetch button remains available for an explicit refresh.
+    if (m_syncing)
+        return;
+    QCoro::connect(runFetch(/*silent=*/true), this, [] {});
 }
 
 void RepoViewModel::pull()

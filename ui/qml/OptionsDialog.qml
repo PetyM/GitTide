@@ -14,7 +14,7 @@ AppDialog {
 
     required property var appSettings
 
-    contentItem: ColumnLayout {
+    contentItem: DialogColumn {
         spacing: 16
 
         TabBar {

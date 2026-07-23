@@ -21,10 +21,7 @@ AppDialog {
         wrapMode: Text.WordWrap
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Layout.margins: 16
-        Item { Layout.fillWidth: true }
+    footer: DialogButtons {
         AppButton {
             variant: "secondary"
             text: "Cancel"

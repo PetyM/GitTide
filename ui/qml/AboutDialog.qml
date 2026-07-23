@@ -9,7 +9,7 @@ AppDialog {
     width: 320
     padding: 24
 
-    contentItem: ColumnLayout {
+    contentItem: DialogColumn {
         spacing: 12
 
         Image {
@@ -39,9 +39,7 @@ AppDialog {
         }
     }
 
-    footer: RowLayout {
-        Layout.margins: 16
-        Item { Layout.fillWidth: true }
+    footer: DialogButtons {
         AppButton {
             variant: "secondary"
             text: "Close"

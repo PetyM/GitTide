@@ -24,6 +24,8 @@
     <file>OverlayCard.qml</file>
     <file>AppDialog.qml</file>
     <file>AppButton.qml</file>
+    <file>DialogButtons.qml</file>
+    <file>DialogColumn.qml</file>
     <file>AppCheckBox.qml</file>
     <file>AppComboBox.qml</file>
     <file>AppScrollBar.qml</file>

@@ -14,9 +14,24 @@ Dialog {
     id: control
 
     modal: true
+    // Centre in the whole window, not the item the dialog happens to be declared
+    // in (e.g. a dialog nested in the diff pane would otherwise centre over that
+    // pane). Parenting to the window overlay makes centerIn resolve to the window.
+    parent: Overlay.overlay
     anchors.centerIn: parent
     padding: 20
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    // Size to the full stack (header + padded content + footer). QtQuick's Dialog
+    // does not fold the content height into its implicit height once a `footer` is
+    // present, so with a footer the card sizes too short — the content overflows
+    // below the card and the footer overlaps it. Deriving the height explicitly
+    // keeps the card wrapping its content. Dialogs whose content is a Layout must
+    // wrap it in a plain Item so `contentItem.implicitHeight` is reported (a Layout
+    // used as a Popup's direct contentItem reports 0); see e.g. NewBranchDialog.
+    implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
+                    + implicitHeaderHeight + implicitFooterHeight
+    height: implicitHeight
 
     // Shows the header ✕; clicking it rejects the dialog. Hide for dialogs that
     // must not be dismissed by a stray click (e.g. an in-flight operation).
