@@ -90,7 +90,14 @@ RowLayout {
                 readonly property int kRefColW: 120
                 readonly property int kRowH: 48
                 height: Math.max(kRowH, 8 + refCount * 18) // 8 = top+bottom pad, 18 = chip+gap
-                color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+                // Selection wins; otherwise unpushed (local-only) commits carry a
+                // faint accent tint, matching the History tab so what isn't shared
+                // reads at a glance here too (paired with the hollow graph dot).
+                color: ListView.isCurrentItem
+                       ? theme.surfaceOverlay
+                       : (model.isLocalOnly
+                          ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
+                          : "transparent")
 
                 // Accent left border on the selected row.
                 Rectangle {
@@ -196,12 +203,25 @@ RowLayout {
                         Layout.alignment: Qt.AlignTop
                         Layout.topMargin: 6
                         spacing: 2
-                        Label {
+                        RowLayout {
                             Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: model.summary
-                            color: theme.textPrimary
-                            font.pixelSize: 13
+                            spacing: 6
+                            Label {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: model.summary
+                                color: theme.textPrimary
+                                font.pixelSize: 13
+                            }
+                            // Unpushed cue: accent up-arrow, matching the History tab.
+                            Label {
+                                objectName: "graphLocalOnlyBadge"
+                                visible: model.isLocalOnly
+                                text: "↑"
+                                color: theme.accent
+                                font.pixelSize: 16
+                                font.weight: Font.Bold
+                            }
                         }
                         RowLayout {
                             spacing: 8

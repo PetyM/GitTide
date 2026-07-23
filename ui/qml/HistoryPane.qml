@@ -155,9 +155,15 @@ RowLayout {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: dropLogic.rowHeight  // single source of truth (dropLogic.rowHeight)
+                // Selection wins; otherwise unpushed rows carry a faint accent tint
+                // so the not-yet-shared commits read as a distinct band from the
+                // already-pushed (untinted) ones above and below.
                 color: (ListView.isCurrentItem
                         || historyList.selectedRows.indexOf(index) >= 0)
-                       ? theme.surfaceOverlay : "transparent"
+                       ? theme.surfaceOverlay
+                       : (model.isLocalOnly
+                          ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
+                          : "transparent")
 
                 // Whole-row hold-to-drag gesture state.
                 property bool dragArmed: false
@@ -271,16 +277,17 @@ RowLayout {
                         }
                     }
 
-                    // Unpushed badge: a shape/glyph cue (not colour alone) marking
-                    // a commit that is not yet on any remote. Paired with the dim
-                    // treatment above and the hollow graph dot in the Graph tab.
+                    // Unpushed badge: a single accent-coloured up-arrow marking a
+                    // commit not yet on any remote. Colour (not just a faint glyph)
+                    // carries the cue, reinforced by the accent row tint below and
+                    // the hollow graph dot in the Graph tab.
                     Label {
                         objectName: "localOnlyBadge"
                         visible: model.isLocalOnly
                         text: "↑" // upwards arrow — "needs pushing"
-                        color: theme.textSecondary
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
+                        color: theme.accent
+                        font.pixelSize: 16
+                        font.weight: Font.Bold
                         Layout.alignment: Qt.AlignVCenter
                         ToolTip.visible: badgeHover.hovered
                         ToolTip.text: qsTr("Local only — not yet pushed")

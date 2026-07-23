@@ -465,6 +465,32 @@ an entry with a newer one if it changes.
   [`engineering`](spec/engineering/engineering.md#build--test),
   [deployment-packaging](wishlist/deployment-packaging.md)
 
+- **D55 — Background auto-fetch is silent; failures never raise UI on a timer.**
+  A branch that tracks an upstream is fetched every ~3 min from a QML `Timer`, so
+  ahead/behind and the Pull/Push affordances stay fresh. The timer calls a dedicated
+  `RepoViewModel::autoFetch()` that sets an `m_silentSync` flag for the in-flight
+  op; while set, the ViewModel swallows the controller's `authFailed`
+  (no credential dialog) and `operationFailed` (no error toast). The manual **Fetch**
+  button (`fetch()`, `silent=false`) stays the way to force a refresh and to surface
+  an auth prompt. *Why:* an unattended token prompt or error toast popping every few
+  minutes is worse than a stale count; the explicit button covers the authenticated
+  case. *Rejected:* a backend timer in the controller (the UI already owns the
+  repo-open lifecycle and gating on `hasUpstream`/`syncing`); auto-fetching every
+  open repo regardless of upstream (wasteful, and errors on remote-less repos). →
+  [`product`](spec/product/product.md#syncing)
+
+- **D56 — Discarding a submodule resets it to its pinned commit, not a checkout of
+  the gitlink.** `GitRepo::discard` detects a submodule path via
+  `git_submodule_lookup`; a plain `git_checkout_head` only rewrites the superproject
+  index/gitlink and leaves the submodule's own working tree untouched, so a moved or
+  dirty submodule would stay modified. Instead it resets the superproject index to
+  HEAD, then force-updates the submodule (`git_submodule_update`, the libgit2
+  equivalent of `git submodule update --force`) so the submodule checks out its
+  pinned commit. *Why:* "discard" must actually revert the visible change; the old
+  path silently no-op'd on submodules. *Rejected:* recursing into the submodule repo
+  by hand to checkout the pin (reimplements `git_submodule_update`). →
+  [`product`](spec/product/product.md#changes-tab)
+
 ## Design
 
 - **D17 — One accent (Material Blue brand); never a second hue** for emphasis.
@@ -520,6 +546,24 @@ an entry with a newer one if it changes.
   a lightweight off-pin marker without counts (the user wanted exact counts). A
   shallow submodule missing the pinned commit simply shows no arrows. →
   [`submodule-detail design doc`](spec/product/2026-07-20-submodule-detail-and-right-align-design.md)
+
+- **D57 — Dialog layout lives in shared primitives, not per-dialog.** `AppDialog`
+  owns the cross-cutting behaviour and two wrappers own the body/footer: it
+  **centres in the window** (parents to `Overlay.overlay`, so a dialog declared
+  inside the diff pane no longer centres over that pane) and **sizes to content**
+  (derives `implicitHeight` and sets `height`, because QtQuick's `Dialog` drops the
+  content height from its implicit size once a `footer` exists — the card sizes too
+  short, overflowing content and overlapping the footer). Bodies wrap their stack in
+  **`DialogColumn`** (a `ColumnLayout` used *directly* as a Popup `contentItem`
+  reports implicit height 0 — a plain Item wrapper fixes it) and footers use
+  **`DialogButtons`** (a bare `RowLayout` footer sits flush to the border —
+  `Layout.margins` there is a no-op — and gives the Dialog no stable footer height).
+  *Why:* the New-branch dialog visibly overflowed (the base-branch combo escaped the
+  card) and every dialog's buttons hugged the edge; fixing it once in the base keeps
+  all ~18 dialogs correct. *Rejected:* per-dialog explicit heights/margins (fragile,
+  and re-broken by any content change); `childrenRect.height` for the content height
+  (a binding loop Qt silently breaks to 0). →
+  [`design`](spec/design/design.md#components)
 
 ## Process
 

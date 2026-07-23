@@ -16,7 +16,7 @@ AppDialog {
         nameField.forceActiveFocus()
     }
 
-    contentItem: ColumnLayout {
+    contentItem: DialogColumn {
         spacing: 12
         Label {
             text: "Project name"
@@ -39,10 +39,7 @@ AppDialog {
         }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Layout.margins: 16
-        Item { Layout.fillWidth: true }
+    footer: DialogButtons {
         AppButton {
             variant: "secondary"
             text: "Cancel"

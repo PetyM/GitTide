@@ -95,7 +95,7 @@ AppDialog {
 
     // ----- Content -----
 
-    contentItem: ColumnLayout {
+    contentItem: DialogColumn {
         spacing: 0
 
         // Commit list
@@ -240,10 +240,7 @@ AppDialog {
         Item { Layout.preferredHeight: 8 }
     }
 
-    footer: RowLayout {
-        spacing: 8
-        Layout.margins: 16
-        Item { Layout.fillWidth: true }
+    footer: DialogButtons {
         AppButton {
             variant: "secondary"
             text: "Cancel"

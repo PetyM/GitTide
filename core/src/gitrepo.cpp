@@ -18,6 +18,7 @@
 #include <git2/revwalk.h>
 #include <git2/refs.h>
 #include <git2/stash.h>
+#include <git2/submodule.h>
 #include <git2/worktree.h>
 #include <map>
 #include <memory>
@@ -525,6 +526,36 @@ Expected<void> GitRepo::discard(const StageSelection& sel)
 
     if (isWholeFile(sel))
     {
+        // Submodule (gitlink): git_checkout_head only rewrites the superproject's
+        // index/gitlink — it never touches the submodule's own working tree, so a
+        // moved or dirty submodule would stay modified. Reset the superproject
+        // index entry to HEAD, then force the submodule to check out its pinned
+        // commit — the libgit2 equivalent of `git submodule update --force`.
+        git_submodule* rawSm = nullptr;
+        int             smrc = git_submodule_lookup(&rawSm, m_repo, p.c_str());
+        if (smrc == 0)
+        {
+            std::unique_ptr<git_submodule, decltype(&git_submodule_free)> sm(rawSm, git_submodule_free);
+
+            git_checkout_options iopts = GIT_CHECKOUT_OPTIONS_INIT;
+            iopts.checkout_strategy    = GIT_CHECKOUT_FORCE;
+            char* paths[]              = {p.data()};
+            iopts.paths.strings        = paths;
+            iopts.paths.count          = 1;
+            int rc                     = git_checkout_head(m_repo, &iopts);
+            if (rc < 0)
+                return std::unexpected(lastGitError(rc));
+
+            git_submodule_update_options uopts = GIT_SUBMODULE_UPDATE_OPTIONS_INIT;
+            uopts.checkout_opts.checkout_strategy = GIT_CHECKOUT_FORCE;
+            rc = git_submodule_update(sm.get(), /*init=*/1, &uopts);
+            if (rc < 0)
+                return std::unexpected(lastGitError(rc));
+            return {};
+        }
+        if (smrc != GIT_ENOTFOUND)
+            return std::unexpected(lastGitError(smrc));
+
         // A file with no committed (HEAD) version is "new" (untracked or just
         // staged): there is nothing to restore, so discarding means removing it.
         // Drop any staged entry and delete it from the worktree.

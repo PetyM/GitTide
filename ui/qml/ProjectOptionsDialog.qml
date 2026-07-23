@@ -71,7 +71,7 @@ AppDialog {
     // immediate). The header ✕ and Escape dismiss.
     footer: null
 
-    contentItem: ColumnLayout {
+    contentItem: DialogColumn {
         spacing: 18
 
         // ---- Project identity ----

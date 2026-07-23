@@ -94,7 +94,12 @@ Committing builds the commit from exactly the **checked** set — checked whole
 files and checked lines within partially-checked files. Staging is an invisible
 implementation detail (the git index is rebuilt from the checked set at commit
 time), not a place files live. **Discard** is available from a right-click
-context menu on a file or a line selection.
+context menu on a file or a line selection. Discarding a **submodule** entry
+resets the submodule to its **pinned** commit (`git submodule update --force`):
+a plain checkout of the gitlink only rewrites the superproject's index and would
+leave the submodule's own working tree untouched, so a moved or dirty submodule
+would stay modified — the discard forces the submodule to check out the pinned
+commit instead.
 
 ### History tab
 
@@ -105,9 +110,10 @@ date) — no graph lane column. Each row's **avatar** shows the author's real im
 a large history is scannable by face without rows ever jumping; loading avatars
 from the network is a setting, on by default. **Local-only commits** — those not
 yet on any remote — are marked so the user sees at a glance what hasn't been shared:
-a trailing **`↑` badge** on the row, and pushed commits are **dimmed** while
-local-only ones stay full strength (in the Graph tab the same commits get a
-**hollow** dot). The cue updates live as commits are made, fetched, or pushed.
+a trailing **accent `↑` arrow** and a **faint accent row tint** banding the
+unpushed run — in **both** the History and Graph tabs — with pushed commits
+**dimmed** in History while local-only ones stay full strength (the Graph tab also
+draws a **hollow** dot). The cue updates live as commits are made, fetched, or pushed.
 Selecting a row opens the three-part
 **commit detail** flow: (1) the **changed-files list** of that commit (read-only,
 no checkboxes) fills the detail pane; (2) picking a file shows its **diff**
@@ -150,7 +156,15 @@ Sync a branch with its remote without leaving GitTide. The branch bar shows
 **ahead / behind** counts for the current branch's upstream. Four actions are
 available: **Fetch** (download new commits, update remote-tracking refs),
 **Pull** (fetch + reconcile), **Push** (upload local commits), and **Publish**
-(push + set upstream for a branch that has none). Pull strategy — fast-forward-only
+(push + set upstream for a branch that has none). Only the actions that *make
+sense right now* are shown: **Fetch** is always available; **Pull** appears only
+when the branch is behind (behind > 0), **Push** only when it is ahead (ahead > 0),
+and **Publish** only for a real branch with no upstream. In addition, a tracked
+branch is **auto-fetched in the background** every few minutes so ahead/behind (and
+those Pull/Push affordances) stay fresh without a manual Fetch. The background fetch
+is **silent** — an auth failure or network error never raises the credential dialog
+or an error toast on a timer; the explicit **Fetch** button remains the way to
+force a refresh (and to surface an auth prompt). Pull strategy — fast-forward-only
 or rebase — is persisted in the repo's git config (`pull.rebase`) and toggled
 from the branch bar. A rebase that hits conflicts aborts with an error; conflict
 resolution is done via CLI for now. Authentication: SSH remotes use the system

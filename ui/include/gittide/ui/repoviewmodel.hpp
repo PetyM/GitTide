@@ -230,6 +230,10 @@ public:
     Q_INVOKABLE void resync();
 
     Q_INVOKABLE void fetch();
+    /// Background fetch driven by the branch bar's timer. Same as fetch() but
+    /// silent: an auth failure or network error does not raise the credential
+    /// dialog or an error toast, so an unattended prompt never pops on a timer.
+    Q_INVOKABLE void autoFetch();
     Q_INVOKABLE void pull();
     Q_INVOKABLE void push();
     Q_INVOKABLE void publishBranch();
@@ -359,7 +363,7 @@ private:
     // Sync helpers: resolve credentials (session override → keychain-backed
     // credentialsForRemote → agent default) then run the op through the controller.
     QCoro::Task<gittide::Credentials> resolveCredentials();
-    QCoro::Task<void>                 runFetch();
+    QCoro::Task<void>                 runFetch(bool silent);
     QCoro::Task<void>                 runPull();
     QCoro::Task<void>                 runPush(bool setUpstream);
 
@@ -420,6 +424,9 @@ private:
     gittide::RebaseState       m_rebase;
     gittide::SyncStatus        m_sync;
     bool                       m_syncing    = false;
+    /// True while a silent (auto) fetch is in flight: suppresses the credential
+    /// dialog and error toast so a background timer never raises UI on failure.
+    bool                       m_silentSync = false;
     int                        m_syncReceived = 0;
     int                        m_syncTotal    = 0;
     bool                       m_pullRebase = false;

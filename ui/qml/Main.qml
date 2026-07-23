@@ -329,15 +329,11 @@ ApplicationWindow {
         onAccepted: if (repoVm) repoVm.submitCredentials(username, token)
     }
 
-    Dialog {
+    AppDialog {
         id: deleteProjectDialog
         objectName: "deleteProjectDialog"
-        modal: true
         title: "Delete project"
-        anchors.centerIn: parent
         width: 400
-        padding: 20
-        background: OverlayCard {}
 
         contentItem: Label {
             text: (projectController && projectController.activeProjectName.length > 0)
@@ -349,10 +345,7 @@ ApplicationWindow {
             font.pixelSize: 13
         }
 
-        footer: RowLayout {
-            spacing: 8
-            Layout.margins: 16
-            Item { Layout.fillWidth: true }
+        footer: DialogButtons {
             AppButton { variant: "secondary"; text: "Cancel"; onClicked: deleteProjectDialog.reject() }
             AppButton {
                 objectName: "deleteProjectConfirm"
@@ -367,20 +360,16 @@ ApplicationWindow {
 
     // Fleet-fetch error report — lists the repos that failed (non-auth) so the
     // user sees why, in place of the old passing "N fetched, M failed" caption.
-    Dialog {
+    AppDialog {
         id: fetchErrorDialog
         objectName: "fetchErrorDialog"
-        modal: true
         title: "Fetch failed"
-        anchors.centerIn: parent
         width: 460
-        padding: 20
-        background: OverlayCard {}
 
         property var failures: []
         function showFailures(list) { failures = list; open() }
 
-        contentItem: ColumnLayout {
+        contentItem: DialogColumn {
             spacing: 12
             Label {
                 Layout.fillWidth: true
@@ -408,10 +397,7 @@ ApplicationWindow {
             }
         }
 
-        footer: RowLayout {
-            spacing: 8
-            Layout.margins: 16
-            Item { Layout.fillWidth: true }
+        footer: DialogButtons {
             AppButton {
                 objectName: "fetchErrorClose"
                 variant: "secondary"

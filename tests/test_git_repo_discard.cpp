@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <fstream>
 #include <sstream>
 
+#include "gittide/filestatus.hpp"
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 
@@ -133,4 +135,56 @@ TEST_CASE("discardAll removes untracked directories", "[discard]")
     REQUIRE(repo->discardAll().has_value());
 
     REQUIRE_FALSE(std::filesystem::exists(tmp.path() / "newdir")); // dir gone, not just the file
+}
+
+TEST_CASE("discard resets a moved submodule to its pinned commit", "[discard][submodules]")
+{
+    // Child repo with two commits; the submodule is pinned at c2.
+    gittide::test::TempRepo child;
+    child.writeFile("s.txt", "v1\n");
+    child.commitAll("sub c1");
+    child.writeFile("s.txt", "v2\n");
+    child.commitAll("sub c2"); // child HEAD = c2
+
+    gittide::test::TempRepo parent;
+    parent.writeFile("top.txt", "p\n");
+    parent.commitAll("parent");
+    parent.addSubmodule("libchild", child.path()); // pins c2, checks out c2
+    parent.commitAll("add submodule");
+
+    // Move the checked-out submodule back to c1, so the parent sees it modified
+    // (pointer move away from the pinned c2). A plain `git checkout HEAD -- libchild`
+    // does not touch the submodule working tree, so discard must reset it properly.
+    auto sub = gittide::GitRepo::open(parent.path() / "libchild");
+    REQUIRE(sub.has_value());
+    auto commits = sub->log();
+    REQUIRE(commits.has_value());
+    REQUIRE(commits->size() == 2);
+    const std::string c1 = commits->back().oid;  // oldest
+    const std::string c2 = commits->front().oid;  // newest — the pinned commit
+    REQUIRE(sub->checkoutCommit(c1).has_value()); // submodule HEAD = c1
+
+    auto repo = gittide::GitRepo::open(parent.path());
+    REQUIRE(repo.has_value());
+    {
+        auto st = repo->status();
+        REQUIRE(st.has_value());
+        REQUIRE(std::any_of(st->begin(), st->end(),
+                            [](const gittide::FileStatus& f) { return f.path == "libchild"; }));
+    }
+
+    REQUIRE(repo->discard(gittide::StageSelection{"libchild", std::nullopt, {}}).has_value());
+
+    // The submodule working tree is back on the pinned commit, and the parent's
+    // tree is clean again (no lingering "libchild" modification).
+    auto subAfter = gittide::GitRepo::open(parent.path() / "libchild");
+    REQUIRE(subAfter.has_value());
+    auto headAfter = subAfter->head();
+    REQUIRE(headAfter.has_value());
+    REQUIRE(headAfter->oid == c2);
+
+    auto st2 = repo->status();
+    REQUIRE(st2.has_value());
+    REQUIRE(std::none_of(st2->begin(), st2->end(),
+                         [](const gittide::FileStatus& f) { return f.path == "libchild"; }));
 }
