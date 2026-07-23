@@ -71,6 +71,32 @@ with `-DGITGUI_BUILD_TESTS=OFF`.
 The CI matrix (Linux / macOS / Windows) runs the same configure → build → test
 sequence — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+## Packaging
+
+**macOS — a self-contained `GitTide.app`.** After a normal build, run:
+
+```bash
+cmake --build build --target deploy_macos
+```
+
+This produces `build/app/GitTide.app` (icon + `Info.plist` already baked in by
+the build), copies the Qt frameworks and QML plugins into it with `macdeployqt`,
+rewrites the residual absolute Qt references to `@rpath`, and ad-hoc codesigns
+the result — see [`packaging/macos/macdeploy.py`](packaging/macos/macdeploy.py).
+The bundle is portable (no Homebrew Qt needed at runtime); drag it into
+`/Applications` — or `cmake --install build --component gittide --prefix
+/Applications`. It is ad-hoc signed, not notarised, so on another Mac the first
+launch needs right-click → **Open** (or *System Settings → Privacy & Security*).
+The step is kept out of the default build because it copies ~90 MB of Qt.
+
+**Linux** installs a `.desktop` entry and icon via the same `gittide` install
+component: `cmake --install build --component gittide`.
+
+> Always pass `--component gittide`. A bare `cmake --install build` also runs the
+> bundled dependencies' own install rules (libgit2/QCoro/QtKeychain dev files,
+> and a KSyntaxHighlighting step that errors out) — the `gittide` component
+> installs *only* the app.
+
 ## Credits
 
 GitTide's interaction model is inspired by

@@ -444,6 +444,26 @@ an entry with a newer one if it changes.
   resolution and couples graph layout to sync state); a colour-only treatment. →
   [`engineering`](spec/engineering/engineering.md#local-only-vs-pushed-commits),
   [Plan 39](plans/2026-07-20-plan39-avatars-and-local-remote.md)
+- **D54 — The macOS `.app` is finished by a post-`macdeployqt` script, not by
+  `macdeployqt` alone.** [`packaging/macos/macdeploy.py`](packaging/macos/macdeploy.py)
+  runs `macdeployqt`, then does two fixups it does not do reliably (at least with a
+  Homebrew Qt): it rewrites the absolute `/opt/homebrew/...` install-names and
+  references it leaves on the transitively pulled-in *qtdeclarative* frameworks to
+  `@rpath` (else the bundle loads the *system* Qt and is not portable), and it
+  **ad-hoc codesigns** every Mach-O in the bundle — including the QML plugin dylibs
+  under `Contents/Resources/` that `codesign --deep` does not descend into. *Why
+  signing is mandatory:* `macdeployqt`'s load-command edits invalidate the
+  signatures Homebrew shipped, and Apple Silicon SIGKILLs a process the moment it
+  maps a page whose signature does not match ("Code Signature Invalid"). *Signing
+  order:* sign the Resources-tree dylibs individually first, then one
+  `codesign --deep` on the app seals everything consistently. The bundle is ad-hoc
+  signed, **not notarized** — fine locally; a fresh Mac needs right-click → Open.
+  *Rejected:* `install(TARGETS ... BUNDLE)` for `cmake --install` (its install-time
+  RPATH rewrite + re-sign undoes the fixups and breaks the signature — we
+  `install(DIRECTORY)` the finished bundle verbatim instead). Full notarization +
+  native installers remain a wish. →
+  [`engineering`](spec/engineering/engineering.md#build--test),
+  [deployment-packaging](wishlist/deployment-packaging.md)
 
 ## Design
 
