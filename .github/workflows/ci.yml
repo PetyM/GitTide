@@ -26,7 +26,7 @@ jobs:
         with:
           # Newer Qt dropped the legacy AGL framework reference that older 6.x
           # emitted on macOS (the current Xcode SDK removed AGL). Paired with the
-          # defensive AGL strip in Dependencies.cmake for older Qt.
+          # defensive AGL strip in cmake/dependencies/qt.cmake for older Qt.
           version: '6.9.1'
           cache: true
       - name: Configure

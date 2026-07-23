@@ -503,7 +503,8 @@ test-layer exception). Principles first: KISS, DRY, SOLID, YAGNI.
 - **Dependencies.** Qt 6 comes from the system or `aqtinstall` via
   `find_package` — **never** FetchContent (building Qt from source is
   impractical). libgit2, QCoro, and Catch2 are fetched via **FetchContent**
-  (pinned tags in [`cmake/Dependencies.cmake`](../../../cmake/Dependencies.cmake)).
+  (pinned tags under [`cmake/dependencies/`](../../../cmake/dependencies), one
+  file per dependency, aggregated by [`cmake/dependencies.cmake`](../../../cmake/dependencies.cmake)).
   vcpkg is deliberately avoided. Network transports (`USE_SSH`/`USE_HTTPS`) are
   **on** (D28): HTTPS uses the platform TLS backend (OpenSSL on Linux →
   `libssl-dev`, SChannel on Windows, SecureTransport on macOS); SSH links libssh2
