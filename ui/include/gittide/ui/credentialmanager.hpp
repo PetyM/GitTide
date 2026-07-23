@@ -104,6 +104,10 @@ public:
     /// flow before dispatching a network op.
     QCoro::Task<gittide::Credentials> credentialsForRemote(QString url);
 
+    /// Override the directory scanned for default SSH identity files (normally
+    /// ~/.ssh). Test hook — production leaves the home-derived default.
+    void setDefaultSshDir(std::filesystem::path dir) { m_sshDir = std::move(dir); }
+
     /// Resolve + write the effective LOCAL identity into the repo's git config,
     /// unless the repo carries a CLI-set (unmarked) local identity. Idempotent.
     QCoro::Task<void> applyIdentityToRepo(QString repoPath);
@@ -134,6 +138,7 @@ private:
     SshKeyListModel*             m_sshKeyModel;
     ForgeClient*                 m_forge;
     QString                      m_lastAppliedPath;
+    std::filesystem::path        m_sshDir; // scanned for default identity files (~/.ssh)
 };
 
 } // namespace gittide::ui

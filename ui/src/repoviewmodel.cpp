@@ -959,7 +959,7 @@ void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,
 QCoro::Task<gittide::Credentials> RepoViewModel::resolveCredentials()
 {
     // A token/keyfile just entered via the dialog overrides for this session.
-    if (!m_sessionCred.password.empty() || !m_sessionCred.sshPrivateKeyPath.empty())
+    if (!m_sessionCred.password.empty() || !m_sessionCred.sshKeyfiles.empty())
         co_return m_sessionCred;
 
     // Otherwise resolve from the keychain-backed store for the active remote's URL.

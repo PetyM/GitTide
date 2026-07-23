@@ -140,6 +140,12 @@ struct CbPayload
 {
     gittide::ProgressCallback* cb   = nullptr;
     gittide::Credentials*      cred = nullptr;
+    // Ordered auth plan, walked one attempt per credential-callback invocation:
+    // libgit2's libssh2 transport re-calls the callback while auth returns
+    // GIT_EAUTH, so we hand out ssh-agent, then each keyfile, in turn.
+    std::vector<gittide::CredentialAttempt> plan;
+    bool                                    planned = false;
+    std::size_t                             next    = 0;
 };
 
 int transferProgressTrampoline(const git_indexer_progress* stats, void* payload)
@@ -159,18 +165,37 @@ int pushTransferProgressTrampoline(unsigned current, unsigned total, size_t /*by
 int credentialTrampoline(git_credential** out, const char* url, const char* username_from_url,
                          unsigned int allowed_types, void* payload)
 {
-    auto* pl = static_cast<CbPayload*>(payload);
+    auto*       pl   = static_cast<CbPayload*>(payload);
+    const char* user = username_from_url ? username_from_url : "git";
+
+    // A url without an embedded username (e.g. "ssh://host/repo") prompts a
+    // separate username request before any key request; answer it directly and
+    // leave the auth plan for the real credential calls that follow.
+    if (allowed_types & GIT_CREDENTIAL_USERNAME)
+        return git_credential_username_new(out, user);
+
     if (!pl->cred)
         return GIT_EAUTH;
     const auto& cred = *pl->cred;
-    switch (gittide::chooseCredential(url ? url : "", allowed_types, cred))
+    if (!pl->planned)
+    {
+        pl->plan    = gittide::credentialAttempts(url ? url : "", allowed_types, cred);
+        pl->planned = true;
+    }
+
+    if (pl->next >= pl->plan.size())
+        return GIT_EAUTH; // plan exhausted — every attempt was rejected
+    const auto att = pl->plan[pl->next++];
+    switch (att.kind)
     {
     case gittide::CredentialKind::SshAgent:
-        return git_credential_ssh_key_from_agent(out, username_from_url ? username_from_url : "git");
+        return git_credential_ssh_key_from_agent(out, user);
     case gittide::CredentialKind::SshKey:
-        return git_credential_ssh_key_new(out, username_from_url ? username_from_url : "git",
-                                          cred.sshPublicKeyPath.empty() ? nullptr : cred.sshPublicKeyPath.c_str(),
-                                          cred.sshPrivateKeyPath.c_str(), cred.sshPassphrase.c_str());
+    {
+        const auto& k = cred.sshKeyfiles[att.keyIndex];
+        return git_credential_ssh_key_new(out, user, k.publicKeyPath.empty() ? nullptr : k.publicKeyPath.c_str(),
+                                          k.privateKeyPath.c_str(), k.passphrase.c_str());
+    }
     case gittide::CredentialKind::UserPass:
         return git_credential_userpass_plaintext_new(out, cred.username.c_str(), cred.password.c_str());
     case gittide::CredentialKind::None:
