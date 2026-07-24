@@ -84,6 +84,32 @@ TEST_CASE("status reports a moved file as a single WtRenamed entry", "[repo]")
                          }));
 }
 
+TEST_CASE("status detects a move into another directory as a rename", "[repo]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("src/thing.txt", "one\ntwo\nthree\nfour\n");
+    tmp.commitAll("add src/thing.txt");
+    // Move to a different folder, same file name and content.
+    tmp.writeFile("lib/thing.txt", "one\ntwo\nthree\nfour\n");
+    std::filesystem::remove(tmp.path() / "src" / "thing.txt");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto st = repo->status();
+    REQUIRE(st.has_value());
+    auto it = std::find_if(st->begin(),
+                           st->end(),
+                           [](const gittide::FileStatus& f)
+                           {
+                               return f.path == std::filesystem::path("lib/thing.txt");
+                           });
+    REQUIRE(it != st->end());
+    REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::WtRenamed));
+    // The full source path is preserved, so the UI can show the folder change.
+    REQUIRE(it->oldPath == std::filesystem::path("src/thing.txt"));
+}
+
 TEST_CASE("status reports a committed-then-modified file as WtModified", "[repo]")
 {
     gittide::test::TempRepo tmp;

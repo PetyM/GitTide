@@ -265,17 +265,20 @@ ColumnLayout {
                             textFormat: Text.RichText
                             // Abbreviate dir segments only as much as the width needs;
                             // see PathElide.js. Hidden ruler measures in the same font.
+                            readonly property bool isRename: model.statusKind === "renamed" && model.oldPath
                             TextMetrics { id: pathRuler; font: pathLabel.font }
-                            readonly property string shortDir: PathElide.fit(
+                            // Only non-rename rows abbreviate the dir prefix; a rename
+                            // shows both full paths so a move across folders is legible.
+                            readonly property string shortDir: isRename ? "" : PathElide.fit(
                                 model.fileDir, model.fileName, width,
                                 function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
-                            // Basename of the pre-rename path, shown as "old → new".
-                            readonly property string oldName:
-                                model.statusKind === "renamed" && model.oldPath
-                                    ? model.oldPath.substring(model.oldPath.lastIndexOf('/') + 1) : ""
-                            text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
-                                  + (oldName ? "<font color='" + theme.textMuted + "'>" + oldName + " → </font>" : "")
-                                  + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+                            // Rename → "old/path → new/dir/" muted then the new name,
+                            // so the whole move reads even when the name is unchanged.
+                            text: isRename
+                                  ? "<font color='" + theme.textMuted + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
+                                    + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
+                                  : "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                                    + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                         }
                         Label {
                             text: model.statusLetter

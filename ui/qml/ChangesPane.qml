@@ -192,21 +192,24 @@ SplitView {
                             : model.statusKind === "deleted"   ? theme.stateDeleted
                             : model.statusKind === "renamed"   ? theme.stateIncoming
                             : theme.textPrimary
-                        // Basename of the pre-rename path, shown as "old → new" so
-                        // a move reads as one entry rather than a delete + add.
-                        readonly property string oldName:
-                            model.statusKind === "renamed" && model.oldPath
-                                ? model.oldPath.substring(model.oldPath.lastIndexOf('/') + 1) : ""
+                        readonly property bool isRename: model.statusKind === "renamed" && model.oldPath
                         // Hidden ruler: measures candidate strings in the same
                         // font so the dir prefix is abbreviated only as much as
                         // the available width demands (full path when it fits).
                         TextMetrics { id: pathRuler; font: pathLabel.font }
-                        readonly property string shortDir: PathElide.fit(
+                        // Only non-rename rows abbreviate the dir prefix; a rename
+                        // shows both full paths so a move across folders is legible.
+                        readonly property string shortDir: isRename ? "" : PathElide.fit(
                             model.fileDir, model.fileName, width,
                             function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
-                        text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
-                              + (oldName ? "<font color='" + theme.textMuted + "'>" + oldName + " → </font>" : "")
-                              + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
+                        // Rename → "old/path → new/dir/" muted then the new name
+                        // tinted, so the whole move reads even when the name is
+                        // unchanged (a plain "name → name" would look pointless).
+                        text: isRename
+                              ? "<font color='" + theme.textMuted + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
+                                + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
+                              : "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                                + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                     }
                     Label {
                         text: model.statusLetter

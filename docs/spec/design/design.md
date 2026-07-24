@@ -173,8 +173,10 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   would only duplicate it. A **moved file is one `R` row**, not a delete + add:
   the core enables libgit2 rename detection (`git_diff_find_similar`, and the
   `GIT_STATUS_OPT_RENAMES_*` flags for the working tree) and carries the source
-  path, which the row shows as *`old → new`* (source basename muted, arrow, then
-  the destination). Committing an `R` row stages both operations — add the
+  path, which the row shows as *`old/path → new/path`* — the **full** source path
+  and new directory muted, the new file name tinted — so a move into another
+  folder still reads even when the file name is unchanged (a basename-only
+  *`name → name`* would look pointless). Committing an `R` row stages both operations — add the
   destination, remove the source — and discarding it deletes the moved copy while
   restoring the source from HEAD, so a rename is always applied or reverted whole.
   The **letter and file name** are tinted by status — `state.added` green for
