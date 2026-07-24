@@ -1054,6 +1054,11 @@ void RepoViewModel::publishBranch()
     QCoro::connect(runPush(/*setUpstream=*/true), this, [] {});
 }
 
+void RepoViewModel::cancelSync()
+{
+    m_controller->cancelSync();
+}
+
 void RepoViewModel::submitCredentials(const QString& username, const QString& token)
 {
     m_sessionCred.username    = username.toStdString();

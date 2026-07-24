@@ -237,6 +237,9 @@ public:
     Q_INVOKABLE void pull();
     Q_INVOKABLE void push();
     Q_INVOKABLE void publishBranch();
+    /// Cancel the in-flight fetch/pull/push, returning the sync UI to idle
+    /// immediately (see RepoController::cancelSync). No-op when nothing is syncing.
+    Q_INVOKABLE void cancelSync();
     Q_INVOKABLE void submitCredentials(const QString& username, const QString& token);
 
     /// Wire the process-wide credential manager so sync ops resolve keychain-backed

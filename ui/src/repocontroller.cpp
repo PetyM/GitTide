@@ -7,6 +7,7 @@
 
 #include <QDir>
 #include <QPointer>
+#include <QTimer>
 #include <QVariant>
 
 #include "gittide/graphbuilder.hpp"
@@ -936,14 +937,72 @@ QCoro::Task<void> RepoController::onWatchGitDir()
 gittide::ProgressCallback RepoController::progressSink()
 {
     QPointer<RepoController> self = this;
-    return [self](unsigned received, unsigned total) -> bool
+    auto                     cancel = m_syncCancel; // this op's flag (shared_ptr by value)
+    return [self, cancel](unsigned received, unsigned total) -> bool
     {
+        // Cancellation: returning false makes the libgit2 trampoline return -1,
+        // aborting the transfer with GIT_EUSER. Read on the worker thread.
+        if (cancel && cancel->load(std::memory_order_relaxed))
+            return false;
         if (auto* p = self.data())
             QMetaObject::invokeMethod(
                 p, [p, received, total] { emit p->syncProgressChanged(received, total); },
                 Qt::QueuedConnection);
         return true;
     };
+}
+
+quint64 RepoController::beginSync()
+{
+    m_syncCancel = std::make_shared<std::atomic<bool>>(false); // FRESH per op
+    m_syncActive = true;
+    const quint64 gen = ++m_syncGen;
+    emit syncBusyChanged(true);
+
+    if (!m_syncWatchdog)
+    {
+        m_syncWatchdog = new QTimer(this);
+        m_syncWatchdog->setSingleShot(true);
+    }
+    m_syncWatchdog->disconnect();
+    connect(m_syncWatchdog, &QTimer::timeout, this,
+            [this, gen]()
+            {
+                if (gen != m_syncGen)
+                    return; // op already finished or was superseded
+                if (m_syncCancel)
+                    m_syncCancel->store(true); // best-effort abort of the blocked worker
+                ++m_syncGen;                   // invalidate the pending co_await resume
+                m_syncActive = false;
+                emit syncBusyChanged(false);   // UI regains control immediately
+                logf(LogLevel::Warning, logcat::ASYNC, "network op timed out after {} s",
+                     kSyncTimeout.count() / 1000);
+                emit operationFailed(tr("Network operation timed out. Check your connection (e.g. VPN) and try again."));
+            });
+    m_syncWatchdog->start(static_cast<int>(kSyncTimeout.count()));
+    return gen;
+}
+
+void RepoController::endSync()
+{
+    m_syncActive = false;
+    if (m_syncWatchdog)
+        m_syncWatchdog->stop();
+    emit syncBusyChanged(false);
+}
+
+void RepoController::cancelSync()
+{
+    if (!m_syncActive)
+        return; // nothing in flight
+    if (m_syncCancel)
+        m_syncCancel->store(true); // best-effort abort of the running worker
+    ++m_syncGen;                   // invalidate the pending co_await resume
+    m_syncActive = false;
+    if (m_syncWatchdog)
+        m_syncWatchdog->stop();
+    emit syncBusyChanged(false);
+    logf(LogLevel::Info, logcat::ASYNC, "sync cancelled by user");
 }
 
 QCoro::Task<QString> RepoController::currentRemoteUrl()
@@ -959,12 +1018,12 @@ QCoro::Task<void> RepoController::fetch(gittide::Credentials cred)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
-    emit syncBusyChanged(true);
+    const quint64            gen = beginSync();
     logf(LogLevel::Info, logcat::ASYNC, "fetch from 'origin' started");
     auto r = co_await m_repo->fetch(QStringLiteral("origin"), cred, progressSink());
-    if (!self)
-        co_return;
-    emit syncBusyChanged(false);
+    if (!self || gen != m_syncGen)
+        co_return; // superseded by the timeout watchdog or a newer op
+    endSync();
     if (!r)
     {
         logf(LogLevel::Warning, logcat::ASYNC, "fetch failed: {}", r.error().message);
@@ -990,11 +1049,11 @@ QCoro::Task<void> RepoController::pull(gittide::Credentials cred)
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
-    emit syncBusyChanged(true);
+    const quint64            gen = beginSync();
     auto r = co_await m_repo->pull(cred, progressSink());
-    if (!self)
-        co_return;
-    emit syncBusyChanged(false);
+    if (!self || gen != m_syncGen)
+        co_return; // superseded by the timeout watchdog or a newer op
+    endSync();
     if (!r)
     {
         if (isAuthError(r.error()))
@@ -1022,11 +1081,11 @@ QCoro::Task<void> RepoController::push(QString branch, bool setUpstream, gittide
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
-    emit syncBusyChanged(true);
+    const quint64            gen = beginSync();
     auto r = co_await m_repo->push(QStringLiteral("origin"), branch, setUpstream, cred, progressSink());
-    if (!self)
-        co_return;
-    emit syncBusyChanged(false);
+    if (!self || gen != m_syncGen)
+        co_return; // superseded by the timeout watchdog or a newer op
+    endSync();
     if (!r)
     {
         if (isAuthError(r.error()))

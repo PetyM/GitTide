@@ -63,6 +63,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 43 — History/graph refinements + commit medallion](2026-07-21-plan43-history-graph-medallion.md) | 2026-07-21 | done | product · engineering · core · ui |
 | [Plan 44 — SSH auth falls back to default `~/.ssh` identity files](2026-07-23-plan44-ssh-default-keys.md) | 2026-07-23 | done | engineering · core · ui |
 | [Plan 45 — Dialog layout, sync affordances, unpushed cue & submodule discard](2026-07-23-plan45-dialog-sync-submodule-fixes.md) | 2026-07-23 | done | product · design · engineering · core · ui |
+| [Plan 46 — Network op timeouts & cancellation (+ unbounded-wait audit)](2026-07-24-plan46-network-timeouts-cancel.md) | 2026-07-24 | done | engineering · core · ui · design |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

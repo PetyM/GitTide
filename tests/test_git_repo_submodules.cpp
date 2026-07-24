@@ -160,6 +160,33 @@ TEST_CASE("submoduleTree recurses and reports an uninitialised nested submodule"
     REQUIRE(lvl2.children.empty());
 }
 
+TEST_CASE("submoduleTree stops recursing at the depth cap", "[submodules]")
+{
+    gittide::test::TempRepo child;
+    child.writeFile("a.txt", "x\n");
+    child.commitAll("child");
+
+    gittide::test::TempRepo parent;
+    parent.writeFile("top.txt", "p\n");
+    parent.commitAll("parent");
+    parent.addSubmodule("libchild", child.path());
+    parent.commitAll("add submodule");
+
+    auto repo = GitRepo::open(parent.path());
+    REQUIRE(repo.has_value());
+
+    // At (or past) the cap the guard short-circuits before enumeration → empty,
+    // proving a cyclic/deep graph cannot recurse without bound.
+    auto capped = repo->submoduleTree(GitRepo::kMaxSubmoduleDepth);
+    REQUIRE(capped.has_value());
+    REQUIRE(capped->empty());
+
+    // Sanity: the normal (depth 0) call still descends and finds the submodule.
+    auto full = repo->submoduleTree();
+    REQUIRE(full.has_value());
+    REQUIRE(full->size() == 1);
+}
+
 TEST_CASE("updateSubmodules re-initialises all direct submodules", "[submodule]")
 {
     gittide::test::TempRepo child;

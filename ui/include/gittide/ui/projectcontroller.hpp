@@ -5,6 +5,7 @@
 #include <QVariantList>
 #include <atomic>
 #include <filesystem>
+#include <memory>
 #include <qcorotask.h>
 #include <vector>
 
@@ -96,6 +97,10 @@ public slots:
     // Fetch every non-missing repo in the active project in parallel. No-op when
     // there is no active project, no repos, or a fetch is already running.
     Q_INVOKABLE void fetchAll();
+    // Signal every in-flight fleet fetch to abort (best effort, via its progress
+    // callback). No-op when no fleet fetch is running. HTTPS connect-phase hangs
+    // are additionally bounded by the core server timeout.
+    Q_INVOKABLE void cancelFetchAll();
     // Start/stop the low-frequency poll that keeps non-active repos' sidebar sync
     // counts current (D35). Driven by the window's active state from QML.
     Q_INVOKABLE void setWindowActive(bool active);
@@ -168,6 +173,10 @@ private:
     QStringList          m_fetchErrors;                // "name: message" per non-auth failure, shown once settled
     gittide::Credentials m_sessionCred;
     CredentialManager*   m_credentials = nullptr; // process-wide; not owned
+    // Fleet-fetch cancel flag. Shared (not a bare member) so each fetchOne worker
+    // captures its own reference and a controller reset never dangles it. Fresh
+    // per fetchAll() run; set by cancelFetchAll(). Read on worker threads.
+    std::shared_ptr<std::atomic<bool>> m_fleetCancel;
 
     void saveStore() const;
     void refreshRepoModel();
