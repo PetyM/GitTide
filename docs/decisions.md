@@ -491,6 +491,26 @@ an entry with a newer one if it changes.
   by hand to checkout the pin (reimplements `git_submodule_update`). →
   [`product`](spec/product/product.md#changes-tab)
 
+- **D58 — Network ops get a UI watchdog + reused-callback cancel, not a core
+  cancellation API.** A fetch/pull/push on an unreachable remote (e.g. an internal
+  repo off-VPN) used to hang the UI forever. Three layers bound it: libgit2 server
+  connect/read timeouts (HTTPS only), a per-op cancel flag that the existing
+  `ProgressCallback` observes (returning `false` aborts the transfer via the
+  trampoline — SSH-capable, no core signature change), and a 30 s `QTimer` watchdog
+  + generation counter on `RepoController` that returns the UI to idle even while
+  the worker thread stays blocked. *Why the watchdog:* `QtConcurrent::run` isn't
+  cancelable and libgit2's connect phase never invokes the progress callback, so
+  the worker genuinely cannot be interrupted mid-connect — the UI must be freed
+  independently and the stale coroutine dropped via the generation guard (kept
+  valid by the `QPointer self` + the worker's captured `impl` `shared_ptr`).
+  *Rejected:* a dedicated core cancellation-token API (the `bool` callback already
+  carries the signal, and Qt must stay out of `core/`); truly interrupting the
+  worker (not possible for the connect-phase hang); relying on the libgit2 server
+  timeouts alone (they don't cover SSH). Keychain awaits are deliberately left
+  unbounded — a QCoro timeout race there risks destroying a live `QKeychain::Job`,
+  and the op is local. →
+  [`engineering`](spec/engineering/engineering.md#network-operations--credentials)
+
 ## Design
 
 - **D17 — One accent (Material Blue brand); never a second hue** for emphasis.
