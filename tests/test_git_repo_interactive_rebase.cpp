@@ -279,7 +279,7 @@ TEST_CASE("continue without a message errors on a reword pause", "[rebase-i]")
 // Task 5: Squash
 // ---------------------------------------------------------------------------
 
-TEST_CASE("interactive squash folds a commit into the previous, pausing for message", "[rebase-i]")
+TEST_CASE("interactive squash folds without a message pause, keeping the combined message", "[rebase-i]")
 {
     gittide::test::TempRepo tmp;
     tmp.setIdentity("Test", "test@example.com");
@@ -288,9 +288,9 @@ TEST_CASE("interactive squash folds a commit into the previous, pausing for mess
     auto repo = GitRepo::open(tmp.path());
     REQUIRE(repo.has_value());
     tmp.writeFile("a.txt", "a\n");
-    tmp.commitAll("A");
+    tmp.commitAll("A msg");
     tmp.writeFile("b.txt", "b\n");
-    tmp.commitAll("B");
+    tmp.commitAll("B msg");
 
     auto hist = repo->log(10);
     const std::string oidB = hist->at(0).oid;
@@ -300,28 +300,65 @@ TEST_CASE("interactive squash folds a commit into the previous, pausing for mess
     gittide::RebaseTodo todo;
     todo.base = base;
     todo.entries = { {RebaseAction::Pick, oidA}, {RebaseAction::Squash, oidB} };
+    // Squash no longer pauses for a message (Plan 47): it commits straight away
+    // with the concatenated default message and finishes in one run.
     auto out = repo->startInteractiveRebase(todo);
     REQUIRE(out.has_value());
-    REQUIRE(out->pause == gittide::RebasePause::Message);
-
-    auto st = repo->rebaseState();
-    REQUIRE(st.pause == gittide::RebasePause::Message);
-    // Combined prefill carries both A's and B's messages.
-    REQUIRE(st.messagePrefill.find("A") != std::string::npos);
-    REQUIRE(st.messagePrefill.find("B") != std::string::npos);
-
-    auto cont = repo->continueRebase("A and B combined\n");
-    REQUIRE(cont.has_value());
-    REQUIRE_FALSE(cont->conflicted);
+    REQUIRE_FALSE(out->conflicted);
+    REQUIRE(out->pause == gittide::RebasePause::None);
     REQUIRE_FALSE(repo->rebaseState().inProgress);
 
     auto after = repo->log(10);
     // newest-first: [combined, c0] — two commits, not three.
     REQUIRE(after->size() == 2);
-    REQUIRE(after->at(0).summary == "A and B combined");
+    // The combined message carries both A's and B's text.
+    auto combined = repo->commitMessage(after->at(0).oid);
+    REQUIRE(combined.has_value());
+    REQUIRE(combined->find("A msg") != std::string::npos);
+    REQUIRE(combined->find("B msg") != std::string::npos);
     // both files present in the single squashed commit.
     REQUIRE(std::filesystem::exists(tmp.path() / "a.txt"));
     REQUIRE(std::filesystem::exists(tmp.path() / "b.txt"));
+}
+
+TEST_CASE("interactive squash chain concatenates every message, no pause", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A msg");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B msg");
+    tmp.writeFile("c.txt", "c\n");
+    tmp.commitAll("C msg");
+
+    auto hist = repo->log(10);
+    const std::string oidC = hist->at(0).oid;
+    const std::string oidB = hist->at(1).oid;
+    const std::string oidA = hist->at(2).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidA},
+                     {RebaseAction::Squash, oidB},
+                     {RebaseAction::Squash, oidC} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->pause == gittide::RebasePause::None);
+    REQUIRE_FALSE(repo->rebaseState().inProgress);
+
+    auto after = repo->log(10);
+    REQUIRE(after->size() == 2); // [combined, c0]
+    auto combined = repo->commitMessage(after->at(0).oid);
+    REQUIRE(combined.has_value());
+    REQUIRE(combined->find("A msg") != std::string::npos);
+    REQUIRE(combined->find("B msg") != std::string::npos);
+    REQUIRE(combined->find("C msg") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -435,4 +472,79 @@ TEST_CASE("interactive rebase rejects squash/fixup as the first kept entry", "[r
         REQUIRE(tipAfter.has_value());
         REQUIRE(tipAfter->oid == tipBefore->oid);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Plan 47: Undo a drop-free history edit (soft reset to the pre-edit tip)
+// ---------------------------------------------------------------------------
+
+TEST_CASE("undoHistoryEdit restores the pre-edit tip after a clean squash", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A msg");
+    tmp.writeFile("b.txt", "b\n");
+    tmp.commitAll("B msg");
+
+    const auto preTip = repo->head();
+    REQUIRE(preTip.has_value());
+
+    auto hist = repo->log(10);
+    const std::string oidB = hist->at(0).oid;
+    const std::string oidA = hist->at(1).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Pick, oidA}, {RebaseAction::Squash, oidB} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->pause == gittide::RebasePause::None);
+
+    // History was rewritten: the tip moved.
+    auto newTip = repo->head();
+    REQUIRE(newTip.has_value());
+    REQUIRE(newTip->oid != preTip->oid);
+
+    // Undo restores the exact pre-edit tip, with a clean worktree.
+    REQUIRE(repo->undoHistoryEdit(preTip->oid).has_value());
+    auto restored = repo->head();
+    REQUIRE(restored.has_value());
+    REQUIRE(restored->oid == preTip->oid);
+    auto status = repo->status();
+    REQUIRE(status.has_value());
+    REQUIRE(status->empty()); // soft reset onto a content-identical tree ⇒ clean
+}
+
+TEST_CASE("undoHistoryEdit guards: bad oid and mid-rebase error", "[rebase-i]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("base.txt", "base\n");
+    tmp.commitAll("c0");
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    // Bad oid.
+    REQUIRE_FALSE(repo->undoHistoryEdit("not-a-valid-oid").has_value());
+
+    // Mid interactive rebase (paused on a message) — mutual exclusion refuses.
+    tmp.writeFile("a.txt", "a\n");
+    tmp.commitAll("A msg");
+    auto hist = repo->log(10);
+    const std::string oidA = hist->at(0).oid;
+    const std::string base = firstParentOf(tmp, oidA);
+    gittide::RebaseTodo todo;
+    todo.base = base;
+    todo.entries = { {RebaseAction::Reword, oidA} };
+    auto out = repo->startInteractiveRebase(todo);
+    REQUIRE(out.has_value());
+    REQUIRE(out->pause == gittide::RebasePause::Message);
+    REQUIRE_FALSE(repo->undoHistoryEdit(base).has_value());
+    REQUIRE(repo->abortRebase().has_value());
 }

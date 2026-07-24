@@ -294,6 +294,32 @@ an entry with a newer one if it changes.
   the three-band drop zone and confuses where the commit currently sits). →
   [`product`](spec/product/rebase-interactive.md)
 
+- **D41 — History edits act-then-offer-undo, not confirm-first.** Two forced prompts
+  in the interactive-rebase UX were removed because, in each, there was realistically
+  only one thing to do. **(1) Squash no longer pauses for a message:** the engine
+  commits with the concatenated default message (HEAD's accumulated message + the
+  squashed commit's, which a squash chain accumulates naturally) and finishes in one
+  run; the user rewords afterward if they want it tidied. `RebasePause::Message` now
+  belongs to **reword only** (reword's whole purpose is a new message, so it keeps its
+  auto-opened editor). Fixup is unchanged (retains the target's message, no pause).
+  **(2) Drag-to-reorder applies immediately:** the D36 confirm modal
+  (`ReorderConfirmDialog`) is deleted — the whole-row hold-to-arm gesture (D38) is
+  already deliberate, so a second "are you sure?" was pure friction. The safety net in
+  both cases is a **non-blocking Undo toast** (extending D40's act-then-offer-undo
+  philosophy): a clean, **drop-free** edit emits `historyEditUndoable(preTip, label)`
+  and `Main.qml` shows a transient "…— Undo" strip whose Undo soft-resets the branch
+  back to `preTip` (`GitRepo::undoHistoryEdit`). Undo is a **soft reset** and is
+  offered **only when the plan drops nothing**, because a drop-free replay yields a
+  content-identical tree — so moving the ref back leaves the working tree untouched and
+  loses nothing. A plan that drops a commit is excluded (its replay changes content, so
+  a soft reset would misrepresent it) and keeps its editor-only path with no toast.
+  *Rejected:* keeping the reorder confirm (redundant with hold-to-arm + always-reachable
+  abort/undo); a hard-reset undo (would clobber uncommitted work and is unnecessary for
+  content-identical replays); collecting the squash message up front (loses the
+  git-faithful mid-rebase model D34 chose and re-introduces a gate). Supersedes the
+  reorder-confirmation part of **D36** and the squash-message-pause part of **D38/D40**.
+  → [`product`](spec/product/rebase-interactive.md)
+
 - **D39 — The branch graph moved to its own all-refs Graph tab; the History drag
   bug was a `MouseArea` grab-steal, fixed with `TapHandler`.** The in-history
   graph column only walked HEAD (`git_revwalk_push_head`), yielding a near-linear

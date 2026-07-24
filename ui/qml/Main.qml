@@ -254,6 +254,64 @@ ApplicationWindow {
         function show(msg) { message = msg }
     }
 
+    // ---- Transient Undo toast (act-then-offer-undo, Plan 47) ----
+    // Shown after a clean, drop-free history edit; the Undo button soft-resets the
+    // branch back to the pre-edit tip. Auto-dismisses after a few seconds.
+    Rectangle {
+        id: undoToast
+        objectName: "undoToast"
+        property string preTip: ""
+        property string label: ""
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 52
+        width: undoRow.implicitWidth + 24
+        height: 36
+        radius: 10
+        visible: preTip.length > 0
+        color: theme.surfaceOverlay
+        border.color: theme.border
+        border.width: 1
+        z: 100
+
+        RowLayout {
+            id: undoRow
+            anchors.centerIn: parent
+            spacing: 12
+            Label {
+                text: undoToast.label
+                color: theme.textPrimary
+                font.pixelSize: 12
+            }
+            AppButton {
+                objectName: "undoToastButton"
+                variant: "secondary"
+                text: "Undo"
+                onClicked: {
+                    if (repoVm)
+                        repoVm.undoHistoryEdit(undoToast.preTip)
+                    undoToast.dismiss()
+                }
+            }
+        }
+
+        Timer {
+            id: undoTimer
+            interval: 6000
+            onTriggered: undoToast.dismiss()
+        }
+        function show(tip, text) {
+            preTip = tip
+            label = text
+            undoTimer.restart()
+        }
+        function dismiss() {
+            preTip = ""
+            label = ""
+            undoTimer.stop()
+        }
+    }
+
     // ---- Native macOS menu bar ----
     // Only on macOS: the menu lives in the system menu bar instead of the custom
     // TitleBar (which is hidden there). Its signals bind to the same handlers as
@@ -445,6 +503,9 @@ ApplicationWindow {
         enabled: repoVm !== null
         function onAuthRequired() { credentialDialog.openDialog() }
         function onOperationFailed(message) { errorBanner.show(message) }
+        // A clean, drop-free history edit (reorder / squash) offers a non-blocking
+        // Undo instead of an up-front confirm modal (Plan 47).
+        function onHistoryEditUndoable(preTipOid, label) { undoToast.show(preTipOid, label) }
         // Remember the open repo/subrepo so the next launch restores it.
         function onChanged() {
             if (projectController && repoVm.repoOpen && repoVm.repoPath.length > 0)

@@ -98,6 +98,8 @@ RepoViewModel::RepoViewModel(QObject* parent)
             });
     connect(m_controller, &RepoController::rebaseFinished, this,
             [this](const QString&) { /* refresh driven by the controller cascade */ });
+    connect(m_controller, &RepoController::historyEditUndoable,
+            this, &RepoViewModel::historyEditUndoable);
     connect(m_controller, &RepoController::commitMessageReady,
             this, &RepoViewModel::commitMessageReady);
     connect(m_controller, &RepoController::rebaseTodoReady,
@@ -537,7 +539,9 @@ void RepoViewModel::reorderCommits(int fromRow, int toRow, const QString& band)
         oids << *it;
         actions << QStringLiteral("pick");
     }
-    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+    QCoro::connect(
+        m_controller->startInteractiveRebase(base, actions, oids, QStringLiteral("Commits reordered")),
+        this, [] {});
 }
 
 void RepoViewModel::squashCommitInto(int fromRow, int toRow)
@@ -581,7 +585,9 @@ void RepoViewModel::squashCommitInto(int fromRow, int toRow)
         oids << *it;
         actions << (*it == dragged ? QStringLiteral("squash") : QStringLiteral("pick"));
     }
-    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+    QCoro::connect(
+        m_controller->startInteractiveRebase(base, actions, oids, QStringLiteral("Commit squashed")),
+        this, [] {});
 }
 
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
@@ -817,6 +823,11 @@ void RepoViewModel::rewordHead(const QString& message)
 void RepoViewModel::undoLastCommit()
 {
     QCoro::connect(m_controller->undoLastCommit(), this, [] {});
+}
+
+void RepoViewModel::undoHistoryEdit(const QString& preTipOid)
+{
+    QCoro::connect(m_controller->undoHistoryEdit(preTipOid), this, [] {});
 }
 
 void RepoViewModel::requestCommitMessage(const QString& oid)
@@ -1109,7 +1120,11 @@ void RepoViewModel::startRebase(const QString& ref)
 
 void RepoViewModel::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
 {
-    QCoro::connect(m_controller->startInteractiveRebase(base, actions, oids), this, [] {});
+    // The explicit todo editor may drop commits; the controller only offers Undo
+    // when the plan drops nothing (Plan 47), so passing a label here is safe.
+    QCoro::connect(
+        m_controller->startInteractiveRebase(base, actions, oids, QStringLiteral("History updated")),
+        this, [] {});
 }
 
 void RepoViewModel::requestSquashTodo(const QVariantList& rows)

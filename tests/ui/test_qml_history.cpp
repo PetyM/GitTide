@@ -444,7 +444,7 @@ private slots:
         QCOMPARE(zone, QStringLiteral("below"));
     }
 
-    void perform_drop_squash_routes_to_squash_commit_into()
+    void perform_drop_squash_folds_without_a_message_pause()
     {
         const auto dir = qml_history_test::makeLinearRepo(3); // run length 2
 
@@ -473,15 +473,24 @@ private slots:
         QObject* pane = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("historyPane"));
         QVERIFY(pane != nullptr);
 
-        // Squash row 0 into row 1 → engine pauses for the combined message.
+        // Squash row 0 into row 1 → folds with the concatenated default message and
+        // finishes in one run (Plan 47): no message pause. The 2-commit run collapses
+        // to a single commit above the root, so the reorderable run (needs ≥2) → 0.
+        QSignalSpy undoSpy(&vm, SIGNAL(historyEditUndoable(QString, QString)));
         QMetaObject::invokeMethod(pane, "performDrop",
                                   Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("squash")));
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(undoSpy.count() >= 1, 15000);
+        QCOMPARE(undoSpy.at(0).at(1).toString(), QStringLiteral("Commit squashed"));
+        // The refresh cascade lands after the undoable signal; wait for the run to
+        // settle (2-commit run collapses to a single commit above the root → 0).
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 0, 15000);
+        QCOMPARE(vm.property("rebasePauseReason").toString(), QStringLiteral("none"));
+        QCOMPARE(vm.property("rebaseInProgress").toBool(), false);
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
-    void perform_drop_reorder_opens_confirm_dialog()
+    void perform_drop_reorder_drives_engine_and_offers_undo()
     {
         const auto dir = qml_history_test::makeLinearRepo(3);
 
@@ -511,14 +520,21 @@ private slots:
         QObject* pane = root->findChild<QObject*>(QStringLiteral("historyPane"));
         QVERIFY(pane != nullptr);
 
-        // Reorder (below) row 0 onto row 1 → the confirm dialog opens (no engine drive yet).
+        // No confirm modal exists any more (Plan 47).
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("reorderConfirmDialog")) == nullptr);
+
+        // Reorder (below) row 0 onto row 1 → drives the engine directly and, on a
+        // clean drop-free finish, offers Undo via the toast.
+        QSignalSpy undoSpy(&vm, SIGNAL(historyEditUndoable(QString, QString)));
         QMetaObject::invokeMethod(pane, "performDrop",
                                   Q_ARG(QVariant, 0), Q_ARG(QVariant, 1), Q_ARG(QVariant, QStringLiteral("below")));
-        QObject* dlg = root->findChild<QObject*>(QStringLiteral("reorderConfirmDialog"));
-        QVERIFY(dlg != nullptr);
-        QTRY_VERIFY_WITH_TIMEOUT(dlg->property("visible").toBool(), 15000);
-        // Reorder must NOT have driven the engine directly.
-        QCOMPARE(vm.property("rebaseInProgress").toBool(), false);
+        QTRY_COMPARE_WITH_TIMEOUT(undoSpy.count(), 1, 15000);
+        QCOMPARE(undoSpy.at(0).at(1).toString(), QStringLiteral("Commits reordered"));
+
+        // The Undo toast is visible and wired to undoHistoryEdit.
+        QObject* toast = root->findChild<QObject*>(QStringLiteral("undoToast"));
+        QVERIFY(toast != nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(toast->property("visible").toBool(), 15000);
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }

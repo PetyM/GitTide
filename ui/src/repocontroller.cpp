@@ -1607,9 +1607,10 @@ QCoro::Task<void> RepoController::buildSquashTodo(QStringList oids)
 
     // Plan oldest-first: the oldest is the pick everything folds into; the rest
     // are squash. A plain multi-commit squash has nothing to edit in the todo
-    // editor, so skip it and start the rebase directly — the engine pauses on the
-    // combined-message edit (RebasePause::Message). The todo editor stays reserved
-    // for the explicit "Edit history" reorder path (buildRebaseTodo).
+    // editor, so skip it and start the rebase directly — squash commits with the
+    // concatenated default message without pausing (Plan 47), backed by the Undo
+    // toast. The todo editor stays reserved for the explicit "Edit history" reorder
+    // path (buildRebaseTodo).
     QStringList planOids, actions;
     for (int i = hi; i >= lo; --i)
     {
@@ -1618,10 +1619,11 @@ QCoro::Task<void> RepoController::buildSquashTodo(QStringList oids)
     }
     if (!self)
         co_return;
-    co_await startInteractiveRebase(base, actions, planOids);
+    co_await startInteractiveRebase(base, actions, planOids, QStringLiteral("Commits squashed"));
 }
 
-QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringList actions, QStringList oids)
+QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringList actions,
+                                                         QStringList oids, QString undoLabel)
 {
     if (!m_repo)
         co_return;
@@ -1640,6 +1642,20 @@ QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringLi
                                  : gittide::RebaseAction::Pick;
         e.oid = oids.at(i).toStdString();
         todo.entries.push_back(e);
+    }
+
+    // Undo is only safe for a drop-free plan: a drop changes the final tree, so a
+    // soft-reset to the pre-edit tip would misrepresent it (Plan 47).
+    const bool undoable = !undoLabel.isEmpty()
+                          && !actions.contains(QStringLiteral("drop"));
+    QString preTip;
+    if (undoable)
+    {
+        auto preHead = co_await m_repo->head();
+        if (!self)
+            co_return;
+        if (preHead)
+            preTip = QString::fromStdString(preHead->oid);
     }
 
     auto saved = co_await m_repo->stashSave("gittide: auto-stash before rebase");
@@ -1677,11 +1693,30 @@ QCoro::Task<void> RepoController::startInteractiveRebase(QString base, QStringLi
         auto head = co_await m_repo->head();
         if (self && head)
             emit rebaseFinished(QString::fromStdString(head->oid));
+        // Offer a non-blocking Undo for a clean, drop-free history edit (Plan 47).
+        if (self && undoable && !preTip.isEmpty())
+            emit historyEditUndoable(preTip, undoLabel);
     }
     // else: paused (conflict or message) → banner drives; deferred pop waits.
 
     if (!self)
         co_return;
+    co_await refreshAfterRebase();
+}
+
+QCoro::Task<void> RepoController::undoHistoryEdit(QString preTipOid)
+{
+    if (!m_repo)
+        co_return;
+    QPointer<RepoController> self = this;
+    auto r = co_await m_repo->undoHistoryEdit(preTipOid);
+    if (!self)
+        co_return;
+    if (!r)
+    {
+        emit operationFailed(QString::fromStdString(r.error().message));
+        co_return;
+    }
     co_await refreshAfterRebase();
 }
 

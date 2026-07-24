@@ -290,33 +290,29 @@ private slots:
         vm.open(QString::fromStdString(dir.generic_string()));
         QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 2, 15000);
 
-        // Drag c2 (row 0) onto c1 (row 1) → squash c2 into c1.
+        // Drag c2 (row 0) onto c1 (row 1) → squash c2 into c1. It folds with the
+        // concatenated default message and finishes in one run (Plan 47) — no pause.
         QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
-
-        // The engine pauses for the combined message (squash), prefilled target-then-dragged.
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(), QStringLiteral("message"), 15000);
-        const QString prefill = vm.property("rebaseMessagePrefill").toString();
-        QVERIFY(prefill.contains(QStringLiteral("c1")));
-        QVERIFY(prefill.contains(QStringLiteral("c2")));
-        // Combined message is target-then-dragged: c1 (target) before c2 (dragged).
-        QVERIFY(prefill.indexOf(QStringLiteral("c1")) < prefill.indexOf(QStringLiteral("c2")));
-
-        // Confirm the combined message → rebase completes.
-        QMetaObject::invokeMethod(&vm, "continueRebase", Q_ARG(QString, QStringLiteral("c1+c2\n")));
         QTRY_VERIFY_WITH_TIMEOUT(!vm.rebaseInProgress(), 15000);
+        // Squash reduced the run: the two run commits collapse into one, which sits
+        // above the root, so the reorderable run (needs ≥2) drops to 0.
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 0, 15000);
 
-        // HEAD is the combined commit (target's identity, new message), and it carries
-        // the dragged commit's file (f2.txt from c2) folded in.
-        QTRY_COMPARE_WITH_TIMEOUT(repo_view_model_rebase_test::headMessage(dir), std::string("c1+c2\n"), 15000);
+        // HEAD is the combined commit carrying the dragged commit's file (f2.txt from
+        // c2) folded in, and its message concatenates c1 (target) then c2 (dragged).
+        const std::string combined = repo_view_model_rebase_test::headMessage(dir);
+        QVERIFY(combined.find("c1") != std::string::npos);
+        QVERIFY(combined.find("c2") != std::string::npos);
+        QVERIFY(combined.find("c1") < combined.find("c2"));
         QVERIFY(std::filesystem::exists(dir / "f2.txt"));
         QVERIFY(std::filesystem::exists(dir / "f1.txt"));
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
-    /// A drag-squash pauses for the combined message; the ViewModel must fire
-    /// rebaseMessagePauseEntered exactly once on that rising edge.
-    void squash_emits_message_pause_entered_once()
+    /// A drag-squash no longer pauses for a message (Plan 47): the ViewModel must
+    /// NOT fire rebaseMessagePauseEntered, and the rebase finishes cleanly.
+    void squash_does_not_emit_message_pause()
     {
         const auto dir = repo_view_model_rebase_test::makeLinearRepo(3);
         RepoViewModel vm;
@@ -326,10 +322,12 @@ private slots:
         QSignalSpy pauseSpy(&vm, &RepoViewModel::rebaseMessagePauseEntered);
         QMetaObject::invokeMethod(&vm, "squashCommitInto", Q_ARG(int, 0), Q_ARG(int, 1));
 
-        // The interactive rebase runs async on the pool; wait for the message pause.
-        QTRY_COMPARE_WITH_TIMEOUT(vm.property("rebasePauseReason").toString(),
-                                  QStringLiteral("message"), 15000);
-        QCOMPARE(pauseSpy.count(), 1);
+        // The interactive rebase runs async on the pool; wait for it to finish
+        // (the 2-commit run collapses to a single commit → reorderable run 0).
+        QTRY_COMPARE_WITH_TIMEOUT(vm.property("reorderableRunLength").toInt(), 0, 15000);
+        QVERIFY(!vm.rebaseInProgress());
+        QCOMPARE(vm.property("rebasePauseReason").toString(), QStringLiteral("none"));
+        QCOMPARE(pauseSpy.count(), 0);
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }

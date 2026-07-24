@@ -175,14 +175,23 @@ public slots:
     /// in the current history (else operationFailed). Builds the plan with the oldest
     /// selected commit as `pick` and the rest as `squash` (oldest-first), base =
     /// parent of the oldest selected, then starts the interactive rebase directly via
-    /// startInteractiveRebase — no todo editor; the engine pauses on the combined
-    /// message (RebasePause::Message).
+    /// startInteractiveRebase — no todo editor; squash commits with the concatenated
+    /// default message without pausing (Plan 47), so it finishes in one run.
     QCoro::Task<void> buildSquashTodo(QStringList oids);
 
     /// Start an interactive rebase from a seed plan. Auto-stashes (D31), drives the
     /// first run; clean finish emits rebaseFinished + pops the stash; a pause leaves
     /// the repo mid-rebase. `actions[i]` is one of pick/reword/squash/fixup/drop.
-    QCoro::Task<void> startInteractiveRebase(QString base, QStringList actions, QStringList oids);
+    /// If @p undoLabel is non-empty AND the plan drops nothing, a clean finish also
+    /// emits historyEditUndoable(preTip, undoLabel) so the UI can offer an Undo
+    /// toast (Plan 47). A drop is excluded because its replay is not
+    /// content-identical, making a soft-reset undo unsafe.
+    QCoro::Task<void> startInteractiveRebase(QString base, QStringList actions, QStringList oids,
+                                             QString undoLabel = QString());
+
+    /// Undo a drop-free history edit by soft-resetting the current branch back to
+    /// @p preTipOid, then refresh. Errors surface via operationFailed.
+    QCoro::Task<void> undoHistoryEdit(QString preTipOid);
 
     /// Read the UTF-8 content of a working-tree file at @p relPath (relative to
     /// the repository root). Returns an empty string if the file cannot be read.
@@ -240,6 +249,11 @@ signals:
     void rebaseStateChanged(gittide::RebaseState state);
     /// Emitted when a rebase finishes cleanly. headOid is the new HEAD commit OID.
     void rebaseFinished(QString headOid);
+
+    /// Emitted after a drop-free history edit (reorder / squash) finishes cleanly,
+    /// so the UI can show a non-blocking Undo toast (Plan 47). preTipOid is the tip
+    /// to soft-reset back to; label is a short human summary (e.g. "Commits reordered").
+    void historyEditUndoable(QString preTipOid, QString label);
 
     /// Emitted with the seed plan for the interactive editor. `entries` is a list of
     /// QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.

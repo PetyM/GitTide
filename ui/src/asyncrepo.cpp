@@ -250,6 +250,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::undoLastCommit()
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::undoHistoryEdit(QString preTipOid)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, oid = preTipOid.toStdString()]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.undoHistoryEdit(oid);
+        });
+}
+
 QCoro::Task<gittide::Expected<std::string>> AsyncRepo::commitMessage(QString oid)
 {
     auto impl = m_impl;

@@ -64,9 +64,9 @@ class TestRepoControllerSquash : public QObject
     Q_OBJECT
 private slots:
     // Selecting a contiguous range starts the interactive rebase directly — no
-    // todo editor — and pauses on the combined-message edit (oldest = pick, the
-    // rest fold in as squash).
-    void contiguous_selection_starts_rebase_paused_on_message()
+    // todo editor — and folds with the concatenated default message without a
+    // pause (Plan 47): the squash finishes in one run and offers Undo.
+    void contiguous_selection_squashes_without_a_pause_and_offers_undo()
     {
         std::vector<std::string> oids; // newest-first: [c2, c1, c0]
         const auto dir = squash_ctrl_test::make_repo_with_commits(3, oids);
@@ -75,8 +75,9 @@ private slots:
         QVERIFY(c.isOpen());
 
         QSignalSpy ready(&c, &RepoController::rebaseTodoReady);
-        QSignalSpy stateSpy(&c, &RepoController::rebaseStateChanged);
         QSignalSpy failed(&c, &RepoController::operationFailed);
+        QSignalSpy finished(&c, &RepoController::rebaseFinished);
+        QSignalSpy undoable(&c, &RepoController::historyEditUndoable);
 
         // Squash the two newest (c2 = HEAD, c1). Drive the task to completion with
         // QCoro::waitFor — a fire-and-forget lambda coroutine ([&]() -> Task {…}())
@@ -89,20 +90,11 @@ private slots:
         // The todo editor is never offered for a plain squash.
         QCOMPARE(ready.count(), 0);
 
-        // The engine paused on the combined-message edit, with a prefill.
-        gittide::RebaseState paused;
-        bool sawMessagePause = false;
-        for (const auto& a : stateSpy)
-        {
-            const auto s = a.at(0).value<gittide::RebaseState>();
-            if (s.inProgress && s.interactive && s.pause == gittide::RebasePause::Message)
-            {
-                paused = s;
-                sawMessagePause = true;
-            }
-        }
-        QVERIFY(sawMessagePause);
-        QVERIFY(!paused.messagePrefill.empty());
+        // No message pause: the rebase finished cleanly (rebaseFinished) and
+        // offered Undo with the squash label.
+        QVERIFY(finished.count() >= 1);
+        QCOMPARE(undoable.count(), 1);
+        QCOMPARE(undoable.at(0).at(1).toString(), QStringLiteral("Commits squashed"));
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }

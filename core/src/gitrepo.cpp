@@ -804,6 +804,42 @@ Expected<void> GitRepo::undoLastCommit()
     return {};
 }
 
+Expected<void> GitRepo::undoHistoryEdit(std::string preTipOid)
+{
+    // Same mutual-exclusion guard as undoLastCommit (D33): never move HEAD while
+    // another engine owns the worktree.
+    if (git_repository_state(m_repo) != GIT_REPOSITORY_STATE_NONE || interactiveRebaseInProgress())
+        return std::unexpected(GitError{-1, "cannot undo: another operation is in progress"});
+
+    git_reference* head = nullptr;
+    int rc              = git_repository_head(&head, m_repo);
+    if (rc == GIT_EUNBORNBRANCH || rc == GIT_ENOTFOUND)
+        return std::unexpected(GitError{-1, "cannot undo: no commit on this branch"});
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_reference, decltype(&git_reference_free)> head_guard(head, git_reference_free);
+
+    if (git_reference_is_branch(head) != 1)
+        return std::unexpected(GitError{-1, "cannot undo on a detached HEAD"});
+
+    git_oid target_oid;
+    if (git_oid_fromstr(&target_oid, preTipOid.c_str()) < 0)
+        return std::unexpected(GitError{-1, "cannot undo: bad pre-edit oid"});
+    git_commit* target = nullptr;
+    rc                 = git_commit_lookup(&target, m_repo, &target_oid);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    std::unique_ptr<git_commit, decltype(&git_commit_free)> target_guard(target, git_commit_free);
+
+    // SOFT: move the branch ref back to the pre-edit tip; index and working tree
+    // stay put. A drop-free replay produced a content-identical tree, so the tree
+    // already matches the pre-edit tip and the worktree stays clean.
+    rc = git_reset(m_repo, reinterpret_cast<const git_object*>(target), GIT_RESET_SOFT, nullptr);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
 Expected<std::string> GitRepo::commitMessage(std::string oidHex) const
 {
     git_oid oid;
@@ -1694,34 +1730,15 @@ RebaseState GitRepo::interactiveRebaseState() const
         }
     }
 
-    // Pause reason.
+    // Pause reason. Only reword pauses for a message now (Plan 47) — squash
+    // commits with the concatenated default without pausing.
     if (!st.conflictedPaths.empty())
         st.pause = RebasePause::Conflict;
-    else if (s.applied && cur
-             && (cur->action == RebaseAction::Reword || cur->action == RebaseAction::Squash))
+    else if (s.applied && cur && cur->action == RebaseAction::Reword)
     {
         st.pause = RebasePause::Message;
-        if (cur->action == RebaseAction::Reword)
-        {
-            if (auto m = commitMessage(cur->oid))
-                st.messagePrefill = *m;
-        }
-        else // Squash: HEAD's accumulated message + this commit's message
-        {
-            std::string head;
-            git_oid head_oid;
-            if (git_reference_name_to_id(&head_oid, m_repo, "HEAD") == 0)
-            {
-                char hb[GIT_OID_SHA1_HEXSIZE + 1] = {0};
-                git_oid_tostr(hb, sizeof(hb), &head_oid);
-                if (auto hm = commitMessage(hb))
-                    head = *hm;
-            }
-            std::string mine;
-            if (auto m = commitMessage(cur->oid))
-                mine = *m;
-            st.messagePrefill = head + "\n\n" + mine;
-        }
+        if (auto m = commitMessage(cur->oid))
+            st.messagePrefill = *m;
     }
     return st;
 }
@@ -3528,9 +3545,10 @@ Expected<RebaseOutcome> GitRepo::driveInteractive(std::optional<std::string> mes
                 return std::unexpected(GitError{-1, "cannot continue: unresolved conflicts remain"});
         }
 
-        // 2) reword/squash need a message before we can commit.
-        if ((e.action == RebaseAction::Reword || e.action == RebaseAction::Squash)
-            && !message.has_value())
+        // 2) reword needs a new message before we can commit (a Message pause).
+        // Squash commits straight away with the concatenated default message
+        // (Plan 47) — it never pauses; the user rewords afterward if they want.
+        if (e.action == RebaseAction::Reword && !message.has_value())
             return RebaseOutcome{false, RebasePause::Message};
 
         // Build the tree from the resolved index.
@@ -3586,8 +3604,21 @@ Expected<RebaseOutcome> GitRepo::driveInteractive(std::optional<std::string> mes
         }
         else // Squash
         {
+            // Squash no longer pauses (Plan 47): use the supplied message if the
+            // caller provided one, else the concatenated default — HEAD's
+            // accumulated message + this commit's original message. A squash chain
+            // accumulates naturally because each amend folds into HEAD.
+            std::string combined;
+            if (message.has_value())
+                combined = *message;
+            else
+            {
+                const char* hm = git_commit_message(head);
+                const char* om = git_commit_message(orig);
+                combined = std::string(hm ? hm : "") + "\n\n" + std::string(om ? om : "");
+            }
             rc = git_commit_amend(&newc, head, "HEAD", git_commit_author(head), sig,
-                                  nullptr, message->c_str(), tree);
+                                  nullptr, combined.c_str(), tree);
         }
         if (rc < 0)
             return std::unexpected(lastGitError(rc));

@@ -215,6 +215,9 @@ public:
     Q_INVOKABLE void checkoutCommit(const QString& oid);
     Q_INVOKABLE void rewordHead(const QString& message);
     Q_INVOKABLE void undoLastCommit();
+    /// Undo a drop-free history edit (reorder / squash) by soft-resetting the
+    /// current branch back to @p preTipOid. Backs the Undo toast (Plan 47).
+    Q_INVOKABLE void undoHistoryEdit(const QString& preTipOid);
     Q_INVOKABLE void requestCommitMessage(const QString& oid);
 
     Q_INVOKABLE void switchBranch(const QString& name);
@@ -347,9 +350,13 @@ signals:
     /// Emitted whenever the RebaseState changes (rebase started, conflict resolved,
     /// step applied, rebase finished or aborted). All rebase-related Q_PROPERTYs use this NOTIFY.
     void rebaseStateChanged();
-    /// Emitted once when the rebase newly enters a Message pause (squash/reword
-    /// step). Drives WorkingPane to auto-open the commit-message dialog.
+    /// Emitted once when the rebase newly enters a Message pause (reword step).
+    /// Drives WorkingPane to auto-open the commit-message dialog.
     void rebaseMessagePauseEntered();
+    /// Forwarded from the controller after a clean, drop-free history edit: the UI
+    /// shows a non-blocking Undo toast (Plan 47). preTipOid is the tip to restore;
+    /// label is a short summary (e.g. "Commits reordered").
+    void historyEditUndoable(QString preTipOid, QString label);
     /// Forwarded from the controller: seed plan for the interactive editor.
     /// `entries` is a list of QVariantMap{oid, summary}, oldest first; `base` is the detach commit oid.
     void rebaseTodoReady(QString base, QVariantList entries);

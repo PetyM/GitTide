@@ -270,16 +270,19 @@ Layered on the engine, three gestures graduate from the wishes:
 
 - **Squash from history (multi-select).** Selecting a contiguous range and
   choosing **“Squash N commits…”** starts the squash directly (oldest `pick`, rest
-  `squash`) and lands on the combined-message edit — the todo editor is skipped for a
-  plain squash. The multi-select model from §2.1 now drives an *action*, not just a
-  combined diff. Validation (contiguous, non-merge) lives in the controller's
-  `buildSquashTodo`. See [rebase-interactive.md](rebase-interactive.md) §3.2.
+  `squash`) and **completes in one run** with the concatenated default message — no
+  message pause; a non-blocking Undo toast is the safety net (D41, Plan 47). The
+  todo editor is skipped for a plain squash. The multi-select model from §2.1 now
+  drives an *action*, not just a combined diff. Validation (contiguous, non-merge)
+  lives in the controller's `buildSquashTodo`. See
+  [rebase-interactive.md](rebase-interactive.md) §3.2.
 - **Drag-to-reorder**, both in the todo editor (grip alongside ↑/↓) and directly in
-  the history view (gated to the linear single-parent run from HEAD, behind a
-  confirmation). The **whole commit row** is the drag source — no grip icon. A
-  press-and-hold of 250 ms arms the drag; a quick click still selects (the
-  `TapHandler` + `DragHandler` pair cooperates without grab contention). See
-  [rebase-interactive.md](rebase-interactive.md) §3.2 and **D36**, **D38**, **D39**.
+  the history view (gated to the linear single-parent run from HEAD; it **applies
+  immediately** — no confirm modal, backed by the Undo toast, D41). The **whole
+  commit row** is the drag source — no grip icon. A press-and-hold of 250 ms arms the
+  drag; a quick click still selects (the `TapHandler` + `DragHandler` pair cooperates
+  without grab contention). See [rebase-interactive.md](rebase-interactive.md) §3.2
+  and **D36**, **D38**, **D39**, **D41**.
 - **Undo last commit** — `git reset --soft HEAD~1`: drops the tip and leaves its
   changes **staged**. Core verb `GitRepo::undoLastCommit()`, offered on the HEAD
   commit context menu and the app menu, disabled mid-merge/-rebase (mutual

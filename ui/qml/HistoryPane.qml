@@ -61,8 +61,9 @@ RowLayout {
         }
 
         // Route a released drag: squash folds the dragged commit into the target;
-        // reorder (above/below) goes through the existing confirmation dialog. Both
-        // source and target must lie in the reorderable run and differ.
+        // reorder (above/below) applies immediately. No confirm modal (Plan 47) —
+        // the drag is deliberate (hold-to-arm) and the Undo toast is the safety
+        // net. Both source and target must lie in the reorderable run and differ.
         function performDrop(fromIndex: var, toIndex: var, zone: var) {
             if (!repoVm)
                 return
@@ -71,7 +72,7 @@ RowLayout {
             if (zone === "squash")
                 repoVm.squashCommitInto(fromIndex, toIndex)
             else
-                reorderConfirm.openFor(fromIndex, toIndex, zone)  // zone is "above"/"below"
+                repoVm.reorderCommits(fromIndex, toIndex, zone)  // zone is "above"/"below"
         }
     }
 
@@ -99,10 +100,6 @@ RowLayout {
 
     RebaseTodoDialog {
         id: rebaseTodoDialog
-    }
-
-    ReorderConfirmDialog {
-        id: reorderConfirm
     }
 
     // ---- Commit list (graph + avatar + summary/author/date) ----

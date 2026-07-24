@@ -34,7 +34,9 @@ cherry-pick loop over an explicit operation plan.
   / drop) + reorder.
 - Manual cherry-pick engine driving the plan, with **two pause reasons**:
   - **conflict** — reuses Tier 1's conflict UI (`acceptConflict`, banner verbs);
-  - **message** — reword/squash pause for a new/combined message (git-CLI style).
+  - **message** — **reword** pauses for a new message (git-CLI style). Squash and
+    fixup no longer pause (Plan 47): they commit with the concatenated / retained
+    default message, backed by the Undo toast.
 - **step k/n progress** in the banner for every pause; live updates per step.
 - **Abort always reachable** at every pause — restores the exact pre-rebase branch
   tip and worktree, pops the auto-stash.
@@ -190,17 +192,22 @@ The driver loop (shared by start / continue / skip) walks `todo.entries` from th
   pause (Message) with `messagePrefill` = the commit's original message. On
   continue-with-message, commit using that message; advance.
 - **Squash** — cherry-pick onto HEAD (the previous step's commit). On conflict →
-  pause Conflict. Once applied, **append** this commit's message to the `message`
-  buffer and pause (Message) with `messagePrefill` = the combined buffer. On
-  continue-with-message: `git_commit_amend` the previous commit with the combined
-  tree + supplied message (one commit replacing previous+this); advance.
-- **Fixup** — like Squash but **no Message pause**: amend the previous commit with
-  the combined tree, keep the previous commit's message; advance.
+  pause Conflict. Once applied, `git_commit_amend` the previous commit with the
+  combined tree and the **concatenated default message** (HEAD's accumulated
+  message + this commit's original message); advance. **No Message pause** — the
+  user rewords afterward if they want the combined message tidied (D41, Plan 47).
+  A squash chain accumulates the message naturally because each amend folds into
+  HEAD. `continueRebase(message)` still honours an explicit message if one is
+  supplied (forward-compatible), but the quick-squash entry points never pass one.
+- **Fixup** — like Squash but keeps **only the previous commit's message**: amend
+  the previous commit with the combined tree, discarding this commit's message;
+  advance. (Both squash and fixup are now non-pausing; they differ only in whether
+  this commit's message is concatenated in or dropped.)
 - **Drop** — advance the cursor, apply nothing.
 
-A step can both conflict **and** need a message (a squash that conflicts): the
-Conflict pause comes first (resolve + continue), then the Message pause, then the
-commit. `continueRebase` is re-entrant and re-derives the current pause from disk.
+Only **reword** produces a Message pause now (Plan 47). A reword that conflicts
+pauses Conflict first (resolve + continue), then Message, then commits.
+`continueRebase` is re-entrant and re-derives the current pause from disk.
 
 - **First-entry guard.** `entries[0]` may not be `Squash`/`Fixup` (nothing above to
   combine into) — validated in core (`Expected` error) **and** in the editor UI.
@@ -287,9 +294,10 @@ as `squash` (oldest-first), `base` = parent of the oldest selected. The controll
 `buildSquashTodo(oids)` validates the selection is a contiguous, non-merge run (else
 `operationFailed`) and then **starts the interactive rebase directly** — a plain
 multi-commit squash has nothing to edit in the todo editor, so the dialog is skipped
-and the user lands straight on the combined-message edit via the normal message-pause
-flow. The todo editor stays reserved for the explicit **“Edit history from here…”**
-reorder path (`buildRebaseTodo` → `rebaseTodoReady`).
+and the squash **completes in one run** with the concatenated default message (no
+message pause, Plan 47). A non-blocking **Undo toast** (“Commits squashed — Undo”) is
+the safety net. The todo editor stays reserved for the explicit **“Edit history from
+here…”** reorder path (`buildRebaseTodo` → `rebaseTodoReady`).
 
 #### Reorder directly in the history view
 
@@ -300,15 +308,16 @@ The `⠿` grip is retained as a discoverability hint but the whole row is dragga
 
 A **three-band drop zone** on the target row routes the release:
 - **Top/bottom third** → reorder: a 2 px accent insertion line previews the new
-  position (top = newer/"above" side, bottom = older/"below" side); releasing opens
-  the existing `ReorderConfirmDialog`, which drives
-  `reorderCommits(fromRow, toRow, band)` through the interactive engine (all `pick`s
-  on the run's fixed base). The `band` lands the dragged commit on the previewed side
-  of the target.
+  position (top = newer/"above" side, bottom = older/"below" side); releasing calls
+  `reorderCommits(fromRow, toRow, band)` **directly** — no confirm modal (D41,
+  Plan 47): the hold-to-arm drag is already deliberate and the Undo toast (“Commits
+  reordered — Undo”) is the safety net. The engine replays all `pick`s on the run's
+  fixed base; the `band` lands the dragged commit on the previewed side of the target.
 - **Middle third** → squash: a `surfaceOverlay` fill + "◆ squash" badge previews the
   action; releasing calls `RepoViewModel::squashCommitInto(fromRow, toRow)`, which
-  folds the dragged commit into the target through the engine and pauses on the
-  combined-message `RewordDialog` — the same confirmation gate as menu-driven squash.
+  folds the dragged commit into the target through the engine. The squash **commits
+  with the concatenated default message without pausing** (Plan 47), backed by the
+  Undo toast — no `RewordDialog` gate.
 
 During an armed drag a **floating chip** follows the cursor: it shows the dragged
 commit's summary and short oid, plus a hint label — **"◆ Squash"** when hovering the
@@ -333,9 +342,13 @@ extending Tier 1): the existing `rebaseInProgress`, `rebaseOnto`, `rebaseStep`,
 (`"none"|"conflict"|"message"`), **`rebaseMessagePrefill`**.
 
 A one-shot signal **`rebaseMessagePauseEntered()`** fires on the rising edge into
-each `Message` step (the pause newly became `Message`, or the step index advanced
-while still `Message`); `WorkingPane` connects to it to auto-open the message editor
-(§3.5).
+each `Message` step (now **reword only** — squash/fixup no longer pause, Plan 47);
+`WorkingPane` connects to it to auto-open the message editor (§3.5).
+
+A **`historyEditUndoable(QString preTipOid, QString label)`** signal is forwarded
+from the controller after a clean, **drop-free** history edit finishes; `Main.qml`
+shows a non-blocking Undo toast. `Q_INVOKABLE undoHistoryEdit(QString preTipOid)`
+soft-resets the branch back to `preTipOid` (D41).
 
 Seeding the editor: `Q_INVOKABLE void requestRebaseTodo(QString fromOid)` asks the
 controller to build the `base..HEAD` entry list; result arrives via
@@ -353,23 +366,35 @@ conflict count + Continue/Skip/Abort*. Tier 2 extends it for the **Message** pau
 
 - `pause == "conflict"` → unchanged: Continue enabled only when
   `rebaseConflictedCount === 0`; Skip; Abort.
-- `pause == "message"` → headline *"step k/n — editing message (`<action>`)"*;
-  the message editor **auto-opens immediately** — no Continue click needed (see §3.5
-  and **D40**); Continue remains as a manual fallback to reopen the editor if
-  dismissed; Skip and **Abort** remain. (A fixup never produces a Message pause, so
-  the editor never opens for it.)
+- `pause == "message"` → **reword only** (Plan 47); headline *"step k/n — editing
+  message"*; the message editor **auto-opens immediately** — no Continue click needed
+  (see §3.5 and **D40**); Continue remains as a manual fallback to reopen the editor
+  if dismissed; Skip and **Abort** remain. (Squash and fixup never produce a Message
+  pause, so the editor never opens for them.)
 
 Step k/n progress and Abort are present in **both** pause states — the progress and
 always-reachable-abort guarantee the user asked for.
 
 ### 3.5 Message pause surface — reuse `RewordDialog.qml`
 
-A Message pause reuses the history-editing round's `RewordDialog.qml` (summary +
-body, prefilled). The dialog **auto-opens** the moment `RepoViewModel` emits
-`rebaseMessagePauseEntered()` (§3.3); `WorkingPane.openRebaseMessageDialog()`
-splits `rebaseMessagePrefill` into summary/body and opens it. *Save* →
-`repoVm.continueRebase(message)`; *Cancel* leaves the rebase paused — the banner's
-Continue is the manual fallback to reopen the dialog. No new message-editor component.
+A Message pause (now **reword only**, Plan 47) reuses the history-editing round's
+`RewordDialog.qml` (summary + body, prefilled). The dialog **auto-opens** the moment
+`RepoViewModel` emits `rebaseMessagePauseEntered()` (§3.3);
+`WorkingPane.openRebaseMessageDialog()` splits `rebaseMessagePrefill` into
+summary/body and opens it. *Save* → `repoVm.continueRebase(message)`; *Cancel* leaves
+the rebase paused — the banner's Continue is the manual fallback to reopen the dialog.
+No new message-editor component.
+
+### 3.6 Undo toast — `Main.qml`
+
+A clean, **drop-free** history edit (reorder / squash) offers a non-blocking Undo
+instead of an up-front confirm (D41). `RepoViewModel::historyEditUndoable(preTip,
+label)` opens a transient `undoToast` (modelled on the existing error banner: overlay
+strip, ~6 s auto-dismiss, a Label + an "Undo" `AppButton`). *Undo* →
+`repoVm.undoHistoryEdit(preTip)`, a soft reset back to the pre-edit tip — safe because
+a drop-free replay yields a content-identical tree, so the working tree is untouched.
+A plan that **drops** a commit is excluded (its replay changes content), so it gets no
+toast; drop stays behind the explicit todo editor.
 
 ### 3.6 Controller
 
@@ -456,6 +481,19 @@ cherry-pick/state-dir helpers. New tests in the core test list.
 **Graduated wishes:** [rebase.md](../../wishlist/rebase.md) — interactive editor
 moves from `idea` to designed; [history-editing.md](../../wishlist/history-editing.md)
 — reword-older / squash / reorder graduate.
+
+### 6.1 Plan 47 delta — fewer forced prompts (D41)
+
+- **Removed** `ui/qml/ReorderConfirmDialog.qml` (drag-to-reorder applies directly;
+  the qrc registration in `ui/qml/qml.qrc` is dropped).
+- **`core/` (`gitrepo.cpp`):** `driveInteractive` — squash commits with the
+  concatenated default message and no longer pauses; `rebaseState()` marks a Message
+  pause for **reword only**. New verb **`undoHistoryEdit(preTipOid)`** (soft reset).
+- **`ui/`:** `AsyncRepo`/`RepoController`/`RepoViewModel` gain `undoHistoryEdit`;
+  `startInteractiveRebase` gains an `undoLabel` and, on a clean drop-free finish,
+  emits **`historyEditUndoable(preTip, label)`**.
+- **`ui/qml/`:** `HistoryPane.qml` `performDrop` reorder branch → `reorderCommits`
+  directly; `Main.qml` gains the `undoToast` (§3.6).
 
 ---
 

@@ -416,6 +416,14 @@ public:
     // (merge / rebase / cherry-pick) is in progress.
     Expected<void> undoLastCommit();
 
+    // Undo a just-finished, drop-free history edit (reorder / squash / reword)
+    // by moving the current branch ref back to @p preTipOid via a soft reset —
+    // index and working tree are left untouched. Safe precisely because a
+    // drop-free replay produces a content-identical tree, so the ref move is the
+    // only observable change. Errors on an unborn/detached HEAD, an unresolvable
+    // @p preTipOid, or while another operation is in progress (D33).
+    Expected<void> undoHistoryEdit(std::string preTipOid);
+
     // Full commit message (summary + body) of the 40-char hex oid. Used to
     // pre-fill the reword dialog. Errors on a bad oid.
     Expected<std::string> commitMessage(std::string oid) const;
