@@ -18,7 +18,11 @@ Popup {
     background: OverlayCard {}
 
     contentItem: ColumnLayout {
+        id: content
         spacing: 0
+
+        readonly property bool isMac: Qt.platform.os === "osx"
+        readonly property string tabKeys: isMac ? "⌘1 / ⌘2 / ⌘3" : "Alt+1 / +2 / +3"
 
         // Title row
         RowLayout {
@@ -88,7 +92,7 @@ Popup {
         Row { keys: "Space";         action: "Stage / unstage file" }
         Row { keys: "Tab";           action: "Next pane" }
         Row { keys: "Ctrl+Enter";    action: "Commit" }
-        Row { keys: "Ctrl+1 / +2";  action: "Changes / History tab" }
+        Row { keys: content.tabKeys; action: "Changes / History / Graph tab" }
         Row { keys: "Ctrl+R";        action: "Refresh" }
         Row { keys: "?";             action: "Show / hide this panel" }
 

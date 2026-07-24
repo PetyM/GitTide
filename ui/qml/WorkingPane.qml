@@ -163,9 +163,12 @@ Item {
     readonly property bool anyTextInputActive:
         changesTabBody.commitSummaryActive || changesTabBody.commitDescriptionActive
 
-    // Ctrl+1 / Ctrl+2 — switch tabs and route focus.
+    // Tab-switch modifier: Command on macOS (Qt maps "Ctrl" → ⌘), Alt elsewhere.
+    readonly property string tabModifier: Qt.platform.os === "osx" ? "Ctrl" : "Alt"
+
+    // Cmd/Alt + 1/2/3 — switch tabs and route focus.
     Shortcut {
-        sequence: "Ctrl+1"
+        sequence: workingPane.tabModifier + "+1"
         enabled: repoVm !== null && repoVm.repoOpen
         onActivated: {
             tabs.currentIndex = 0
@@ -173,7 +176,7 @@ Item {
         }
     }
     Shortcut {
-        sequence: "Ctrl+2"
+        sequence: workingPane.tabModifier + "+2"
         enabled: repoVm !== null && repoVm.repoOpen
         onActivated: {
             tabs.currentIndex = 1
@@ -181,7 +184,7 @@ Item {
         }
     }
     Shortcut {
-        sequence: "Ctrl+3"
+        sequence: workingPane.tabModifier + "+3"
         enabled: repoVm !== null && repoVm.repoOpen
         onActivated: {
             tabs.currentIndex = 2

@@ -70,11 +70,18 @@ needed in the view.
 
 ### 1.3 Focus-ring affordance
 
-New theme token **`focusBorder`** — resolved to `accent` in both dark and light
-themes. `fileList`, `historyList`, and `commitFilesList` gain a 1 px outer border
-whose colour is `theme.focusBorder` when `activeFocus` is true, transparent
-otherwise. Border sits on a thin `Rectangle` wrapper around the `ListView` so the
-list content is not inset.
+Theme token **`focusBorder`** — resolved to `accent` in both dark and light
+themes. It is used **only** by the sidebar `repoTree`, which paints it on the
+keyboard-cursor *row* while the tree holds focus (§1.2a).
+
+The navigable working-pane lists (`fileList`, `historyList`, `graphList`,
+`commitFilesList`) carry **no section-wide focus ring**. A full-panel border box
+around the whole list read as heavy — highlighting the entire section rather than
+the cursor. Instead each list relies on its existing current-row highlight
+(`surfaceOverlay`, always shown) to indicate the selection, so the cue sits on the
+actual cursor row and not the panel frame. `commitFilesList` keeps a static
+`theme.border` frame (unrelated to focus), and `graphList`'s current row also
+carries a 2 px accent left-stripe.
 
 ---
 
@@ -89,9 +96,9 @@ list content is not inset.
 | Tab | Changes tab | Cycle: `fileList` → `commitSummary` → `commitDescription` → back |
 | Tab | History tab | Cycle: `historyList` → `commitFilesList` → back |
 | Ctrl/Cmd+Enter | `commitSummary` or `commitDescription` focused | Commit (when button enabled) |
-| Ctrl+1 | window | Switch to Changes tab; focus `fileList` |
-| Ctrl+2 | window | Switch to History tab; focus `historyList` |
-| Ctrl+3 | window | Switch to Graph tab; focus `graphList` |
+| Cmd+1 (macOS) / Alt+1 | window | Switch to Changes tab; focus `fileList` |
+| Cmd+2 (macOS) / Alt+2 | window | Switch to History tab; focus `historyList` |
+| Cmd+3 (macOS) / Alt+3 | window | Switch to Graph tab; focus `graphList` |
 | Ctrl+R | window | Refresh: `repoVm.refreshHistory()` (status refresh is already triggered by the controller) |
 | ? | window (no text input focused) | Toggle shortcuts overlay |
 
@@ -124,10 +131,10 @@ conventions; no platform guards needed here.
 
 ### 2.2 Global `Shortcut` items
 
-Ctrl+1, Ctrl+2, Ctrl+R, and `?` are declared as `Shortcut` items at `WorkingPane`
-level. Because `fileList` and `historyList` are private to their respective pane
-components, each pane exposes a `function takeFocus()` that forwards focus to its
-primary list. `WorkingPane` calls these:
+The tab-switch shortcuts, Ctrl+R, and `?` are declared as `Shortcut` items at
+`WorkingPane` level. Because `fileList` and `historyList` are private to their
+respective pane components, each pane exposes a `function takeFocus()` that
+forwards focus to its primary list. `WorkingPane` calls these:
 
 ```qml
 // In ChangesPane.qml
@@ -137,20 +144,28 @@ function takeFocus() { fileList.forceActiveFocus() }
 function takeFocus() { historyList.forceActiveFocus() }
 ```
 
+The tab-switch modifier is platform-conditional: **Command on macOS, Alt
+elsewhere**. On macOS Qt already maps the `"Ctrl"` sequence token to the ⌘ key,
+so `"Ctrl+1"` yields Cmd+1 there; on other platforms `"Ctrl"` is the physical
+Control key, which we deliberately avoid for tab switching in favour of Alt. A
+single `readonly property string tabModifier` selects the token:
+
 ```qml
 // In WorkingPane.qml
+readonly property string tabModifier: Qt.platform.os === "osx" ? "Ctrl" : "Alt"
+
 Shortcut {
-    sequence: "Ctrl+1"
+    sequence: workingPane.tabModifier + "+1"
     enabled: repoVm && repoVm.repoOpen
     onActivated: { tabs.currentIndex = 0; changesTabBody.takeFocus() }
 }
 Shortcut {
-    sequence: "Ctrl+2"
+    sequence: workingPane.tabModifier + "+2"
     enabled: repoVm && repoVm.repoOpen
     onActivated: { tabs.currentIndex = 1; historyTabBody.takeFocus() }
 }
 Shortcut {
-    sequence: "Ctrl+3"
+    sequence: workingPane.tabModifier + "+3"
     enabled: repoVm && repoVm.repoOpen
     onActivated: { tabs.currentIndex = 2; graphTabBody.takeFocus() }
 }

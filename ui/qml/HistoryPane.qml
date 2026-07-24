@@ -383,14 +383,6 @@ RowLayout {
             }
         }
 
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            border.color: historyList.activeFocus ? theme.focusBorder : "transparent"
-            border.width: 1
-            enabled: false
-        }
-
         // Floating drag chip — follows the cursor during an armed drag, showing
         // the dragged commit and whether the hovered drop is a move or a squash.
         Item {

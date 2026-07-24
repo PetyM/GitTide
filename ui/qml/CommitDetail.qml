@@ -289,7 +289,7 @@ ColumnLayout {
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
-                border.color: commitFilesList.activeFocus ? theme.focusBorder : theme.border
+                border.color: theme.border
                 border.width: 1
                 enabled: false
             }

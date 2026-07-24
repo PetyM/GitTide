@@ -77,8 +77,10 @@ Colours come from theme tokens (`theme.stateAdded` / `theme.stateDeleted` for th
 The changed-files list (top pane of the detail `SplitView`) reads as its own
 framed section: a titled **`Changed files · N`** strip (`theme.surfaceOverlay`
 background with a `theme.border` divider under it) above the list, and a
-**persistent 1px `theme.border` frame** around the pane that switches to
-`theme.focusBorder` while the list has keyboard focus.
+**persistent 1px `theme.border` frame** around the pane. (The frame is static —
+it no longer brightens to `theme.focusBorder` on keyboard focus; per
+[keyboard-controls.md §1.3](keyboard-controls.md) the navigable lists dropped
+their section-wide focus rings in favour of the current-row highlight.)
 
 ## 4. Backend to feed the medallion
 

@@ -43,218 +43,206 @@ RowLayout {
     NewBranchDialog { id: graphNewBranchDialog }
 
     // ---- Commit list (graph column + ref chips + avatar + summary/author/date) ----
-    Item {
+    ListView {
+        id: graphList
+        objectName: "graphList"
         Layout.fillWidth: true
         Layout.fillHeight: true
+        clip: true
+        model: repoVm ? repoVm.graph : null
 
-        ListView {
-            id: graphList
-            objectName: "graphList"
-            anchors.fill: parent
-            clip: true
-            model: repoVm ? repoVm.graph : null
+        ScrollBar.vertical: AppScrollBar {}
+        WheelScroller {}
+        activeFocusOnTab: true
 
-            ScrollBar.vertical: AppScrollBar {}
-            WheelScroller {}
-            activeFocusOnTab: true
-
-            Keys.onUpPressed: {
-                if (currentIndex > 0) {
-                    currentIndex--
-                    selectRow(currentIndex)
-                }
-            }
-            Keys.onDownPressed: {
-                if (currentIndex < count - 1) {
-                    currentIndex++
-                    selectRow(currentIndex)
-                }
-            }
-            Keys.onTabPressed: {
-                graphPane.tabNext()
-                event.accepted = true
-            }
-            Keys.onBacktabPressed: {
-                graphPane.tabPrev()
-                event.accepted = true
-            }
-
-            function selectRow(i) {
-                if (repoVm) repoVm.selectGraphCommitAtRow(i)
-            }
-
-            delegate: Rectangle {
-                width: ListView.view.width
-                readonly property int refCount:
-                    (typeof refLabels !== "undefined" && refLabels) ? refLabels.length : 0
-                readonly property int kRefColW: 120
-                readonly property int kRowH: 48
-                height: Math.max(kRowH, 8 + refCount * 18) // 8 = top+bottom pad, 18 = chip+gap
-                // Selection wins; otherwise unpushed (local-only) commits carry a
-                // faint accent tint, matching the History tab so what isn't shared
-                // reads at a glance here too (paired with the hollow graph dot).
-                color: ListView.isCurrentItem
-                       ? theme.surfaceOverlay
-                       : (model.isLocalOnly
-                          ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
-                          : "transparent")
-
-                // Accent left border on the selected row.
-                Rectangle {
-                    visible: parent.ListView.isCurrentItem
-                    width: 2
-                    height: parent.height
-                    color: theme.accent
-                }
-
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton
-                    onTapped: {
-                        graphList.forceActiveFocus()
-                        graphList.currentIndex = index
-                        graphList.selectRow(index)
-                    }
-                }
-                TapHandler {
-                    acceptedButtons: Qt.RightButton
-                    onTapped: {
-                        graphList.currentIndex = index
-                        graphList.selectRow(index)
-                        graphMenu.oid             = model.oid
-                        graphMenu.shortOid        = model.shortOid
-                        graphMenu.localBranchName = model.localBranchName ?? ""
-                        graphMenu.isHead          = model.isHead
-                        graphMenu.selectionCount  = 1
-                        graphMenu.popup()
-                    }
-                }
-                TapHandler {
-                    acceptedButtons: Qt.LeftButton
-                    // This Qt build exposes double-tap detection via the dedicated
-                    // doubleTapped signal rather than a `gesture` property (that
-                    // TapHandler.gesture/DoubleTap API landed in a later Qt minor).
-                    onDoubleTapped: {
-                        graphList.currentIndex = index
-                        graphPane.activateRow(index)
-                    }
-                }
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.topMargin: 0
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 12
-                    spacing: 8
-
-                    GraphColumn {
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: implicitWidth
-                        graphRow: model.graphRow
-                        laneColors: theme.laneColors
-                        headColor: theme.head
-                        laneCount: repoVm && repoVm.graph ? repoVm.graph.laneCount : 1
-                        head: model.isHead
-                        localOnly: model.isLocalOnly // hollow dot for unpushed commits
-                    }
-
-                    // Branch/tag chips, stacked vertically in a fixed-width column
-                    // so the summary text starts at the same X on every row.
-                    ColumnLayout {
-                        Layout.preferredWidth: kRefColW
-                        Layout.minimumWidth: kRefColW
-                        Layout.maximumWidth: kRefColW
-                        Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: (kRowH - 16) / 2 // align first chip with the first line
-                        spacing: 2
-                        Repeater {
-                            model: (typeof refLabels !== "undefined" && refLabels) ? refLabels : []
-                            delegate: Rectangle {
-                                radius: 3
-                                color: theme.surfaceRaised
-                                border.width: 1
-                                border.color: theme.border
-                                implicitHeight: 16
-                                Layout.preferredWidth: Math.min(chipLabel.implicitWidth + 10, kRefColW)
-                                Layout.alignment: Qt.AlignLeft
-                                Label {
-                                    id: chipLabel
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 5
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: parent.width - 10
-                                    text: modelData
-                                    elide: Text.ElideRight
-                                    color: theme.textSecondary
-                                    font.pixelSize: 10
-                                }
-                            }
-                        }
-                    }
-
-                    Avatar {
-                        name: model.author
-                        email: model.authorEmail
-                        Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: 12
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: 6
-                        spacing: 2
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 6
-                            Label {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: model.summary
-                                color: theme.textPrimary
-                                font.pixelSize: 13
-                            }
-                            // Unpushed cue: accent up-arrow, matching the History tab.
-                            Label {
-                                objectName: "graphLocalOnlyBadge"
-                                visible: model.isLocalOnly
-                                text: "↑"
-                                color: theme.accent
-                                font.pixelSize: 16
-                                font.weight: Font.Bold
-                            }
-                        }
-                        RowLayout {
-                            spacing: 8
-                            Label {
-                                text: model.author
-                                color: theme.textMuted
-                                font.pixelSize: 11
-                            }
-                            Label {
-                                text: model.shortOid
-                                color: theme.textMuted
-                                font.family: "monospace"
-                                font.pixelSize: 11
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignRight
-                                text: model.date
-                                color: theme.textMuted
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-                }
+        Keys.onUpPressed: {
+            if (currentIndex > 0) {
+                currentIndex--
+                selectRow(currentIndex)
             }
         }
+        Keys.onDownPressed: {
+            if (currentIndex < count - 1) {
+                currentIndex++
+                selectRow(currentIndex)
+            }
+        }
+        Keys.onTabPressed: {
+            graphPane.tabNext()
+            event.accepted = true
+        }
+        Keys.onBacktabPressed: {
+            graphPane.tabPrev()
+            event.accepted = true
+        }
 
-        Rectangle {
-            anchors.fill: parent
-            color: "transparent"
-            border.color: graphList.activeFocus ? theme.focusBorder : "transparent"
-            border.width: 1
-            enabled: false
+        function selectRow(i) {
+            if (repoVm) repoVm.selectGraphCommitAtRow(i)
+        }
+
+        delegate: Rectangle {
+            width: ListView.view.width
+            readonly property int refCount:
+                (typeof refLabels !== "undefined" && refLabels) ? refLabels.length : 0
+            readonly property int kRefColW: 120
+            readonly property int kRowH: 48
+            height: Math.max(kRowH, 8 + refCount * 18) // 8 = top+bottom pad, 18 = chip+gap
+            // Selection wins; otherwise unpushed (local-only) commits carry a
+            // faint accent tint, matching the History tab so what isn't shared
+            // reads at a glance here too (paired with the hollow graph dot).
+            color: ListView.isCurrentItem
+                   ? theme.surfaceOverlay
+                   : (model.isLocalOnly
+                      ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
+                      : "transparent")
+
+            // Accent left border on the selected row.
+            Rectangle {
+                visible: parent.ListView.isCurrentItem
+                width: 2
+                height: parent.height
+                color: theme.accent
+            }
+
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onTapped: {
+                    graphList.forceActiveFocus()
+                    graphList.currentIndex = index
+                    graphList.selectRow(index)
+                }
+            }
+            TapHandler {
+                acceptedButtons: Qt.RightButton
+                onTapped: {
+                    graphList.currentIndex = index
+                    graphList.selectRow(index)
+                    graphMenu.oid             = model.oid
+                    graphMenu.shortOid        = model.shortOid
+                    graphMenu.localBranchName = model.localBranchName ?? ""
+                    graphMenu.isHead          = model.isHead
+                    graphMenu.selectionCount  = 1
+                    graphMenu.popup()
+                }
+            }
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                // This Qt build exposes double-tap detection via the dedicated
+                // doubleTapped signal rather than a `gesture` property (that
+                // TapHandler.gesture/DoubleTap API landed in a later Qt minor).
+                onDoubleTapped: {
+                    graphList.currentIndex = index
+                    graphPane.activateRow(index)
+                }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.topMargin: 0
+                anchors.leftMargin: 8
+                anchors.rightMargin: 12
+                spacing: 8
+
+                GraphColumn {
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: implicitWidth
+                    graphRow: model.graphRow
+                    laneColors: theme.laneColors
+                    headColor: theme.head
+                    laneCount: repoVm && repoVm.graph ? repoVm.graph.laneCount : 1
+                    head: model.isHead
+                    localOnly: model.isLocalOnly // hollow dot for unpushed commits
+                }
+
+                // Branch/tag chips, stacked vertically in a fixed-width column
+                // so the summary text starts at the same X on every row.
+                ColumnLayout {
+                    Layout.preferredWidth: kRefColW
+                    Layout.minimumWidth: kRefColW
+                    Layout.maximumWidth: kRefColW
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: (kRowH - 16) / 2 // align first chip with the first line
+                    spacing: 2
+                    Repeater {
+                        model: (typeof refLabels !== "undefined" && refLabels) ? refLabels : []
+                        delegate: Rectangle {
+                            radius: 3
+                            color: theme.surfaceRaised
+                            border.width: 1
+                            border.color: theme.border
+                            implicitHeight: 16
+                            Layout.preferredWidth: Math.min(chipLabel.implicitWidth + 10, kRefColW)
+                            Layout.alignment: Qt.AlignLeft
+                            Label {
+                                id: chipLabel
+                                anchors.left: parent.left
+                                anchors.leftMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 10
+                                text: modelData
+                                elide: Text.ElideRight
+                                color: theme.textSecondary
+                                font.pixelSize: 10
+                            }
+                        }
+                    }
+                }
+
+                Avatar {
+                    name: model.author
+                    email: model.authorEmail
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: 12
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: 6
+                    spacing: 2
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: model.summary
+                            color: theme.textPrimary
+                            font.pixelSize: 13
+                        }
+                        // Unpushed cue: accent up-arrow, matching the History tab.
+                        Label {
+                            objectName: "graphLocalOnlyBadge"
+                            visible: model.isLocalOnly
+                            text: "↑"
+                            color: theme.accent
+                            font.pixelSize: 16
+                            font.weight: Font.Bold
+                        }
+                    }
+                    RowLayout {
+                        spacing: 8
+                        Label {
+                            text: model.author
+                            color: theme.textMuted
+                            font.pixelSize: 11
+                        }
+                        Label {
+                            text: model.shortOid
+                            color: theme.textMuted
+                            font.family: "monospace"
+                            font.pixelSize: 11
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignRight
+                            text: model.date
+                            color: theme.textMuted
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
         }
     }
 }
