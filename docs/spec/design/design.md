@@ -225,7 +225,9 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   runs, a **progress bar** (`accent` fill on `surface.overlay`) with a
   `received / total` caption shows beside the cluster — an indeterminate sweep
   until libgit2 reports object counts, then determinate — in place of a bare
-  spinner. A trailing `⋯` opens the pull-strategy menu. Its
+  spinner, followed by a **Cancel** button (secondary outline) that aborts a
+  slow or stuck sync (e.g. an unreachable remote off-VPN) without waiting for the
+  30 s timeout. A trailing `⋯` opens the pull-strategy menu. Its
   dropdown is a menu on `surface.overlay`, grouped Local / Worktrees / Remote: the
   current branch is marked by an `accent` left border + check icon; remote-tracking
   rows carry a `☁` glyph and sit slightly dimmed (they are *not yet local*) yet are

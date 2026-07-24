@@ -242,8 +242,47 @@ by a `QPointer` so a controller that dies mid-transfer drops the call) and emits
 `syncProgressChanged(received, total)`. `RepoViewModel` exposes this as
 `syncProgress` (fraction, or `-1` when `total` is still 0 ⇒ indeterminate) plus
 `syncReceived` / `syncTotal` for the caption, reset at each transfer's start and
-end. Fleet fetch-all passes a no-op callback — it surfaces per-row tree state,
-not byte-level progress.
+end. Fleet fetch-all's callback ignores the counts — it surfaces per-row tree
+state, not byte-level progress — but still relays the fleet cancel flag.
+
+**Timeouts & cancellation.** A network op must never hang the UI forever — the
+motivating case is fetching an internal remote while off-VPN. Three layers bound
+it:
+
+1. **libgit2 server timeouts** (`LibGit2Context` ctor): `GIT_OPT_SET_SERVER_CONNECT_TIMEOUT`
+   (10 s) and `GIT_OPT_SET_SERVER_TIMEOUT` (30 s). Process-global, but they cover
+   the **HTTP(S) transport only** — libssh2/SSH is unaffected — so they are a
+   backstop, not the whole answer.
+2. **Cancel flag → `ProgressCallback`.** `RepoController` holds a per-op
+   `shared_ptr<atomic<bool>>` (fresh in `beginSync()`, so a still-running worker
+   from a prior op keeps its own flag). `progressSink()` captures it and returns
+   `false` once set; the existing trampoline turns that into `-1` → the op aborts
+   with `GIT_EUSER`. This is the SSH-capable cancel path, but it can only fire
+   **after** bytes start flowing — a stalled TCP connect never invokes the
+   callback. `ProjectController` has the analogous `m_fleetCancel` for fetch-all
+   (`cancelFetchAll()`), and each `fetchOne` relays it.
+3. **UI watchdog (guarantees escape).** `beginSync()` arms a single-shot `QTimer`
+   (`kSyncTimeout` = 30 s) and bumps a generation counter `m_syncGen`; `fetch`/
+   `pull`/`push` capture the generation and, after the network `co_await`, drop
+   out silently if `gen != m_syncGen`. On timeout (or an explicit `cancelSync()`)
+   the watchdog sets the cancel flag, bumps the generation, and emits
+   `syncBusyChanged(false)` — so the **UI regains control immediately** even
+   though the worker thread stays blocked (holding the per-repo mutex) until
+   libgit2 itself returns. When it finally does, the suspended coroutine resumes,
+   sees the stale generation, and unwinds cleanly (the frame stays valid via the
+   `QPointer self` guard and the worker's captured `impl` `shared_ptr`). QML
+   surfaces this as a **Cancel** button in the sync-progress cluster
+   (`RepoViewModel::cancelSync()` → controller). Auto-fetch inherits the watchdog
+   for free.
+
+Non-network blocking waits are bounded the same way in spirit: `ForgeClient` and
+`AvatarService` set a per-request `setTransferTimeout(30 s)` on their
+`QNetworkRequest`s (per-request, so an injected `QNetworkAccessManager` is bounded
+too), and `submoduleTree()` caps recursion at `kMaxSubmoduleDepth` (20) so a
+cyclic or pathologically deep submodule graph truncates instead of overflowing
+the stack. The keychain awaits in `SecretStore` are left unbounded by design (a
+QCoro race there would risk destroying a live `QKeychain::Job`; the op is local
+and only blocks on an OS unlock prompt).
 
 ### Fleet fetch-all
 

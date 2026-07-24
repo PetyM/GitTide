@@ -197,6 +197,29 @@ Rectangle {
                 color: theme.textSecondary
                 font.pixelSize: 12
             }
+            // Escape hatch: aborts a slow/stuck fetch/pull/push (e.g. an
+            // unreachable remote off-VPN) without waiting for the timeout.
+            Button {
+                id: cancelSyncButton
+                objectName: "cancelSyncButton"
+                text: qsTr("Cancel")
+                Layout.preferredHeight: 24
+                padding: 4
+                onClicked: if (repoVm) repoVm.cancelSync()
+                contentItem: Label {
+                    text: cancelSyncButton.text
+                    color: cancelSyncButton.hovered ? theme.textPrimary : theme.textSecondary
+                    font.pixelSize: 12
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    radius: 6
+                    color: cancelSyncButton.hovered ? theme.surfaceOverlay : "transparent"
+                    border.color: theme.border
+                    border.width: 1
+                }
+            }
         }
 
         Item { Layout.fillWidth: true }

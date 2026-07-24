@@ -281,11 +281,19 @@ public:
     // Does NOT switch HEAD — creation only.
     Expected<void> createBranch(std::string name, std::string fromOid);
 
+    // Hard cap on submoduleTree() recursion. A cyclic submodule graph (a
+    // submodule that transitively points back into the superproject) or a
+    // pathologically deep nest is truncated here instead of overflowing the
+    // stack; deeper nodes are simply omitted.
+    static constexpr int kMaxSubmoduleDepth = 20;
+
     // Recursively enumerates submodules (depth-first), opening each initialised
     // submodule as its own repository to descend. Each node carries the pinned
     // short OID and a clean/dirty/uninitialised status; uninitialised nodes have
-    // no children. See SubmoduleStatus / SubmoduleNode.
-    Expected<std::vector<SubmoduleNode>> submoduleTree() const;
+    // no children. See SubmoduleStatus / SubmoduleNode. `depth` is an internal
+    // recursion counter — callers use the default 0; recursion stops returning
+    // children once it reaches kMaxSubmoduleDepth.
+    Expected<std::vector<SubmoduleNode>> submoduleTree(int depth = 0) const;
 
     /// De-initialise a submodule: remove its working-tree source files while
     /// preserving the `.git` gitlink file. This allows reinitSubmodule to

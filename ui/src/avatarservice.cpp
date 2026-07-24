@@ -8,6 +8,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <chrono>
 #include <qcorosignal.h>
 
 namespace gittide::ui {
@@ -109,6 +110,9 @@ QCoro::Task<QImage> AvatarService::fetchFromNetwork(QString hash)
     {
         QNetworkRequest req{QUrl(url)};
         req.setRawHeader("User-Agent", "GitTide");
+        // Bound each avatar fetch so a stalled Gravatar response cannot leave the
+        // coroutine (and its reply) suspended indefinitely while scrolling history.
+        req.setTransferTimeout(std::chrono::seconds(30));
         QNetworkReply* reply = m_nam->get(req);
         co_await qCoro(reply, &QNetworkReply::finished);
         co_return reply;

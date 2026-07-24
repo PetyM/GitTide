@@ -5,10 +5,15 @@
 #include <QString>
 #include <QStringList>
 #include <QVariant>
+#include <atomic>
+#include <chrono>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <qcorotask.h>
 #include <vector>
+
+class QTimer;
 
 #include "gittide/branchinfo.hpp"
 #include "gittide/diff.hpp"
@@ -122,6 +127,10 @@ public slots:
     QCoro::Task<void> fetch(gittide::Credentials cred);
     QCoro::Task<void> pull(gittide::Credentials cred);
     QCoro::Task<void> push(QString branch, bool setUpstream, gittide::Credentials cred);
+    /// Cancel the in-flight fetch/pull/push: signals the worker to abort (best
+    /// effort, via progressSink) and returns the UI to idle immediately. No-op
+    /// when no sync is active. Also fired automatically by the timeout watchdog.
+    void cancelSync();
     /// The URL of the "origin" remote for the active repo (empty if none / on
     /// error). Lets the ViewModel look up a keychain credential for it.
     QCoro::Task<QString> currentRemoteUrl();
@@ -250,8 +259,18 @@ signals:
 private:
     // Builds a ProgressCallback that marshals worker-thread transfer counts onto
     // this object's thread as syncProgressChanged. Safe if the controller dies
-    // mid-transfer: the queued call is dropped with the object.
+    // mid-transfer: the queued call is dropped with the object. Also observes the
+    // current op's cancel flag: returns false (→ libgit2 abort) once it is set.
     gittide::ProgressCallback progressSink();
+
+    // Sync lifecycle shared by fetch/pull/push. beginSync() flips the UI to busy,
+    // allocates a fresh cancel flag (so progressSink captures this op's flag), and
+    // arms the single-shot timeout watchdog; it returns the op's generation.
+    // endSync() clears busy and disarms the watchdog. After the network co_await,
+    // compare the returned gen to m_syncGen: a mismatch means the watchdog (or a
+    // newer op) already took over, so the resume must drop out silently.
+    quint64 beginSync();
+    void    endSync();
 
     // Pop the pending auto-stash if one was saved.
     QCoro::Task<void> popPendingStash();
@@ -290,6 +309,17 @@ private:
     // Last-known HEAD state, updated by refreshBranches() so currentBranchName()
     // can return a real branch name without an extra async round-trip.
     gittide::HeadState m_lastHead;
+
+    // Network-op timeout & cancellation. A fetch/pull/push can block for a long
+    // time (e.g. an unreachable remote while off-VPN); the watchdog returns the
+    // UI to idle at kSyncTimeout while m_syncCancel best-effort aborts the still
+    // -running worker via progressSink(). m_syncGen invalidates a stale co_await
+    // resume once the watchdog (or a newer op) has moved on. See beginSync().
+    static constexpr std::chrono::milliseconds kSyncTimeout{30'000};
+    std::shared_ptr<std::atomic<bool>> m_syncCancel; // fresh per op; read on the worker thread
+    QTimer*  m_syncWatchdog = nullptr;               // single-shot; created lazily
+    quint64  m_syncGen      = 0;                      // bumped on each op start / timeout / cancel
+    bool     m_syncActive   = false;                 // true between beginSync() and endSync()/cancel
 };
 
 } // namespace gittide::ui

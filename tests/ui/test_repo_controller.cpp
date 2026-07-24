@@ -295,6 +295,64 @@ private slots:
         QVERIFY(oids.contains(tip));
     }
 
+    void fetch_toggles_sync_busy()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("c1");
+        tmp.addBareRemote("origin");
+        tmp.pushBranch("origin", "master");
+
+        RepoController controller;
+        controller.open(QString::fromStdString(tmp.path().generic_string()));
+        QSignalSpy busy(&controller, &RepoController::syncBusyChanged);
+        QCoro::waitFor(controller.fetch(gittide::Credentials{}));
+
+        // beginSync() flips busy true; endSync() flips it back false on success.
+        QVERIFY(busy.count() >= 2);
+        QCOMPARE(busy.first().at(0).toBool(), true);
+        QCOMPARE(busy.last().at(0).toBool(), false);
+    }
+
+    void cancel_sync_when_idle_is_a_noop()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QSignalSpy busy(&controller, &RepoController::syncBusyChanged);
+        controller.cancelSync(); // nothing in flight → must not touch UI state
+        QCOMPARE(busy.count(), 0);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
+
+    void cancel_sync_aborts_in_flight_fetch()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("c1");
+        tmp.addBareRemote("origin");
+        tmp.pushBranch("origin", "master");
+
+        RepoController controller;
+        controller.open(QString::fromStdString(tmp.path().generic_string()));
+        QSignalSpy busy(&controller, &RepoController::syncBusyChanged);
+
+        // fetch() runs beginSync() synchronously (busy=true) before its first
+        // co_await, so the op is in flight the instant fetch() returns. Cancelling
+        // before any event-loop turn bumps the generation; the worker later resumes,
+        // sees the stale generation, and drops out with no second busy(false) and no
+        // success-path refresh — leaving exactly begin(true) + cancel(false).
+        auto task = controller.fetch(gittide::Credentials{});
+        controller.cancelSync();
+        QCoro::waitFor(std::move(task));
+
+        QCOMPARE(busy.count(), 2);
+        QCOMPARE(busy.at(0).at(0).toBool(), true);  // beginSync
+        QCOMPARE(busy.at(1).at(0).toBool(), false); // cancelSync
+    }
+
     void refresh_branches_emits_branches_and_head()
     {
         const auto dir = repo_controller_test::make_repo_with_commit();

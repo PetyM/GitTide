@@ -88,6 +88,50 @@ TEST_CASE("fetch updates remote-tracking and reports behind", "[sync][fetch]")
     REQUIRE(st->ahead == 0);
 }
 
+TEST_CASE("fetch aborts when the progress callback returns false", "[sync][fetch][cancel]")
+{
+    // A callback returning false is the cancellation signal: the trampoline
+    // returns -1 and git_remote_fetch fails. Set up a real object to transfer
+    // so the transfer-progress callback actually fires.
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    auto bare = repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master");
+
+    TempRepo other;
+    other.cloneFrom(bare);
+    other.setIdentity("Other", "o@example.com");
+    other.writeFile("a.txt", "two");
+    other.commitAll("c2");
+    other.pushBranch("origin", "master");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    auto fr = gr->fetch("origin", gittide::Credentials{}, [](unsigned, unsigned) { return false; });
+    REQUIRE_FALSE(fr); // cancelled → error, not success
+}
+
+TEST_CASE("push aborts when the progress callback returns false", "[sync][push][cancel]")
+{
+    TempRepo repo;
+    repo.setIdentity("Test", "test@example.com");
+    repo.writeFile("a.txt", "one");
+    repo.commitAll("c1");
+    repo.addBareRemote("origin");
+    repo.pushBranch("origin", "master");
+
+    repo.writeFile("a.txt", "two");
+    repo.commitAll("c2");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    auto r = gr->push("origin", "master", /*setUpstream=*/false, gittide::Credentials{},
+                      [](unsigned, unsigned) { return false; });
+    REQUIRE_FALSE(r); // cancelled during upload → error
+}
+
 TEST_CASE("pullStrategy round-trips through git config", "[sync][strategy]")
 {
     TempRepo repo;

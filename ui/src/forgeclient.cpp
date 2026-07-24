@@ -6,6 +6,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <chrono>
 #include <qcorosignal.h>
 
 namespace gittide::ui {
@@ -28,6 +29,9 @@ QCoro::Task<ForgeAccount> ForgeClient::validate(QString kind, QString apiBase, Q
     req.setRawHeader("Authorization", QByteArrayLiteral("Bearer ") + token.toUtf8());
     req.setRawHeader("Accept", "application/json");
     req.setRawHeader("User-Agent", "GitTide");
+    // Per-request (not on the NAM) so an injected manager is bounded too: an
+    // unresponsive forge cannot hang token validation forever.
+    req.setTransferTimeout(std::chrono::seconds(30));
 
     QNetworkReply* reply = m_nam->get(req);
     co_await qCoro(reply, &QNetworkReply::finished);

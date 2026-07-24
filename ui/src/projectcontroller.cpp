@@ -421,11 +421,20 @@ void ProjectController::fetchAll()
     m_fetchPending = static_cast<int>(rows.size());
     m_fetchTotal   = m_fetchPending;
     m_fetchingAll  = true;
+    m_fleetCancel  = std::make_shared<std::atomic<bool>>(false); // fresh per run
     emit fetchingAllChanged();
     emit fetchProgressChanged();
 
     for (int row : rows)
         QCoro::connect(fetchOne(row, repos[row]), this, [] {});
+}
+
+void ProjectController::cancelFetchAll()
+{
+    if (!m_fetchingAll)
+        return;
+    if (m_fleetCancel)
+        m_fleetCancel->store(true); // each in-flight fetchOne aborts via its callback
 }
 
 QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
@@ -461,8 +470,11 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     }
 
     // Fleet fetch surfaces per-row state in the tree, not byte-level transfer
-    // progress, so a no-op progress callback is fine here.
-    auto fr = co_await repo.fetch(QStringLiteral("origin"), cred, [](unsigned, unsigned) { return true; });
+    // progress, so the callback ignores counts — it only relays the cancel flag
+    // (returning false aborts this repo's transfer, see cancelFetchAll).
+    auto cancel = m_fleetCancel;
+    auto fr = co_await repo.fetch(QStringLiteral("origin"), cred,
+                                  [cancel](unsigned, unsigned) { return !(cancel && cancel->load(std::memory_order_relaxed)); });
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))

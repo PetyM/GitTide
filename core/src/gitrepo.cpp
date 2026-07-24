@@ -1086,8 +1086,14 @@ SubmoduleStatus classifySubmodule(unsigned flags)
 }
 } // namespace
 
-Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
+Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree(int depth) const
 {
+    // Truncate a cyclic or pathologically deep submodule graph rather than
+    // recursing until the stack overflows. Degrade gracefully (empty children),
+    // matching how a broken child already degrades to no detail below.
+    if (depth >= kMaxSubmoduleDepth)
+        return std::vector<SubmoduleNode>{};
+
     const std::filesystem::path wd = workdir();
 
     // Collect direct submodules (path/name/oid/status) inside the foreach, then
@@ -1168,7 +1174,7 @@ Expected<std::vector<SubmoduleNode>> GitRepo::submoduleTree() const
         if (auto st = child->status())
             node.dirtyCount = static_cast<int>(st->size());
 
-        if (auto sub = child->submoduleTree())
+        if (auto sub = child->submoduleTree(depth + 1))
             node.children = std::move(*sub);
     }
 
