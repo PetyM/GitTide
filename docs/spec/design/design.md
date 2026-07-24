@@ -167,14 +167,22 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
 - **Changed-files list** (`changedFilesList`). One row per changed file: a
   leading **tri-state checkbox** (checked / unchecked / partial), the path, and a
-  trailing `state.*`-coloured **letter** (A / M / D / C) — state paired with a
+  trailing `state.*`-coloured **letter** (A / M / D / R / C) — state paired with a
   cue, never colour alone. A **new file is always `A`** whether staged or
   untracked: the checkbox already conveys staged-or-not, so a separate `U` letter
-  would only duplicate it. The **letter, the file name, and a faint row
-  background** are all tinted by status — `state.added` green for added *and*
-  untracked (a new file reads as green, not the muted `state.untracked` grey),
-  `state.deleted` red for deleted, else neutral; the row background uses the same
-  hue at ~0.12α and the directory prefix stays `text.muted`. Selected row =
+  would only duplicate it. A **moved file is one `R` row**, not a delete + add:
+  the core enables libgit2 rename detection (`git_diff_find_similar`, and the
+  `GIT_STATUS_OPT_RENAMES_*` flags for the working tree) and carries the source
+  path, which the row shows as *`old → new`* (source basename muted, arrow, then
+  the destination). Committing an `R` row stages both operations — add the
+  destination, remove the source — and discarding it deletes the moved copy while
+  restoring the source from HEAD, so a rename is always applied or reverted whole.
+  The **letter and file name** are tinted by status — `state.added` green for
+  added *and* untracked (a new file reads as green, not the muted
+  `state.untracked` grey), `state.deleted` red for deleted, `state.incoming` blue
+  for renamed, else neutral. A **faint row background** echoes the add/delete
+  hues at ~0.12α (rename stays untinted — the blue letter carries it); the
+  directory prefix stays `text.muted`. Selected row =
   `surface.raised` + 2px `accent` left border. The same widget renders a commit's
   files in **read-only** mode (no checkboxes) under the History tab.
   - **Selection is the user's.** A status refresh (the live watcher fires often)

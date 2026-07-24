@@ -2,6 +2,7 @@
 #include "support/temprepo.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <algorithm>
+#include <filesystem>
 
 using gittide::GitRepo;
 using gittide::StatusFlag;
@@ -53,6 +54,29 @@ TEST_CASE("commitFiles treats the root commit's files as added", "[commitfiles]"
     REQUIRE(files.has_value());
     REQUIRE(has(*files, "a.txt"));
     REQUIRE(hasFlag((*files)[0].flags, StatusFlag::IndexNew));
+}
+
+TEST_CASE("commitFiles reports a moved file as a single renamed entry", "[commitfiles]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("old.txt", "alpha\nbeta\ngamma\ndelta\n");
+    tmp.commitAll("c1");
+    tmp.writeFile("new.txt", "alpha\nbeta\ngamma\ndelta\n"); // same content, new name
+    std::filesystem::remove(tmp.path() / "old.txt");
+    tmp.commitAll("c2 rename");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    const std::string c2 = repo->log()->front().oid;
+
+    auto files = repo->commitFiles(c2);
+    REQUIRE(files.has_value());
+    auto it = std::find_if(files->begin(), files->end(),
+                           [](const auto& f) { return f.path.generic_string() == "new.txt"; });
+    REQUIRE(it != files->end());
+    REQUIRE(hasFlag(it->flags, StatusFlag::IndexRenamed));
+    REQUIRE(it->oldPath.generic_string() == "old.txt");
+    REQUIRE_FALSE(has(*files, "old.txt")); // no separate deletion row
 }
 
 TEST_CASE("commitDiff returns the added lines of a file in a commit", "[commitfiles]")

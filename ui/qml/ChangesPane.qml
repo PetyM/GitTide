@@ -185,12 +185,18 @@ SplitView {
                         font.pixelSize: 12
                         textFormat: Text.StyledText
                         // File name tinted by status — added/untracked green,
-                        // deleted red — so the change kind reads at a glance;
-                        // the directory prefix stays muted.
+                        // deleted red, renamed blue — so the change kind reads at
+                        // a glance; the directory prefix stays muted.
                         readonly property color nameColor:
                               (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                             : model.statusKind === "deleted"   ? theme.stateDeleted
+                            : model.statusKind === "renamed"   ? theme.stateIncoming
                             : theme.textPrimary
+                        // Basename of the pre-rename path, shown as "old → new" so
+                        // a move reads as one entry rather than a delete + add.
+                        readonly property string oldName:
+                            model.statusKind === "renamed" && model.oldPath
+                                ? model.oldPath.substring(model.oldPath.lastIndexOf('/') + 1) : ""
                         // Hidden ruler: measures candidate strings in the same
                         // font so the dir prefix is abbreviated only as much as
                         // the available width demands (full path when it fits).
@@ -199,6 +205,7 @@ SplitView {
                             model.fileDir, model.fileName, width,
                             function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
                         text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                              + (oldName ? "<font color='" + theme.textMuted + "'>" + oldName + " → </font>" : "")
                               + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                     }
                     Label {
@@ -209,6 +216,7 @@ SplitView {
                         // Untracked reads as a new file → green, same as added.
                         color: (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                                : model.statusKind === "deleted" ? theme.stateDeleted
+                               : model.statusKind === "renamed" ? theme.stateIncoming
                                : theme.stateModified
                     }
                 }

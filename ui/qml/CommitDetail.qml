@@ -269,7 +269,12 @@ ColumnLayout {
                             readonly property string shortDir: PathElide.fit(
                                 model.fileDir, model.fileName, width,
                                 function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
+                            // Basename of the pre-rename path, shown as "old → new".
+                            readonly property string oldName:
+                                model.statusKind === "renamed" && model.oldPath
+                                    ? model.oldPath.substring(model.oldPath.lastIndexOf('/') + 1) : ""
                             text: "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                                  + (oldName ? "<font color='" + theme.textMuted + "'>" + oldName + " → </font>" : "")
                                   + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                         }
                         Label {
@@ -280,6 +285,7 @@ ColumnLayout {
                             color: model.statusKind === "added" ? theme.stateAdded
                                    : model.statusKind === "deleted" ? theme.stateDeleted
                                    : model.statusKind === "untracked" ? theme.stateUntracked
+                                   : model.statusKind === "renamed" ? theme.stateIncoming
                                    : theme.stateModified
                         }
                     }

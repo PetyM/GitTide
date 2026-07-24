@@ -16,6 +16,8 @@ enum class StatusFlag : std::uint32_t
     Conflicted    = 1 << 6, // index has conflict stages (mid-merge)
     Submodule      = 1 << 7, // entry is a submodule gitlink (pointer differs from pin)
     SubmoduleDirty = 1 << 8, // submodule working tree has uncommitted work (only with Submodule)
+    IndexRenamed  = 1 << 9,  // staged: renamed (FileStatus::oldPath holds the source)
+    WtRenamed     = 1 << 10, // unstaged: renamed (FileStatus::oldPath holds the source)
 };
 
 constexpr StatusFlag operator|(StatusFlag a, StatusFlag b)
@@ -38,8 +40,11 @@ constexpr bool hasFlag(StatusFlag value, StatusFlag flag)
 
 struct FileStatus
 {
-    std::filesystem::path path; // repo-relative
+    std::filesystem::path path; // repo-relative (the new/current path for a rename)
     StatusFlag flags = StatusFlag::None;
+    // Pre-rename source path (repo-relative); empty unless flags carry a
+    // *Renamed bit. `path` is then the destination the file moved to.
+    std::filesystem::path oldPath;
 };
 
 } // namespace gittide

@@ -71,6 +71,10 @@ gittide::StatusFlag mapStatus(unsigned int s)
         f |= StatusFlag::WtModified;
     if (s & GIT_STATUS_WT_DELETED)
         f |= StatusFlag::WtDeleted;
+    if (s & GIT_STATUS_INDEX_RENAMED)
+        f |= StatusFlag::IndexRenamed;
+    if (s & GIT_STATUS_WT_RENAMED)
+        f |= StatusFlag::WtRenamed;
     if (s & GIT_STATUS_CONFLICTED)
         f |= StatusFlag::Conflicted;
     return f;
@@ -275,7 +279,10 @@ Expected<std::vector<FileStatus>> GitRepo::status() const
 {
     git_status_options opts = GIT_STATUS_OPTIONS_INIT;
     opts.show               = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
-    opts.flags              = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
+    // Rename detection pairs a delete+add into one renamed entry (libgit2 runs
+    // git_diff_find_similar internally); without it a move reads as two rows.
+    opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS |
+                 GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX | GIT_STATUS_OPT_RENAMES_INDEX_TO_WORKDIR;
 
     git_status_list* raw_list = nullptr;
     int rc                    = git_status_list_new(&raw_list, m_repo, &opts);
@@ -301,12 +308,20 @@ Expected<std::vector<FileStatus>> GitRepo::status() const
         // working-tree dirtiness) so the UI can offer the tri-state pointer update.
         if (nf->mode == GIT_FILEMODE_COMMIT)
             flags |= submoduleFlagsFor(m_repo, raw);
-        // Skip statuses this milestone does not model (rename, typechange,
-        // conflict, ignored) — emitting them with flags==None would mislead
-        // callers. Add the corresponding StatusFlag values to represent them.
+        // Skip statuses this milestone does not model (typechange, ignored) —
+        // emitting them with flags==None would mislead callers. Add the
+        // corresponding StatusFlag values to represent them.
         if (flags == StatusFlag::None)
             continue;
-        result.push_back(FileStatus{fromGitPath(raw), flags});
+        // For a rename, carry the source path so the UI can show "old → new"
+        // and staging can record the deletion of the old path. The workdir side
+        // takes precedence (its old_file is the pre-move name the user sees).
+        std::filesystem::path oldPath;
+        if (hasFlag(flags, StatusFlag::WtRenamed) && e->index_to_workdir && e->index_to_workdir->old_file.path)
+            oldPath = fromGitPath(e->index_to_workdir->old_file.path);
+        else if (hasFlag(flags, StatusFlag::IndexRenamed) && e->head_to_index && e->head_to_index->old_file.path)
+            oldPath = fromGitPath(e->head_to_index->old_file.path);
+        result.push_back(FileStatus{fromGitPath(raw), flags, std::move(oldPath)});
     }
     return result;
 }
@@ -2330,6 +2345,7 @@ static void appendDiffDeltas(git_diff* raw, std::vector<FileStatus>& out)
         const git_diff_delta* d = git_diff_get_delta(raw, i);
         StatusFlag flag         = StatusFlag::IndexModified;
         const char* path        = d->new_file.path;
+        const char* oldPath     = nullptr;
         switch (d->status)
         {
             case GIT_DELTA_ADDED:
@@ -2339,12 +2355,17 @@ static void appendDiffDeltas(git_diff* raw, std::vector<FileStatus>& out)
                 flag = StatusFlag::IndexDeleted;
                 path = d->old_file.path;
                 break;
-            default: // MODIFIED, RENAMED, COPIED, TYPECHANGE → show as modified
+            case GIT_DELTA_RENAMED:
+                flag    = StatusFlag::IndexRenamed;
+                oldPath = d->old_file.path; // path stays d->new_file.path (the destination)
+                break;
+            default: // MODIFIED, COPIED, TYPECHANGE → show as modified
                 flag = StatusFlag::IndexModified;
                 break;
         }
         if (path)
-            out.push_back(FileStatus{fromGitPath(path), flag});
+            out.push_back(
+                FileStatus{fromGitPath(path), flag, oldPath ? fromGitPath(oldPath) : std::filesystem::path{}});
     }
 }
 
@@ -2362,6 +2383,12 @@ Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    // Detect renames so a moved file reads as one renamed entry rather than a
+    // delete+add pair. Best-effort: a failure leaves the raw deltas untouched.
+    git_diff_find_options find = GIT_DIFF_FIND_OPTIONS_INIT;
+    find.flags                 = GIT_DIFF_FIND_RENAMES;
+    git_diff_find_similar(raw, &find);
 
     std::vector<FileStatus> result;
     appendDiffDeltas(raw, result);

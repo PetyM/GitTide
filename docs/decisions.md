@@ -611,6 +611,22 @@ an entry with a newer one if it changes.
   (a binding loop Qt silently breaks to 0). →
   [`design`](spec/design/design.md#components)
 
+- **D59 — A rename is one row (`R`), detected via libgit2, and staged/discarded as
+  a pair.** `FileStatus` carries an `oldPath`; `status()` sets the
+  `GIT_STATUS_OPT_RENAMES_*` flags and `commitFiles()` runs `git_diff_find_similar`,
+  so a moved file collapses from a delete + add into a single renamed entry shown as
+  *`old → new`* in `state.incoming` blue. Because git tracks content, not moves, the
+  row still maps to **two** index operations: committing an `R` row stages the
+  destination *and* removes the source, and discarding it deletes the moved copy
+  while restoring the source from HEAD — the ViewModel emits both selections so the
+  rename is always whole. *Why:* the old delete+add pair mis-read a move as data
+  loss and split one intent across two checkboxes. *Rejected:* a distinct
+  `state.renamed` theme token (reused the existing blue `state.incoming`); modelling
+  renames only in commit history and leaving the working tree as delete+add (the
+  working-tree view is where the user first sees the move). Rename rows always stage
+  whole-file — a partial (line-level) rename stage has no meaningful UI. →
+  [`design`](spec/design/design.md#components)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

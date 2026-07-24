@@ -51,6 +51,39 @@ TEST_CASE("status reports an untracked file as WtNew", "[repo]")
     REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::WtNew));
 }
 
+TEST_CASE("status reports a moved file as a single WtRenamed entry", "[repo]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("old.txt", "line one\nline two\nline three\n");
+    tmp.commitAll("add old.txt");
+    // Move the file: identical content under a new name, old name gone.
+    tmp.writeFile("new.txt", "line one\nline two\nline three\n");
+    std::filesystem::remove(tmp.path() / "old.txt");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto st = repo->status();
+    REQUIRE(st.has_value());
+
+    auto it = std::find_if(st->begin(),
+                           st->end(),
+                           [](const gittide::FileStatus& f)
+                           {
+                               return f.path == std::filesystem::path("new.txt");
+                           });
+    REQUIRE(it != st->end());
+    REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::WtRenamed));
+    REQUIRE(it->oldPath == std::filesystem::path("old.txt"));
+    // The rename collapses into one row — no separate deletion of the old path.
+    REQUIRE(std::none_of(st->begin(),
+                         st->end(),
+                         [](const gittide::FileStatus& f)
+                         {
+                             return f.path == std::filesystem::path("old.txt");
+                         }));
+}
+
 TEST_CASE("status reports a committed-then-modified file as WtModified", "[repo]")
 {
     gittide::test::TempRepo tmp;

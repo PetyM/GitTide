@@ -11,6 +11,8 @@ QString ChangedFilesModel::letterForFlags(gittide::StatusFlag flags)
     using F = gittide::StatusFlag;
     if (gittide::hasFlag(flags, F::Conflicted))
         return QStringLiteral("C");
+    if (gittide::hasFlag(flags, F::IndexRenamed) || gittide::hasFlag(flags, F::WtRenamed))
+        return QStringLiteral("R");
     if (gittide::hasFlag(flags, F::IndexNew))
         return QStringLiteral("A");
     if (gittide::hasFlag(flags, F::IndexModified))
@@ -34,6 +36,8 @@ QString ChangedFilesModel::kindForFlags(gittide::StatusFlag flags)
     using F = gittide::StatusFlag;
     if (gittide::hasFlag(flags, F::Conflicted))
         return QStringLiteral("conflict");
+    if (gittide::hasFlag(flags, F::IndexRenamed) || gittide::hasFlag(flags, F::WtRenamed))
+        return QStringLiteral("renamed");
     if (gittide::hasFlag(flags, F::IndexNew))
         return QStringLiteral("added");
     if (gittide::hasFlag(flags, F::IndexModified))
@@ -69,6 +73,8 @@ QVariant ChangedFilesModel::data(const QModelIndex& index, int role) const
         return r.name;
     case PathRole:
         return r.path;
+    case OldPathRole:
+        return r.oldPath;
     case LetterRole:
         return r.letter;
     case KindRole:
@@ -90,6 +96,7 @@ QHash<int, QByteArray> ChangedFilesModel::roleNames() const
         {DirRole, "fileDir"},
         {NameRole, "fileName"},
         {PathRole, "filePath"},
+        {OldPathRole, "oldPath"},
         {LetterRole, "statusLetter"},
         {KindRole, "statusKind"},
         {CheckRole, "checkState"},
@@ -108,13 +115,14 @@ void ChangedFilesModel::setFiles(const std::vector<gittide::FileStatus>& files)
         const QString full = pathToQString(f.path);
         const int slash    = full.lastIndexOf(QLatin1Char('/'));
         Row r;
-        r.dir    = slash >= 0 ? full.left(slash + 1) : QString();
-        r.name   = slash >= 0 ? full.mid(slash + 1) : full;
-        r.path   = full;
-        r.letter = letterForFlags(f.flags);
-        r.kind   = kindForFlags(f.flags);
-        r.check  = Checked;
-        r.flags  = f.flags;
+        r.dir     = slash >= 0 ? full.left(slash + 1) : QString();
+        r.name    = slash >= 0 ? full.mid(slash + 1) : full;
+        r.path    = full;
+        r.oldPath = pathToQString(f.oldPath);
+        r.letter  = letterForFlags(f.flags);
+        r.kind    = kindForFlags(f.flags);
+        r.check   = Checked;
+        r.flags   = f.flags;
         m_rows.push_back(std::move(r));
     }
     // Sort conflicted rows to the top, stable sort preserves relative order otherwise
@@ -161,6 +169,13 @@ QString ChangedFilesModel::pathAt(int row) const
     if (row < 0 || row >= static_cast<int>(m_rows.size()))
         return {};
     return m_rows[static_cast<std::size_t>(row)].path;
+}
+
+QString ChangedFilesModel::oldPathAt(int row) const
+{
+    if (row < 0 || row >= static_cast<int>(m_rows.size()))
+        return {};
+    return m_rows[static_cast<std::size_t>(row)].oldPath;
 }
 
 int ChangedFilesModel::rowForPath(const QString& path) const

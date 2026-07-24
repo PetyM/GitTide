@@ -120,6 +120,50 @@ inline std::filesystem::path make_multiline_repo()
     return dir;
 }
 
+// Self-contained repo where a committed "old.txt" has been moved to "new.txt" in
+// the worktree (identical content, old name deleted) — libgit2 rename detection
+// should collapse it to one renamed entry.
+inline std::filesystem::path make_renamed_repo()
+{
+    git_libgit2_init();
+    auto dir = std::filesystem::temp_directory_path() / ("gittide-rvm-mv-" + std::to_string(::QRandomGenerator::global()->generate()));
+    std::filesystem::create_directories(dir);
+    git_repository* raw = nullptr;
+    git_repository_init(&raw, dir.generic_string().c_str(), 0);
+    git_config* cfg = nullptr;
+    git_repository_config(&cfg, raw);
+    git_config_set_string(cfg, "user.name", "T");
+    git_config_set_string(cfg, "user.email", "t@e.x");
+    git_config_free(cfg);
+    const char* body = "alpha\nbeta\ngamma\ndelta\nepsilon\n";
+    {
+        std::ofstream(dir / "old.txt") << body;
+    }
+    git_index* idx = nullptr;
+    git_repository_index(&idx, raw);
+    git_index_add_bypath(idx, "old.txt");
+    git_index_write(idx);
+    git_oid tree_oid;
+    git_index_write_tree(&tree_oid, idx);
+    git_tree* tree = nullptr;
+    git_tree_lookup(&tree, raw, &tree_oid);
+    git_signature* sig = nullptr;
+    git_signature_now(&sig, "T", "t@e.x");
+    git_oid commit_oid;
+    git_commit_create_v(&commit_oid, raw, "HEAD", sig, sig, nullptr, "init", tree, 0);
+    git_signature_free(sig);
+    git_tree_free(tree);
+    git_index_free(idx);
+    git_repository_free(raw);
+    // Move old.txt → new.txt in the working tree only.
+    {
+        std::ofstream(dir / "new.txt") << body;
+    }
+    std::filesystem::remove(dir / "old.txt");
+    git_libgit2_shutdown();
+    return dir;
+}
+
 } // namespace repo_view_model_test
 
 class TestRepoViewModel : public QObject
@@ -341,6 +385,57 @@ private slots:
 
         // commitSelection refreshes status after committing → worktree clean.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
+
+        repo_view_model_test::remove_repo_dir(dir);
+    }
+
+    // A moved file shows as one renamed row (not delete + add), and committing it
+    // stages BOTH operations so HEAD ends up with the new name and without the old.
+    void rename_is_one_row_and_commits_both_paths()
+    {
+        const auto dir = repo_view_model_test::make_renamed_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(15000));
+
+        // One row: the rename, presented under the destination path.
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
+        const int row = vm.changedFiles()->rowForPath(QStringLiteral("new.txt"));
+        QVERIFY(row >= 0);
+        const int kindRole = [&] {
+            const auto roles = vm.changedFiles()->roleNames();
+            for (auto it = roles.cbegin(); it != roles.cend(); ++it)
+                if (it.value() == "statusKind")
+                    return it.key();
+            return -1;
+        }();
+        QCOMPARE(vm.changedFiles()->data(vm.changedFiles()->index(row, 0), kindRole).toString(),
+                 QStringLiteral("renamed"));
+        QCOMPARE(vm.changedFiles()->oldPathAt(row), QStringLiteral("old.txt"));
+
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        vm.commit(QStringLiteral("move old to new"), QString());
+        QVERIFY(committedSpy.wait(15000));
+
+        // Worktree clean → both the add and the delete were committed as one unit.
+        QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 0);
+
+        // HEAD tree carries new.txt and no longer carries old.txt.
+        git_libgit2_init();
+        git_repository* repo = nullptr;
+        QCOMPARE(git_repository_open(&repo, dir.generic_string().c_str()), 0);
+        git_object* headTree = nullptr;
+        QCOMPARE(git_revparse_single(&headTree, repo, "HEAD^{tree}"), 0);
+        git_tree_entry* e = nullptr;
+        QCOMPARE(git_tree_entry_bypath(&e, reinterpret_cast<git_tree*>(headTree), "new.txt"), 0);
+        git_tree_entry_free(e);
+        git_tree_entry* gone = nullptr;
+        QVERIFY(git_tree_entry_bypath(&gone, reinterpret_cast<git_tree*>(headTree), "old.txt") != 0);
+        git_object_free(headTree);
+        git_repository_free(repo);
+        git_libgit2_shutdown();
 
         repo_view_model_test::remove_repo_dir(dir);
     }

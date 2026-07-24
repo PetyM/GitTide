@@ -375,12 +375,23 @@ void RepoViewModel::commit(const QString& summary, const QString& description)
         if (rowState == ChangedFilesModel::Unchecked)
             continue;
         const std::filesystem::path fsPath = qstringToPath(path);
+        const QString oldPath              = m_files->oldPathAt(row);
         // A submodule always stages whole-file: git records its HEAD (last commit),
         // never the dirty working content, so the superproject can't pin a "-dirty"
         // pointer. The dirty/partial UI state is a warning only — never line-staging.
         if (m_files->isSubmodule(row))
         {
             selections.push_back(gittide::StageSelection{.path = fsPath, .hunkIndex = std::nullopt, .lineIndices = {}});
+        }
+        else if (!oldPath.isEmpty())
+        {
+            // A rename is one row but two index operations: add the destination
+            // and remove the source. Both stage whole-file (a rename can't be
+            // partially staged in this UI). stage() removes the old path because
+            // it no longer exists in the working tree.
+            selections.push_back(gittide::StageSelection{.path = fsPath, .hunkIndex = std::nullopt, .lineIndices = {}});
+            selections.push_back(
+                gittide::StageSelection{.path = qstringToPath(oldPath), .hunkIndex = std::nullopt, .lineIndices = {}});
         }
         else if (rowState == ChangedFilesModel::Partial)
         {
@@ -1190,6 +1201,24 @@ void RepoViewModel::discardFile(const QString& path)
         .lineIndices = {}
     };
     QCoro::connect(m_controller->discard(sel), this, [] {});
+
+    // A rename is one row but two paths: discarding the destination deletes the
+    // moved copy, so also restore the source (it lives in HEAD) — otherwise the
+    // file would vanish, leaving half a rename behind.
+    const int row = m_files->rowForPath(path);
+    if (row >= 0)
+    {
+        const QString oldPath = m_files->oldPathAt(row);
+        if (!oldPath.isEmpty())
+        {
+            gittide::StageSelection oldSel{
+                .path        = qstringToPath(oldPath),
+                .hunkIndex   = std::nullopt,
+                .lineIndices = {}
+            };
+            QCoro::connect(m_controller->discard(oldSel), this, [] {});
+        }
+    }
 }
 
 void RepoViewModel::discardAll()

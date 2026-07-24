@@ -57,6 +57,30 @@ private slots:
         QCOMPARE(m.data(m.index(2, 0), kind).toString(), QStringLiteral("untracked"));
     }
 
+    void renamed_file_reads_as_R_and_exposes_old_path()
+    {
+        QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::WtRenamed), QStringLiteral("R"));
+        QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::WtRenamed), QStringLiteral("renamed"));
+        QCOMPARE(ChangedFilesModel::letterForFlags(StatusFlag::IndexRenamed), QStringLiteral("R"));
+        QCOMPARE(ChangedFilesModel::kindForFlags(StatusFlag::IndexRenamed), QStringLiteral("renamed"));
+
+        ChangedFilesModel m;
+        FileStatus renamed;
+        renamed.path    = std::filesystem::path("src/new.cpp");
+        renamed.flags   = StatusFlag::WtRenamed;
+        renamed.oldPath = std::filesystem::path("src/old.cpp");
+        m.setFiles({renamed});
+
+        const int kind    = roleKey(m, "statusKind");
+        const int oldPath = roleKey(m, "oldPath");
+        QCOMPARE(m.data(m.index(0, 0), kind).toString(), QStringLiteral("renamed"));
+        QCOMPARE(m.data(m.index(0, 0), oldPath).toString(), QStringLiteral("src/old.cpp"));
+        QCOMPARE(m.oldPathAt(0), QStringLiteral("src/old.cpp"));
+        // A non-rename row carries no old path.
+        m.setFiles({{std::filesystem::path("a.txt"), StatusFlag::WtModified}});
+        QCOMPARE(m.oldPathAt(0), QString());
+    }
+
     void files_default_to_checked()
     {
         ChangedFilesModel m;

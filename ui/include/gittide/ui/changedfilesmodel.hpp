@@ -37,6 +37,7 @@ public:
         CheckRole,
         IsSubmoduleRole,    ///< bool: row is a submodule pointer change
         SubmoduleDirtyRole, ///< bool: submodule has uncommitted work (only with IsSubmodule)
+        OldPathRole,        ///< QString: pre-rename source path, empty unless the row is a rename
     };
 
     using QAbstractListModel::QAbstractListModel;
@@ -54,6 +55,9 @@ public:
     /// stage whole-file (recording the submodule's HEAD), never per-line.
     bool isSubmodule(int row) const;
     QString pathAt(int row) const;
+    /// Pre-rename source path for the row, or empty when the row is not a rename.
+    /// Staging a rename records the deletion of this path alongside the new one.
+    QString oldPathAt(int row) const;
     int rowForPath(const QString& path) const;
     int checkedCount() const;
 
@@ -66,6 +70,7 @@ private:
         QString dir;
         QString name;
         QString path;
+        QString oldPath; ///< pre-rename source path; empty unless the row is a rename
         QString letter;
         QString kind;
         Check   check = Checked;
