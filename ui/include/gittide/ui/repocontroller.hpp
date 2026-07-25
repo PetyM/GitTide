@@ -210,7 +210,7 @@ signals:
     void committed(const QString& oid);
     void historyReady(gittide::GraphLayout layout);
     void graphReady(gittide::GraphLayout layout);
-    void refTipsReady(QHash<QString, QStringList> oidToLabels);
+    void refTipsReady(QHash<QString, QVariantList> oidToChips);
     /// OIDs reachable from HEAD but no remote-tracking ref — the local-only,
     /// not-yet-pushed commits. Drives the History "local only" cue. Re-emitted by
     /// refreshHistory and after fetch/pull/push change what is pushed.

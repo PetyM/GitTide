@@ -391,7 +391,7 @@ private:
     void onBranches(const std::vector<gittide::BranchInfo>& branches);
     void onHistory(const gittide::GraphLayout& layout);
     void onGraph(const gittide::GraphLayout& layout);
-    void onRefTips(const QHash<QString, QStringList>& oidToLabels);
+    void onRefTips(const QHash<QString, QVariantList>& oidToChips);
     void onLocalOnly(const QSet<QString>& oids);
     void applyHistoryIfReady();
     void updateReorderableRun();

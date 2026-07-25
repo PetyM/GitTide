@@ -1,6 +1,7 @@
 #include <QtTest>
 #include <QAbstractItemModel>
-#include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
 
 #include "gittide/graph.hpp"
 #include "gittide/ui/historylistmodel.hpp"
@@ -8,13 +9,14 @@
 using gittide::CommitNode;
 using gittide::GraphLayout;
 using gittide::GraphRow;
+using gittide::RefTipKind;
 using gittide::ui::HistoryListModel;
 
 class TestHistoryModelRefLabels : public QObject
 {
     Q_OBJECT
 private slots:
-    void reflabels_at_tip_oid()
+    void reflabels_carry_name_and_kind()
     {
         GraphLayout layout;
         CommitNode n;
@@ -26,14 +28,34 @@ private slots:
         HistoryListModel m;
         m.setLayout(layout, QString());
 
-        QHash<QString, QStringList> tips;
-        tips.insert(QStringLiteral("abc123"), QStringList{QStringLiteral("main"), QStringLiteral("v1.0")});
+        // Each chip carries {name, kind} so the graph can style a local branch,
+        // a remote-tracking ref and a tag distinctly (kind mirrors RefTipKind).
+        QHash<QString, QVariantList> tips;
+        tips.insert(QStringLiteral("abc123"),
+                    QVariantList{
+                        QVariantMap{{QStringLiteral("name"), QStringLiteral("main")},
+                                    {QStringLiteral("kind"), int(RefTipKind::Branch)}},
+                        QVariantMap{{QStringLiteral("name"), QStringLiteral("origin/main")},
+                                    {QStringLiteral("kind"), int(RefTipKind::Remote)}},
+                        QVariantMap{{QStringLiteral("name"), QStringLiteral("v1.0")},
+                                    {QStringLiteral("kind"), int(RefTipKind::Tag)}}});
         m.setRefTips(tips);
 
         const QModelIndex idx    = m.index(0, 0);
-        const QStringList labels = m.data(idx, HistoryListModel::RefLabelsRole).toStringList();
-        QVERIFY(labels.contains(QStringLiteral("main")));
-        QVERIFY(labels.contains(QStringLiteral("v1.0")));
+        const QVariantList chips = m.data(idx, HistoryListModel::RefLabelsRole).toList();
+        QCOMPARE(chips.size(), 3);
+
+        // Collect name → kind for order-independent assertions.
+        QHash<QString, int> byName;
+        for (const QVariant& c : chips)
+        {
+            const QVariantMap chip = c.toMap();
+            byName.insert(chip.value(QStringLiteral("name")).toString(),
+                          chip.value(QStringLiteral("kind")).toInt());
+        }
+        QCOMPARE(byName.value(QStringLiteral("main")),        int(RefTipKind::Branch));
+        QCOMPARE(byName.value(QStringLiteral("origin/main")), int(RefTipKind::Remote));
+        QCOMPARE(byName.value(QStringLiteral("v1.0")),        int(RefTipKind::Tag));
     }
 
     void reflabels_missing_oid_returns_empty()
@@ -51,8 +73,8 @@ private slots:
         // intentionally no setRefTips call
 
         const QModelIndex idx    = m.index(0, 0);
-        const QStringList labels = m.data(idx, HistoryListModel::RefLabelsRole).toStringList();
-        QVERIFY(labels.isEmpty());
+        const QVariantList chips = m.data(idx, HistoryListModel::RefLabelsRole).toList();
+        QVERIFY(chips.isEmpty());
     }
 };
 

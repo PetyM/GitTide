@@ -30,7 +30,7 @@ public:
         ShortOidRole,       // first 7 chars
         IsHeadRole,         // true when oid == the layout's HEAD oid
         LocalBranchNameRole, // short name of a local branch whose tip is this commit; empty otherwise
-        RefLabelsRole,       // QStringList of ref names (branch/tag) tipped here; graph chips
+        RefLabelsRole,       // QVariantList of {name, kind} maps for refs tipped here; graph chips
         IsLocalOnlyRole,     // true when this commit is not yet on any remote (unpushed)
     };
 
@@ -44,8 +44,11 @@ public:
     /// Call after setLayout or whenever branches change.
     void setLocalBranchTips(const QHash<QString, QString>& oidToName);
 
-    /// Update the oid → ref-label-list map used by RefLabelsRole (graph chips).
-    void setRefTips(const QHash<QString, QStringList>& oidToLabels);
+    /// Update the oid → ref-chip-list map used by RefLabelsRole (graph chips).
+    /// Each chip is a QVariantMap {"name": QString, "kind": int} where kind
+    /// mirrors gittide::RefTipKind (0 Branch, 1 Remote, 2 Tag) so the QML can
+    /// style local branches, remote-tracking refs and tags distinctly.
+    void setRefTips(const QHash<QString, QVariantList>& oidToChips);
 
     /// Update the set of local-only (unpushed) commit OIDs used by IsLocalOnlyRole.
     /// Call after setLayout or whenever what is pushed changes (fetch/pull/push).
@@ -67,7 +70,7 @@ private:
     gittide::GraphLayout      m_layout;
     QString                   m_headOid;
     QHash<QString, QString>   m_oidToLocalBranch; // tip oid → local branch name
-    QHash<QString, QStringList> m_oidToRefLabels; // tip oid → [branch/tag names]
+    QHash<QString, QVariantList> m_oidToRefLabels; // tip oid → [{name, kind} chips]
     QSet<QString>             m_localOnly;        // oids of unpushed commits
 };
 

@@ -468,9 +468,9 @@ void RepoViewModel::onGraph(const gittide::GraphLayout& layout)
     m_graph->setLayout(layout, m_headOid);
 }
 
-void RepoViewModel::onRefTips(const QHash<QString, QStringList>& oidToLabels)
+void RepoViewModel::onRefTips(const QHash<QString, QVariantList>& oidToChips)
 {
-    m_graph->setRefTips(oidToLabels);
+    m_graph->setRefTips(oidToChips);
 }
 
 void RepoViewModel::onLocalOnly(const QSet<QString>& oids)

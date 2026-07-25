@@ -673,6 +673,21 @@ an entry with a newer one if it changes.
   follow-up). →
   [`design`](spec/design/design.md#selection)
 
+- **D62 — Graph ref chips carry their kind (branch / remote / tag), not just a
+  name.** The D61 follow-up. Core already classified each tip (`RefTipKind`
+  Branch/Remote/Tag), but `RepoController::refreshGraph` flattened tips to a bare
+  `QHash<oid, QStringList>`, so every chip rendered identically — a remote-tracking
+  ref and a tag both read as local branches. The oid→chip map now carries
+  `QVariantList` of `{name, kind}` maps all the way to `RefLabelsRole`, and the
+  Graph delegate styles the three distinctly: local branch = neutral outlined chip;
+  remote = dimmed outlined chip + a `☁` glyph (reusing the branch-dropdown
+  convention); tag = filled `accent` chip. Outline→fill is a shape cue, so the kind
+  is never colour-only. *Why:* a graph where you can't tell a tag or a remote from a
+  local branch is missing the point of an all-refs graph. *Rejected:* a string
+  heuristic on the name (e.g. treat `origin/…` as remote) — fragile against branches
+  with slashes and blind to tags, when core already knows the exact kind. →
+  [`design`](spec/design/design.md#qml-history-view)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

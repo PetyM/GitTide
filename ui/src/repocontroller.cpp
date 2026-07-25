@@ -438,9 +438,13 @@ QCoro::Task<void> RepoController::refreshGraph(unsigned limit)
     auto tips = co_await m_repo->refTips();
     if (!self || !tips)
         co_return;
-    QHash<QString, QStringList> map;
+    // Carry each ref's kind (branch / remote-tracking / tag) through to the graph
+    // chips, not just its name, so the QML can style the three distinctly.
+    QHash<QString, QVariantList> map;
     for (const auto& t : *tips)
-        map[QString::fromStdString(t.oid)] << QString::fromStdString(t.name);
+        map[QString::fromStdString(t.oid)] << QVariantMap{
+            {QStringLiteral("name"), QString::fromStdString(t.name)},
+            {QStringLiteral("kind"), static_cast<int>(t.kind)}};
     emit refTipsReady(std::move(map));
 }
 

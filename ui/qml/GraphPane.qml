@@ -165,11 +165,23 @@ RowLayout {
                     spacing: 2
                     Repeater {
                         model: (typeof refLabels !== "undefined" && refLabels) ? refLabels : []
+                        // Ref chip, styled by kind (0 Branch, 1 Remote, 2 Tag —
+                        // mirrors gittide::RefTipKind). Three distinct looks so a
+                        // remote-tracking ref and a tag don't read as local branches:
+                        //   branch — neutral outlined chip;
+                        //   remote — dimmed outlined chip + a ☁ glyph (not yet local);
+                        //   tag    — filled accent chip (outline→fill is a shape cue,
+                        //            so the kind never rides on colour alone).
                         delegate: Rectangle {
+                            readonly property int refKind: modelData.kind ?? 0
+                            readonly property bool isTag: refKind === 2
+                            readonly property bool isRemote: refKind === 1
                             radius: 3
-                            color: theme.surfaceRaised
+                            color: isTag ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
+                                         : theme.surfaceRaised
                             border.width: 1
-                            border.color: theme.border
+                            border.color: isTag ? theme.accent : theme.border
+                            opacity: isRemote ? 0.85 : 1.0
                             implicitHeight: 16
                             Layout.preferredWidth: Math.min(chipLabel.implicitWidth + 10, kRefColW)
                             Layout.alignment: Qt.AlignLeft
@@ -179,9 +191,11 @@ RowLayout {
                                 anchors.leftMargin: 5
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: parent.width - 10
-                                text: modelData
+                                text: (isRemote ? "☁ " : "") + (modelData.name ?? "")
                                 elide: Text.ElideRight
-                                color: theme.textSecondary
+                                color: isTag ? theme.accent
+                                     : isRemote ? theme.textMuted
+                                     : theme.textSecondary
                                 font.pixelSize: 10
                             }
                         }

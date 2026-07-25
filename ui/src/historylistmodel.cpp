@@ -26,9 +26,9 @@ void HistoryListModel::setLocalBranchTips(const QHash<QString, QString>& oidToNa
     }
 }
 
-void HistoryListModel::setRefTips(const QHash<QString, QStringList>& oidToLabels)
+void HistoryListModel::setRefTips(const QHash<QString, QVariantList>& oidToChips)
 {
-    m_oidToRefLabels = oidToLabels;
+    m_oidToRefLabels = oidToChips;
     if (!m_layout.rows.empty())
     {
         emit dataChanged(index(0, 0),
