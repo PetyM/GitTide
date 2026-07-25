@@ -9,7 +9,7 @@ Theme darkTheme()
         .surfaceBase    = QStringLiteral("#1C1C1E"),
         .surfaceRaised  = QStringLiteral("#262628"),
         .surfaceOverlay = QStringLiteral("#333336"),
-        .border         = QStringLiteral("#3D3D40"),
+        .border         = QStringLiteral("#4A4A4E"), // was #3D3D40 — lifted so dividers, control outlines and the split handles read clearly on the low-contrast dark ground (panels barely separated before)
         .textPrimary    = QStringLiteral("#E4E4E6"),
         .textSecondary  = QStringLiteral("#A6A6AB"),
         .textMuted      = QStringLiteral("#8E8E93"), // 4.6:1 on surface.raised (was #757579, 3.3:1)

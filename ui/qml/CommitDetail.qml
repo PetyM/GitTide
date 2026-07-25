@@ -11,6 +11,13 @@ ColumnLayout {
     signal tabForward()
     function takeFocus() { commitFilesList.forceActiveFocus() }
 
+    // True once a commit (or a multi-commit range) is selected. When false the
+    // pane shows a guiding empty state rather than an empty files/diff split.
+    readonly property bool hasSelection: repoVm
+        && (repoVm.selectedCommit.length > 0
+            || repoVm.historyDetailHeader.length > 0
+            || repoVm.historyDetailHint.length > 0)
+
     // Keep the diff model's syntax theme aligned with the app theme.
     property bool syntaxDark: theme.dark
     onSyntaxDarkChanged: if (repoVm && repoVm.commitDiff) repoVm.commitDiff.setSyntaxDark(syntaxDark)
@@ -153,10 +160,36 @@ ColumnLayout {
         }
     }
 
+    // Empty state — shown when no commit is selected, instead of a blank split.
+    ColumnLayout {
+        objectName: "commitEmptyState"
+        visible: !commitDetail.hasSelection
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        spacing: 12
+        Item { Layout.fillHeight: true }
+        Image {
+            source: theme.iconSource
+            sourceSize.width: 44
+            sourceSize.height: 44
+            opacity: 0.45
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Label {
+            text: qsTr("Select a commit to see its changes")
+            color: theme.textSecondary
+            font.pixelSize: 13
+            horizontalAlignment: Text.AlignHCenter
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Item { Layout.fillHeight: true }
+    }
+
     // Files (top) and the read-only diff (bottom) are split by a draggable handle
     // that mirrors the Changes pane's separator (accent on hover) — a clear,
     // consistent divide between the changed-files list and the selected diff.
     SplitView {
+        visible: commitDetail.hasSelection
         orientation: Qt.Vertical
         Layout.fillWidth: true
         Layout.fillHeight: true
@@ -169,7 +202,10 @@ ColumnLayout {
 
         // ---- Files in the commit (read-only) ----
         Item {
-            SplitView.preferredHeight: 160
+            // Size to content up to a cap, so a 1-file commit doesn't reserve a
+            // tall half-empty panel and starve the diff below — the diff gets the
+            // slack. Still draggable (the handle overrides this preferred size).
+            SplitView.preferredHeight: Math.min(160, 34 + commitFilesList.count * 28)
             SplitView.minimumHeight: 80
 
             // Titled strip so the changed-files list reads as its own framed
@@ -240,7 +276,18 @@ ColumnLayout {
                 delegate: Rectangle {
                     width: ListView.view.width
                     height: 28
-                    color: ListView.isCurrentItem ? theme.surfaceOverlay : "transparent"
+                    color: ListView.isCurrentItem
+                           ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
+                           : "transparent"
+
+                    // 2px accent left border on the selected row, matching every
+                    // other list (repo tree, changed files, history, graph).
+                    Rectangle {
+                        visible: parent.ListView.isCurrentItem
+                        width: 2
+                        height: parent.height
+                        color: theme.accent
+                    }
 
                     MouseArea {
                         anchors.fill: parent

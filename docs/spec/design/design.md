@@ -23,7 +23,7 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 | `surface.base`   | `#1C1C1E` | `#F5F5F5` | Window background |
 | `surface.raised` | `#262628` | `#FFFFFF` | Sidebar, cards, dialogs, tab body |
 | `surface.overlay`| `#333336` | `#EAEAEA` | Menus, tooltips, popovers |
-| `border`         | `#3D3D40` | `#E0E0E0` | Dividers, control outlines |
+| `border`         | `#4A4A4E` | `#E0E0E0` | Dividers, control outlines |
 | `text.primary`   | `#E4E4E6` | `#212121` | Headings, primary content |
 | `text.secondary` | `#A6A6AB` | `#5F5F5F` | Labels, secondary content |
 | `text.muted`     | `#8E8E93` | `#6E6E73` | Hints, disabled, captions |
@@ -31,7 +31,19 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 
 Neutrals are Material Grey — a neutral (unbiased) grey ground. Every text token
 clears WCAG 4.5:1 on its surfaces in both themes; `text.muted` was re-tuned from
-`#757579`/`#9E9E9E` (which sat at 3.3:1/2.5:1) to meet the floor (D60).
+`#757579`/`#9E9E9E` (which sat at 3.3:1/2.5:1) to meet the floor (D60). The dark
+`border` was lifted `#3D3D40` → `#4A4A4E` so dividers, control outlines and the
+split handles read on the low-contrast dark ground (panels barely separated
+before); it is a divider colour, never text, so the contrast floor is unaffected.
+
+### Selection
+
+Selection is **one shared treatment across every list** — the repo tree, the
+changed-files list, the commit-files list, and the History / Graph rows: a fill of
+`accent` at **~0.16 α** plus a **2px `accent` left border**. It reads clearly
+stronger than the neutral `surface.overlay` **hover**, and it is the *same* in
+every list (the repo tree previously filled with `surface.base` — darker than the
+sidebar, an inversion that made "selected" read weaker than "hovered").
 
 ### Accent (brand)
 
@@ -116,8 +128,10 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   raw Basic `Button`). Three variants: `primary` — filled `accent` / hover
   `accentHover`, text `surfaceBase`; `secondary` — `border` outline, transparent
   fill / hover `surfaceOverlay`, text `textPrimary`; `danger` — filled
-  `stateDeleted` / hover darker, text `surfaceBase`. `compact: true` cuts height
-  (30 → 22) and padding (14 → 8) for inline affordances such as the submodule
+  `stateDeleted` / hover darker, text `surfaceBase`. Label text is `13`
+  (compact `12`), on the type scale. `compact: true` cuts height
+  (30 → 24 — still on the ≥24px hit-target floor) and padding (14 → 8) for inline
+  affordances such as the submodule
   Init pill. Disabled: `surfaceOverlay` fill, `textMuted` text. Radius 6.
   Ghost links (empty-state secondaries) remain bespoke — they are not plain action
   buttons.
@@ -152,8 +166,9 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   the History files ↔ diff split all share it, so any resizable boundary is both
   visible and draggable. A **fixed** structural seam is a 1px `border` hairline
   (the branch-bar bottom edge, the top-level-repo dividers in the tree).
-- **Repo tree rows** (`repoList`). Row height ≥ 28; selected row =
-  `surface.raised` + a 2px `accent` left border. A missing repo is `text.muted` +
+- **Repo tree rows** (`repoList`). Row height ≥ 28; selected row uses the shared
+  selection treatment (`accent` @~0.16α + a 2px `accent` left border — see
+  § Selection). A missing repo is `text.muted` +
   a warning icon, never red text alone. Radius 10 on hover highlight. Top-level
   repositories are separated by a faint `border` divider above each repo after the
   first. Rows carry **no type glyph**; a leading **chevron** (`▸`/`▾`,
@@ -189,8 +204,9 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   `state.untracked` grey), `state.deleted` red for deleted, `state.incoming` blue
   for renamed, else neutral. A **faint row background** echoes the add/delete
   hues at ~0.12α (rename stays untinted — the blue letter carries it); the
-  directory prefix uses `text.secondary` (readable, but yields to the name). Selected row =
-  `surface.raised` + 2px `accent` left border. The same widget renders a commit's
+  directory prefix uses `text.secondary` (readable, but yields to the name). Selected row uses
+  the shared selection treatment (`accent` @~0.16α + 2px `accent` left border,
+  § Selection). The same widget renders a commit's
   files in **read-only** mode (no checkboxes) under the History tab.
   - **Selection is the user's.** A status refresh (the live watcher fires often)
     preserves each file's existing check state — it never re-checks what the user
@@ -319,7 +335,7 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 
 ### QML History view
 
-The History tab is implemented in QML (Plan 4 — History Graph). The commit list is a virtualized `ListView`; each row owns a `GraphColumn` (`QQuickPaintedItem`, registered as `GitTide 1.0/GraphColumn`) that paints one `GraphRow`'s lane geometry — pass-through verticals, incoming line, outgoing edges, and the commit dot. Lanes are coloured by `laneColors[lane % laneColors.length]` (the multi-hue `theme.laneColors` list; the only sanctioned multi-colour exception). The HEAD commit's dot is drawn in `theme.head` (white) regardless of lane colour. A **local-only** (not-yet-pushed) commit's dot is drawn **hollow** — stroked outline in the lane/HEAD colour, transparent fill — a shape cue that never relies on colour alone. When a history row is selected, a 2px `accent` `Rectangle` at `x = 0` spans its full height (covering the graph cell), and the row background fills with `surfaceOverlay` — both sit behind the `GraphColumn`'s transparent background so the lane lines remain visible. **Avatars** (`Avatar.qml`, 24px disc) show the author's real image over the initials fallback: initials on an `accent`-tinted disc render instantly, and the network image (Gravatar, keyed on `md5(email)` via the `image://avatar/<hash>` provider) swaps in on `Image.Ready`, so rows never jump; an absent/failed/disabled avatar leaves the initials showing. In both the History and Graph rows, an **unpushed commit** carries a trailing **`↑` arrow in `accent`** (bold; tooltip *"Local only — not yet pushed"*) and its whole row is tinted with a faint `accent` wash (`accent` at ~8% alpha, under any selection highlight) so the not-yet-shared commits read as a distinct band; in History the summary also stays `text.primary` while pushed summaries drop to `text.secondary`. The arrow glyph and (in Graph) the hollow dot keep the cue from being colour-only. The right-hand detail pane (`CommitDetail`) is a read-only view: files in the selected commit, then the diff when a file is picked — the two are split by a **draggable vertical handle** (the 3px `border`→`accent`-hover handle shared with the Changes pane) so the changed-files list is clearly divided from the selected diff and each side is resizable; it also hosts a secondary **Checkout** button that detaches HEAD at the selected commit.
+The History tab is implemented in QML (Plan 4 — History Graph). The commit list is a virtualized `ListView`; each row owns a `GraphColumn` (`QQuickPaintedItem`, registered as `GitTide 1.0/GraphColumn`) that paints one `GraphRow`'s lane geometry — pass-through verticals, incoming line, outgoing edges, and the commit dot. Lanes are coloured by `laneColors[lane % laneColors.length]` (the multi-hue `theme.laneColors` list; the only sanctioned multi-colour exception). The HEAD commit's dot is drawn in `theme.head` (white) regardless of lane colour. A **local-only** (not-yet-pushed) commit's dot is drawn **hollow** — stroked outline in the lane/HEAD colour, transparent fill — a shape cue that never relies on colour alone. When a history row is selected, a 2px `accent` `Rectangle` at `x = 0` spans its full height (covering the graph cell), and the row background fills with the shared `accent`-tint selection (§ Selection) — both sit behind the `GraphColumn`'s transparent background so the lane lines remain visible. In the **Graph** tab (no right-hand detail pane) the summary/author/date block is width-bounded so the trailing date sits just after the commit metadata instead of flying to the far window edge across a wide tab. **Avatars** (`Avatar.qml`, 24px disc) show the author's real image over the initials fallback: initials on an `accent`-tinted disc render instantly, and the network image (Gravatar, keyed on `md5(email)` via the `image://avatar/<hash>` provider) swaps in on `Image.Ready`, so rows never jump; an absent/failed/disabled avatar leaves the initials showing. In both the History and Graph rows, an **unpushed commit** carries a trailing **`↑` arrow in `accent`** (bold; tooltip *"Local only — not yet pushed"*) and its whole row is tinted with a faint `accent` wash (`accent` at ~8% alpha, under any selection highlight) so the not-yet-shared commits read as a distinct band; in History the summary also stays `text.primary` while pushed summaries drop to `text.secondary`. The arrow glyph and (in Graph) the hollow dot keep the cue from being colour-only. The right-hand detail pane (`CommitDetail`) is a read-only view: files in the selected commit, then the diff when a file is picked — the two are split by a **draggable vertical handle** (the 3px `border`→`accent`-hover handle shared with the Changes pane) so the changed-files list is clearly divided from the selected diff and each side is resizable; it also hosts a secondary **Checkout** button that detaches HEAD at the selected commit. The files sub-pane **sizes to its content up to a cap**, so a one-file commit doesn't reserve a tall half-empty panel and starve the diff (the handle still overrides it). When **no commit is selected** the pane shows a centred **empty state** (faded brand mark + *"Select a commit to see its changes"*) rather than an empty files/diff split; the **Changes** pane's diff column shows the analogous *"Select a file to view its diff"* empty state when no file is picked, so the main content area is never a blank void.
 
 **Drag-to-reorder grip.** Rows that can be reordered — those in the reorderable run (the linear single-parent span from HEAD), and every row in the `RebaseTodoDialog` todo editor — carry a trailing **`⠿` grip** glyph in `text.muted`, brightening to `accent` while a drag is active. The grip is the affordance (an icon, not a colour-only state — D19) and a tooltip names it; dragging it reorders. In the history view a reorder is gated behind a confirmation because it rewrites history (D36).
 

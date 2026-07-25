@@ -7,6 +7,12 @@ ColumnLayout {
     objectName: "diffView"
     spacing: 0
 
+    // True when there is something to render: a working-tree file is selected, or
+    // a stash preview is active. When false the pane shows a guiding empty state
+    // instead of a blank void.
+    readonly property bool hasContent: repoVm
+        && (repoVm.stashPreviewActive || repoVm.activeFile.length > 0)
+
     // Keep the diff model's syntax theme aligned with the app theme.
     property bool syntaxDark: theme.dark
     onSyntaxDarkChanged: if (repoVm && repoVm.diffLines) repoVm.diffLines.setSyntaxDark(syntaxDark)
@@ -56,9 +62,36 @@ ColumnLayout {
         }
     }
 
+    // Empty state — shown when no file is selected, instead of a blank void.
+    ColumnLayout {
+        objectName: "diffEmptyState"
+        visible: !diffView.hasContent
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.alignment: Qt.AlignCenter
+        spacing: 12
+        Item { Layout.fillHeight: true }
+        Image {
+            source: theme.iconSource
+            sourceSize.width: 44
+            sourceSize.height: 44
+            opacity: 0.45
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Label {
+            text: qsTr("Select a file to view its diff")
+            color: theme.textSecondary
+            font.pixelSize: 13
+            horizontalAlignment: Text.AlignHCenter
+            Layout.alignment: Qt.AlignHCenter
+        }
+        Item { Layout.fillHeight: true }
+    }
+
     ListView {
         id: diffList
         objectName: "diffList"
+        visible: diffView.hasContent
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true

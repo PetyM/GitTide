@@ -157,7 +157,7 @@ RowLayout {
                 // already-pushed (untinted) ones above and below.
                 color: (ListView.isCurrentItem
                         || historyList.selectedRows.indexOf(index) >= 0)
-                       ? theme.surfaceOverlay
+                       ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
                        : (model.isLocalOnly
                           ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
                           : "transparent")

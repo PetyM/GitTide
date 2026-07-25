@@ -9,7 +9,7 @@ Button {
     property string variant: "primary"   // "primary" | "secondary" | "danger"
     property bool   compact: false
 
-    implicitHeight: compact ? 22 : 30
+    implicitHeight: compact ? 24 : 30   // compact meets the ≥24px hit-target floor
     leftPadding:  compact ? 8 : 14
     rightPadding: compact ? 8 : 14
     topPadding: 0
@@ -25,7 +25,7 @@ Button {
         text: btn.text
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        font.pixelSize: btn.compact ? 11 : 12
+        font.pixelSize: btn.compact ? 12 : 13   // spec type scale: label/button = 13
         color: !btn.enabled ? theme.textMuted
                : btn._filled ? theme.surfaceBase
                : theme.textPrimary

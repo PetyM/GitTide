@@ -648,6 +648,31 @@ an entry with a newer one if it changes.
   exception like the history-graph lane colours. →
   [`design`](spec/design/design.md#git-state-colours)
 
+- **D61 — User-friendliness pass on the live app: empty states, unified
+  selection, and clearer dark separation.** A review of the *running* app (not just
+  the code) found the main content pane rendered a large blank void whenever nothing
+  was selected (clean repo, or before picking a commit/file), selection was
+  inconsistent and partly inverted (the repo tree filled the active row with
+  `surface.base` — *darker* than the sidebar, so "selected" read weaker than the
+  `surface.overlay` hover, while the lists used `surface.overlay`), dark panels
+  barely separated on the low-contrast ground, and the Graph tab pushed each row's
+  date to the far window edge (~900px gap). Fixes: the **Changes** diff column and
+  the **CommitDetail** pane gain centred empty states (faded brand mark + a one-line
+  hint); **selection becomes one shared treatment** everywhere — `accent` @~0.16α +
+  a 2px `accent` left border, always stronger than the neutral hover; the dark
+  `border` token is lifted `#3D3D40` → `#4A4A4E` (a divider colour, never text, so
+  the WCAG floor is untouched); the Graph row's text block is width-bounded so the
+  date sits by the metadata; the CommitDetail files sub-pane sizes to content up to
+  a cap; and `AppButton compact` height goes 22 → 24 to hold the ≥24px hit-target
+  floor, with label text on the type scale (13 / compact 12). *Why:* the app looked
+  unfinished on first open and the selection cue was ambiguous. *Rejected:* retuning
+  `surface.raised` for separation (drops `text.muted`-on-raised below 4.5:1 — the
+  border lift is safe instead); a pure-white `onAccent` button-label token (larger
+  plumbing for a colour that already passes contrast — deferred); differentiating
+  Graph ref pills by tag/branch/remote (needs the row model to expose ref *kind* —
+  follow-up). →
+  [`design`](spec/design/design.md#selection)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

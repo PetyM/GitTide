@@ -462,7 +462,11 @@ Rectangle {
                 }
 
                 background: Rectangle {
-                    color: row.activeRepo ? theme.surfaceBase
+                    // Selection is one consistent accent tint across every list
+                    // (repo tree, changed files, history, graph) — clearly stronger
+                    // than the neutral surfaceOverlay hover, and no longer inverted
+                    // (the active row used to go darker than the sidebar).
+                    color: row.activeRepo ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
                          : row.hovered ? theme.surfaceOverlay : "transparent"
                     radius: 10
                     // Keyboard-cursor focus ring — only while the tree holds focus.

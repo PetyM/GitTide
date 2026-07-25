@@ -117,14 +117,23 @@ SplitView {
 
                 width: ListView.view.width
                 height: 30
-                // Current row uses the selection highlight; otherwise a faint
-                // status tint — green for added/untracked, red for deleted.
-                color: ListView.isCurrentItem ? theme.surfaceOverlay
+                // Current row uses the shared accent selection tint (consistent with
+                // the repo tree and history); otherwise a faint status tint — green
+                // for added/untracked, red for deleted.
+                color: ListView.isCurrentItem ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
                      : (model.statusKind === "added" || model.statusKind === "untracked")
                        ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.12)
                      : model.statusKind === "deleted"
                        ? Qt.rgba(theme.stateDeleted.r, theme.stateDeleted.g, theme.stateDeleted.b, 0.12)
                      : "transparent"
+
+                // 2px accent left border on the selected row (design §Changed-files list).
+                Rectangle {
+                    visible: parent.ListView.isCurrentItem
+                    width: 2
+                    height: parent.height
+                    color: theme.accent
+                }
 
                 MouseArea {
                     anchors.fill: parent

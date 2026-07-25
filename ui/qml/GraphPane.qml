@@ -91,7 +91,7 @@ RowLayout {
             // faint accent tint, matching the History tab so what isn't shared
             // reads at a glance here too (paired with the hollow graph dot).
             color: ListView.isCurrentItem
-                   ? theme.surfaceOverlay
+                   ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.16)
                    : (model.isLocalOnly
                       ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, 0.08)
                       : "transparent")
@@ -197,6 +197,11 @@ RowLayout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
+                    // Bound the text block so the trailing date sits just after the
+                    // commit metadata instead of flying to the far window edge —
+                    // on a wide Graph tab the row is ~1500px and an unbounded column
+                    // left a ~900px gap between the summary and its date.
+                    Layout.maximumWidth: 560
                     Layout.alignment: Qt.AlignTop
                     Layout.topMargin: 6
                     spacing: 2
