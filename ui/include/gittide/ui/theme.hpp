@@ -11,6 +11,7 @@ struct Theme
     QString surfaceBase, surfaceRaised, surfaceOverlay, border;
     QString textPrimary, textSecondary, textMuted;
     QString accent, accentHover, head;
+    QString onAccent; // Label colour on a filled accent/danger surface (primary buttons).
     QString stateAdded, stateModified, stateDeleted, stateUntracked, stateConflict, stateIncoming;
     QString shadow; // Translucent drop-shadow colour for overlay elevation (§9).
     QString focusBorder;

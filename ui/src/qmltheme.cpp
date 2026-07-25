@@ -89,6 +89,10 @@ QColor QmlTheme::head() const
 {
     return QColor(theme().head);
 }
+QColor QmlTheme::onAccent() const
+{
+    return QColor(theme().onAccent);
+}
 QColor QmlTheme::stateAdded() const
 {
     return QColor(theme().stateAdded);

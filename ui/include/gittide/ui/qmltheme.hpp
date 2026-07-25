@@ -28,6 +28,7 @@ class QmlTheme : public QObject
     Q_PROPERTY(QColor accent READ accent NOTIFY changed)
     Q_PROPERTY(QColor accentHover READ accentHover NOTIFY changed)
     Q_PROPERTY(QColor head READ head NOTIFY changed)
+    Q_PROPERTY(QColor onAccent READ onAccent NOTIFY changed)
     Q_PROPERTY(QColor stateAdded READ stateAdded NOTIFY changed)
     Q_PROPERTY(QColor stateModified READ stateModified NOTIFY changed)
     Q_PROPERTY(QColor stateDeleted READ stateDeleted NOTIFY changed)
@@ -61,6 +62,7 @@ public:
     QColor accent() const;
     QColor accentHover() const;
     QColor head() const;
+    QColor onAccent() const;
     QColor stateAdded() const;
     QColor stateModified() const;
     QColor stateDeleted() const;

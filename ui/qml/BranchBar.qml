@@ -132,16 +132,24 @@ Rectangle {
             onClicked: if (repoVm) repoVm.fetch()
         }
 
-        SyncButton { // Pull — shown only when the branch is actually behind
+        // Pull / Push keep a **stable slot** whenever the branch tracks an upstream
+        // (spec: "appear only with an upstream") — they no longer pop in and out as
+        // the ahead/behind counts cross zero, which shifted their neighbours and
+        // broke muscle memory. The count pill shows only when there is work, and the
+        // button disables (greyed) when there is nothing to pull/push, so the
+        // position is predictable while the state stays clear.
+        SyncButton {
             text: "Pull"
-            visible: repoVm && repoVm.hasUpstream && repoVm.behindCount > 0
+            visible: repoVm && repoVm.hasUpstream
+            enabled: repoVm && !repoVm.syncing && repoVm.behindCount > 0
             badgeCount: repoVm ? repoVm.behindCount : -1
             onClicked: if (repoVm) repoVm.pull()
         }
 
-        SyncButton { // Push — shown only when the branch is actually ahead
+        SyncButton {
             text: "Push"
-            visible: repoVm && repoVm.hasUpstream && repoVm.aheadCount > 0
+            visible: repoVm && repoVm.hasUpstream
+            enabled: repoVm && !repoVm.syncing && repoVm.aheadCount > 0
             badgeCount: repoVm ? repoVm.aheadCount : -1
             onClicked: if (repoVm) repoVm.push()
         }

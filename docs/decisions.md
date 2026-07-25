@@ -688,6 +688,21 @@ an entry with a newer one if it changes.
   with slashes and blind to tags, when core already knows the exact kind. →
   [`design`](spec/design/design.md#qml-history-view)
 
+- **D63 — Close the D61 follow-ups: `on.accent` label token and stable Pull/Push
+  slots.** The two items D61 deferred. (1) Filled `AppButton` labels read from a new
+  `on.accent` token (white in both themes) instead of `surface.base`, so a primary
+  or danger button's label is crisp on the blue/red fill rather than near-black —
+  the earlier colour passed WCAG but read muddy. (2) Pull and Push keep a **stable
+  slot** whenever the branch has an upstream (matching the spec's "appear only with
+  an upstream"): they no longer pop in and out as the ahead/behind counts cross
+  zero — which shifted their neighbours and broke muscle memory — but instead
+  **disable** (greyed, no pill) when there's nothing to pull/push. *Why:* predictable
+  control positions and a crisper primary action. *Rejected:* a per-theme `on.accent`
+  (white works on both fills, so one value suffices — the "both themes defined" rule
+  is still met); always-enabled Pull/Push (a disabled state signals "nothing to do"
+  more clearly than a live button that no-ops). →
+  [`design`](spec/design/design.md#accent-brand)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

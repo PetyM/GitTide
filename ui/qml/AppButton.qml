@@ -27,7 +27,7 @@ Button {
         verticalAlignment: Text.AlignVCenter
         font.pixelSize: btn.compact ? 12 : 13   // spec type scale: label/button = 13
         color: !btn.enabled ? theme.textMuted
-               : btn._filled ? theme.surfaceBase
+               : btn._filled ? theme.onAccent
                : theme.textPrimary
     }
 

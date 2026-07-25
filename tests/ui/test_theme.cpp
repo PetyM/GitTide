@@ -67,6 +67,7 @@ private slots:
                                        t.accent,
                                        t.accentHover,
                                        t.head,
+                                       t.onAccent,
                                        t.stateAdded,
                                        t.stateModified,
                                        t.stateDeleted,

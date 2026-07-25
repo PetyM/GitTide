@@ -16,6 +16,7 @@ Theme darkTheme()
         .accent         = QStringLiteral("#42A5F5"), // Material Blue 400 — reads bright on grey
         .accentHover    = QStringLiteral("#64B5F6"), // Material Blue 300
         .head           = QStringLiteral("#E3F2FD"), // Material Blue 50 — HEAD node, near-white blue
+        .onAccent       = QStringLiteral("#FFFFFF"), // label on filled accent/danger — white reads crisp on both blue and red
         // Git-state palette: bright-on-dark. Tuned per theme (light darkens these).
         .stateAdded     = QStringLiteral("#3FB950"),
         .stateModified  = QStringLiteral("#D29922"),
@@ -42,6 +43,7 @@ Theme lightTheme()
         .accent         = QStringLiteral("#1976D2"), // Material Blue 700
         .accentHover    = QStringLiteral("#1565C0"), // Material Blue 800
         .head           = QStringLiteral("#1976D2"),
+        .onAccent       = QStringLiteral("#FFFFFF"), // label on filled accent/danger — white in both themes
         // Git-state palette: darkened for the light ground (the dark theme's
         // bright-on-dark values sit at ~2.3–3.1:1 on white). GitHub-light-style.
         .stateAdded     = QStringLiteral("#1A7F37"),

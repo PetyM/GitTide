@@ -52,6 +52,7 @@ sidebar, an inversion that made "selected" read weaker than "hovered").
 | `accent`       | `#42A5F5` | `#1976D2` | Primary action, brand wave, selection, focus |
 | `accent.hover` | `#64B5F6` | `#1565C0` | Hover/active of accent elements |
 | `head`         | `#E3F2FD` | `#1976D2` | HEAD / root commit node (matches the icon) |
+| `on.accent`    | `#FFFFFF` | `#FFFFFF` | Label on a filled `accent` / `danger` surface (primary buttons) |
 
 **One accent only.** Material Blue is the brand (Blue 400 on dark, Blue 700 on
 light); do not introduce a second hue for emphasis.
@@ -126,9 +127,11 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 
 - **Action buttons (`AppButton`).** All plain action buttons use `AppButton` (not
   raw Basic `Button`). Three variants: `primary` — filled `accent` / hover
-  `accentHover`, text `surfaceBase`; `secondary` — `border` outline, transparent
+  `accentHover`, text `on.accent`; `secondary` — `border` outline, transparent
   fill / hover `surfaceOverlay`, text `textPrimary`; `danger` — filled
-  `stateDeleted` / hover darker, text `surfaceBase`. Label text is `13`
+  `stateDeleted` / hover darker, text `on.accent`. (Filled labels use the
+  `on.accent` token — white — so they read crisp on both the blue and red fills,
+  instead of the near-black `surface.base`.) Label text is `13`
   (compact `12`), on the type scale. `compact: true` cuts height
   (30 → 24 — still on the ≥24px hit-target floor) and padding (14 → 8) for inline
   affordances such as the submodule
@@ -251,7 +254,11 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   state paired with a cue, never colour alone. Immediately to its right is the
   **sync cluster**: equal-width **Fetch / Pull / Push** buttons (secondary outline
   style). Pull and Push carry the behind / ahead count as an **inline `accent`
-  pill** beside the label (not a corner badge), and appear only with an upstream;
+  pill** beside the label (not a corner badge), and appear only with an upstream —
+  they keep a **stable slot** while an upstream exists (rather than popping in and
+  out as the counts cross zero, which shifted their neighbours): the pill shows only
+  when there is work and the button **disables** when there is nothing to pull/push,
+  so the position is predictable while the state stays clear.
   **Publish** replaces them when the branch has no upstream. While a fetch/pull/push
   runs, a **progress bar** (`accent` fill on `surface.overlay`) with a
   `received / total` caption shows beside the cluster — an indeterminate sweep
