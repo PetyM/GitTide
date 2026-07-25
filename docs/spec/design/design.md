@@ -26,10 +26,12 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 | `border`         | `#3D3D40` | `#E0E0E0` | Dividers, control outlines |
 | `text.primary`   | `#E4E4E6` | `#212121` | Headings, primary content |
 | `text.secondary` | `#A6A6AB` | `#5F5F5F` | Labels, secondary content |
-| `text.muted`     | `#757579` | `#9E9E9E` | Hints, disabled, captions |
+| `text.muted`     | `#8E8E93` | `#6E6E73` | Hints, disabled, captions |
 | `shadow`         | `#66000000` | `#24000000` | Overlay drop-shadow (translucent) |
 
-Neutrals are Material Grey — a neutral (unbiased) grey ground.
+Neutrals are Material Grey — a neutral (unbiased) grey ground. Every text token
+clears WCAG 4.5:1 on its surfaces in both themes; `text.muted` was re-tuned from
+`#757579`/`#9E9E9E` (which sat at 3.3:1/2.5:1) to meet the floor (D60).
 
 ### Accent (brand)
 
@@ -45,16 +47,19 @@ light); do not introduce a second hue for emphasis.
 ### Git state colours
 
 Used for status lists, the diff gutter, dashboard badges, and graph decorations.
-Identical across themes (tuned for contrast on both surfaces).
+**Per theme** (D60): a saturated hue can't clear 4.5:1 on both `#1C1C1E` and
+`#F5F5F5`, so dark keeps bright-on-dark values and light darkens to GitHub-light
+hues. The earlier shared set left the light green `A` / amber `M` near-invisible
+(~2.3:1).
 
-| Token             | Hex       | Meaning |
-|-------------------|-----------|---------|
-| `state.added`     | `#3FB950` | Added / staged |
-| `state.modified`  | `#D29922` | Modified |
-| `state.deleted`   | `#F85149` | Deleted |
-| `state.untracked` | `#6E7681` | Untracked |
-| `state.conflict`  | `#DB6D28` | Conflict (badge / merge banner) |
-| `state.incoming`  | `#388BFD` | Merge "Incoming (theirs)" conflict band |
+| Token             | Dark      | Light     | Meaning |
+|-------------------|-----------|-----------|---------|
+| `state.added`     | `#3FB950` | `#1A7F37` | Added / staged |
+| `state.modified`  | `#D29922` | `#9A6700` | Modified |
+| `state.deleted`   | `#F85149` | `#CF222E` | Deleted |
+| `state.untracked` | `#8B949E` | `#6E7781` | Untracked |
+| `state.conflict`  | `#DB6D28` | `#BC4C00` | Conflict (badge / merge banner) |
+| `state.incoming`  | `#388BFD` | `#0969DA` | Merge "Incoming (theirs)" conflict band |
 
 State is **never** signalled by colour alone — always pair it with an icon or a
 letter (A / M / D / C). The inline merge-conflict bands reuse this git-state
@@ -174,7 +179,7 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   the core enables libgit2 rename detection (`git_diff_find_similar`, and the
   `GIT_STATUS_OPT_RENAMES_*` flags for the working tree) and carries the source
   path, which the row shows as *`old/path → new/path`* — the **full** source path
-  and new directory muted, the new file name tinted — so a move into another
+  and new directory in `text.secondary`, the new file name tinted — so a move into another
   folder still reads even when the file name is unchanged (a basename-only
   *`name → name`* would look pointless). Committing an `R` row stages both operations — add the
   destination, remove the source — and discarding it deletes the moved copy while
@@ -184,7 +189,7 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   `state.untracked` grey), `state.deleted` red for deleted, `state.incoming` blue
   for renamed, else neutral. A **faint row background** echoes the add/delete
   hues at ~0.12α (rename stays untinted — the blue letter carries it); the
-  directory prefix stays `text.muted`. Selected row =
+  directory prefix uses `text.secondary` (readable, but yields to the name). Selected row =
   `surface.raised` + 2px `accent` left border. The same widget renders a commit's
   files in **read-only** mode (no checkboxes) under the History tab.
   - **Selection is the user's.** A status refresh (the live watcher fires often)
@@ -351,3 +356,11 @@ selection: `ui/src/thememanager.cpp`. Tokens → bindable QML properties (+ the
 `theme.<token>` via the `theme` context property installed in
 `ui/src/qmlcontext.cpp`. Per-symbol contracts live in the headers under
 `ui/include/gittide/ui/`.
+
+**Diff syntax theme.** `SyntaxHighlighter` (`ui/src/syntaxhighlighter.cpp`) colours
+diff lines from a token-derived KSyntaxHighlighting theme — `GitTide Dark` /
+`GitTide Light`, bundled as `.theme` files in `ui/resources/syntaxthemes.qrc` under
+the `themes-addons` path KSyntax scans, and selected by the app's mode (D60,
+realising the D45 upgrade path). Falls back to the bundled default theme if the
+resource is absent. The syntax multi-hue set is a sanctioned exception to the
+one-accent rule, like the history-graph lane colours.

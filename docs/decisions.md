@@ -627,6 +627,27 @@ an entry with a newer one if it changes.
   whole-file — a partial (line-level) rename stage has no meaningful UI. →
   [`design`](spec/design/design.md#components)
 
+- **D60 — Contrast-driven palette re-tune: `text.muted` lifted, git-state colours
+  split per theme, and the diff highlighter switched to token-derived KSyntax
+  themes.** A full WCAG audit of the palette found `text.muted` below the spec's own
+  4.5:1 body-text floor on **both** themes (dark 3.3:1, light 2.5:1) and the
+  git-state colours — shared verbatim across themes — near-invisible on the light
+  ground (green `A`/amber `M` at ~2.3:1). Fixes: `text.muted` → `#8E8E93` (dark) /
+  `#6E6E73` (light); the git-state palette becomes **per theme** (dark keeps its
+  bright-on-dark values, light darkens to GitHub-light-style hues) — a saturated
+  colour cannot clear 4.5:1 on both `#1C1C1E` and `#F5F5F5` at once. The changed-file
+  directory prefix moves from `text.muted` to `text.secondary`. Diff syntax
+  highlighting takes the **D45 upgrade path**: two `.theme` files derived from our
+  tokens (bundled in the KSyntax `themes-addons` QRC, loaded by name) replace KDE's
+  Breeze palette, so the diff harmonises with the app. *Why:* the app failed its own
+  accessibility invariant and the diff read as a foreign surface. *Rejected:*
+  keeping one shared git-state set (can't pass on both grounds); a per-user theme
+  editor (out of scope); baking syntax hexes into the widget (D18 — colours live in
+  a data file, exactly like the token table). The colours stay data-driven, so D18
+  and the one-accent rule (D17) hold — the syntax multi-hue set is a sanctioned
+  exception like the history-graph lane colours. →
+  [`design`](spec/design/design.md#git-state-colours)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

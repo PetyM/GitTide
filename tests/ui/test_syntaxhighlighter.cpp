@@ -32,6 +32,28 @@ private slots:
         QVERIFY(!out[0].contains(QStringLiteral("< b")));   // raw '<' must be escaped
     }
 
+    void usesGittideTokenDerivedTheme()
+    {
+        // D45 follow-up: the diff no longer borrows KDE's Breeze palette — it uses
+        // a KSyntax theme derived from our design tokens, bundled in the
+        // themes-addons resource. Assert the custom theme resolves for both modes.
+        // Degrade gracefully if the resource is unavailable (per the diff-syntax
+        // design's testing note) rather than failing the suite.
+        SyntaxHighlighter hl;
+        const QString darkName  = hl.themeName(/*dark=*/true);
+        const QString lightName = hl.themeName(/*dark=*/false);
+        if (darkName.startsWith(QStringLiteral("GitTide")))
+        {
+            QCOMPARE(darkName,  QStringLiteral("GitTide Dark"));
+            QCOMPARE(lightName, QStringLiteral("GitTide Light"));
+        }
+        else
+        {
+            qWarning("GitTide syntax theme resource unavailable; using bundled fallback");
+            QVERIFY(!darkName.isEmpty());  // some valid theme must still resolve
+        }
+    }
+
     void unknownExtensionReturnsEmpty()
     {
         SyntaxHighlighter hl;

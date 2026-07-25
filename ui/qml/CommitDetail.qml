@@ -272,12 +272,13 @@ ColumnLayout {
                             readonly property string shortDir: isRename ? "" : PathElide.fit(
                                 model.fileDir, model.fileName, width,
                                 function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
-                            // Rename → "old/path → new/dir/" muted then the new name,
-                            // so the whole move reads even when the name is unchanged.
+                            // Rename → "old/path → new/dir/" in secondary then the
+                            // new name, so the whole move reads even when the name is
+                            // unchanged; the prefix stays legible but yields to it.
                             text: isRename
-                                  ? "<font color='" + theme.textMuted + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
+                                  ? "<font color='" + theme.textSecondary + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
                                     + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
-                                  : "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                                  : "<font color='" + theme.textSecondary + "'>" + shortDir + "</font>"
                                     + "<font color='" + theme.textPrimary + "'>" + model.fileName + "</font>"
                         }
                         Label {

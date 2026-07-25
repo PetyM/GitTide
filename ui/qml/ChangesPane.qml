@@ -186,7 +186,8 @@ SplitView {
                         textFormat: Text.StyledText
                         // File name tinted by status — added/untracked green,
                         // deleted red, renamed blue — so the change kind reads at
-                        // a glance; the directory prefix stays muted.
+                        // a glance; the directory prefix uses text.secondary so it
+                        // stays legible while still yielding to the file name.
                         readonly property color nameColor:
                               (model.statusKind === "added" || model.statusKind === "untracked") ? theme.stateAdded
                             : model.statusKind === "deleted"   ? theme.stateDeleted
@@ -202,13 +203,13 @@ SplitView {
                         readonly property string shortDir: isRename ? "" : PathElide.fit(
                             model.fileDir, model.fileName, width,
                             function (t) { pathRuler.text = t; return pathRuler.advanceWidth })
-                        // Rename → "old/path → new/dir/" muted then the new name
-                        // tinted, so the whole move reads even when the name is
+                        // Rename → "old/path → new/dir/" in secondary then the new
+                        // name tinted, so the whole move reads even when the name is
                         // unchanged (a plain "name → name" would look pointless).
                         text: isRename
-                              ? "<font color='" + theme.textMuted + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
+                              ? "<font color='" + theme.textSecondary + "'>" + model.oldPath + " → " + model.fileDir + "</font>"
                                 + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
-                              : "<font color='" + theme.textMuted + "'>" + shortDir + "</font>"
+                              : "<font color='" + theme.textSecondary + "'>" + shortDir + "</font>"
                                 + "<font color='" + nameColor + "'>" + model.fileName + "</font>"
                     }
                     Label {

@@ -57,6 +57,7 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/logging.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/qml/qml.qrc
   ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons.qrc
+  ${CMAKE_CURRENT_SOURCE_DIR}/resources/syntaxthemes.qrc
 )
 set_target_properties(gittide_ui PROPERTIES AUTOMOC ON AUTORCC ON)
 target_include_directories(gittide_ui PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

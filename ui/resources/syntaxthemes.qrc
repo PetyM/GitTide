@@ -1,0 +1,11 @@
+<!DOCTYPE RCC>
+<!-- Custom KSyntaxHighlighting themes derived from GitTide's design tokens.
+     The Repository automatically scans ":/org.kde.syntax-highlighting/themes-addons"
+     for *.theme files, so mapping the files under that prefix makes them resolvable
+     via Repository::theme("GitTide Dark" / "GitTide Light"). See D45 follow-up. -->
+<RCC>
+  <qresource prefix="/org.kde.syntax-highlighting/themes-addons">
+    <file alias="gittide-dark.theme">syntax/gittide-dark.theme</file>
+    <file alias="gittide-light.theme">syntax/gittide-light.theme</file>
+  </qresource>
+</RCC>

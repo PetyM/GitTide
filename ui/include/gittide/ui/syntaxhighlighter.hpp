@@ -23,6 +23,12 @@ public:
 
     bool hasDefinition(const QString& filePath) const;
 
+    /// Name of the KSyntax theme actually used for the given mode. Returns
+    /// "GitTide Dark" / "GitTide Light" when our token-derived themes resolve
+    /// (see D45 follow-up); falls back to the bundled default theme's name if the
+    /// custom theme resource is unavailable.
+    QString themeName(bool dark) const;
+
     std::vector<QString> highlightLines(const QString& filePath,
                                         const std::vector<QString>& lines,
                                         bool dark) const;

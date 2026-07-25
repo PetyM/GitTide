@@ -26,12 +26,32 @@ private slots:
         QCOMPARE(t.accent, QStringLiteral("#1976D2"));
         QCOMPARE(t.textPrimary, QStringLiteral("#212121"));
     }
-    void state_colors_match_across_themes()
+    void muted_text_meets_contrast_floor()
     {
-        // Spec §2.3: state colors identical in both themes.
-        QCOMPARE(darkTheme().stateAdded, lightTheme().stateAdded);
-        QCOMPARE(darkTheme().stateDeleted, lightTheme().stateDeleted);
-        QCOMPARE(darkTheme().stateAdded, QStringLiteral("#3FB950"));
+        // text.muted was below the spec's 4.5:1 body-text floor on both themes;
+        // re-tuned so history sub-lines, the commit medallion and path prefixes
+        // read (design § Accessibility). Assert the corrected values.
+        QCOMPARE(darkTheme().textMuted, QStringLiteral("#8E8E93"));
+        QCOMPARE(lightTheme().textMuted, QStringLiteral("#6E6E73"));
+    }
+    void state_colors_are_per_theme()
+    {
+        // The git-state palette is now tuned per theme: the dark values are
+        // bright-on-dark, the light values dark-on-light — a single shared hex
+        // can't clear 4.5:1 on both grounds. Added/modified were near-invisible
+        // (~2.3:1) on the light surface before this split.
+        const Theme d = darkTheme();
+        const Theme l = lightTheme();
+        QCOMPARE(d.stateAdded, QStringLiteral("#3FB950"));
+        QCOMPARE(l.stateAdded, QStringLiteral("#1A7F37"));
+        QCOMPARE(l.stateModified, QStringLiteral("#9A6700"));
+        QCOMPARE(l.stateDeleted, QStringLiteral("#CF222E"));
+        QCOMPARE(l.stateConflict, QStringLiteral("#BC4C00"));
+        QCOMPARE(l.stateIncoming, QStringLiteral("#0969DA"));
+        // The two themes must genuinely differ for the tuned colours.
+        QVERIFY(d.stateAdded != l.stateAdded);
+        QVERIFY(d.stateModified != l.stateModified);
+        QVERIFY(d.stateDeleted != l.stateDeleted);
     }
     void every_token_is_nonempty()
     {

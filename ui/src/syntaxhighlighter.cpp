@@ -9,6 +9,15 @@
 #include <KSyntaxHighlighting/State>
 #include <KSyntaxHighlighting/Theme>
 
+// Q_INIT_RESOURCE must be invoked from the global namespace so the generated
+// extern symbol keeps C linkage; wrapping it forces the linker to retain the
+// resource object even though ui is a STATIC library (otherwise the themes-addons
+// resource is stripped and the custom themes never load in app/test binaries).
+static void gittideInitSyntaxThemeResources()
+{
+    Q_INIT_RESOURCE(syntaxthemes);
+}
+
 using namespace KSyntaxHighlighting;
 
 namespace gittide::ui
@@ -68,11 +77,24 @@ private:
     int     m_cursor = 0;
 };
 
+/// Resolve the syntax theme for @p dark: prefer GitTide's token-derived theme
+/// (bundled in the themes-addons resource), fall back to the bundled default so
+/// highlighting still works if the custom resource is missing (e.g. a CI env).
+Theme resolveTheme(const Repository& repo, bool dark)
+{
+    const Theme custom = repo.theme(dark ? QStringLiteral("GitTide Dark")
+                                         : QStringLiteral("GitTide Light"));
+    if (custom.isValid())
+        return custom;
+    return repo.defaultTheme(dark ? Repository::DarkTheme : Repository::LightTheme);
+}
+
 } // namespace
 
 SyntaxHighlighter::SyntaxHighlighter()
-    : m_repo(std::make_unique<Repository>())
 {
+    gittideInitSyntaxThemeResources(); // register themes-addons before the Repository scans
+    m_repo = std::make_unique<Repository>();
 }
 
 SyntaxHighlighter::~SyntaxHighlighter() = default;
@@ -80,6 +102,11 @@ SyntaxHighlighter::~SyntaxHighlighter() = default;
 bool SyntaxHighlighter::hasDefinition(const QString& filePath) const
 {
     return m_repo->definitionForFileName(filePath).isValid();
+}
+
+QString SyntaxHighlighter::themeName(bool dark) const
+{
+    return resolveTheme(*m_repo, dark).name();
 }
 
 std::vector<QString> SyntaxHighlighter::highlightLines(const QString& filePath,
@@ -92,7 +119,7 @@ std::vector<QString> SyntaxHighlighter::highlightLines(const QString& filePath,
 
     HtmlCollector hl;
     hl.setDefinition(def);
-    hl.setTheme(m_repo->defaultTheme(dark ? Repository::DarkTheme : Repository::LightTheme));
+    hl.setTheme(resolveTheme(*m_repo, dark));
 
     std::vector<QString> out;
     out.reserve(lines.size());
