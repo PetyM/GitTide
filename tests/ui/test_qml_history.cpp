@@ -357,6 +357,65 @@ private slots:
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
+    // The empty commit-detail pane ("Select a commit to see its changes") must
+    // stretch across the whole area left of the commit list. A column whose every
+    // child is fixed-width caps its own maximum width, which used to leave the
+    // pane at its implicit width and the message parked left of centre.
+    void empty_commit_detail_fills_the_pane_width()
+    {
+        const auto dir = qml_history_test::make_dirty_repo();
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy historySpy(vm.history(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(historySpy.wait(15000));
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        // Give the window a known size so the panes have real widths to divide.
+        root->setProperty("width", 1400);
+        root->setProperty("height", 900);
+
+        // Show the History tab — the detail pane only exists there.
+        QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
+        QVERIFY(tabBar != nullptr);
+        tabBar->setProperty("currentIndex", 1);
+
+        // Measure against the whole main area, not the tab body: the body's own
+        // width is capped by the same defect, so it would hide the regression.
+        QObject* pane = root->findChild<QObject*>(QStringLiteral("workingPane"));
+        QVERIFY(pane != nullptr);
+        QObject* detail = root->findChild<QObject*>(QStringLiteral("commitDetail"));
+        QVERIFY(detail != nullptr);
+        QObject* empty = root->findChild<QObject*>(QStringLiteral("commitEmptyState"));
+        QVERIFY(empty != nullptr);
+
+        // Nothing is selected, so the empty state — not the files/diff split — is
+        // the branch of CommitDetail that carries the pane's width.
+        QCOMPARE(detail->property("hasSelection").toBool(), false);
+
+        // 420 px commit list + 1 px hairline; the detail pane takes the rest.
+        QTRY_VERIFY2(pane->property("width").toReal() > 500.0,
+                     qPrintable(QStringLiteral("main pane never got a real width: %1")
+                                    .arg(pane->property("width").toReal())));
+        const qreal paneWidth = pane->property("width").toReal();
+        QTRY_VERIFY2(detail->property("width").toReal() > paneWidth - 425.0,
+                     qPrintable(QStringLiteral("detail pane did not stretch: detail=%1 pane=%2")
+                                    .arg(detail->property("width").toReal()).arg(paneWidth)));
+        QCOMPARE(empty->property("width").toReal(), detail->property("width").toReal());
+
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
+
     void checkout_commit_detaches_head_at_that_commit()
     {
         const auto dir = qml_history_test::make_dirty_repo();

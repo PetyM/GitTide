@@ -175,12 +175,16 @@ ColumnLayout {
             opacity: 0.45
             Layout.alignment: Qt.AlignHCenter
         }
+        // fillWidth (not just AlignHCenter): a column whose every child is
+        // fixed-width caps its own maximum width at that implicit width, so the
+        // pane would never stretch and the block would sit off-centre. One
+        // stretching child lifts the cap; the text centres inside it.
         Label {
+            Layout.fillWidth: true
             text: qsTr("Select a commit to see its changes")
             color: theme.textSecondary
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
-            Layout.alignment: Qt.AlignHCenter
         }
         Item { Layout.fillHeight: true }
     }
