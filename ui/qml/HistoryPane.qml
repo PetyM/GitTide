@@ -118,28 +118,59 @@ RowLayout {
             ScrollBar.vertical: AppScrollBar {}
             WheelScroller {}
 
-            // Selected row indices. Always includes currentIndex.
+            // The view model owns which commit is selected; this list renders it.
+            // A view-owned currentIndex went stale every time the selection moved
+            // without a click — the post-rebase re-anchor, the undo toast, the
+            // graph → history hand-off — and a rebuilt layout reset it to 0.
+            currentIndex: repoVm ? repoVm.selectedCommitRow : -1
+
+            // Extra rows in a multi-commit range selection (squash). The anchor
+            // row is currentIndex above; this holds the rest. Re-seeded from the
+            // view model whenever the anchor moves on its own, so a range can
+            // never outlive the selection it was built around.
             property var selectedRows: []
+            // True only while this pane is itself pushing a selection down, so the
+            // resync below can tell "the user just built a range here" from "the
+            // selection moved underneath us".
+            property bool _applyingSelection: false
+
+            Connections {
+                target: repoVm
+                enabled: repoVm !== null
+                function onSelectedCommitChanged() {
+                    // The selection moved without this pane driving it — a
+                    // re-anchor after a rebase, an undo, the graph hand-off, or a
+                    // rebuilt layout that renumbered every row. Any range we still
+                    // hold is indices into the old list, so collapse to the anchor.
+                    if (historyList._applyingSelection)
+                        return
+                    historyList.selectedRows = repoVm.selectedCommitRow >= 0
+                                               ? [repoVm.selectedCommitRow] : []
+                }
+            }
 
             function applySelection() {
-                if (repoVm) repoVm.selectCommitRows(selectedRows)
+                if (!repoVm)
+                    return
+                _applyingSelection = true
+                repoVm.selectCommitRows(selectedRows)
+                _applyingSelection = false
             }
 
             activeFocusOnTab: true
-            Keys.onUpPressed: {
-                if (currentIndex > 0) {
-                    currentIndex--
-                    selectedRows = [currentIndex]
-                    if (repoVm) repoVm.selectCommitAtRow(currentIndex)
-                }
+            function stepSelection(delta) {
+                if (!repoVm)
+                    return
+                var next = currentIndex + delta
+                if (next < 0 || next >= count)
+                    return
+                selectedRows = [next]
+                _applyingSelection = true
+                repoVm.selectCommitAtRow(next)
+                _applyingSelection = false
             }
-            Keys.onDownPressed: {
-                if (currentIndex < count - 1) {
-                    currentIndex++
-                    selectedRows = [currentIndex]
-                    if (repoVm) repoVm.selectCommitAtRow(currentIndex)
-                }
-            }
+            Keys.onUpPressed: historyList.stepSelection(-1)
+            Keys.onDownPressed: historyList.stepSelection(1)
             Keys.onTabPressed: {
                 commitDetail.takeFocus()
                 event.accepted = true
@@ -188,6 +219,8 @@ RowLayout {
                     onTapped: {
                         historyList.forceActiveFocus()
                         const mods = point.modifiers
+                        // currentIndex is bound to the view model, so each branch
+                        // sets selectedRows and lets applySelection move the anchor.
                         if (mods & Qt.ShiftModifier) {
                             var anchor = historyList.currentIndex
                             var lo = Math.max(0, Math.min(anchor, index))
@@ -195,18 +228,14 @@ RowLayout {
                             var range = []
                             for (var r = lo; r <= hi; ++r) range.push(r)
                             historyList.selectedRows = range
-                            historyList.currentIndex = index
                         } else if (mods & Qt.ControlModifier) {
                             var set = historyList.selectedRows.slice()
                             var at = set.indexOf(index)
                             if (at >= 0) set.splice(at, 1); else set.push(index)
-                            if (set.indexOf(historyList.currentIndex) < 0)
-                                set.push(historyList.currentIndex)
+                            if (set.indexOf(index) < 0) set.push(index)
                             historyList.selectedRows = set
-                            historyList.currentIndex = index
                         } else {
                             historyList.selectedRows = [index]
-                            historyList.currentIndex = index
                         }
                         if (repoVm) historyList.applySelection()
                     }
@@ -221,8 +250,8 @@ RowLayout {
                         var inMulti = historyList.selectedRows.length >= 2
                                       && historyList.selectedRows.indexOf(index) >= 0
                         if (!inMulti) {
-                            historyList.currentIndex = index
                             historyList.selectedRows = [index]
+                            historyList.applySelection() // moves the bound currentIndex
                         }
                         commitMenu.oid             = model.oid
                         commitMenu.shortOid        = model.shortOid

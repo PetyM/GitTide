@@ -51,6 +51,11 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    /// Rebuild the top-level rows from `repos`. Does **no** git I/O: it runs on
+    /// the UI thread on every project switch, so it only fills in display name,
+    /// path and on-disk presence. Branch, dirty count, sync counts and the
+    /// submodule subtree are hydrated afterwards, off-thread, by
+    /// ProjectController's poll pass.
     void setRepos(const std::vector<gittide::RepoRef>& repos);
 
     /// Replace the submodule children of the top-level repo node identified by
@@ -83,6 +88,16 @@ public:
     /// `shortOid` is used only for the detached-HEAD fallback (reuses ShortOidRole).
     void setRepoHead(int rootRow, const QString& branch, bool detached,
                      const QString& shortOid, int dirtyCount);
+
+    /// As setRepoHead, but addressing the node by its exact `path` at any depth —
+    /// the repo pushing its own state may be a submodule opened as a first-class
+    /// repo, which no top-level row index can reach. Returns false (and changes
+    /// nothing) when the path is not in the tree.
+    bool setRepoHeadByPath(const QString& path, const QString& branch, bool detached,
+                           const QString& shortOid, int dirtyCount);
+    /// As setSyncCounts, addressing the node by its exact `path` at any depth.
+    /// Returns false when the path is not in the tree.
+    bool setSyncCountsByPath(const QString& path, int ahead, int behind, bool hasUpstream);
 
 private:
     struct Node
@@ -118,6 +133,11 @@ private:
                          const std::vector<gittide::SubmoduleNode>& subs) const;
     // Any node by exact path (depth-first), or nullptr.
     Node* findByPath(const QString& path);
+    // Shared bodies behind the row-indexed and by-path setters, so both entry
+    // points write the same fields and emit the same dataChanged role list.
+    void applyRepoHead(Node& n, const QString& branch, bool detached,
+                       const QString& shortOid, int dirtyCount);
+    void applySyncCounts(Node& n, int ahead, int behind, bool hasUpstream);
     // Minimally update `parent`'s submodule children to match `subs`: when the
     // child path-set/order is unchanged, mutate changed fields in place and emit
     // dataChanged, recursing into grandchildren — this preserves each node's

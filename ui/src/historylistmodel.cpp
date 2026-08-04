@@ -15,6 +15,18 @@ void HistoryListModel::setLayout(const gittide::GraphLayout& layout, const QStri
     emit changed();
 }
 
+int HistoryListModel::rowForOid(const QString& oid) const
+{
+    if (oid.isEmpty())
+        return -1;
+    for (std::size_t i = 0; i < m_layout.rows.size(); ++i)
+    {
+        if (QString::fromStdString(m_layout.rows[i].commit.oid) == oid)
+            return static_cast<int>(i);
+    }
+    return -1;
+}
+
 void HistoryListModel::setLocalBranchTips(const QHash<QString, QString>& oidToName)
 {
     m_oidToLocalBranch = oidToName;

@@ -238,8 +238,8 @@ private slots:
         QObject* graphBody = root->findChild<QObject*>(QStringLiteral("graphTabBody"));
         QVERIFY(graphBody != nullptr);
 
-        // Switch to Graph tab (index 2).
-        // WorkingPane's onCurrentIndexChanged calls repoVm.refreshGraph() automatically.
+        // Switch to Graph tab (index 2). WorkingPane binds repoVm.graphVisible to
+        // the tab index, and turning it true loads the graph.
         QSignalSpy graphSpy(vm.graph(), &QAbstractItemModel::modelReset);
         QObject* tabBar = root->findChild<QObject*>(QStringLiteral("changesTabBar"));
         QVERIFY(tabBar != nullptr);
@@ -250,6 +250,19 @@ private slots:
         // Select row 0 via selectGraphCommitAtRow — selectedCommit becomes non-empty.
         vm.selectGraphCommitAtRow(0);
         QVERIFY(!vm.selectedCommit().isEmpty());
+
+        // The list marks the selected row even though no click set its
+        // currentIndex — the highlight is bound to the view model, not owned by
+        // the view. Same for a selection made from the History side.
+        QObject* graphList = root->findChild<QObject*>(QStringLiteral("graphList"));
+        QVERIFY(graphList != nullptr);
+        QCOMPARE(graphList->property("currentIndex").toInt(), 0);
+
+        if (vm.graph()->rowCount(QModelIndex()) >= 2)
+        {
+            vm.selectGraphCommitAtRow(1);
+            QCOMPARE(graphList->property("currentIndex").toInt(), 1);
+        }
 
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }

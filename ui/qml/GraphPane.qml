@@ -51,22 +51,23 @@ RowLayout {
         clip: true
         model: repoVm ? repoVm.graph : null
 
+        // The view model owns the selection; this list renders it. Its own
+        // currentIndex went stale whenever the selection moved without a click —
+        // the History hand-off, a re-anchor after a rebase — and a refreshed
+        // all-refs walk renumbers every row.
+        currentIndex: repoVm ? repoVm.selectedGraphRow : -1
+
         ScrollBar.vertical: AppScrollBar {}
         WheelScroller {}
         activeFocusOnTab: true
 
-        Keys.onUpPressed: {
-            if (currentIndex > 0) {
-                currentIndex--
-                selectRow(currentIndex)
-            }
+        function stepSelection(delta) {
+            var next = currentIndex + delta
+            if (next >= 0 && next < count)
+                selectRow(next)
         }
-        Keys.onDownPressed: {
-            if (currentIndex < count - 1) {
-                currentIndex++
-                selectRow(currentIndex)
-            }
-        }
+        Keys.onUpPressed: graphList.stepSelection(-1)
+        Keys.onDownPressed: graphList.stepSelection(1)
         Keys.onTabPressed: {
             graphPane.tabNext()
             event.accepted = true
@@ -108,14 +109,13 @@ RowLayout {
                 acceptedButtons: Qt.LeftButton
                 onTapped: {
                     graphList.forceActiveFocus()
-                    graphList.currentIndex = index
+                    // Selecting in the view model moves the bound currentIndex.
                     graphList.selectRow(index)
                 }
             }
             TapHandler {
                 acceptedButtons: Qt.RightButton
                 onTapped: {
-                    graphList.currentIndex = index
                     graphList.selectRow(index)
                     graphMenu.oid             = model.oid
                     graphMenu.shortOid        = model.shortOid
@@ -131,7 +131,6 @@ RowLayout {
                 // doubleTapped signal rather than a `gesture` property (that
                 // TapHandler.gesture/DoubleTap API landed in a later Qt minor).
                 onDoubleTapped: {
-                    graphList.currentIndex = index
                     graphPane.activateRow(index)
                 }
             }

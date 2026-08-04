@@ -58,7 +58,15 @@ RepoViewModel::RepoViewModel(QObject* parent)
     connect(m_controller, &RepoController::deleteFailedUnmerged, this, &RepoViewModel::branchDeleteUnmerged);
     connect(m_diff, &DiffLinesModel::lineToggled, this, &RepoViewModel::onLineToggled);
     connect(m_controller, &RepoController::syncStatusChanged, this,
-            [this](gittide::SyncStatus s) { m_sync = s; emit syncStatusChanged(); });
+            [this](gittide::SyncStatus s)
+            {
+                m_sync = s;
+                emit syncStatusChanged();
+                // Keep the sidebar's ahead/behind arrows in step with the branch
+                // bar's, rather than a poll tick behind it.
+                if (m_open)
+                    emit activeRepoSyncChanged(m_controller->path(), s.ahead, s.behind, s.hasUpstream);
+            });
     connect(m_controller, &RepoController::syncBusyChanged, this,
             [this](bool b)
             {
@@ -135,6 +143,16 @@ QString RepoViewModel::activeFile() const
     return m_activeFile;
 }
 
+int RepoViewModel::activeFileRow() const
+{
+    return m_activeFile.isEmpty() ? -1 : m_files->rowForPath(m_activeFile);
+}
+
+int RepoViewModel::activeCommitFileRow() const
+{
+    return m_activeCommitFile.isEmpty() ? -1 : m_commitFiles->rowForPath(m_activeCommitFile);
+}
+
 int RepoViewModel::checkedCount() const
 {
     return m_files->checkedCount();
@@ -196,6 +214,11 @@ void RepoViewModel::open(const QString& path)
     QCoro::connect(m_controller->refreshHistory(), this, [] {});
     QCoro::connect(m_controller->refreshSyncStatus(), this, [] {});
     QCoro::connect(m_controller->refreshStashState(), this, [] {});
+    // The sidebar switches repos with a bare open(), so a Graph tab that is
+    // already selected sees no tab-index change to hang a refresh off — without
+    // this it would keep rendering the previous repository.
+    if (m_graphVisible)
+        refreshGraph();
 }
 
 void RepoViewModel::close()
@@ -449,11 +472,30 @@ void RepoViewModel::refreshGraph()
     QCoro::connect(m_controller->refreshGraph(), this, [] {});
 }
 
+void RepoViewModel::setGraphVisible(bool visible)
+{
+    if (visible == m_graphVisible)
+        return;
+    m_graphVisible = visible;
+    // The controller keeps the graph in its refresh cascade only while subscribed,
+    // so a watcher event or a focus resync updates the graph exactly when one is
+    // on screen and costs nothing when it is not.
+    m_controller->setGraphSubscribed(visible);
+    emit graphVisibleChanged();
+    if (visible && m_open)
+        refreshGraph(); // becoming visible must not wait for the next refresh
+}
+
 void RepoViewModel::resync()
 {
     if (!m_open)
         return;
     QCoro::connect(m_controller->refreshAll(), this, [] {});
+}
+
+void RepoViewModel::setWindowActive(bool active)
+{
+    m_controller->setWindowActive(active);
 }
 
 void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
@@ -466,6 +508,7 @@ void RepoViewModel::onHistory(const gittide::GraphLayout& layout)
 void RepoViewModel::onGraph(const gittide::GraphLayout& layout)
 {
     m_graph->setLayout(layout, m_headOid);
+    emit selectedCommitChanged(); // selectedGraphRow is derived from this layout
 }
 
 void RepoViewModel::onRefTips(const QHash<QString, QVariantList>& oidToChips)
@@ -490,6 +533,10 @@ void RepoViewModel::applyHistoryIfReady()
     {
         m_history->setLayout(m_lastLayout, m_headOid);
         updateReorderableRun();
+        // The oid did not change, but its row did: a rebuilt layout reorders rows
+        // (and a model reset would otherwise leave the list's highlight at 0).
+        // selectedCommitRow is derived from the layout, so re-notify.
+        emit selectedCommitChanged();
     }
 }
 
@@ -666,6 +713,15 @@ void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)
     // QML bindings re-evaluate on dirty↔clean transitions. Unconditional on each
     // refresh is fine — the binding re-reads a cheap rowCount.
     emit dirtyChanged();
+    emitActiveRepoState(); // the sidebar's dirty badge follows this, not a poll
+}
+
+void RepoViewModel::emitActiveRepoState()
+{
+    if (!m_open)
+        return;
+    emit activeRepoStateChanged(m_controller->path(), m_headBranch, m_headDetached,
+                                m_headOid.left(7), m_files->rowCount(QModelIndex()));
 }
 
 void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& result)
@@ -678,8 +734,9 @@ void RepoViewModel::onDiff(const QString& path, const gittide::DiffResult& resul
 
 void RepoViewModel::onHead(const gittide::HeadState& head)
 {
-    m_headOid     = QString::fromStdString(head.oid);
-    m_headArrived = true;
+    m_headOid      = QString::fromStdString(head.oid);
+    m_headDetached = head.detached;
+    m_headArrived  = true;
     applyHistoryIfReady();
 
     // Always update the real branch ref name (empty when detached or unborn).
@@ -695,12 +752,16 @@ void RepoViewModel::onHead(const gittide::HeadState& head)
 
     const bool headBranchChanged = (newHeadBranch != m_headBranch);
     const bool labelChanged      = (!label.isEmpty() && label != m_branch);
-    if (!headBranchChanged && !labelChanged)
-        return;
-    m_headBranch = newHeadBranch;
-    if (labelChanged)
-        m_branch = label;
-    emit branchChanged();
+    if (headBranchChanged || labelChanged)
+    {
+        m_headBranch = newHeadBranch;
+        if (labelChanged)
+            m_branch = label;
+        emit branchChanged();
+    }
+    // Unconditional: the oid and detached flag can move without the branch name
+    // changing (a commit on the same branch), and the sidebar row shows both.
+    emitActiveRepoState();
 }
 
 void RepoViewModel::onBranches(const std::vector<gittide::BranchInfo>& branches)
@@ -784,6 +845,16 @@ QString RepoViewModel::selectedCommit() const
     return m_selectedCommit;
 }
 
+int RepoViewModel::selectedCommitRow() const
+{
+    return m_history->rowForOid(m_selectedCommit);
+}
+
+int RepoViewModel::selectedGraphRow() const
+{
+    return m_graph->rowForOid(m_selectedCommit);
+}
+
 QString RepoViewModel::activeCommitFile() const
 {
     return m_activeCommitFile;
@@ -852,8 +923,17 @@ void RepoViewModel::onCommitFiles(const QString& oid, const std::vector<gittide:
         return;
     m_commitFiles->setFiles(files);
     // Auto-select the first file so its diff loads without an extra click.
+    // selectCommitFile emits activeCommitFileChanged, which is what moves the
+    // list's highlight onto it — the list does not track a current row of its own.
     if (!files.empty())
+    {
         selectCommitFile(m_commitFiles->pathAt(0));
+    }
+    else
+    {
+        m_activeCommitFile.clear();
+        emit activeCommitFileChanged(); // nothing to mark; clear any stale highlight
+    }
 }
 
 void RepoViewModel::onCommitDetail(const QString& oid, const gittide::CommitDetail& detail)
@@ -972,8 +1052,17 @@ void RepoViewModel::onRangeFiles(const QString& oldOid, const QString& newOid,
         return;
     m_commitFiles->setFiles(files);
     // Auto-select the first file so its diff loads without an extra click.
+    // selectCommitFile emits activeCommitFileChanged, which is what moves the
+    // list's highlight onto it — the list does not track a current row of its own.
     if (!files.empty())
+    {
         selectCommitFile(m_commitFiles->pathAt(0));
+    }
+    else
+    {
+        m_activeCommitFile.clear();
+        emit activeCommitFileChanged(); // nothing to mark; clear any stale highlight
+    }
 }
 
 void RepoViewModel::onRangeDiff(const QString& oldOid, const QString& newOid,

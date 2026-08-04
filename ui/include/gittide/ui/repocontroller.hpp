@@ -1,4 +1,5 @@
 #pragma once
+#include <QElapsedTimer>
 #include <QHash>
 #include <QSet>
 #include <QObject>
@@ -45,7 +46,11 @@ class RepoController : public QObject
 public:
     /// @param watchDebounceMs coalescing window for the live-refresh watcher
     /// (injectable so tests can run fast).
-    explicit RepoController(QObject* parent = nullptr, int watchDebounceMs = 300);
+    /// @param activeStatusIntervalMs how often to run the status-only safety net
+    /// that catches in-place file edits the directory watcher cannot see (see
+    /// setWindowActive). Injectable for the same reason.
+    explicit RepoController(QObject* parent = nullptr, int watchDebounceMs = 300,
+                            int activeStatusIntervalMs = 8000);
 
     bool isOpen() const
     {
@@ -121,9 +126,35 @@ public slots:
     QCoro::Task<void> requestCommitMessage(QString oid);
 
     QCoro::Task<void> refreshSyncStatus();
-    /// Full refresh cascade: status + branches + history + sync. Used on open, on
-    /// a watcher-detected git-dir change, and on window-focus resync (D35).
+    /// Full refresh cascade: status + branches + history + sync + stash, plus the
+    /// graph when a graph view is subscribed. Used on open, on a watcher-detected
+    /// git-dir change, and on window-focus resync (D35).
+    ///
+    /// Single-flight: a call made while a cascade is already running does not
+    /// start a second one — it marks the running pass dirty, and that pass repeats
+    /// once when it finishes. So N triggers arriving together cost at most two
+    /// passes instead of N.
     QCoro::Task<void> refreshAll();
+
+    /// Start/stop the status-only safety net, from the window's focus state.
+    ///
+    /// A QFileSystemWatcher directory watch reports entries appearing, vanishing
+    /// or being renamed — not content written into a file that already exists —
+    /// and only the on-screen file is watched individually (setActiveFile). So an
+    /// editor that saves in place leaves the working tree dirty with nothing on
+    /// screen changing. D35 closed that with focus resync alone, which is not
+    /// enough when GitTide and the editor are visible side by side.
+    ///
+    /// This runs `status()` and nothing else — no history, no graph, no branches —
+    /// only while the window is in front, and it skips its turn whenever the
+    /// watcher has just fired or a refresh is already in flight. It is not the
+    /// active-repo poll D35 rejected: that meant the full cascade on a timer.
+    void setWindowActive(bool active);
+
+    /// Tell the controller whether a graph view is on screen. While true,
+    /// refreshAll() also refreshes the graph; while false the all-refs walk that
+    /// backs it is skipped, since nothing would display the result.
+    void setGraphSubscribed(bool subscribed);
     QCoro::Task<void> fetch(gittide::Credentials cred);
     QCoro::Task<void> pull(gittide::Credentials cred);
     QCoro::Task<void> push(QString branch, bool setUpstream, gittide::Credentials cred);
@@ -315,6 +346,26 @@ private:
     // Live-refresh watcher for the open repo (D35); child QObject, owns its own
     // QFileSystemWatcher + debounce timer.
     RepoWatcher* m_watcher = nullptr;
+
+    // refreshAll() coalescing. m_refreshAllActive is true for the duration of a
+    // cascade; a call arriving during one sets m_refreshAllPending instead of
+    // starting its own, and the active cascade re-runs once before returning.
+    bool m_refreshAllActive  = false;
+    bool m_refreshAllPending = false;
+    // True while a graph view is on screen — gates the graph leg of refreshAll.
+    bool m_graphSubscribed = false;
+
+    // Status-only safety net for in-place file edits (see setWindowActive). Runs
+    // only while the window is active, skips its turn when the watcher fired
+    // inside the last interval or a refresh is already running, and never touches
+    // history/graph/branches.
+    QTimer* m_activeStatusTimer     = nullptr;
+    int     m_activeStatusIntervalMs = 8000;
+    bool    m_windowActive           = false;
+    bool    m_statusRefreshActive    = false; ///< a refreshStatus is in flight
+    QElapsedTimer m_sinceWatcherFired;        ///< invalid until the watcher fires once
+    // One tick of the safety net; a no-op whenever the watcher already covers us.
+    QCoro::Task<void> pollActiveStatus();
 
     // Orchestration bookkeeping (D31) — NOT merge-state; D30 governs that.
     bool m_pendingStashPop = false;

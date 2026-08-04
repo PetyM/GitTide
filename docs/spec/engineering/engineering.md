@@ -129,6 +129,11 @@ the UI refreshed only after its *own* actions; see [D35](../../decisions.md).)
   ignore rules (so `node_modules` / `build` are pruned) and enumerates the git
   dir — keeping libgit2 in `core/` (invariants #1/#2). The controller re-arms the
   set after each batch, so newly created subdirectories start being watched.
+  Re-arming is an **incremental set diff** — only paths that left the set are
+  removed and only new ones added — and it touches neither the debounce timer nor
+  the pending batch. It has to be: re-arming happens at the tail of *every*
+  cascade, and a remove-all/add-all rebuild both blinded the watcher for an instant
+  and threw away events that arrived while the refresh was running (D35a).
   - **Plus the on-screen file.** Directory watches catch listing changes but miss
     an **in-place content edit** of an existing file (Linux inotify dir-watches
     ignore child `IN_MODIFY`), which would leave the open diff stale. So
@@ -141,18 +146,39 @@ the UI refreshed only after its *own* actions; see [D35](../../decisions.md).)
   save, a multi-step git op) are coalesced by a short timer (injectable for
   tests). On fire the watcher emits the **scope**: a worktree-only change triggers
   `refreshStatus` (plus the active diff); any change under the git dir triggers the
-  **full cascade** (`refreshAll` = status + history + branches + sync) — the same
-  cascade a checkout uses. Self-induced churn is suppressed by **muting** the
-  watcher around the controller's own work: both its mutations *and* the
-  watch-driven refresh handlers are bracketed by a mute (held for one debounce tail
-  after they finish). The handlers must mute too because libgit2 "reads" are not
-  inert — `status` and ref lookups update on-disk caches under `.git`, which would
-  otherwise re-trigger the watcher in a tight loop. Muting closes that loop.
-- **Window focus is the safety net.** The one gap in directory-level watching is
-  an in-place content edit of an *existing* tracked file (e.g. `echo >> f` in a
-  terminal) that changes no directory entry. `Main.qml` re-syncs the active repo
-  on window activation (`onActiveChanged`), so anything missed while GitTide was in
-  the background is picked up the moment it regains focus.
+  **full cascade** (`refreshAll` = status + history + branches + sync + stash, plus
+  the graph while a graph view is subscribed) — the same cascade a checkout uses.
+  `refreshAll` is **single-flight**: a call arriving while one is running marks the
+  running pass dirty instead of starting a second, and that pass repeats once at the
+  end, so a burst of watcher / focus / mutation triggers costs at most two passes
+  rather than one each. The graph is part of the cascade only while a graph view is
+  on screen (`setGraphSubscribed`, driven by a binding on the tab strip); otherwise
+  the all-refs walk that backs it is skipped. That binding — rather than a handler
+  on tab *change* — is what makes the Graph tab follow a repo switch, which fires no
+  index change.
+
+  Self-induced churn is suppressed by **muting** the watcher around the
+  controller's own work: both its mutations *and* the watch-driven refresh handlers
+  are bracketed by a mute (held for one debounce tail after they finish). The
+  handlers must mute too because libgit2 "reads" are not inert — `status` and ref
+  lookups update on-disk caches under `.git`, which would otherwise re-trigger the
+  watcher in a tight loop. Muting closes that loop. The mute is
+  **reference-counted**, and its deferred release carries a generation stamp: a
+  cascade's guard nests inside an outer one without the inner release lifting the
+  outer's mute, and a release scheduled by an older pair cannot land inside a
+  newer mute (D35a).
+- **Window focus, plus a status-only safety net.** The one gap in directory-level
+  watching is an in-place content edit of an *existing* tracked file (e.g.
+  `echo >> f` in a terminal) that changes no directory entry. `Main.qml` re-syncs
+  the active repo on window activation (`onActiveChanged`), so anything missed
+  while GitTide was in the background is picked up the moment it regains focus.
+  Focus alone is not enough when GitTide and an editor are visible side by side —
+  the window never loses focus, so the save never gets caught. So the controller
+  also runs a low-frequency timer that calls **`status()` and nothing else**: no
+  history, no graph, no branches. It ticks only while the window is active, and it
+  stands down whenever the watcher has fired inside the last interval or a refresh
+  is already in flight. That narrowness is the point — it is not the active-repo
+  poll D35 rejected, which meant the whole cascade on a timer (D35a).
 - **Other repos in the project are polled, not watched.** Watching every repo in a
   large fleet would mean thousands of OS watches. Instead `ProjectController` runs
   a low-frequency `QTimer` — **only while the window is active** — that re-reads
@@ -162,9 +188,45 @@ the UI refreshed only after its *own* actions; see [D35](../../decisions.md).)
   of every repo; the **active** repo additionally gets the deep, per-edit live
   refresh of its main view from the `RepoWatcher` above. The poll opens its own
   short-lived `AsyncRepo` per repo (one-owner invariant), so it never shares the
-  active repo's handle.
+  active repo's handle. It is **single-flight** (a pass awaits four git ops per
+  repo, so it can outlast the interval; ticks arriving mid-pass are dropped rather
+  than stacked on the shared pool), and it **skips the repo open in the working
+  pane** — see the next point. It is also what hydrates the sidebar after a project
+  switch: `RepoListModel::setRepos` deliberately does no git I/O, since it runs on
+  the UI thread every time the active project changes, so `activate()` kicks one
+  poll pass immediately to fill in branch, dirty count, sync counts and the
+  submodule subtree off-thread.
+- **The active repo pushes its own row.** The sidebar row for the open repository
+  is written by that repository's own refresh, not by the poll: `RepoViewModel`
+  emits `activeRepoStateChanged` / `activeRepoSyncChanged` after each status, head
+  and sync refresh, and `ProjectController` applies them to the matching node —
+  addressed **by path**, so a submodule opened as a first-class repo is reachable
+  at any depth. Without this the row was poll-fed only, so reverting a change in
+  GitTide emptied the Changes pane while the dirty badge stayed stale for a poll
+  interval — and indefinitely while the window was unfocused (D35a).
 
 Per-symbol contracts live in the `RepoWatcher` / `watchTargets` Doxygen.
+
+### Selection ownership — the ViewModel decides which row is marked
+
+**A QML list never assigns its own `currentIndex`.** `RepoViewModel` owns which
+file and which commit are selected, and exposes the corresponding **row** —
+`activeFileRow`, `activeCommitFileRow`, `selectedCommitRow`, `selectedGraphRow`.
+Each list binds `currentIndex` to that property one-way, and every click or key
+press calls a `select*` verb instead of moving the index itself.
+
+The rule exists because the two owners drifted. Selection changes without a click
+more often than with one: loading a commit auto-selects its first file so the diff
+appears unprompted, a status refresh preserves the active file while the rows
+around it shift, a rebase re-anchors on the rewritten commit, a repo switch clears
+everything — and a model reset snaps a view-owned `currentIndex` to 0 regardless.
+The visible result was a pane showing one file's diff while a different row (or no
+row) was marked. Deriving the row from the ViewModel makes that state
+unrepresentable. Where a list needs more than the anchor — History's multi-commit
+range for squash — the extra rows stay view-local but are re-seeded from
+`selectedCommitRow` whenever the anchor moves without the pane driving it, so a
+range can never outlive the selection it was built around. See
+[D35b](../../decisions.md).
 
 ### Network operations & credentials
 

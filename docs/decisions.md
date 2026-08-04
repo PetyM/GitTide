@@ -225,6 +225,54 @@ an entry with a newer one if it changes.
   active repo on a timer (lag + churn). →
   [`engineering`](spec/engineering/engineering.md)
 
+- **D35a (amends D35) — the active repo also gets a status-only safety net, and
+  refresh is made coherent end to end.** Practice showed D35's mechanism was right
+  but its plumbing leaked, in four ways. (1) The residual gap D35 closed with
+  focus-resync alone is not closed by it: with GitTide and an editor side by side
+  the window never loses focus, so an in-place save stayed invisible. The active
+  repo now runs `status()` — and *only* status, never the cascade — on a low-
+  frequency timer gated on window focus, skipped whenever the watcher has fired
+  inside the last interval or a refresh is already running. This is deliberately
+  not the "poll the active repo" D35 rejected: that meant the full cascade on a
+  timer, which is what lagged and churned. (2) Re-arming the watch set after every
+  cascade was a remove-all/add-all rebuild that discarded any event received during
+  the refresh; it is now an incremental set diff that leaves the debounce batch
+  alone. (3) The self-mute was a plain flag with a timed release, so nested guards
+  released each other mid-cascade; it is now reference-counted with a generation
+  check. (4) The active repo's own refreshes never reached its sidebar row, which
+  only the fleet poll wrote — so an in-app revert left a stale dirty badge for a
+  poll interval, or forever while unfocused. The open repo now pushes its head /
+  status / sync into its row directly, and the poll skips it in return. The poll is
+  additionally single-flight (passes were stacking on the shared thread pool), and
+  the sidebar's rows are built without any git I/O on the UI thread — hydration
+  moved to that same poll. *Rejected:* dropping the focus-resync in favour of the
+  timer (focus-in is still the cheapest catch-up after a long background spell);
+  making the safety net a full `refreshAll` (the churn D35 rightly rejected);
+  reference-counting mute without the generation check (a deferred release could
+  still land inside a later mute). →
+  [`engineering`](spec/engineering/engineering.md),
+  [Plan 48](plans/2026-08-04-plan48-refresh-coherence.md)
+
+- **D35b — the ViewModel owns list selection; QML binds to it and never assigns
+  `currentIndex`.** Every list (changed files, commit files, history, graph) used
+  to paint its highlight from its own `ListView.currentIndex`, assigned in click
+  and key handlers, while `RepoViewModel` separately owned which file/commit was
+  actually loaded. The two diverged on every selection the ViewModel made without
+  a click — auto-selecting a commit's first file so its diff loads, preserving the
+  active file across a status refresh, re-anchoring after a rebase, clearing on
+  repo switch — and a model reset silently snapped `currentIndex` to 0. The
+  ViewModel now exposes the selected **row** (`activeFileRow`,
+  `activeCommitFileRow`, `selectedCommitRow`, `selectedGraphRow`); QML binds
+  `currentIndex` to it one-way and calls only `select*` verbs. Keyboard navigation
+  goes through the same verbs rather than moving the index itself. *Why:* one
+  writer, one direction — a highlight that disagrees with the pane beside it is not
+  a rendering bug that can be patched per list, it is two owners of one fact.
+  *Rejected:* a `SelectedRole` on each model (the row is derived state, not row
+  data, and it would re-emit `dataChanged` across two rows per selection);
+  syncing `currentIndex` from a signal handler (restores the second writer). →
+  [`engineering`](spec/engineering/engineering.md),
+  [Plan 48](plans/2026-08-04-plan48-refresh-coherence.md)
+
 - **D36 — History reorder has two gestures over one engine; direct-in-history drag
   is gated to the linear single-parent run from HEAD and confirmed.** Reordering is
   expressed entirely through the D34 interactive engine (a reorder is a plan of all

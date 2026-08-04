@@ -101,6 +101,14 @@ int main(int argc, char** argv)
     // the active repo (idempotent; guarded against clobbering CLI-set config).
     QObject::connect(&repoVm, &RepoViewModel::changed, &credentials,
                      [&credentials, &repoVm]() { credentials.onActiveRepoChanged(repoVm.repoPath()); });
+    // Push the open repository's head/status/sync straight into its sidebar row.
+    // Without this the row is written only by ProjectController's fleet poll, so
+    // an in-app mutation (revert, commit, stage) left the dirty badge stale for a
+    // poll interval — and indefinitely while the window was unfocused.
+    QObject::connect(&repoVm, &RepoViewModel::activeRepoStateChanged, &controller,
+                     &ProjectController::applyActiveRepoState);
+    QObject::connect(&repoVm, &RepoViewModel::activeRepoSyncChanged, &controller,
+                     &ProjectController::applyActiveRepoSync);
 
     QQmlApplicationEngine engine;
     installQmlContext(engine.rootContext(), &qmlTheme, controller.repos(), &controller, &repoVm,

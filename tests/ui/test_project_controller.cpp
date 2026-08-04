@@ -444,7 +444,9 @@ private slots:
 
         RepoListModel* model = controller.repos();
         const QModelIndex top = model->index(0, 0);
-        QCOMPARE(model->rowCount(top), 1);
+        // activate() builds bare rows and hydrates them off-thread, so the
+        // submodule subtree arrives a turn or two later.
+        QTRY_COMPARE_WITH_TIMEOUT(model->rowCount(top), 1, 15000);
         const QModelIndex sub = model->index(0, 0, top);
         // deinitSubmodule keeps the .git gitlink; libgit2 reports Dirty (==1), not Uninitialized (==2)
         QCOMPARE(model->data(sub, RepoListModel::StatusRole).toInt(),
@@ -704,6 +706,159 @@ private slots:
 
         QTest::qWait(400); // window never activated → no poll
         QCOMPARE(m->data(m->index(0, 0), RepoListModel::AheadRole).toInt(), 0);
+    }
+
+    // setRepos no longer reads git on the UI thread (that stalled every project
+    // switch), so activate() must kick a hydration pass itself — the rows would
+    // otherwise sit blank until the first poll tick, and not at all while the
+    // window is unfocused.
+    void activate_hydrates_rows_asynchronously()
+    {
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+        repo.writeFile("a.txt", "two\n"); // dirty on disk before activate()
+
+        gittide::ProjectStore store;
+        auto& p = store.createProject("P");
+        store.addRepo(p.id, gittide::RepoRef{.path = repo.path().generic_string()});
+
+        // Long interval and an inactive window: only activate()'s own kick can
+        // hydrate these rows.
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/600000);
+        controller.activate(QString::fromStdString(p.id));
+        RepoListModel*    m  = controller.repos();
+        const QModelIndex i0 = m->index(0, 0);
+
+        QCOMPARE(m->data(i0, RepoListModel::DirtyCountRole).toInt(), 0); // not yet — async
+        QTRY_COMPARE_WITH_TIMEOUT(m->data(i0, RepoListModel::DirtyCountRole).toInt(), 1, 15000);
+        QVERIFY(!m->data(i0, RepoListModel::BranchRole).toString().isEmpty());
+    }
+
+    // The poll opens every repo in the project and awaits four git ops on each,
+    // sequentially, on the pool the active repo's own refreshes share. With no
+    // re-entrancy guard the timer kept stacking passes on top of a pass still
+    // running, saturating that pool — the diffuse "everything is randomly slow".
+    void poll_does_not_overlap_itself()
+    {
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+
+        gittide::ProjectStore store;
+        auto& p = store.createProject("P");
+        store.addRepo(p.id, gittide::RepoRef{.path = repo.path().generic_string()});
+
+        // Interval far shorter than one pass: the timer fires repeatedly while a
+        // pass is still suspended on its git work.
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/1);
+        controller.activate(QString::fromStdString(p.id));
+        controller.setWindowActive(true);
+        QTest::qWait(600);
+        controller.setWindowActive(false);
+        QTest::qWait(300); // let the last pass unwind
+
+        // Never more than one pass in flight at any instant.
+        QCOMPARE(controller.maxConcurrentPolls(), 1);
+    }
+
+    // The repo open in the working pane is kept current by its own watcher and
+    // by applyActiveRepoState, so re-reading it in the poll is pure waste on the
+    // shared pool — and it is the repo the user is actually waiting on.
+    void poll_skips_the_active_repo()
+    {
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo active;
+        active.setIdentity("Test", "test@example.com");
+        active.writeFile("a.txt", "one\n");
+        active.commitAll("c1");
+
+        gittide::test::TempRepo other;
+        other.setIdentity("Test", "test@example.com");
+        other.writeFile("b.txt", "one\n");
+        other.commitAll("c1");
+
+        const QString activePath = QString::fromStdString(active.path().generic_string());
+
+        gittide::ProjectStore store;
+        auto& p = store.createProject("P");
+        store.addRepo(p.id, gittide::RepoRef{.path = activePath.toStdString()});
+        store.addRepo(p.id, gittide::RepoRef{.path = other.path().generic_string()});
+
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/60);
+        controller.activate(QString::fromStdString(p.id));
+        RepoListModel* m = controller.repos();
+        // activate() kicks one hydration pass covering every row (nothing is open
+        // yet). Let it finish so what follows measures the steady-state poll.
+        QTRY_VERIFY_WITH_TIMEOUT(!m->data(m->index(0, 0), RepoListModel::BranchRole).toString().isEmpty(), 15000);
+
+        controller.setActiveRepo(activePath); // now it is the repo in the working pane
+
+        // Dirty both trees on disk.
+        active.writeFile("a.txt", "two\n");
+        other.writeFile("b.txt", "two\n");
+
+        controller.setWindowActive(true);
+        // The non-active repo is picked up by the poll…
+        QTRY_COMPARE_WITH_TIMEOUT(m->data(m->index(1, 0), RepoListModel::DirtyCountRole).toInt(), 1, 15000);
+        // …while the active one is left to its own live refresh, so the poll has
+        // not touched it. (In the running app applyActiveRepoState fills it in.)
+        QCOMPARE(m->data(m->index(0, 0), RepoListModel::DirtyCountRole).toInt(), 0);
+        controller.setWindowActive(false);
+    }
+
+    // The repo open in the working pane keeps itself current through its own
+    // watcher and post-mutation cascades; nothing carried that into the sidebar
+    // row, which was written only by the 5 s fleet poll. Reverting a change in
+    // GitTide therefore emptied the Changes pane while the row kept its dirty
+    // badge. applyActiveRepoState is the push that closes the gap — no timer.
+    void applyActiveRepoState_updates_the_row_without_polling()
+    {
+        using gittide::ui::RepoListModel;
+
+        gittide::test::TempRepo repo;
+        repo.setIdentity("Test", "test@example.com");
+        repo.writeFile("a.txt", "one\n");
+        repo.commitAll("c1");
+        const QString path = QString::fromStdString(repo.path().generic_string());
+
+        ProjectStore store;
+        store.projects().push_back(
+            Project{.id = "p1", .name = "P", .repos = {RepoRef{.path = path.toStdString()}}});
+
+        // Deliberately long poll interval and an inactive window: nothing but the
+        // push can move these values.
+        ProjectController controller(&store, {}, nullptr, /*pollIntervalMs=*/600000);
+        controller.activate(QStringLiteral("p1"));
+        RepoListModel*    m  = controller.repos();
+        const QModelIndex i0 = m->index(0, 0);
+
+        controller.applyActiveRepoState(path, QStringLiteral("main"), false,
+                                        QStringLiteral("abc1234"), 3);
+        QCOMPARE(m->data(i0, RepoListModel::DirtyCountRole).toInt(), 3);
+        QCOMPARE(m->data(i0, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
+
+        // The revert: back to clean, reflected immediately.
+        controller.applyActiveRepoState(path, QStringLiteral("main"), false,
+                                        QStringLiteral("abc1234"), 0);
+        QCOMPARE(m->data(i0, RepoListModel::DirtyCountRole).toInt(), 0);
+
+        controller.applyActiveRepoSync(path, 2, 1, true);
+        QCOMPARE(m->data(i0, RepoListModel::AheadRole).toInt(), 2);
+        QCOMPARE(m->data(i0, RepoListModel::BehindRole).toInt(), 1);
+        QCOMPARE(m->data(i0, RepoListModel::HasUpstreamRole).toBool(), true);
+
+        // A repo that is not in this project is ignored, not a crash.
+        controller.applyActiveRepoState(QStringLiteral("/tmp/not-in-project"),
+                                        QStringLiteral("x"), false, QString(), 9);
+        QCOMPARE(m->data(i0, RepoListModel::DirtyCountRole).toInt(), 0);
     }
 
     void fetchAll_no_active_project_is_noop()

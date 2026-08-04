@@ -104,6 +104,15 @@ private slots:
         RepoListModel model;
         QAbstractItemModelTester tester(&model);
         model.setRepos(repos);
+        // setRepos does no git I/O; the subtree arrives through applySubmodules,
+        // which is what ProjectController's (off-thread) poll pass calls.
+        {
+            auto opened = gittide::GitRepo::open(parent.path());
+            QVERIFY(opened.has_value());
+            auto tree = opened->submoduleTree();
+            QVERIFY(tree.has_value());
+            model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+        }
 
         QCOMPARE(model.rowCount(), 1);
         const QModelIndex top = model.index(0, 0);
@@ -427,6 +436,55 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), true);
     }
 
+    // The active repository pushes its own head/status into its tree row so the
+    // sidebar tracks in-app mutations without waiting for the fleet poll. That
+    // repo may be a submodule opened as a first-class repo, at any depth, so the
+    // row must be addressable by path — a top-level row index cannot reach it.
+    void setRepoHeadByPath_reaches_a_nested_submodule()
+    {
+        using gittide::SubmoduleNode;
+        using gittide::SubmoduleStatus;
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({gittide::RepoRef{.path = "/tmp/gittide-root", .alias = "root"}});
+
+        SubmoduleNode nested;
+        nested.name     = "nested";
+        nested.path     = "/tmp/gittide-root/sub/nested";
+        nested.status   = SubmoduleStatus::Clean;
+        nested.shortOid = "aaa1111";
+
+        SubmoduleNode sub;
+        sub.name     = "sub";
+        sub.path     = "/tmp/gittide-root/sub";
+        sub.status   = SubmoduleStatus::Clean;
+        sub.shortOid = "bbb2222";
+        sub.children = {nested};
+        m.applySubmodules(QStringLiteral("/tmp/gittide-root"), {sub});
+
+        const QModelIndex subIdx    = m.index(0, 0, m.index(0, 0));
+        const QModelIndex nestedIdx = m.index(0, 0, subIdx);
+        QVERIFY(nestedIdx.isValid());
+
+        QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
+        QVERIFY(m.setRepoHeadByPath(QStringLiteral("/tmp/gittide-root/sub/nested"),
+                                    QStringLiteral("feature"), false, QStringLiteral("ccc3333"), 4));
+        QCOMPARE(m.data(nestedIdx, RepoListModel::BranchRole).toString(), QStringLiteral("feature"));
+        QCOMPARE(m.data(nestedIdx, RepoListModel::DirtyCountRole).toInt(), 4);
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.first().at(0).value<QModelIndex>(), nestedIdx);
+
+        QVERIFY(m.setSyncCountsByPath(QStringLiteral("/tmp/gittide-root/sub/nested"), 2, 1, true));
+        QCOMPARE(m.data(nestedIdx, RepoListModel::AheadRole).toInt(), 2);
+        QCOMPARE(m.data(nestedIdx, RepoListModel::HasUpstreamRole).toBool(), true);
+
+        // An unknown path is a no-op, not a crash — the repo may have been removed
+        // from the project between the refresh starting and its result arriving.
+        QVERIFY(!m.setRepoHeadByPath(QStringLiteral("/tmp/gone"), QStringLiteral("x"), false, QString(), 0));
+        QVERIFY(!m.setSyncCountsByPath(QStringLiteral("/tmp/gone"), 0, 0, false));
+    }
+
     void setRepoHead_out_of_range_is_noop()
     {
         RepoListModel m;
@@ -435,54 +493,33 @@ private slots:
         QCOMPARE(m.topLevelCount(), 1);
     }
 
-    void setRepos_seeds_branch_dirty_and_upstream_from_disk()
+    // setRepos runs on the UI thread on every project switch, so it must not do
+    // git I/O: opening each repo and reading head/status/sync/submodules there is
+    // what stalled the window when switching projects. It now builds the rows from
+    // the RepoRefs alone and leaves hydration to the (async) poll.
+    void setRepos_does_no_git_io()
     {
         using namespace gittide::test;
         TempRepo repo;
         repo.setIdentity("Test", "test@example.com");
         repo.writeFile("a.txt", "one\n");
         repo.commitAll("c1");
-        repo.writeFile("a.txt", "two\n"); // uncommitted change → dirty
+        repo.writeFile("a.txt", "two\n"); // uncommitted change → dirty on disk
 
         RepoListModel m;
         m.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
         const QModelIndex i0 = m.index(0, 0);
 
-        QVERIFY(!m.data(i0, RepoListModel::BranchRole).toString().isEmpty()); // "master"/default
-        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), false);
-        QVERIFY(m.data(i0, RepoListModel::DirtyCountRole).toInt() >= 1);      // 1 modified file
-        QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false); // no remote
-    }
-
-    void setRepos_seeds_detached_head_from_disk()
-    {
-        using namespace gittide::test;
-        TempRepo repo;
-        repo.setIdentity("Test", "test@example.com");
-        repo.writeFile("a.txt", "one\n");
-        repo.commitAll("c1");
-
-        auto opened1 = gittide::GitRepo::open(repo.path());
-        QVERIFY(opened1.has_value());
-        auto headAfterC1 = opened1->head();
-        QVERIFY(headAfterC1.has_value());
-        const std::string c1Oid = headAfterC1->oid;
-
-        repo.writeFile("a.txt", "two\n");
-        repo.commitAll("c2");
-
-        auto opened2 = gittide::GitRepo::open(repo.path());
-        QVERIFY(opened2.has_value());
-        auto checkout = opened2->checkoutCommit(c1Oid);
-        QVERIFY(checkout.has_value());
-
-        RepoListModel m;
-        m.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
-        const QModelIndex i0 = m.index(0, 0);
-
-        QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), true);
-        QCOMPARE(m.data(i0, RepoListModel::ShortOidRole).toString().size(), 7);
+        // The row exists and renders straight away…
+        QCOMPARE(m.rowCount(), 1);
+        QCOMPARE(m.data(i0, Qt::DisplayRole).toString(), QStringLiteral("r"));
+        QCOMPARE(m.data(i0, RepoListModel::MissingRole).toBool(), false);
+        // …but nothing was read from git: those fields stay at their defaults
+        // until ProjectController's poll fills them in off-thread.
         QVERIFY(m.data(i0, RepoListModel::BranchRole).toString().isEmpty());
+        QCOMPARE(m.data(i0, RepoListModel::DirtyCountRole).toInt(), 0);
+        QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false);
+        QCOMPARE(m.rowCount(i0), 0); // submodule children arrive with the poll too
     }
 };
 

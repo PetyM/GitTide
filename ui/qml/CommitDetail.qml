@@ -252,22 +252,25 @@ ColumnLayout {
                 clip: true
                 model: repoVm ? repoVm.commitFiles : null
 
+                // The view model owns the selection; this list only renders it.
+                // Loading a commit auto-selects its first file so the diff appears
+                // without a click — with a view-owned currentIndex that left the
+                // diff on screen and no row marked.
+                currentIndex: repoVm ? repoVm.activeCommitFileRow : -1
+
                 ScrollBar.vertical: AppScrollBar {}
                 WheelScroller {}
 
                 activeFocusOnTab: true
-                Keys.onUpPressed: {
-                    if (currentIndex > 0) {
-                        currentIndex--
-                        if (repoVm) repoVm.selectCommitFileAtRow(currentIndex)
-                    }
+                function stepSelection(delta) {
+                    if (!repoVm)
+                        return
+                    var next = currentIndex + delta
+                    if (next >= 0 && next < count)
+                        repoVm.selectCommitFileAtRow(next)
                 }
-                Keys.onDownPressed: {
-                    if (currentIndex < count - 1) {
-                        currentIndex++
-                        if (repoVm) repoVm.selectCommitFileAtRow(currentIndex)
-                    }
-                }
+                Keys.onUpPressed: commitFilesList.stepSelection(-1)
+                Keys.onDownPressed: commitFilesList.stepSelection(1)
                 Keys.onTabPressed: {
                     commitDetail.tabForward()
                     event.accepted = true
@@ -297,7 +300,8 @@ ColumnLayout {
                         anchors.fill: parent
                         onClicked: {
                             commitFilesList.forceActiveFocus()   // arrows work right after a click
-                            commitFilesList.currentIndex = index
+                            // Selecting in the view model is what moves the
+                            // highlight — see the currentIndex binding above.
                             if (repoVm) repoVm.selectCommitFile(model.filePath)
                         }
                     }

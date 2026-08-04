@@ -136,6 +136,85 @@ private slots:
         QTest::qWait(800);
         QCOMPARE(workSpy.count(), 0);
     }
+
+    // rearmWatch() runs at the end of every refresh cascade, so watch() is called
+    // constantly on an already-watched repo. A filesystem event that arrived while
+    // the refresh was running must survive that re-arm — otherwise the change that
+    // triggered the refresh's successor is silently dropped.
+    void rearm_preserves_pending_batch()
+    {
+        gittide::test::TempRepo repo;
+        const auto targets = targetsFor(repo);
+
+        // Long debounce so the re-arm lands inside the still-open batch window.
+        RepoWatcher watcher(600);
+        watcher.watch(targets);
+        QTest::qWait(400); // drain residual setup FSEvents
+        QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
+
+        // Warm up: prove the watch is live (arming is async), then let it settle.
+        QVERIFY(touchUntilFired(workSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "warmup.txt") << i << "\n"; }));
+        QTest::qWait(900);
+        workSpy.clear();
+
+        std::ofstream(targets.workdir / "pending.txt") << "x\n";
+        QTest::qWait(150);   // inside the debounce window: batch is pending
+        watcher.watch(targets); // the cascade's re-arm
+
+        QVERIFY(workSpy.wait(5000));
+    }
+
+    // The re-arm must not leave a window with no watches installed: a change made
+    // immediately after watch() returns has to be reported.
+    void rearm_keeps_watches_installed()
+    {
+        gittide::test::TempRepo repo;
+        const auto targets = targetsFor(repo);
+
+        RepoWatcher watcher(30);
+        watcher.watch(targets);
+        QTest::qWait(400);
+        QSignalSpy warmSpy(&watcher, &RepoWatcher::worktreeChanged);
+        QVERIFY(touchUntilFired(warmSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "warmup.txt") << i << "\n"; }));
+        QTest::qWait(200);
+
+        watcher.watch(targets); // re-arm with an identical target set
+        QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
+        // No qWait for re-arming: an incremental re-arm keeps the existing watches
+        // live, so this single write must be seen without any settling delay.
+        std::ofstream(targets.workdir / "after-rearm.txt") << "x\n";
+        QVERIFY(workSpy.wait(5000));
+    }
+
+    // mute()/unmute() nest: a controller cascade can hold the mute while an inner
+    // operation takes and releases its own guard. The inner release must NOT lift
+    // the outer mute, or the outer's own writes re-trigger the watcher mid-cascade.
+    void nested_mute_needs_matching_unmutes()
+    {
+        gittide::test::TempRepo repo;
+        const auto targets = targetsFor(repo);
+
+        RepoWatcher watcher(30);
+        watcher.watch(targets);
+        QTest::qWait(400); // drain residual setup FSEvents
+        QSignalSpy workSpy(&watcher, &RepoWatcher::worktreeChanged);
+
+        watcher.mute();   // outer guard
+        watcher.mute();   // inner guard
+        watcher.unmute(); // inner guard releases — still muted by the outer one
+
+        QTest::qWait(400); // past the deferred-release window
+        std::ofstream(targets.workdir / "still-muted.txt") << "x\n";
+        QTest::qWait(800);
+        QCOMPARE(workSpy.count(), 0);
+
+        watcher.unmute(); // outer guard releases — watching resumes
+        QTest::qWait(400);
+        QVERIFY(touchUntilFired(workSpy, [&](int i)
+                                { std::ofstream(targets.workdir / "unmuted.txt") << i << "\n"; }));
+    }
 };
 
 #include "test_repo_watcher.moc"
