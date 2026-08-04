@@ -354,6 +354,27 @@ private slots:
         QVERIFY(list != nullptr);
         QCOMPARE(list->property("model").value<QAbstractItemModel*>(), vm.history());
 
+        // Main.qml's Component.onCompleted runs openFirstRepo(), which with no
+        // project closes the repo — re-open and wait for history to repopulate.
+        {
+            QSignalSpy reopened(vm.history(), &QAbstractItemModel::modelReset);
+            vm.open(QString::fromStdString(dir.generic_string()));
+            QVERIFY(reopened.wait(15000));
+        }
+
+        // The highlight is bound to the view model, so a selection made without a
+        // click (undo toast, post-rebase re-anchor, graph hand-off) marks its row.
+        QTRY_VERIFY_WITH_TIMEOUT(vm.history()->rowCount(QModelIndex()) >= 1, 15000);
+        vm.selectCommitAtRow(0);
+        QCOMPARE(list->property("currentIndex").toInt(), 0);
+
+        // …and so does the commit-detail file list, which the view model
+        // auto-selects into as soon as the commit's files arrive.
+        QObject* files = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("commitFilesList"));
+        QVERIFY(files != nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(vm.commitFiles()->rowCount(QModelIndex()) >= 1, 15000);
+        QTRY_COMPARE_WITH_TIMEOUT(files->property("currentIndex").toInt(), 0, 15000);
+
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 

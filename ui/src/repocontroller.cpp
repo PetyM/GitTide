@@ -44,12 +44,28 @@ private:
 };
 } // namespace
 
-RepoController::RepoController(QObject* parent, int watchDebounceMs)
+RepoController::RepoController(QObject* parent, int watchDebounceMs, int activeStatusIntervalMs)
     : QObject(parent)
     , m_watcher(new RepoWatcher(watchDebounceMs, this))
+    , m_activeStatusIntervalMs(activeStatusIntervalMs)
 {
-    connect(m_watcher, &RepoWatcher::worktreeChanged, this, [this]() { QCoro::connect(onWatchWorktree(), this, []() {}); });
-    connect(m_watcher, &RepoWatcher::gitDirChanged, this, [this]() { QCoro::connect(onWatchGitDir(), this, []() {}); });
+    connect(m_watcher, &RepoWatcher::worktreeChanged, this,
+            [this]()
+            {
+                m_sinceWatcherFired.start(); // the safety net stands down for one interval
+                QCoro::connect(onWatchWorktree(), this, []() {});
+            });
+    connect(m_watcher, &RepoWatcher::gitDirChanged, this,
+            [this]()
+            {
+                m_sinceWatcherFired.start();
+                QCoro::connect(onWatchGitDir(), this, []() {});
+            });
+
+    m_activeStatusTimer = new QTimer(this);
+    m_activeStatusTimer->setInterval(m_activeStatusIntervalMs);
+    connect(m_activeStatusTimer, &QTimer::timeout, this,
+            [this]() { QCoro::connect(pollActiveStatus(), this, []() {}); });
 
     qRegisterMetaType<std::vector<gittide::FileStatus>>();
     qRegisterMetaType<gittide::CommitDetail>();
@@ -78,6 +94,7 @@ void RepoController::open(const QString& path)
         m_path.clear();
         m_watcher->setActiveFile(QString());
         m_watcher->clear();
+        m_activeStatusTimer->stop(); // no repo to keep an eye on
         logf(LogLevel::Warning, logcat::UI, "open repo '{}' failed: {}", path.toStdString(), result.error().message);
         emit repoFailed(path, QString::fromStdString(result.error().message));
         return;
@@ -86,9 +103,14 @@ void RepoController::open(const QString& path)
     m_path = path;
     // New repo: no file on screen yet — drop the previous repo's per-file watch.
     m_watcher->setActiveFile(QString());
+    // A fresh repo has not been watched yet, so the safety net must not think a
+    // recent watcher event already covered it.
+    m_sinceWatcherFired.invalidate();
     emit repoOpened(path);
     // Arm the live-refresh watcher for the newly-opened repo (D35).
     QCoro::connect(rearmWatch(), this, []() {});
+    if (m_windowActive)
+        m_activeStatusTimer->start();
 }
 
 QCoro::Task<void> RepoController::refreshStatus()
@@ -96,6 +118,20 @@ QCoro::Task<void> RepoController::refreshStatus()
     if (!m_repo)
         co_return;
     QPointer<RepoController> self = this;
+    // Marks the window in which the status safety net must stand aside. Cleared
+    // through a guard so every early return below resets it; the QPointer keeps a
+    // controller destroyed mid-refresh from being written through.
+    m_statusRefreshActive = true;
+    struct StatusGuard
+    {
+        QPointer<RepoController> c;
+        ~StatusGuard()
+        {
+            if (c)
+                c->m_statusRefreshActive = false;
+        }
+    } statusGuard{this};
+
     auto result = co_await m_repo->status();
     if (!self)
         co_return;
@@ -880,22 +916,77 @@ QCoro::Task<void> RepoController::refreshSyncStatus()
     emit syncStatusChanged(*r);
 }
 
+void RepoController::setGraphSubscribed(bool subscribed)
+{
+    m_graphSubscribed = subscribed;
+}
+
+void RepoController::setWindowActive(bool active)
+{
+    m_windowActive = active;
+    if (active && m_repo)
+        m_activeStatusTimer->start();
+    else
+        m_activeStatusTimer->stop();
+}
+
+QCoro::Task<void> RepoController::pollActiveStatus()
+{
+    if (!m_repo || !m_windowActive)
+        co_return;
+    // The watcher covers everything it can see; this only fills the blind spot.
+    // If it fired inside the last interval, the tree has just been re-read.
+    if (m_sinceWatcherFired.isValid() && m_sinceWatcherFired.elapsed() < m_activeStatusIntervalMs)
+        co_return;
+    // Never queue behind an in-flight refresh — that is what turns a safety net
+    // into the active-repo poll D35 rejected.
+    if (m_refreshAllActive || m_statusRefreshActive)
+        co_return;
+    co_await refreshStatus();
+}
+
 QCoro::Task<void> RepoController::refreshAll()
 {
+    // Coalesce: a cascade already in flight absorbs this trigger and repeats once
+    // at the end, so a burst of watcher/focus/mutation triggers costs two passes
+    // rather than one per trigger.
+    if (m_refreshAllActive)
+    {
+        m_refreshAllPending = true;
+        co_return;
+    }
+    m_refreshAllActive = true;
+
     QPointer<RepoController> self = this;
-    co_await refreshStatus();
-    if (!self)
-        co_return;
-    co_await refreshBranches();
-    if (!self)
-        co_return;
-    co_await refreshHistory();
-    if (!self)
-        co_return;
-    co_await refreshSyncStatus();
-    if (!self)
-        co_return;
-    co_await refreshStashState();
+    // Every early exit below is a destroyed controller, so there is no state left
+    // to unwind — the flags die with the object.
+    do
+    {
+        m_refreshAllPending = false;
+        co_await refreshStatus();
+        if (!self)
+            co_return;
+        co_await refreshBranches();
+        if (!self)
+            co_return;
+        co_await refreshHistory();
+        if (!self)
+            co_return;
+        co_await refreshSyncStatus();
+        if (!self)
+            co_return;
+        co_await refreshStashState();
+        if (!self)
+            co_return;
+        if (m_graphSubscribed)
+        {
+            co_await refreshGraph();
+            if (!self)
+                co_return;
+        }
+    } while (m_refreshAllPending);
+
+    m_refreshAllActive = false;
 }
 
 QCoro::Task<void> RepoController::rearmWatch()

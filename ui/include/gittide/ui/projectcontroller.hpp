@@ -104,6 +104,14 @@ public slots:
     // Start/stop the low-frequency poll that keeps non-active repos' sidebar sync
     // counts current (D35). Driven by the window's active state from QML.
     Q_INVOKABLE void setWindowActive(bool active);
+
+    /// High-water mark of concurrently-running poll passes. Instrumentation for
+    /// the single-flight guard: a correct run never exceeds 1. Test-facing only —
+    /// nothing in the app reads it.
+    int maxConcurrentPolls() const
+    {
+        return m_maxConcurrentPolls;
+    }
     // Store the credentials and re-fetch any repos that failed on auth. No-op
     // when no auth failures are pending or a fetch is already running.
     Q_INVOKABLE void submitFleetCredentials(const QString& username, const QString& token);
@@ -119,6 +127,17 @@ public slots:
     // The active project's last-active repo path, or empty when none is stored or
     // the stored path no longer exists on disk (stale → caller falls back).
     Q_INVOKABLE QString lastActiveRepo() const;
+
+    /// Apply the open repository's own head/status to its sidebar row (any depth,
+    /// matched by exact `path`). The repo in the working pane is kept current by
+    /// its watcher and by the cascade at the tail of every mutation; this is how
+    /// that reaches the tree, so a revert clears the dirty badge at once instead
+    /// of waiting for the fleet poll — which is also skipped for this repo.
+    /// Unknown paths are ignored.
+    void applyActiveRepoState(const QString& path, const QString& branch, bool detached,
+                              const QString& shortOid, int dirtyCount);
+    /// As applyActiveRepoState, for the ahead/behind/upstream cluster.
+    void applyActiveRepoSync(const QString& path, int ahead, int behind, bool hasUpstream);
 
     // The active project's top-level repos as { path, name } maps for the
     // Project Options dialog. name = alias if set, else the path basename.
@@ -180,13 +199,25 @@ private:
 
     void saveStore() const;
     void refreshRepoModel();
+    // Kick one poll pass now, so rows built by setRepos (which does no git I/O)
+    // are filled in immediately instead of at the next timer tick.
+    void hydrateRepoModel();
     QCoro::Task<void> fetchOne(int row, gittide::RepoRef ref);
     void              finishOneFetch();                // counter bookkeeping + finalize
 
     // One poll pass: re-read each non-missing top-level repo's local sync counts
     // (HEAD vs its tracking ref — no network) and update the sidebar rows (D35).
+    // Single-flight: a pass opens every repo and awaits four git ops on each, so
+    // it can outlast the timer interval; a tick arriving mid-pass is dropped
+    // rather than stacked, which would saturate the pool the active repo's own
+    // refreshes share. The repo open in the working pane is skipped — it is kept
+    // current by its watcher and by applyActiveRepoState.
     QCoro::Task<void> pollRepos();
     QTimer*           m_pollTimer = nullptr;
+    bool              m_polling   = false; ///< a poll pass is in flight
+    int               m_maxConcurrentPolls = 0; ///< instrumentation; see maxConcurrentPolls()
+    int               m_pollsInFlight      = 0; ///< instrumentation companion
+    QString           m_activeRepoPath;         ///< repo open in the working pane; skipped by the poll
 
     // Shared body for the three mutating submodule ops. `op` performs the core call
     // on a transient AsyncRepo handle; the busy flag, path conversion, and

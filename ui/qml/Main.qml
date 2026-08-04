@@ -53,6 +53,7 @@ ApplicationWindow {
         openFirstRepo()
         // Start the non-active-repo poll if we launch focused (D35).
         if (projectController) projectController.setWindowActive(window.active)
+        if (repoVm) repoVm.setWindowActive(window.active)
     }
 
     // Restore the saved windowed geometry, clamped to the current screen's
@@ -78,6 +79,9 @@ ApplicationWindow {
     // edits the directory watcher can miss) and gate the fleet poll on focus.
     onActiveChanged: {
         if (active && repoVm) repoVm.resync()
+        // Gates the active repo's status-only safety net, which catches in-place
+        // file edits no directory watch reports (D35's residual gap).
+        if (repoVm) repoVm.setWindowActive(active)
         if (projectController) projectController.setWindowActive(active)
     }
 

@@ -160,6 +160,49 @@ private slots:
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
+    // The changed-file list's highlight must follow the view model even when the
+    // selection changes with no click — the case where a diff used to appear with
+    // the wrong row (or no row) marked.
+    void file_list_highlight_follows_the_view_model()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "a\n");
+        tmp.writeFile("b.txt", "b\n");
+        tmp.commitAll("init");
+        tmp.writeFile("a.txt", "a2\n");
+        tmp.writeFile("b.txt", "b2\n");
+
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+        RepoViewModel vm;
+
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QVERIFY(filesSpy.wait(15000));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(), 2, 15000);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, &vm);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+
+        QObject* list = engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("fileList"));
+        QVERIFY(list != nullptr);
+
+        // Selecting purely through the view model — no click, no key — must move
+        // the view's currentIndex.
+        vm.selectFile(QStringLiteral("b.txt"));
+        const int bRow = vm.changedFiles()->rowForPath(QStringLiteral("b.txt"));
+        QCOMPARE(list->property("currentIndex").toInt(), bRow);
+
+        vm.selectFile(QStringLiteral("a.txt"));
+        QCOMPARE(list->property("currentIndex").toInt(),
+                 vm.changedFiles()->rowForPath(QStringLiteral("a.txt")));
+    }
+
     void diff_list_binds_to_diff_lines_model()
     {
         const auto dir = qml_shell_test::make_dirty_repo();
@@ -487,6 +530,15 @@ private slots:
 
         RepoListModel model;
         model.setRepos({gittide::RepoRef{.path = parent.path().generic_string(), .alias = "parent"}});
+        // setRepos does no git I/O; in the app ProjectController's poll supplies
+        // the subtree off-thread. Stand in for it so the shell has one to render.
+        {
+            auto opened = gittide::GitRepo::open(parent.path());
+            QVERIFY(opened.has_value());
+            auto tree = opened->submoduleTree();
+            QVERIFY(tree.has_value());
+            model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+        }
 
         QQmlApplicationEngine engine;
         installQmlContext(engine.rootContext(), &theme, &model, nullptr, nullptr);

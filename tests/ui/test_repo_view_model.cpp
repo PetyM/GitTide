@@ -839,6 +839,190 @@ private slots:
         QCOMPARE(vm.stashPreviewIndex(), -1); // reset on exit
         QCOMPARE(vm.commitFiles()->rowCount(), 0);
     }
+
+    // The sidebar switches repos with a bare open() — no close() first — and the
+    // Graph tab used to be refreshed only from the tab-index change handler. So
+    // switching repos while already on Graph left the previous repo's rows on
+    // screen. open() now refreshes the graph whenever a graph view is visible.
+    void openRefreshesGraphWhenVisible()
+    {
+        gittide::test::TempRepo repoA;
+        repoA.writeFile("a.txt", "a\n");
+        repoA.commitAll("only commit in A");
+
+        gittide::test::TempRepo repoB;
+        repoB.writeFile("b.txt", "b\n");
+        repoB.commitAll("first in B");
+        repoB.writeFile("b.txt", "bb\n");
+        repoB.commitAll("second in B");
+        repoB.writeFile("b.txt", "bbb\n");
+        repoB.commitAll("third in B");
+
+        RepoViewModel vm;
+        vm.setGraphVisible(true);
+
+        vm.open(QString::fromStdString(repoA.path().generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.graph()->rowCount(), 1, 15000);
+
+        // In-place switch: no close() in between, exactly as the sidebar does it.
+        vm.open(QString::fromStdString(repoB.path().generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.graph()->rowCount(), 3, 15000);
+    }
+
+    // Worst instance of view-owned selection: loading a commit auto-selects its
+    // first file so the diff appears without a click, but nothing told the list —
+    // so the commit's diff showed with no file marked. This is the reported "I see
+    // the changes but not which file they belong to".
+    void commitFileAutoSelectReportsItsRow()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "a\n");
+        tmp.writeFile("b.txt", "b\n");
+        tmp.commitAll("two files");
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.history()->rowCount(), 1, 15000);
+
+        QCOMPARE(vm.activeCommitFileRow(), -1); // nothing selected yet
+
+        vm.selectCommitAtRow(0);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.commitFiles()->rowCount(), 2, 15000);
+        // The view model auto-selected file 0; its row must be reported so the
+        // list can mark it.
+        QTRY_VERIFY_WITH_TIMEOUT(!vm.activeCommitFile().isEmpty(), 15000);
+        QCOMPARE(vm.activeCommitFileRow(),
+                 vm.commitFiles()->rowForPath(vm.activeCommitFile()));
+        QCOMPARE(vm.activeCommitFileRow(), 0);
+
+        vm.selectCommitFile(QStringLiteral("b.txt"));
+        QCOMPARE(vm.activeCommitFileRow(), vm.commitFiles()->rowForPath(QStringLiteral("b.txt")));
+    }
+
+    // History and Graph each highlighted from their own currentIndex, so a commit
+    // selected by the view model (post-rebase re-anchor, undo toast, the graph →
+    // history hand-off) left both lists marking the wrong row.
+    void selectedCommitRowFollowsTheOid()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "1\n");
+        tmp.commitAll("c1");
+        tmp.writeFile("a.txt", "2\n");
+        tmp.commitAll("c2");
+        tmp.writeFile("a.txt", "3\n");
+        tmp.commitAll("c3");
+
+        RepoViewModel vm;
+        vm.setGraphVisible(true);
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.history()->rowCount(), 3, 15000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.graph()->rowCount(), 3, 15000);
+
+        QCOMPARE(vm.selectedCommitRow(), -1);
+        QCOMPARE(vm.selectedGraphRow(), -1);
+
+        // Row 1 is the middle commit in both lists (newest first).
+        const QString oid = vm.history()->data(vm.history()->index(1, 0),
+                                               gittide::ui::HistoryListModel::OidRole).toString();
+        QVERIFY(!oid.isEmpty());
+        vm.selectCommit(oid);
+        QCOMPARE(vm.selectedCommit(), oid);
+        QCOMPARE(vm.selectedCommitRow(), 1);
+        QCOMPARE(vm.selectedGraphRow(), 1);
+
+        // An oid that is not in the list (filtered out, or a different repo) must
+        // report "no row" rather than a stale one.
+        vm.selectCommit(QStringLiteral("0123456789012345678901234567890123456789"));
+        QCOMPARE(vm.selectedCommitRow(), -1);
+        QCOMPARE(vm.selectedGraphRow(), -1);
+    }
+
+    // The changed-file list highlighted whatever row its own ListView.currentIndex
+    // pointed at, while the diff pane showed whatever activeFile the view model
+    // held. They drifted apart whenever the view model re-selected without a click
+    // — and a model reset snaps currentIndex to 0 regardless — so the diff of file
+    // C could be on screen with row 0 highlighted. activeFileRow is the row QML now
+    // binds to, so the two cannot disagree.
+    void activeFileRowTracksSelectionAcrossARefresh()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "a\n");
+        tmp.writeFile("b.txt", "b\n");
+        tmp.writeFile("c.txt", "c\n");
+        tmp.commitAll("init");
+        tmp.writeFile("a.txt", "a2\n");
+        tmp.writeFile("b.txt", "b2\n");
+        tmp.writeFile("c.txt", "c2\n");
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(), 3, 15000);
+
+        QCOMPARE(vm.activeFileRow(), -1); // nothing selected yet
+
+        vm.selectFile(QStringLiteral("c.txt"));
+        QCOMPARE(vm.activeFile(), QStringLiteral("c.txt"));
+        const int cRow = vm.changedFiles()->rowForPath(QStringLiteral("c.txt"));
+        QCOMPARE(vm.activeFileRow(), cRow);
+
+        // Drop a.txt from the list; every later row shifts up. The selection is
+        // preserved by path, so the reported row must move with it.
+        tmp.writeFile("a.txt", "a\n"); // back to committed content → no longer changed
+        vm.resync();
+        QTRY_COMPARE_WITH_TIMEOUT(vm.changedFiles()->rowCount(), 2, 15000);
+
+        QCOMPARE(vm.activeFile(), QStringLiteral("c.txt"));
+        QCOMPARE(vm.activeFileRow(), vm.changedFiles()->rowForPath(QStringLiteral("c.txt")));
+        QVERIFY(vm.activeFileRow() != cRow); // it genuinely shifted
+    }
+
+    // The reported bug: revert a change through GitTide and the Changes pane
+    // empties, but the sidebar row keeps reading "1". Nothing connected the open
+    // repo's own refresh to the tree row. The view model now announces the repo's
+    // head/status after every refresh so the row can follow it immediately.
+    void discardEmitsActiveRepoStateWithZeroDirtyCount()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.setIdentity("Test", "test@example.com");
+        tmp.writeFile("a.txt", "one\n");
+        tmp.commitAll("init");
+        tmp.writeFile("a.txt", "one\ntwo\n"); // 1 modified file
+
+        RepoViewModel vm;
+        QSignalSpy stateSpy(&vm, &RepoViewModel::activeRepoStateChanged);
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+
+        // Opening reports the dirty tree.
+        QTRY_VERIFY_WITH_TIMEOUT(!stateSpy.isEmpty(), 15000);
+        QTRY_COMPARE_WITH_TIMEOUT(stateSpy.last().at(4).toInt(), 1, 15000);
+        QCOMPARE(stateSpy.last().at(0).toString(),
+                 QString::fromStdString(tmp.path().generic_string()));
+
+        // Revert it the way the UI does — and the announced count must follow.
+        vm.discardFile(QStringLiteral("a.txt"));
+        QTRY_COMPARE_WITH_TIMEOUT(stateSpy.last().at(4).toInt(), 0, 15000);
+    }
+
+    // Making the graph visible while a repo is already open must load it at once,
+    // rather than waiting for the next external refresh.
+    void showingGraphRefreshesImmediately()
+    {
+        gittide::test::TempRepo tmp;
+        tmp.writeFile("a.txt", "a\n");
+        tmp.commitAll("init");
+
+        RepoViewModel vm;
+        vm.open(QString::fromStdString(tmp.path().generic_string()));
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        QVERIFY(filesSpy.wait(15000));
+        QCOMPARE(vm.graph()->rowCount(), 0); // never populated while hidden
+
+        vm.setGraphVisible(true);
+        QTRY_COMPARE_WITH_TIMEOUT(vm.graph()->rowCount(), 1, 15000);
+    }
 };
 
 #include "test_repo_view_model.moc"

@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFileSystemWatcher>
 #include <QLatin1Char>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
@@ -26,27 +27,50 @@ RepoWatcher::~RepoWatcher() = default;
 
 void RepoWatcher::watch(const gittide::WatchTargets& targets)
 {
-    clear();
     m_gitDirPrefix = QDir::cleanPath(QString::fromStdString(targets.gitDir.generic_string()));
 
-    QStringList paths;
-    paths.reserve(static_cast<int>(targets.dirs.size()));
+    QStringList desired;
+    desired.reserve(static_cast<int>(targets.dirs.size()) + 1);
     for (const auto& d : targets.dirs)
-        paths << QDir::cleanPath(QString::fromStdString(d.generic_string()));
+        desired << QDir::cleanPath(QString::fromStdString(d.generic_string()));
+    // The on-screen file's watch is part of the desired set, so it survives a
+    // re-arm (and editors that rename-on-save drop their inotify watch, which
+    // re-adding here recovers).
+    if (!m_activeFile.isEmpty())
+        desired << m_activeFile;
 
-    if (!paths.isEmpty())
+    applyWatchSet(desired);
+}
+
+void RepoWatcher::applyWatchSet(const QStringList& desired)
+{
+    // Incremental: only drop paths that left the set and only add new ones. A
+    // remove-all/add-all rebuild would leave a window with nothing watched, and
+    // rearmWatch() runs at the end of every refresh cascade. Crucially this
+    // touches neither the debounce timer nor the pending flags, so a batch that
+    // is mid-window when the cascade re-arms still fires.
+    const QSet<QString> want(desired.begin(), desired.end());
+    const QStringList   currentList = m_fsw->directories() + m_fsw->files();
+    const QSet<QString> have(currentList.begin(), currentList.end());
+
+    QStringList stale;
+    for (const auto& p : have)
+        if (!want.contains(p))
+            stale << p;
+    QStringList fresh;
+    for (const auto& p : want)
+        if (!have.contains(p))
+            fresh << p;
+
+    if (!stale.isEmpty())
+        m_fsw->removePaths(stale);
+    if (!fresh.isEmpty())
     {
-        const QStringList failed = m_fsw->addPaths(paths);
+        const QStringList failed = m_fsw->addPaths(fresh);
         if (!failed.isEmpty())
             logf(LogLevel::Debug, logcat::ASYNC, "RepoWatcher: {} of {} paths could not be watched",
-                 failed.size(), paths.size());
+                 failed.size(), fresh.size());
     }
-
-    // Re-arm the per-file watch: watch() rebuilds the whole set, but the on-screen
-    // file's watch must persist across re-arms (and editors that rename-on-save
-    // drop their inotify watch, so re-adding here recovers it).
-    if (!m_activeFile.isEmpty())
-        m_fsw->addPath(m_activeFile);
 }
 
 void RepoWatcher::setActiveFile(const QString& absPath)
@@ -73,15 +97,32 @@ void RepoWatcher::clear()
 
 void RepoWatcher::mute()
 {
+    ++m_muteDepth;
     m_muted = true;
+    // Supersede any deferred release still in flight: it belongs to an older
+    // mute/unmute pair and must not lift the mute we are taking now.
+    ++m_unmuteGen;
 }
 
 void RepoWatcher::unmute()
 {
+    if (m_muteDepth == 0)
+        return; // unbalanced unmute (defensive) — already watching
+    if (--m_muteDepth > 0)
+        return; // an outer guard still holds the mute
+
     // Clear the mute one debounce window later: the filesystem events from the
     // just-finished mutation arrive slightly after the write, so dropping them
     // for one more window avoids a redundant refresh right after our own cascade.
-    QTimer::singleShot(m_debounceMs, this, [this]() { m_muted = false; });
+    // The generation check drops this release if a new mute() has been taken in
+    // the meantime.
+    const quint64 gen = ++m_unmuteGen;
+    QTimer::singleShot(m_debounceMs, this,
+                       [this, gen]()
+                       {
+                           if (gen == m_unmuteGen)
+                               m_muted = false;
+                       });
 }
 
 void RepoWatcher::onPathChanged(const QString& path)

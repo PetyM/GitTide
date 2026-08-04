@@ -94,13 +94,22 @@ Item {
                 spacing: 0
                 background: null
 
-                onCurrentIndexChanged: {
-                    if (currentIndex === 2 && repoVm) repoVm.refreshGraph()
-                }
-
                 AppTabButton { text: "Changes" }
                 AppTabButton { text: "History" }
                 AppTabButton { text: "Graph" }
+            }
+
+            // Declare graph visibility rather than refreshing on a tab *change*:
+            // switching repositories while the Graph tab is already selected fires
+            // no index change, so the old handler left the previous repo's graph on
+            // screen. As a binding the flag is right on every path, and the view
+            // model both loads the graph when it turns true and keeps it in the
+            // refresh cascade while it stays true.
+            Binding {
+                target: repoVm
+                property: "graphVisible"
+                value: tabs.currentIndex === 2
+                when: repoVm !== null
             }
         }
 

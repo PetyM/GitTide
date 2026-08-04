@@ -46,6 +46,24 @@ QCoro::Task<void> ProjectController::pollRepos()
 {
     if (m_activeId.isEmpty())
         co_return;
+    if (m_polling)
+        co_return; // a pass is still running — dropping this tick beats stacking it
+    m_polling = true;
+    m_maxConcurrentPolls = std::max(m_maxConcurrentPolls, ++m_pollsInFlight);
+    // Clear the guard on every exit, including the early co_returns below. Holds
+    // a QPointer so a controller destroyed mid-pass is not written through.
+    struct PollGuard
+    {
+        QPointer<ProjectController> c;
+        ~PollGuard()
+        {
+            if (c)
+            {
+                c->m_polling = false;
+                --c->m_pollsInFlight;
+            }
+        }
+    } pollGuard{this};
 
     QPointer<ProjectController> self = this;
     // Copy the refs: activeRepos() returns a reference into the store, which may
@@ -53,6 +71,10 @@ QCoro::Task<void> ProjectController::pollRepos()
     const std::vector<gittide::RepoRef> repos = activeRepos();
     for (int row = 0; row < static_cast<int>(repos.size()); ++row)
     {
+        const QString repoPath = QString::fromStdString(repos[row].path);
+        if (!m_activeRepoPath.isEmpty() && repoPath == m_activeRepoPath)
+            continue; // the open repo pushes its own state — re-reading it is waste
+
         const std::filesystem::path p(repos[row].path);
         std::error_code             ec;
         if (!std::filesystem::exists(p, ec) || ec)
@@ -102,6 +124,21 @@ QCoro::Task<void> ProjectController::pollRepos()
     }
 }
 
+void ProjectController::applyActiveRepoState(const QString& path, const QString& branch, bool detached,
+                                             const QString& shortOid, int dirtyCount)
+{
+    if (path.isEmpty())
+        return;
+    m_repoModel->setRepoHeadByPath(path, branch, detached, shortOid, dirtyCount);
+}
+
+void ProjectController::applyActiveRepoSync(const QString& path, int ahead, int behind, bool hasUpstream)
+{
+    if (path.isEmpty())
+        return;
+    m_repoModel->setSyncCountsByPath(path, ahead, behind, hasUpstream);
+}
+
 QString ProjectController::activeProjectName() const
 {
     const std::string id = m_activeId.toStdString();
@@ -137,10 +174,19 @@ void ProjectController::refreshRepoModel()
         if (QString::fromStdString(p.id) == m_activeId)
         {
             m_repoModel->setRepos(p.repos);
+            hydrateRepoModel();
             return;
         }
     }
     m_repoModel->setRepos({});
+}
+
+void ProjectController::hydrateRepoModel()
+{
+    // setRepos leaves the rows bare (no git I/O on the UI thread), so fill them in
+    // right away rather than waiting for the first poll tick — which may be a full
+    // interval away, or never while the window is unfocused.
+    QCoro::connect(pollRepos(), this, []() {});
 }
 
 void ProjectController::activate(const QString& projectId)
@@ -155,6 +201,10 @@ void ProjectController::activate(const QString& projectId)
             m_store->setActiveProject(id);
             m_repoModel->setRepos(p.repos);
             m_activeId = projectId;
+            // The previous project's open repo is gone; until QML opens one in the
+            // new project every row is poll-fed.
+            m_activeRepoPath.clear();
+            hydrateRepoModel();
             // Persist the active-project hint so the next launch reopens it.
             saveStore();
             emit activeProjectChanged();
@@ -315,6 +365,9 @@ void ProjectController::removeRepo(const QString& path)
 
 void ProjectController::setActiveRepo(const QString& path)
 {
+    // Remember it regardless of the persistence below: the poll skips this repo
+    // because it keeps itself current, and that holds even with no active project.
+    m_activeRepoPath = path;
     if (m_activeId.isEmpty())
         return;
     const std::string id = m_activeId.toStdString();

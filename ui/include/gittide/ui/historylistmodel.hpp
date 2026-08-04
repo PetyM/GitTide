@@ -59,6 +59,12 @@ public:
         return m_layout.laneCount;
     }
 
+    /// Row carrying commit @p oid, or -1 when it is not in this layout. Backs the
+    /// view model's selectedCommitRow / selectedGraphRow, which the History and
+    /// Graph lists bind their highlight to. Linear scan; the layout is capped at
+    /// the history limit (1000 rows) and this runs once per selection change.
+    int rowForOid(const QString& oid) const;
+
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;

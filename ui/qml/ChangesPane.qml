@@ -85,6 +85,17 @@ SplitView {
             // In stash preview show the stash's snapshot files; otherwise working changes.
             model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitFiles : repoVm.changedFiles) : null
 
+            // The view model owns the selection; this view only renders it. Never
+            // assign currentIndex from a handler — a view-owned index drifts from
+            // the model whenever the selection changes without a click (a refresh
+            // that preserves the active file, a repo switch) and a model reset
+            // snaps it to 0, which is how a diff ended up on screen with the wrong
+            // row — or no row — marked.
+            currentIndex: repoVm
+                          ? (repoVm.stashPreviewActive ? repoVm.activeCommitFileRow
+                                                       : repoVm.activeFileRow)
+                          : -1
+
             ScrollBar.vertical: AppScrollBar {}
             WheelScroller {}
 
@@ -94,18 +105,21 @@ SplitView {
             activeFocusOnTab: true
             Keys.onTabPressed: { commitSummary.forceActiveFocus(); event.accepted = true }
             Keys.onBacktabPressed: { changesPane.tabPrev(); event.accepted = true }
-            Keys.onUpPressed: {
-                if (currentIndex > 0) {
-                    currentIndex--
-                    if (repoVm) repoVm.selectFileAtRow(currentIndex)
-                }
+            // Arrows move the selection through the view model, which moves
+            // currentIndex via the binding above — not the other way round.
+            function stepSelection(delta) {
+                if (!repoVm)
+                    return
+                var next = currentIndex + delta
+                if (next < 0 || next >= count)
+                    return
+                if (repoVm.stashPreviewActive)
+                    repoVm.selectCommitFileAtRow(next)
+                else
+                    repoVm.selectFileAtRow(next)
             }
-            Keys.onDownPressed: {
-                if (currentIndex < count - 1) {
-                    currentIndex++
-                    if (repoVm) repoVm.selectFileAtRow(currentIndex)
-                }
-            }
+            Keys.onUpPressed: fileList.stepSelection(-1)
+            Keys.onDownPressed: fileList.stepSelection(1)
             Keys.onSpacePressed: {
                 if (currentIndex >= 0 && repoVm && currentItem)
                     repoVm.setFileChecked(currentIndex, currentItem.fileCheckState !== 2)
@@ -140,7 +154,8 @@ SplitView {
                     acceptedButtons: Qt.LeftButton
                     onClicked: {
                         fileList.forceActiveFocus()   // arrows work right after a click
-                        fileList.currentIndex = index
+                        // No currentIndex assignment: selecting in the view model
+                        // is what moves the highlight (see the binding above).
                         if (repoVm) {
                             if (repoVm.stashPreviewActive)
                                 repoVm.selectCommitFile(model.filePath)

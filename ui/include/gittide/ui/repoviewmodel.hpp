@@ -51,12 +51,24 @@ class RepoViewModel : public QObject
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY changed)
     Q_PROPERTY(QString currentBranch READ currentBranch NOTIFY branchChanged)
     Q_PROPERTY(QString activeFile READ activeFile NOTIFY activeFileChanged)
+    /// Row of activeFile within changedFiles, or -1 when nothing is selected.
+    ///
+    /// The single source of truth for the changed-file list's highlight: QML binds
+    /// its ListView.currentIndex to this and never assigns currentIndex itself.
+    /// A view-owned currentIndex drifts from the view model — which re-selects
+    /// without a click when a refresh preserves the active file, when a commit
+    /// auto-selects its first file, and when a repo switch clears the selection —
+    /// and a model reset silently snaps it to 0, so the diff on screen could
+    /// belong to a file no row was marking.
+    Q_PROPERTY(int activeFileRow READ activeFileRow NOTIFY activeFileChanged)
     Q_PROPERTY(int checkedCount READ checkedCount NOTIFY checkedChanged)
     Q_PROPERTY(gittide::ui::ChangedFilesModel* changedFiles READ changedFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* diffLines READ diffLines CONSTANT)
     Q_PROPERTY(gittide::ui::BranchListModel* branches READ branches CONSTANT)
     Q_PROPERTY(gittide::ui::HistoryListModel* history READ history CONSTANT)
     Q_PROPERTY(gittide::ui::HistoryListModel* graph READ graph CONSTANT)
+    /// Whether a graph view is currently on screen — see setGraphVisible.
+    Q_PROPERTY(bool graphVisible READ graphVisible WRITE setGraphVisible NOTIFY graphVisibleChanged)
     Q_PROPERTY(gittide::ui::ChangedFilesModel* commitFiles READ commitFiles CONSTANT)
     Q_PROPERTY(gittide::ui::DiffLinesModel* commitDiff READ commitDiff CONSTANT)
     Q_PROPERTY(gittide::ui::StashListModel* stashes READ stashes CONSTANT)
@@ -67,6 +79,16 @@ class RepoViewModel : public QObject
     /// second click (the primary "get out of preview" affordance).
     Q_PROPERTY(int stashPreviewIndex READ stashPreviewIndex NOTIFY stashPreviewChanged)
     Q_PROPERTY(QString selectedCommit READ selectedCommit NOTIFY selectedCommitChanged)
+    /// Row of selectedCommit in the History list, or -1. Same contract as
+    /// activeFileRow — the History list binds its highlight here rather than
+    /// owning a currentIndex, so a commit selected by the view model (a
+    /// post-rebase re-anchor, the undo toast, the graph → history hand-off) marks
+    /// the right row.
+    Q_PROPERTY(int selectedCommitRow READ selectedCommitRow NOTIFY selectedCommitChanged)
+    /// Row of selectedCommit in the all-refs Graph list, or -1. Separate from
+    /// selectedCommitRow because the two lists hold different walks, so the same
+    /// commit sits at different rows.
+    Q_PROPERTY(int selectedGraphRow READ selectedGraphRow NOTIFY selectedCommitChanged)
     Q_PROPERTY(QString detailSummary READ detailSummary NOTIFY commitDetailChanged)
     Q_PROPERTY(QString detailBody READ detailBody NOTIFY commitDetailChanged)
     Q_PROPERTY(QString detailAuthor READ detailAuthor NOTIFY commitDetailChanged)
@@ -76,6 +98,12 @@ class RepoViewModel : public QObject
     Q_PROPERTY(int detailAdditions READ detailAdditions NOTIFY commitDetailChanged)
     Q_PROPERTY(int detailDeletions READ detailDeletions NOTIFY commitDetailChanged)
     Q_PROPERTY(QString activeCommitFile READ activeCommitFile NOTIFY activeCommitFileChanged)
+    /// Row of activeCommitFile within commitFiles, or -1. Same contract as
+    /// activeFileRow: the commit-detail file list binds its highlight to this.
+    /// It is the list that suffered worst from view-owned selection — loading a
+    /// commit auto-selects its first file so the diff appears without a click,
+    /// which left the diff on screen with no row marked at all.
+    Q_PROPERTY(int activeCommitFileRow READ activeCommitFileRow NOTIFY activeCommitFileChanged)
     Q_PROPERTY(QString historyDetailHeader READ historyDetailHeader NOTIFY historyDetailChanged)
     Q_PROPERTY(QString historyDetailHint READ historyDetailHint NOTIFY historyDetailChanged)
     // Number of newest commits (from HEAD down) that form a reorderable run: a
@@ -133,6 +161,10 @@ public:
     QString repoPath() const;
     QString currentBranch() const;
     QString activeFile() const;
+    /// Row of activeFile in changedFiles, or -1 when nothing is selected.
+    int     activeFileRow() const;
+    /// Row of activeCommitFile in commitFiles, or -1 when nothing is selected.
+    int     activeCommitFileRow() const;
     int checkedCount() const;
     ChangedFilesModel* changedFiles() const;
     DiffLinesModel* diffLines() const;
@@ -146,6 +178,10 @@ public:
     QString stashPreviewLabel() const { return m_stashPreviewLabel; }
     int stashPreviewIndex() const { return m_stashPreviewIndex; }
     QString selectedCommit() const;
+    /// Row of selectedCommit in the History list, or -1 when it is not there.
+    int     selectedCommitRow() const;
+    /// Row of selectedCommit in the Graph list, or -1 when it is not there.
+    int     selectedGraphRow() const;
     QString detailSummary() const { return m_detailSummary; }
     QString detailBody() const { return m_detailBody; }
     QString detailAuthor() const { return m_detailAuthor; }
@@ -226,11 +262,31 @@ public:
     Q_INVOKABLE void deleteBranch(const QString& name, bool force);
     Q_INVOKABLE void renameBranch(const QString& oldName, const QString& newName);
     Q_INVOKABLE void refreshHistory();
-    Q_INVOKABLE void refreshGraph();
+    /// Reload the all-refs graph. Not Q_INVOKABLE: QML declares *whether* a graph
+    /// view is on screen (see setGraphVisible) and never asks for a refresh
+    /// directly — the view model and the controller's cascade decide when.
+    void refreshGraph();
+
+    bool graphVisible() const
+    {
+        return m_graphVisible;
+    }
+    /// Declare whether a graph view is on screen. Bound from the tab strip rather
+    /// than poked on a tab *change*, so it is also correct when the repo changes
+    /// under a Graph tab that was already selected — the case where the graph used
+    /// to keep showing the previous repository. Turning it true loads the graph
+    /// immediately; while it is true the controller keeps the graph in its refresh
+    /// cascade, so watcher events and focus resyncs reach it too.
+    void setGraphVisible(bool visible);
     /// Re-sync the whole active repo from disk (status + branches + history +
     /// sync). Called on window focus-in (D35) to catch changes the directory
     /// watcher can miss (in-place edits of an existing file while backgrounded).
     Q_INVOKABLE void resync();
+
+    /// Forward the window's focus state to the controller, which gates its
+    /// status-only safety net on it (see RepoController::setWindowActive). Called
+    /// from Main.qml's onActiveChanged alongside resync().
+    Q_INVOKABLE void setWindowActive(bool active);
 
     Q_INVOKABLE void fetch();
     /// Background fetch driven by the branch bar's timer. Same as fetch() but
@@ -328,6 +384,16 @@ signals:
     /// Emitted when the stash count changes; NOTIFY for the stashAvailable property.
     void stashCountChanged();
     void branchChanged();
+    void graphVisibleChanged();
+    /// Emitted whenever the open repository's own refresh produces a new head or
+    /// status picture. The sidebar row for `path` follows it, so an in-app
+    /// mutation (revert, commit, stage) updates the dirty badge immediately
+    /// rather than waiting for ProjectController's fleet poll — which does not
+    /// cover the active repo at all while the window is unfocused.
+    void activeRepoStateChanged(QString path, QString branch, bool detached,
+                                QString shortOid, int dirtyCount);
+    /// As activeRepoStateChanged, for the ahead/behind/upstream cluster.
+    void activeRepoSyncChanged(QString path, int ahead, int behind, bool hasUpstream);
     void activeFileChanged();
     void checkedChanged();
     void committedOk();
@@ -384,6 +450,11 @@ private:
     };
 
     void onStatus(const std::vector<gittide::FileStatus>& files);
+    /// Announce the open repo's current head + dirty count on
+    /// activeRepoStateChanged. Called after every status and head refresh; cheap
+    /// (a row count and cached strings), and the sidebar row it feeds only ever
+    /// re-renders when a value actually differs.
+    void emitActiveRepoState();
     void onStashCount(int count);
     void onStashList(const std::vector<gittide::StashEntry>& entries);
     void onDiff(const QString& path, const gittide::DiffResult& result);
@@ -434,6 +505,10 @@ private:
     gittide::RebaseState       m_rebase;
     gittide::SyncStatus        m_sync;
     bool                       m_syncing    = false;
+    /// True while a graph view is on screen — see setGraphVisible.
+    bool                       m_graphVisible = false;
+    /// Last-known detached flag from onHead; part of the sidebar row picture.
+    bool                       m_headDetached = false;
     /// True while a silent (auto) fetch is in flight: suppresses the credential
     /// dialog and error toast so a background timer never raises UI on failure.
     bool                       m_silentSync = false;

@@ -501,6 +501,116 @@ private slots:
         QVERIFY(!spy.isEmpty());
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
+
+    // D35's residual gap: a directory watch reports entries appearing, vanishing
+    // or being renamed, not content written into a file that already exists. Only
+    // the one file in setActiveFile is watched individually, so an editor that
+    // saves in place made a tracked file dirty with nothing on screen changing
+    // until the window regained focus. A status-only safety net closes it.
+    void in_place_edit_refreshes_status_without_a_focus_event()
+    {
+        const auto dir  = repo_controller_test::make_repo_with_commit();
+        const auto root = std::filesystem::canonical(dir);
+
+        // Short debounce and a short safety interval so the test does not idle.
+        RepoController controller(nullptr, /*watchDebounceMs=*/30, /*activeStatusIntervalMs=*/200);
+        controller.open(QString::fromStdString(dir.generic_string()));
+        controller.setWindowActive(true);
+        QTest::qWait(400); // let open()'s own cascade settle
+
+        QSignalSpy spy(&controller, &RepoController::statusChanged);
+
+        // Overwrite the committed file in place: same name, same directory entry,
+        // only the contents change. No rename, no create, no delete — so no
+        // directory event, and it is not the active file either.
+        {
+            std::ofstream f(root / "a.txt", std::ios::trunc);
+            f << "edited in place by another program\n";
+        }
+
+        // Wait for a status that actually reports the edit. Asserting on the first
+        // emission alone is racy: a straggler from open()'s own cascade can land
+        // first and legitimately carry an empty (still-clean) list.
+        const auto sawTheEdit = [&]
+        {
+            for (int i = 0; i < spy.count(); ++i)
+            {
+                if (!spy.at(i).at(0).value<std::vector<gittide::FileStatus>>().empty())
+                    return true;
+            }
+            return false;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(sawTheEdit(), 5000);
+        controller.setWindowActive(false);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
+
+    // The safety net is a background cost, so it must stop when the window is not
+    // in front — the focus resync covers that case (D35).
+    void active_status_poll_stops_when_window_inactive()
+    {
+        const auto dir  = repo_controller_test::make_repo_with_commit();
+        const auto root = std::filesystem::canonical(dir);
+
+        RepoController controller(nullptr, /*watchDebounceMs=*/30, /*activeStatusIntervalMs=*/100);
+        controller.open(QString::fromStdString(dir.generic_string()));
+        controller.setWindowActive(false); // never focused
+        QTest::qWait(400);
+
+        QSignalSpy spy(&controller, &RepoController::statusChanged);
+        {
+            std::ofstream f(root / "a.txt", std::ios::trunc);
+            f << "edited while backgrounded\n";
+        }
+        QTest::qWait(800); // several intervals
+        QCOMPARE(spy.count(), 0);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
+
+    // refreshAll() is fired by the git-dir watcher, by focus resync, and by the
+    // tail of most mutations; several can land in the same turn. Stacked cascades
+    // are five sequential git round-trips each on the shared pool, so they must
+    // collapse: the running pass re-runs once at the end and no more.
+    void refresh_all_is_single_flight()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QTest::qWait(200);
+
+        QSignalSpy spy(&controller, &RepoController::statusChanged);
+        // Three triggers in one turn: without coalescing this is 3 full cascades.
+        QCoro::connect(controller.refreshAll(), &controller, [] {});
+        QCoro::connect(controller.refreshAll(), &controller, [] {});
+        QCoro::connect(controller.refreshAll(), &controller, [] {});
+        QTRY_VERIFY_WITH_TIMEOUT(spy.count() >= 1, 5000);
+        QTest::qWait(1500); // let every cascade settle
+
+        QVERIFY2(spy.count() <= 2,
+                 qPrintable(QStringLiteral("cascades did not coalesce: %1").arg(spy.count())));
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
+
+    // The Graph tab is fed by refreshGraph(), which was reachable only from the
+    // tab-index change handler — so a watcher event or a repo switch never
+    // updated it. refreshAll() now covers it whenever a graph view is on screen.
+    void refresh_all_emits_graph_only_when_subscribed()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+        QTest::qWait(200);
+
+        QSignalSpy quiet(&controller, &RepoController::graphReady);
+        QCoro::waitFor(controller.refreshAll());
+        QCOMPARE(quiet.count(), 0);
+
+        controller.setGraphSubscribed(true);
+        QSignalSpy loud(&controller, &RepoController::graphReady);
+        QCoro::waitFor(controller.refreshAll());
+        QCOMPARE(loud.count(), 1);
+        { std::error_code rec; std::filesystem::remove_all(dir, rec); }
+    }
 };
 
 #include "test_repo_controller.moc"

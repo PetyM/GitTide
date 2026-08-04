@@ -101,31 +101,11 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
         root->isSubmodule = false;
         root->missing     = !present;
 
-        if (present)
-        {
-            auto repo = gittide::GitRepo::open(p);
-            if (repo)
-            {
-                if (auto tree = repo->submoduleTree())
-                    appendSubmodules(*root, *tree);
-
-                if (auto hs = repo->head())
-                {
-                    root->branch   = QString::fromStdString(hs->branch);
-                    root->detached = hs->detached;
-                    root->shortOid = QString::fromStdString(
-                        hs->oid.substr(0, std::min<std::size_t>(7, hs->oid.size())));
-                }
-                if (auto st = repo->status())
-                    root->dirtyCount = static_cast<int>(st->size());
-                if (auto sy = repo->syncStatus())
-                {
-                    root->ahead       = sy->ahead;
-                    root->behind      = sy->behind;
-                    root->hasUpstream = sy->hasUpstream;
-                }
-            }
-        }
+        // Deliberately no git I/O here. setRepos runs on the UI thread on every
+        // project switch; opening each repo to read head/status/sync/submodules
+        // stalled the window for as long as that took. The rows render at once
+        // from the RepoRef alone and ProjectController hydrates them off-thread
+        // (see its pollRepos, kicked immediately by activate()).
         m_roots.push_back(std::move(root));
     }
     endResetModel();
@@ -276,11 +256,24 @@ void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind, bool hasUp
 {
     if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
         return;
-    Node& n        = *m_roots[rootRow];
-    n.ahead        = ahead;
-    n.behind       = behind;
-    n.hasUpstream  = hasUpstream;
-    const QModelIndex idx = createIndex(rootRow, 0, &n);
+    applySyncCounts(*m_roots[rootRow], ahead, behind, hasUpstream);
+}
+
+bool RepoListModel::setSyncCountsByPath(const QString& path, int ahead, int behind, bool hasUpstream)
+{
+    Node* n = findByPath(path);
+    if (!n)
+        return false;
+    applySyncCounts(*n, ahead, behind, hasUpstream);
+    return true;
+}
+
+void RepoListModel::applySyncCounts(Node& n, int ahead, int behind, bool hasUpstream)
+{
+    n.ahead       = ahead;
+    n.behind      = behind;
+    n.hasUpstream = hasUpstream;
+    const QModelIndex idx = createIndex(rowOf(&n), 0, &n);
     emit dataChanged(idx, idx, {AheadRole, BehindRole, HasUpstreamRole});
 }
 
@@ -289,12 +282,27 @@ void RepoListModel::setRepoHead(int rootRow, const QString& branch, bool detache
 {
     if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
         return;
-    Node& n       = *m_roots[rootRow];
-    n.branch      = branch;
-    n.detached    = detached;
-    n.shortOid    = shortOid;
-    n.dirtyCount  = dirtyCount;
-    const QModelIndex idx = createIndex(rootRow, 0, &n);
+    applyRepoHead(*m_roots[rootRow], branch, detached, shortOid, dirtyCount);
+}
+
+bool RepoListModel::setRepoHeadByPath(const QString& path, const QString& branch, bool detached,
+                                      const QString& shortOid, int dirtyCount)
+{
+    Node* n = findByPath(path);
+    if (!n)
+        return false;
+    applyRepoHead(*n, branch, detached, shortOid, dirtyCount);
+    return true;
+}
+
+void RepoListModel::applyRepoHead(Node& n, const QString& branch, bool detached,
+                                  const QString& shortOid, int dirtyCount)
+{
+    n.branch     = branch;
+    n.detached   = detached;
+    n.shortOid   = shortOid;
+    n.dirtyCount = dirtyCount;
+    const QModelIndex idx = createIndex(rowOf(&n), 0, &n);
     emit dataChanged(idx, idx, {BranchRole, DetachedRole, ShortOidRole, DirtyCountRole});
 }
 

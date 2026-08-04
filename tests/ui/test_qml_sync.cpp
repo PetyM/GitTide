@@ -177,6 +177,11 @@ void TestQmlSync::sidebar_repo_row_exposes_branch_and_dirty()
     repo.commitAll("c1");
     repo.writeFile("a.txt", "two\n"); // dirty
     repoModel.setRepos({gittide::RepoRef{.path = repo.path().generic_string(), .alias = "r"}});
+    // setRepos does no git I/O; the row is filled in afterwards — by the poll for
+    // a background repo, or by applyActiveRepoState for the one that is open.
+    // This is the delegate's data source either way.
+    repoModel.setRepoHeadByPath(QString::fromStdString(repo.path().generic_string()),
+                                QStringLiteral("master"), false, QStringLiteral("abc1234"), 1);
 
     gittide::ProjectStore store;
     auto& p = store.createProject("P");
