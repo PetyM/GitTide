@@ -15,6 +15,14 @@ the tests are structured* and how to add one.
   (`QT_QPA_PLATFORM=offscreen`). Covers models, controllers, session/window
   bookkeeping, and widget smoke tests.
 
+Those two are the *only* suites ctest knows about: `cmake/dependencies.cmake`
+forces `BUILD_TESTING=OFF` before the first `FetchContent_MakeAvailable`, so no
+vendored project (ECM, libgit2, Catch2, QCoro, KSyntaxHighlighting) registers its
+own tests alongside ours. A bare `ctest --test-dir build` therefore reports only
+GitTide's result, and any failure it prints is ours. If a build directory
+predates that guard it can still carry stale `CTestTestfile.cmake` files under
+`build/_deps/`; delete them and re-run `cmake -S . -B build`.
+
 ## What to test where
 
 - **Core logic** (git ops, diff parsing, partial-staging patch synthesis, graph

@@ -9,7 +9,8 @@ FetchContent_Declare(
   GIT_TAG        v6.5.0
   GIT_SHALLOW    TRUE
 )
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)   # suppress ECM's and KSyntax's own tests
+# ECM's and KSyntax's own tests are suppressed by the global BUILD_TESTING=OFF
+# set in dependencies.cmake before any dependency is made available.
 FetchContent_MakeAvailable(ecm)
 # KSyntaxHighlighting does find_package(ECM CONFIG) and then *overwrites*
 # CMAKE_MODULE_PATH with ECM_MODULE_PATH, which points into ECM's INSTALL layout

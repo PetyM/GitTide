@@ -11,6 +11,14 @@ include(FetchContent)
 # Qt is an external find_package import and is unaffected by this flag.
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+# Suppress every dependency's own test suite. Vendored projects (ECM, libgit2,
+# Catch2, QCoro, KSyntaxHighlighting) register their tests with the same CTest
+# instance as ours, so a bare `ctest --test-dir build` would report their
+# failures as GitTide's. Our tests are gated by GITGUI_BUILD_TESTS, never by
+# BUILD_TESTING, so turning this off costs us nothing. It must be set before the
+# first FetchContent_MakeAvailable, hence here rather than in a per-dep file.
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
 include(${CMAKE_CURRENT_LIST_DIR}/dependencies/core.cmake)
 
 if(GITGUI_BUILD_TESTS)
