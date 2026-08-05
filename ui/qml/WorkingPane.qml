@@ -12,6 +12,7 @@ Item {
     readonly property bool repoOpen: repoVm && repoVm.repoOpen
 
     signal addExistingRequested()
+    signal addFromFolderRequested()
     signal cloneRequested()
     signal initRequested()
     signal newProjectRequested()
@@ -56,6 +57,7 @@ Item {
         visible: !workingPane.repoOpen
         hasProject: projectController ? projectController.activeProjectId.length > 0 : false
         onAddExistingRequested: workingPane.addExistingRequested()
+        onAddFromFolderRequested: workingPane.addFromFolderRequested()
         onCloneRequested: workingPane.cloneRequested()
         onInitRequested: workingPane.initRequested()
         onNewProjectRequested: workingPane.newProjectRequested()

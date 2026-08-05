@@ -68,6 +68,7 @@
 #include "test_qml_stash.cpp"
 #include "test_syntaxhighlighter.cpp"
 #include "test_qml_wheelscroller.cpp"
+#include "test_qml_add_from_folder.cpp"
 
 #include <QGuiApplication>
 #include <QThreadPool>
@@ -183,6 +184,7 @@ int main(int argc, char** argv)
     RUN(TestQmlStash);
     RUN(TestSyntaxHighlighter);
     RUN(TestQmlWheelScroller);
+    RUN(TestQmlAddFromFolder);
 
     // Join any lingering AsyncRepo workers here, at a controlled point, rather than
     // letting them run during static teardown after main returns — on Windows that
