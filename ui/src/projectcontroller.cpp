@@ -1,6 +1,7 @@
 #include "gittide/ui/projectcontroller.hpp"
 
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <QVariantMap>
 #include <QtConcurrent>
@@ -9,7 +10,9 @@
 #include <filesystem>
 
 #include "gittide/gitrepo.hpp"
+#include "gittide/pathutil.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/reposcan.hpp"
 #include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/autherror.hpp"
 #include "gittide/ui/credentialmanager.hpp"
@@ -250,6 +253,40 @@ void ProjectController::addExistingRepo(const QString& path)
     saveStore();
     refreshRepoModel();
     emit repoAdded(path);
+}
+
+QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)
+{
+    QPointer<ProjectController> self(this);
+    const std::filesystem::path root(path.toStdString());
+
+    auto result = co_await QtConcurrent::run(
+        [root, maxDepth] { return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = maxDepth}); });
+    if (!self)
+        co_return; // controller went away while the scan ran
+
+    if (!result)
+    {
+        emit scanFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+
+    // Repos already in the project are reported, not dropped, so the checklist
+    // shows the whole picture instead of silently hiding them.
+    QSet<QString> existing;
+    for (const auto& r : activeRepos())
+        existing.insert(QString::fromStdString(r.path));
+
+    QVariantList candidates;
+    for (const auto& p : *result)
+    {
+        const QString qp   = QString::fromStdString(p);
+        const QString name = QString::fromStdString(gittide::toGitPath(std::filesystem::path(p).filename()));
+        candidates.append(QVariantMap{{QStringLiteral("path"), qp},
+                                      {QStringLiteral("name"), name},
+                                      {QStringLiteral("alreadyAdded"), existing.contains(qp)}});
+    }
+    emit scanFinished(candidates);
 }
 
 void ProjectController::initRepo(const QString& parentDir, const QString& name)

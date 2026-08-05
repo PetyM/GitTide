@@ -85,6 +85,11 @@ public slots:
     void activate(const QString& projectId);
     void createProject(const QString& name);
     void addExistingRepo(const QString& path);
+    /// Scan `path` for repositories, `maxDepth` levels deep, off the GUI thread.
+    /// Results arrive on scanFinished (one QVariantMap per candidate) or
+    /// scanFailed. Safe to call with no active project — every candidate is then
+    /// reported as not-already-added.
+    Q_INVOKABLE QCoro::Task<void> scanFolder(QString path, int maxDepth);
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
     // QML-facing fire-and-forget wrapper: kicks cloneRepo() so QML (which cannot
@@ -162,6 +167,10 @@ signals:
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
+    /// One QVariantMap per discovered repository:
+    /// { path: QString, name: QString, alreadyAdded: bool }.
+    void scanFinished(const QVariantList& candidates);
+    void scanFailed(const QString& message);
     void cloneProgress(int received, int total);
     void repoRemoved(const QString& path);
     void projectRemoved(const QString& id);

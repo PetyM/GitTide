@@ -29,6 +29,11 @@ private slots:
     }
     void cleanupTestCase()
     {
+        for (const auto& root : m_scanRoots)
+        {
+            std::error_code ec;
+            std::filesystem::remove_all(root, ec);
+        }
         git_libgit2_shutdown();
     }
 
@@ -923,6 +928,44 @@ private slots:
         QVERIFY(!controller.fetchingAll());
     }
 
+    void scanFolder_lists_candidates_and_marks_already_added()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id    = "id-a",
+                                           .name  = "Work",
+                                           .repos = {RepoRef{.path = (root / "api").generic_string()}}});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::scanFinished);
+        controller.scanFolder(QString::fromStdString(root.generic_string()), 1);
+        QVERIFY(spy.wait(5000));
+
+        const QVariantList candidates = spy.at(0).at(0).toList();
+        QCOMPARE(candidates.size(), 2);
+
+        // Sorted by path, so "api" precedes "web".
+        const QVariantMap api = candidates.at(0).toMap();
+        QCOMPARE(api.value("name").toString(), QStringLiteral("api"));
+        QCOMPARE(api.value("alreadyAdded").toBool(), true);
+        QCOMPARE(candidates.at(1).toMap().value("alreadyAdded").toBool(), false);
+    }
+
+    void scanFolder_reports_a_missing_folder()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::scanFailed);
+        controller.scanFolder(QStringLiteral("/definitely/not/here"), 2);
+        QVERIFY(spy.wait(5000));
+        QVERIFY(!spy.at(0).at(0).toString().isEmpty());
+    }
+
 private:
     // Returns the path of a fresh working repo whose 'origin' is one commit ahead.
     // Kept alive by leaking the TempRepos into a member vector (cleaned in dtor).
@@ -969,7 +1012,27 @@ private:
         return ptr;
     }
 
+    // A scratch folder holding one empty repository per name, removed with the
+    // fixture. Used to exercise the folder scan without a full TempRepo each.
+    std::filesystem::path makeScanRoot(const QStringList& names)
+    {
+        const auto root = std::filesystem::temp_directory_path() /
+                          ("gittide-pc-scan-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::create_directories(root);
+        for (const QString& name : names)
+        {
+            const auto dir = root / name.toStdString();
+            std::filesystem::create_directories(dir);
+            git_repository* raw = nullptr;
+            git_repository_init(&raw, dir.generic_string().c_str(), 0);
+            git_repository_free(raw);
+        }
+        m_scanRoots.push_back(root);
+        return root;
+    }
+
     std::vector<std::unique_ptr<gittide::test::TempRepo>> m_temps;
+    std::vector<std::filesystem::path>                    m_scanRoots;
 };
 
 #include "test_project_controller.moc"
