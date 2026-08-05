@@ -25,6 +25,8 @@ AppDialog {
     property var choices: []
     // Snapshot of the active project's repos: [{path,name}]. Rebuilt on open.
     property var repos: []
+    // Snapshot of the active project's repository sources: [{path,maxDepth,ignoredCount,available}].
+    property var sources: []
 
     function labelForId(id) {
         for (var i = 0; i < choices.length; ++i)
@@ -60,11 +62,26 @@ AppDialog {
         choices = ready ? credentialManager.identityChoices() : []
         repos = (typeof projectController !== "undefined" && projectController)
                 ? projectController.activeProjectRepos() : []
+        sources = (typeof projectController !== "undefined" && projectController)
+                  ? projectController.activeProjectSources() : []
     }
 
     function openDialog() {
         refresh()
         open()
+    }
+
+    // Re-take the snapshot once a rescan pass settles. This is not the dialog
+    // going reactive (see the comment on refresh() above) — it is still a
+    // snapshot, just re-taken at the one moment the sources data is known to
+    // have changed under the "Rescan now" button, which itself kicks an async
+    // rescanSources() with no other way to reach the dialog. Safe against a
+    // stale pass: rescanSources() already withholds this signal when the
+    // active project changed mid-pass, so this can't refresh onto the wrong
+    // project's data.
+    Connections {
+        target: projectController
+        function onSourcesRescanned(added, unavailableSources) { dialog.refresh() }
     }
 
     // No footer — assignments apply live (setProjectDefault/setRepoOverride are
@@ -199,6 +216,92 @@ AppDialog {
                         onActivated: (index) => {
                             if (dialog.ready)
                                 credentialManager.setRepoOverride(modelData.path, rows[index].id)
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: theme.border }
+
+        // ---- Repository sources ----
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Label {
+                    Layout.fillWidth: true
+                    text: "Repository sources"
+                    color: theme.textSecondary
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                AppButton {
+                    objectName: "rescanSourcesButton"
+                    variant: "secondary"
+                    text: "Rescan now"
+                    visible: dialog.sources.length > 0
+                    onClicked: if (projectController) projectController.rescanSources()
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: dialog.sources.length === 0
+                text: "No sources. Add one from “Add repositories from folder…”."
+                color: theme.textMuted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: dialog.sources
+                delegate: RowLayout {
+                    id: sourceRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Label {
+                            Layout.fillWidth: true
+                            text: sourceRow.modelData.path
+                            color: theme.textPrimary
+                            font.pixelSize: 13
+                            elide: Text.ElideMiddle
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: sourceRow.modelData.available
+                                  ? ("depth " + sourceRow.modelData.maxDepth
+                                     + " · " + sourceRow.modelData.ignoredCount + " ignored")
+                                  : "folder not found"
+                            color: sourceRow.modelData.available ? theme.textMuted : theme.stateDeleted
+                            font.pixelSize: 11
+                        }
+                    }
+                    AppButton {
+                        variant: "secondary"
+                        text: "Clear ignored"
+                        enabled: sourceRow.modelData.ignoredCount > 0
+                        onClicked: {
+                            if (projectController)
+                                projectController.clearIgnoredForSource(sourceRow.modelData.path)
+                            dialog.refresh()
+                        }
+                    }
+                    AppButton {
+                        variant: "danger"
+                        text: "Remove"
+                        onClicked: {
+                            if (projectController)
+                                projectController.removeSource(sourceRow.modelData.path)
+                            dialog.refresh()
                         }
                     }
                 }

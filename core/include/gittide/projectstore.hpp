@@ -14,11 +14,23 @@ struct RepoRef
     std::string alias;
 };
 
+/// A folder that is rescanned for repositories to add to a project.
+struct RepoSource
+{
+    std::string path; ///< absolute, stored as UTF-8 generic path
+    int maxDepth = 2; ///< see ScanOptions::maxDepth
+    /// Repo paths this source must never add again — seeded from the repos the
+    /// user left unchecked when registering, grown by removals from the project.
+    std::vector<std::string> ignored;
+};
+
 struct Project
 {
     std::string id;
     std::string name;
     std::vector<RepoRef> repos;
+    /// Folders rescanned on project activation; see RepoSource.
+    std::vector<RepoSource> sources;
     std::string lastActiveRepo;
 };
 
@@ -78,6 +90,27 @@ public:
 
     // Remove a repo by path from the named project. Returns error if not found.
     Expected<void> removeRepo(const std::string& projectId, const std::string& path);
+
+    // Register a folder as a repository source of the named project. Returns an
+    // error if projectId is not found, or if a source with the same path already
+    // exists in that project. Call save() after mutating to persist the change.
+    Expected<void> addSource(const std::string& projectId, RepoSource src);
+
+    // Unregister a source by path. The repositories it already added stay in the
+    // project. Returns an error if the project or the source is not found.
+    Expected<void> removeSource(const std::string& projectId, const std::string& path);
+
+    // Record repoPath as ignored in every source that contains it, so a rescan
+    // never re-adds a repository the user removed. A source's own folder
+    // counts as containing repoPath when the folder is itself the repository
+    // (equal paths); otherwise matching is on directory boundaries. A path
+    // already recorded is not duplicated. Unknown project, or a path under no
+    // source: no-op.
+    void ignoreInSources(const std::string& projectId, const std::string& repoPath);
+
+    // Empty one source's ignore list, so its next scan offers everything again.
+    // Returns an error if the project or the source is not found.
+    Expected<void> clearIgnored(const std::string& projectId, const std::string& sourcePath);
 
     // Remove a project by id. If it was the active project, activeProject is cleared.
     void removeProject(const std::string& id);

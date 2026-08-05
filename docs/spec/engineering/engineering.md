@@ -56,6 +56,7 @@ and testable on its own.
 | Diff parsing + partial-staging patch synthesis | `core/src/diffengine.cpp` |
 | Commit graph lane layout | `core/src/graphbuilder.cpp` |
 | Project registry persistence (JSON) | `core/src/projectstore.cpp` |
+| Folder scan for git repositories | `core/src/reposcan.cpp` |
 | Async / off-thread git | `ui/src/asyncrepo.cpp` |
 | Controllers (ViewModels) | `ui/src/projectcontroller.cpp`, `ui/src/repocontroller.cpp`, `ui/src/repoviewmodel.cpp` |
 | QML views | `ui/qml/*.qml` (loaded from `ui/qml/qml.qrc`) |
@@ -367,6 +368,105 @@ summary string for the project header. Session credentials are shared at the
 controller level (not per-`RepoViewModel`) so a single on-demand
 `CredentialDialog` serves the whole fleet; the prompt is serialized — the first
 auth failure prompts once, caches, and the rest reuse it.
+
+### Bulk-add: folder scan and repository sources
+
+Discovering repositories under a folder is pure filesystem + git validation, so
+it lives in `core/` as **`gittide::scanForRepos(root, ScanOptions{maxDepth})`**
+(`core/include/gittide/reposcan.hpp` / `core/src/reposcan.cpp`; per-symbol
+contract in its Doxygen). The one invariant worth calling out here because it
+crosses into the submodule design: **descent stops at a repository**, so
+submodules and nested checkouts are never returned — they already reach the
+user through the parent repository's submodule tree
+([product](../product/product.md#submodules)), and returning them here would
+duplicate each one as a top-level repository.
+
+A **`RepoSource`** (`path`, `maxDepth`, `ignored` — `core/include/gittide/projectstore.hpp`)
+is a folder a project remembers to rescan. `Project` gained a `sources` vector,
+serialized as an additive `"sources"` array in `projects.json`: **`ProjectStore::kVersion`
+stays 1** — a document written before sources existed simply loads with an empty
+`sources` list, no migration step, and a malformed source entry is skipped rather
+than failing the whole load. This is safe in the upgrade direction only: an
+*older* build reads a newer file's `"sources"` key fine (it's just an unknown
+key to a schema-oblivious parser), but its `to_json` does not know to emit it —
+one save from an older build silently erases every registered source from the
+file. Four `ProjectStore` mutators keep the source lifecycle explicit:
+`addSource` (rejects a duplicate path), `removeSource` (unregisters the folder
+but **leaves the repositories it already added in the project** — unregistering
+a source must never silently drop working repos), `ignoreInSources` (records a
+repo path under every source that contains it, so a removed repo is never
+re-offered by a later rescan; matching is on directory boundaries — a plain
+string-prefix test would let `/home/u/proj` swallow `/home/u/projects/api` — or
+on the source's own path, when the source's folder is itself the repository),
+and `clearIgnored` (empties one source's ignore list).
+
+**`ProjectController`** is where the batch/pass discipline lives, because
+`core/` has no concept of "one UI action" — that's a ViewModel-level rule, not a
+persistence one:
+
+- **`scanFolder(path, maxDepth)`** runs `scanForRepos` off-thread via
+  `QtConcurrent::run` under `co_await` and emits `scanFinished` (one
+  `{path, name, alreadyAdded}` map per candidate — `alreadyAdded` is checked
+  against the active project's current repos, not dropped, so the checklist
+  shows the whole picture) or `scanFailed`. It works with no active project;
+  every candidate then reports `alreadyAdded: false`.
+- **`addRepos(paths, unchecked, sourcePath, maxDepth)`** adds a whole batch with
+  **one `saveStore()` and one model refresh for the batch, never per
+  repository**. A path that fails `GitRepo::open` or the store's duplicate
+  check is collected into a failures list and the rest of the batch keeps
+  going; nothing aborts the loop. When `sourcePath` is non-empty the
+  folder is also registered as a `RepoSource` at `maxDepth`, seeded with
+  `unchecked` as its ignore list — a repo the user left unticked when
+  registering is never offered by a later rescan either — **regardless of how
+  many repositories (if any) were added**; `paths` empty with `sourcePath` set
+  is how a folder is tracked with nothing added yet. If the source
+  registration itself fails (e.g. already registered), that failure is
+  reported as one `"Source: <message>"` line in the same failures list,
+  prefixed so it reads as a source failure rather than a repository one.
+- **`rescanSources()`** re-scans every source of the active project and adds
+  what is new, skipping repositories already in the project (`addRepo`'s
+  existing duplicate rejection doubles as the filter) and paths on a source's
+  ignore list. It is **single-flight** — a call arriving while a pass is
+  running is dropped, mirroring the fleet-poll's `m_polling` guard — but
+  **coalesced, not simply lost**: the dropped call sets a pending flag that the
+  in-flight pass's `RescanGuard` destructor checks, re-kicking exactly one more
+  pass (for whichever project is active by then) once the current pass
+  finishes. This matters because the dropped call is almost always
+  `activate()` switching projects mid-pass; without the coalesce, the
+  newly-activated project's sources went unscanned until the *next*
+  activation, since the in-flight pass belongs to the *previous* project and
+  abandons itself on resume (see next). It also **abandons a stale pass**:
+  because scanning each source `co_await`s, the active project can change
+  mid-pass, so after every await the coroutine checks the active id against the
+  id it started with and returns without saving, refreshing, or emitting
+  `sourcesRescanned` if they no longer match — a rescan for a project the user
+  has since switched away from must never mutate or report against whatever
+  project is on screen now. A source whose folder is unreachable is **counted
+  as unavailable and left registered**, not dropped — network drives and
+  removable media come and go. Unlike `addRepos`, the save and model refresh
+  are conditional on `added > 0` — a pass that finds nothing new (every source
+  unreachable, or everything already in the project or ignored) skips both
+  rather than writing the store for a no-op. `activate()` kicks a rescan
+  (fire-and-forget, like `refreshSubmodules`) so sources are picked up on every
+  project switch.
+- **`removeRepo`** now also calls `ignoreInSources` before it saves, which is
+  what makes a removal stick across the next rescan — without it, a repo
+  removed from the project would simply reappear the next time its source's
+  folder was scanned.
+- **`activeProjectSources()` / `removeSource()` / `clearIgnoredForSource()`**
+  back the Project Options Sources section (see
+  [design](../design/design.md#components)): the first reports
+  `{path, maxDepth, ignoredCount, available}` per source (`available` is a live
+  `std::filesystem::is_directory` check, not cached), the other two are thin
+  wrappers over the `ProjectStore` mutators that save on success.
+
+A pre-existing bug was fixed in the same area: `localPathFromUrl()` converts a
+folder-picker `file://` URL via `QUrl::toLocalFile()` rather than string
+surgery on `toString()`, which was percent-encoding paths containing a space
+(and, on Windows, leaving a stray leading slash). Every path that reaches the
+store from a folder picker is compared as an exact string elsewhere (`scanFolder`'s
+`alreadyAdded`, `addRepos`'s duplicate rejection, source ignore-list matching),
+so a mis-decoded path silently broke all three.
 
 ### Branch operations & the refresh cascade
 

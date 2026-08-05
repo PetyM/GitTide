@@ -221,7 +221,9 @@ literals, colour only from `theme` tokens ([design](../../spec/design/design.md)
   the same muted style rather than an empty box.
 - **Footer** — `DialogButtons` with `AppButton { variant: "secondary"; text:
   "Cancel" }` and `AppButton { variant: "primary"; text: "Add"; objectName:
-  "addFromFolderConfirm" }`, enabled only when at least one row is checked.
+  "addFromFolderConfirm" }`, enabled when at least one row is checked **or**
+  the source checkbox is checked (source-only registration — nothing added
+  yet — is a legitimate outcome), and never while scanning.
 
 ### Entry points
 

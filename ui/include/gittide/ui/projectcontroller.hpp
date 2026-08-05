@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 #include <QVariantList>
 #include <atomic>
 #include <filesystem>
@@ -85,6 +86,46 @@ public slots:
     void activate(const QString& projectId);
     void createProject(const QString& name);
     void addExistingRepo(const QString& path);
+    /// Convert a `file://` URL (as produced by QML's `FolderDialog.selectedFolder`)
+    /// to a plain filesystem path, via `QUrl::toLocalFile()`. Exists because the
+    /// obvious `url.toString()` is percent-encoded — a folder containing a space
+    /// round-trips as `%20` — and on Windows leaves a stray leading slash
+    /// (`/C:/...`). Every path taken from a folder picker must go through this
+    /// (or an equivalent) before reaching the store: paths are compared as exact
+    /// strings elsewhere (scan's `alreadyAdded`, batch-add duplicate rejection,
+    /// source ignore-list matching), and any of those silently misses for a
+    /// mis-decoded path.
+    Q_INVOKABLE QString localPathFromUrl(const QUrl& url) const;
+    /// Add every path in `paths` to the active project in one batch: a repo that
+    /// fails validation is reported, never aborts the rest, and the store is
+    /// saved and the model refreshed once for the whole batch.
+    ///
+    /// When `sourcePath` is non-empty the folder is also registered as a
+    /// RepoSource with `maxDepth`, seeded with `unchecked` as its ignore list —
+    /// a repo left unchecked at registration is never offered again. The source
+    /// is registered regardless of how many repositories (if any) were added —
+    /// registering with `paths` empty is how a folder is tracked with nothing
+    /// added yet.
+    Q_INVOKABLE void addRepos(const QStringList& paths, const QStringList& unchecked,
+                              const QString& sourcePath, int maxDepth);
+    /// Scan `path` for repositories, `maxDepth` levels deep, off the GUI thread.
+    /// Results arrive on scanFinished (one QVariantMap per candidate) or
+    /// scanFailed. Safe to call with no active project — every candidate is then
+    /// reported as not-already-added.
+    Q_INVOKABLE QCoro::Task<void> scanFolder(QString path, int maxDepth);
+    /// Rescan every source of the active project and add what is new — skipping
+    /// repositories already in the project and those on a source's ignore list.
+    /// One save and one model refresh for the whole pass. A source whose folder
+    /// has gone is counted as unavailable and left registered.
+    ///
+    /// Single-flight: a call arriving while a pass is already running is
+    /// dropped rather than stacked (mirrors the fleet-poll's m_polling guard),
+    /// but coalesced — exactly one more pass is kicked once the in-flight one
+    /// finishes, for whichever project is active by then. This is what makes a
+    /// project switch mid-pass still rescan the project switched *to*, instead
+    /// of silently dropping it: the in-flight pass belongs to the project
+    /// switched *away from* and abandons itself without touching the new one.
+    Q_INVOKABLE QCoro::Task<void> rescanSources();
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
     // QML-facing fire-and-forget wrapper: kicks cloneRepo() so QML (which cannot
@@ -144,6 +185,15 @@ public slots:
     // Empty when no project is active.
     Q_INVOKABLE QVariantList activeProjectRepos() const;
 
+    /// The active project's sources as { path, maxDepth, ignoredCount, available }
+    /// maps for the Project Options dialog. `available` is false when the folder
+    /// no longer exists. Empty when no project is active.
+    Q_INVOKABLE QVariantList activeProjectSources() const;
+    /// Unregister a source. The repositories it added stay in the project.
+    Q_INVOKABLE void removeSource(const QString& path);
+    /// Empty one source's ignore list, so its next scan offers everything again.
+    Q_INVOKABLE void clearIgnoredForSource(const QString& path);
+
     // Fetch the submodule tree for repoPath off-thread and refresh the model row.
     Q_INVOKABLE QCoro::Task<void> refreshSubmodules(QString repoPath);
     // Re-initialise the submodule at the absolute submodulePath and refresh the tree.
@@ -162,6 +212,18 @@ signals:
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
+    /// Result of one addRepos batch. `failures` holds a "name: message" line per
+    /// repository that could not be added, plus — if `sourcePath` was given and
+    /// its registration itself failed (e.g. already registered) — one further
+    /// "Source: message" line, distinguishable by that prefix from a
+    /// repository failure since it does not count against `added`.
+    void reposAdded(int added, const QStringList& failures);
+    /// One QVariantMap per discovered repository:
+    /// { path: QString, name: QString, alreadyAdded: bool }.
+    void scanFinished(const QVariantList& candidates);
+    void scanFailed(const QString& message);
+    /// Result of one rescan pass over the active project's sources.
+    void sourcesRescanned(int added, int unavailableSources);
     void cloneProgress(int received, int total);
     void repoRemoved(const QString& path);
     void projectRemoved(const QString& id);
@@ -181,6 +243,12 @@ private:
     RepoListModel* m_repoModel;
     QString m_activeId;
     std::atomic<bool> m_cloneCancel{false};
+    bool m_rescanning = false; ///< a rescanSources pass is in flight (single-flight, like m_polling)
+    /// A rescanSources() call was dropped while a pass was in flight (single-flight
+    /// guard). Consumed by RescanGuard's destructor, which re-kicks exactly one
+    /// more pass — for whichever project is active by then — once the in-flight
+    /// pass finishes, so a project switch mid-pass still gets its own rescan.
+    bool m_rescanPending = false;
 
     bool                 m_fetchingAll = false;
     QString              m_fetchSummary;

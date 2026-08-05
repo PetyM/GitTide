@@ -1,6 +1,8 @@
 #include "gittide/ui/projectcontroller.hpp"
 
+#include <QFileInfo>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <QVariantMap>
 #include <QtConcurrent>
@@ -9,7 +11,9 @@
 #include <filesystem>
 
 #include "gittide/gitrepo.hpp"
+#include "gittide/pathutil.hpp"
 #include "gittide/projectstore.hpp"
+#include "gittide/reposcan.hpp"
 #include "gittide/ui/asyncrepo.hpp"
 #include "gittide/ui/autherror.hpp"
 #include "gittide/ui/credentialmanager.hpp"
@@ -209,6 +213,10 @@ void ProjectController::activate(const QString& projectId)
             saveStore();
             emit activeProjectChanged();
             emit projectActivated(projectId);
+            // Pick up repos that appeared in a registered source since last time.
+            // The task is intentionally not awaited — it settles on its own and
+            // reports via sourcesRescanned, the same way refreshSubmodules does.
+            rescanSources();
             return;
         }
     }
@@ -225,6 +233,11 @@ void ProjectController::createProject(const QString& name)
     m_projectModel->refresh();
     activate(id);
     emit projectCreated(id);
+}
+
+QString ProjectController::localPathFromUrl(const QUrl& url) const
+{
+    return url.toLocalFile();
 }
 
 void ProjectController::addExistingRepo(const QString& path)
@@ -250,6 +263,196 @@ void ProjectController::addExistingRepo(const QString& path)
     saveStore();
     refreshRepoModel();
     emit repoAdded(path);
+}
+
+void ProjectController::addRepos(const QStringList& paths, const QStringList& unchecked, const QString& sourcePath, int maxDepth)
+{
+    if (m_activeId.isEmpty())
+    {
+        emit repoAddFailed(QStringLiteral("No active project"));
+        return;
+    }
+
+    int added = 0;
+    QStringList failures;
+    for (const QString& path : paths)
+    {
+        const QString name = QFileInfo(path).fileName();
+        const std::filesystem::path p(path.toStdString());
+
+        auto validation = gittide::GitRepo::open(p);
+        if (!validation)
+        {
+            failures << (name + QStringLiteral(": ") + QString::fromStdString(validation.error().message));
+            continue;
+        }
+        auto result = m_store->addRepo(m_activeId.toStdString(), gittide::RepoRef{.path = path.toStdString()});
+        if (!result)
+        {
+            failures << (name + QStringLiteral(": ") + QString::fromStdString(result.error().message));
+            continue;
+        }
+        ++added;
+    }
+
+    if (!sourcePath.isEmpty())
+    {
+        gittide::RepoSource src{.path = sourcePath.toStdString(), .maxDepth = maxDepth};
+        for (const QString& skipped : unchecked)
+            src.ignored.push_back(skipped.toStdString());
+        auto registered = m_store->addSource(m_activeId.toStdString(), std::move(src));
+        if (!registered)
+            // Prefixed so this reads as what it is — a source-registration
+            // failure, not a repository failure — even though it rides the same
+            // list (see the reposAdded Doxygen).
+            failures << (QStringLiteral("Source: ") + QString::fromStdString(registered.error().message));
+    }
+
+    // One save and one model refresh for the whole batch — never per repository.
+    saveStore();
+    refreshRepoModel();
+    emit reposAdded(added, failures);
+}
+
+QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)
+{
+    QPointer<ProjectController> self(this);
+    const std::filesystem::path root(path.toStdString());
+
+    auto result = co_await QtConcurrent::run(
+        [root, maxDepth]
+        {
+            return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = maxDepth});
+        });
+    if (!self)
+        co_return; // controller went away while the scan ran
+
+    if (!result)
+    {
+        emit scanFailed(QString::fromStdString(result.error().message));
+        co_return;
+    }
+
+    // Repos already in the project are reported, not dropped, so the checklist
+    // shows the whole picture instead of silently hiding them.
+    QSet<QString> existing;
+    for (const auto& r : activeRepos())
+        existing.insert(QString::fromStdString(r.path));
+
+    QVariantList candidates;
+    for (const auto& p : *result)
+    {
+        const QString qp   = QString::fromStdString(p);
+        const QString name = QString::fromStdString(gittide::toGitPath(std::filesystem::path(p).filename()));
+        candidates.append(QVariantMap{{QStringLiteral("path"), qp},
+                                      {QStringLiteral("name"), name},
+                                      {QStringLiteral("alreadyAdded"), existing.contains(qp)}});
+    }
+    emit scanFinished(candidates);
+}
+
+QCoro::Task<void> ProjectController::rescanSources()
+{
+    QPointer<ProjectController> self(this);
+    if (m_activeId.isEmpty())
+        co_return;
+    if (m_rescanning)
+    {
+        // A pass is already running — dropping this one beats stacking it
+        // (mirrors pollRepos' m_polling). But unlike a poll tick, a dropped
+        // rescan must not simply vanish: it is very often activate() switching
+        // projects mid-pass, and the project that triggered this call may never
+        // get rescanned otherwise (the in-flight pass belongs to the *previous*
+        // project and abandons itself without touching this one). Coalesce it:
+        // RescanGuard re-kicks exactly one more pass, for whichever project is
+        // active once the in-flight one finishes.
+        m_rescanPending = true;
+        co_return;
+    }
+
+    m_rescanning = true;
+    // Clear the guard on every exit, including the early co_returns below. Holds
+    // a QPointer so a controller destroyed mid-pass is not written through.
+    struct RescanGuard
+    {
+        QPointer<ProjectController> c;
+        ~RescanGuard()
+        {
+            if (!c)
+                return;
+            c->m_rescanning = false;
+            if (c->m_rescanPending && !c->m_activeId.isEmpty())
+            {
+                // Consume the coalesced request before re-kicking: rescanSources()
+                // re-enters this same guard type, and its own early-return paths
+                // (e.g. empty sources) must not see a stale pending flag.
+                c->m_rescanPending = false;
+                QCoro::connect(c->rescanSources(), c.data(), [] {});
+            }
+        }
+    } rescanGuard{this};
+
+    const std::string pid = m_activeId.toStdString();
+
+    // Copy the sources: the store is mutated below and may be re-entered across
+    // a co_await, so iterating it directly would be a dangling-reference bug.
+    std::vector<gittide::RepoSource> sources;
+    for (const auto& p : m_store->projects())
+    {
+        if (p.id == pid)
+        {
+            sources = p.sources;
+            break;
+        }
+    }
+    if (sources.empty())
+        co_return;
+
+    int added       = 0;
+    int unavailable = 0;
+    for (const auto& src : sources)
+    {
+        const std::filesystem::path root(src.path);
+        const int depth = src.maxDepth;
+
+        auto found = co_await QtConcurrent::run(
+            [root, depth]
+            {
+                return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = depth});
+            });
+        if (!self)
+            co_return;
+        // The active project may have switched while this source was scanning.
+        // Finish writing pid's own results into the store below (they are correct
+        // for pid and stay), but never let a stale pass drive whatever project is
+        // on screen now: no save/refresh keyed off the current m_activeId, and no
+        // sourcesRescanned toast reporting pid's numbers against it.
+        if (m_activeId.toStdString() != pid)
+            co_return;
+
+        if (!found)
+        {
+            ++unavailable; // folder gone or unreadable: report, never unregister
+            continue;
+        }
+
+        for (const auto& path : *found)
+        {
+            if (std::find(src.ignored.begin(), src.ignored.end(), path) != src.ignored.end())
+                continue;
+            // addRepo rejects a path already in the project, so it doubles as the
+            // duplicate filter — a repo the user already has is silently skipped.
+            if (m_store->addRepo(pid, gittide::RepoRef{.path = path}))
+                ++added;
+        }
+    }
+
+    if (added > 0)
+    {
+        saveStore();
+        refreshRepoModel(); // also hydrates the (new) rows — see refreshRepoModel
+    }
+    emit sourcesRescanned(added, unavailable);
 }
 
 void ProjectController::initRepo(const QString& parentDir, const QString& name)
@@ -358,6 +561,9 @@ void ProjectController::removeRepo(const QString& path)
             break;
         }
     }
+    // Removing a repo that came from a source must stick: record it so the next
+    // rescan does not add it straight back.
+    m_store->ignoreInSources(m_activeId.toStdString(), path.toStdString());
     saveStore();
     refreshRepoModel();
     emit repoRemoved(path);
@@ -417,6 +623,46 @@ QVariantList ProjectController::activeProjectRepos() const
         out.append(m);
     }
     return out;
+}
+
+QVariantList ProjectController::activeProjectSources() const
+{
+    QVariantList rows;
+    if (m_activeId.isEmpty())
+        return rows;
+
+    for (const auto& p : m_store->projects())
+    {
+        if (QString::fromStdString(p.id) != m_activeId)
+            continue;
+        for (const auto& s : p.sources)
+        {
+            std::error_code ec;
+            const bool available = std::filesystem::is_directory(std::filesystem::path(s.path), ec) && !ec;
+            rows.append(QVariantMap{{QStringLiteral("path"), QString::fromStdString(s.path)},
+                                    {QStringLiteral("maxDepth"), s.maxDepth},
+                                    {QStringLiteral("ignoredCount"), static_cast<int>(s.ignored.size())},
+                                    {QStringLiteral("available"), available}});
+        }
+        break;
+    }
+    return rows;
+}
+
+void ProjectController::removeSource(const QString& path)
+{
+    if (m_activeId.isEmpty())
+        return;
+    if (m_store->removeSource(m_activeId.toStdString(), path.toStdString()))
+        saveStore();
+}
+
+void ProjectController::clearIgnoredForSource(const QString& path)
+{
+    if (m_activeId.isEmpty())
+        return;
+    if (m_store->clearIgnored(m_activeId.toStdString(), path.toStdString()))
+        saveStore();
 }
 
 void ProjectController::removeProject()

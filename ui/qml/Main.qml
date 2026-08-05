@@ -148,6 +148,7 @@ ApplicationWindow {
                 SplitView.preferredWidth: 272
                 SplitView.minimumWidth: 200
                 onAddExistingRequested: addExistingFolder.open()
+                onAddFromFolderRequested: addFromFolderDialog.openDialog()
                 onCloneRequested: cloneRepoDialog.openDialog()
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
@@ -163,6 +164,7 @@ ApplicationWindow {
                 SplitView.fillWidth: true
                 SplitView.minimumWidth: 360
                 onAddExistingRequested: addExistingFolder.open()
+                onAddFromFolderRequested: addFromFolderDialog.openDialog()
                 onCloneRequested: cloneRepoDialog.openDialog()
                 onInitRequested: initRepoDialog.openDialog()
                 onNewProjectRequested: newProjectDialog.openDialog()
@@ -422,22 +424,33 @@ ApplicationWindow {
 
     // Fleet-fetch error report — lists the repos that failed (non-auth) so the
     // user sees why, in place of the old passing "N fetched, M failed" caption.
+    // Reused (rather than duplicated) for the add-from-folder batch's failures —
+    // actionVerb switches the title/wording between the two call sites.
     AppDialog {
         id: fetchErrorDialog
         objectName: "fetchErrorDialog"
-        title: "Fetch failed"
+        title: fetchErrorDialog.actionVerb === "add" ? "Add failed" : "Fetch failed"
         width: 460
 
         property var failures: []
-        function showFailures(list) { failures = list; open() }
+        property string actionVerb: "fetch" // "fetch" | "add" — selects the wording
+        // "add" also covers a failed *source* registration riding in the same
+        // list (prefixed "Source: " by the controller) alongside repository
+        // failures, so its noun is the neutral "item" rather than "repository" —
+        // a source failure must never read as if a repository failed to add.
+        readonly property string failureNounSingular: actionVerb === "add" ? "item" : "repository"
+        readonly property string failureNounPlural: actionVerb === "add" ? "items" : "repositories"
+        function showFailures(list, verb) { failures = list; actionVerb = verb || "fetch"; open() }
 
         contentItem: DialogColumn {
             spacing: 12
             Label {
+                objectName: "fetchErrorHeader"
                 Layout.fillWidth: true
                 text: fetchErrorDialog.failures.length === 1
-                      ? "One repository failed to fetch:"
-                      : (fetchErrorDialog.failures.length + " repositories failed to fetch:")
+                      ? ("One " + fetchErrorDialog.failureNounSingular + " failed to " + fetchErrorDialog.actionVerb + ":")
+                      : (fetchErrorDialog.failures.length + " " + fetchErrorDialog.failureNounPlural
+                         + " failed to " + fetchErrorDialog.actionVerb + ":")
                 color: theme.textPrimary
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
@@ -473,8 +486,14 @@ ApplicationWindow {
         id: addExistingFolder
         title: "Choose a repository folder"
         onAccepted: if (projectController)
-                        projectController.addExistingRepo(selectedFolder.toString().replace(/^file:\/\//, ""))
+                        projectController.addExistingRepo(projectController.localPathFromUrl(selectedFolder))
     }
+
+    AddFromFolderDialog { id: addFromFolderDialog }
+
+    // ---- Transient toast: non-modal, so a source rescan during project switching
+    // never interrupts the switch with a dialog. ----
+    ToastNotice { id: toastNotice }
 
     // ---- Auto-open a repository ----
     function openFirstRepo() {
@@ -500,6 +519,20 @@ ApplicationWindow {
         // A fleet fetch finished with hard (non-auth) failures — surface them in a
         // dialog rather than a passing status line.
         function onFleetFetchFailed(failures) { fetchErrorDialog.showFailures(failures) }
+        // An add-from-folder batch finished with some repos rejected (e.g. already
+        // a repo elsewhere, or invalid) — reuse the same error dialog.
+        function onReposAdded(added, failures) {
+            if (failures.length > 0)
+                fetchErrorDialog.showFailures(failures, "add")
+        }
+        // A source rescan (on project activation) picked up new repositories — a
+        // non-blocking toast, since a modal would interrupt the project switch
+        // that triggered it.
+        function onSourcesRescanned(added, unavailableSources) {
+            if (added > 0)
+                toastNotice.show(added === 1 ? "1 repository added from a source"
+                                             : added + " repositories added from sources")
+        }
     }
 
     Connections {

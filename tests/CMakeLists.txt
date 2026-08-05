@@ -12,6 +12,7 @@ add_executable(gittide_core_tests
   test_git_repo_commit.cpp
   test_git_repo_identity.cpp
   test_project_store.cpp
+  test_repo_scan.cpp
   test_credentials_store.cpp
   test_build_patch.cpp
   test_git_repo_discard.cpp
@@ -109,6 +110,7 @@ if(GITGUI_BUILD_UI)
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_stash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_syntaxhighlighter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_wheelscroller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_add_from_folder.cpp
   )
   set_source_files_properties(${gittide_ui_test_sources} PROPERTIES HEADER_FILE_ONLY TRUE)
 

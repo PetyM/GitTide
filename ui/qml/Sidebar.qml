@@ -10,6 +10,7 @@ Rectangle {
     // Add-repo requests bubble up to the host (Main), which owns the dialogs so
     // they centre on the window rather than this narrow rail.
     signal addExistingRequested()
+    signal addFromFolderRequested()
     signal cloneRequested()
     signal initRequested()
     signal newProjectRequested()
@@ -561,6 +562,7 @@ Rectangle {
         id: addRepoMenu
         objectName: "addRepoMenu"
         AppMenuItem { text: "Add existing repository…"; onTriggered: sidebar.addExistingRequested() }
+        AppMenuItem { text: "Add repositories from folder…"; onTriggered: sidebar.addFromFolderRequested() }
         AppMenuItem { text: "Initialize new repository…"; onTriggered: sidebar.initRequested() }
         AppMenuItem { text: "Clone repository…"; onTriggered: sidebar.cloneRequested() }
     }

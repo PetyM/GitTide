@@ -86,7 +86,12 @@ AppDialog {
 
     FolderDialog {
         id: parentFolder
+        objectName: "initRepoParentFolder"
         title: "Choose parent folder"
-        onAccepted: dialog.parentDir = selectedFolder.toString().replace(/^file:\/\//, "")
+        // toLocalFile() via the controller, not toString().replace() — the latter
+        // is percent-encoded, so a folder containing a space would reach
+        // GitRepo::init() as e.g. "my%20projects" and create a directory
+        // literally named that.
+        onAccepted: dialog.parentDir = projectController ? projectController.localPathFromUrl(selectedFolder) : ""
     }
 }

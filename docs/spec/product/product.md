@@ -23,8 +23,9 @@ parallel, and large histories/diffs render incrementally.
 **Shipped (MVP):**
 
 - Projects: create, group repositories, switch the active project, persist state.
-- Add a repository three ways: add an existing local repo, initialise a new one,
-  or clone from a URL (with progress + cancel).
+- Add a repository four ways: add an existing local repo, initialise a new one,
+  clone from a URL (with progress + cancel), or **bulk-add from a folder** —
+  see [Bulk-add & repository sources](#bulk-add--repository-sources).
 - Per-repo working state: status, **inline change selection** at **file, hunk,
   and line** granularity (checkboxes — no separate staging area), discard, and
   commit.
@@ -352,6 +353,46 @@ invisible auto-stash that safe-switch / merge / rebase use internally.
   working tree and/or the stack → status, diff, and the stash list refresh
   together, the same cascade as discard / checkout.
 
+### Bulk-add & repository sources
+
+Onboarding a project that spans many repositories shouldn't mean a file dialog
+per repo. **Add repositories from folder…** (sidebar add-repo menu, and a CTA on
+the empty state once a project exists) scans a parent folder for git
+repositories and lets the user add many at once, in the active project.
+
+- **Pick folder → depth → checklist → add.** Choosing a folder scans it
+  immediately; a depth stepper controls how many directory levels down the scan
+  looks (how many folders deep to search, not "direct children only" — a
+  `~/projects/<org>/<repo>` layout needs depth 2). Every rescan of the same
+  folder (a depth change, or reopening the dialog) replaces the result, never
+  appends to it. The result is a checklist, every not-already-added repository
+  pre-checked; a repo already in the project shows disabled and unchecked with
+  an "already added" hint rather than being silently dropped, so the user sees
+  the whole picture.
+  Unticking a repo excludes it from this add. Confirming adds every still-checked
+  repo to the active project in one action — same "No active project" guard as
+  the existing add flows. An empty scan says so plainly ("No git repositories
+  found in \<folder\>") instead of opening an empty checklist.
+- **Keep this folder as a source.** A checkbox in the dialog optionally
+  registers the scanned folder as a **repository source** — remembered at its
+  chosen depth. Every registered source is **rescanned automatically when its
+  project is activated**: repositories that have appeared there since — a
+  fresh clone, a newly created repo — are added without the user revisiting the
+  dialog. A brief, non-modal toast ("N repositories added from sources") reports
+  what a rescan picked up; it never interrupts the project switch it rides on.
+- **Removing a repo that came from a source is permanent.** Removing a repo
+  from the project (however it was added) also excludes it from every source
+  that would otherwise re-offer it — the removal sticks across rescans instead
+  of the repo reappearing on the next project activation.
+- **Sources are managed from Project Options.** The **Sources** section lists
+  every registered source with its folder, depth, and how many repositories it
+  is currently excluding; a source whose folder is no longer reachable is
+  flagged rather than silently dropped. *Rescan now* runs a source's scan on
+  demand; *Clear ignored* forgets everything that section has excluded, so a
+  deliberately-removed repo can be picked up again; *Remove* unregisters the
+  source — the repositories it already added are unaffected and stay in the
+  project.
+
 ## Key flows
 
 - **Switch project** → load its repos → redraw the repo tree. Only the active
@@ -393,6 +434,9 @@ Two separate files, so window juggling never rewrites the project registry:
   active row, not hidden under a collapsed parent). A stale path whose folder is
   gone is ignored, falling back to the first repo. Repos are
   references to disk; a deleted directory is marked "missing", never a crash.
+  Each project also carries its registered **repository sources** — see
+  [Bulk-add & repository sources](#bulk-add--repository-sources); persistence
+  details are in [`engineering`](../engineering/engineering.md).
 - **Window session** (`session.json`) — which projects had windows open and their
   geometry, for restore on next launch.
 - **Credentials metadata** (`credentials.json`) — named identities, per-host and

@@ -3,7 +3,8 @@
 | | |
 |--|--|
 | **Added** | 2026-06-18 |
-| **Status** | `idea` |
+| **Status** | `done` |
+| **Shipped** | 2026-08-05 |
 | **Touches** | product (a scan-and-pick dialog on the "add existing" flow), engineering (core: scan a folder for git repos; ViewModel: add many in one pass), design (checklist dialog reusing existing dialog styling) |
 
 ## What
@@ -31,7 +32,7 @@ exists to remove.
   chosen parent and keep the ones that are git repos (`GitRepo::open` succeeds /
   a `.git` is present). No recursion in the first cut — predictable, fast, and
   matches the common `~/projects/<repo>` layout. (Recursive discovery is the
-  ambition of the separate [`repo` manifest tool](repo-manifest-tool.md) wish;
+  ambition of the separate [`repo` manifest tool](../repo-manifest-tool.md) wish;
   don't pull it in here.)
 - **Selection — checklist dialog.** After the scan, show the discovered repos in
   a list with checkboxes, all pre-checked. Show each repo's folder name (and full
@@ -61,6 +62,28 @@ exists to remove.
 
 ---
 
-<!-- When this graduates, link out and set Status:
-- Designed in: spec/product (bulk add flow + checklist dialog), spec/engineering (core folder scan, batch add + single save/refresh) · plan: plans/<file>
--->
+Graduated:
+
+- Designed in: [`spec/product`](../../spec/product/product.md#bulk-add--repository-sources),
+  [`spec/design`](../../spec/design/design.md#components),
+  [`spec/engineering`](../../spec/engineering/engineering.md#bulk-add-folder-scan-and-repository-sources).
+- Plan: [`superpowers/plans/2026-08-05-bulk-add-repos.md`](../../superpowers/plans/2026-08-05-bulk-add-repos.md).
+
+**Went beyond the original wish:**
+
+- **Scan depth is configurable, not direct-children-only.** The first cut above
+  scoped out a "scan deeper" toggle deliberately (YAGNI). The shipped dialog has
+  a depth stepper (default 2, 1 = direct children) because the common
+  `~/projects/<org>/<repo>` layout needs to look two levels down, not one — the
+  original direct-children-only design would have missed it entirely for anyone
+  organising repos that way.
+- **Repository sources were added beyond scope.** The wish above deliberately
+  ruled nothing like this in — it was a one-shot scan-and-pick. What shipped
+  also lets a scanned folder be *remembered* as a source, rescanned
+  automatically on every project activation so repositories that appear later
+  (a fresh clone, a newly created repo) join the project without the user
+  revisiting the dialog, plus a Project Options section to inspect, rescan, and
+  remove sources. This turned out to be the natural extension once the folder
+  scan existed, and closes a real gap the one-shot version left: a user who
+  adds a dozen repos from a folder today has no story for the thirteenth repo
+  cloned into that folder tomorrow.

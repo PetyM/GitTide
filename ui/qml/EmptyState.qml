@@ -15,6 +15,7 @@ Item {
     property bool hasProject: false
 
     signal addExistingRequested()
+    signal addFromFolderRequested()
     signal cloneRequested()
     signal initRequested()
     signal newProjectRequested()
@@ -84,6 +85,12 @@ Item {
                 text: "Add existing repository"
                 visible: emptyState.hasProject
                 onClicked: emptyState.addExistingRequested()
+            }
+            Cta {
+                objName: "addFromFolderCta"
+                text: "Add repositories from folder"
+                visible: emptyState.hasProject
+                onClicked: emptyState.addFromFolderRequested()
             }
             Cta {
                 objName: "cloneCta"

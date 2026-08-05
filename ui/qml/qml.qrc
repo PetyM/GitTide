@@ -5,6 +5,8 @@
     <file>EmptyState.qml</file>
     <file>InitRepoDialog.qml</file>
     <file>CloneRepoDialog.qml</file>
+    <file>AddFromFolderDialog.qml</file>
+    <file>ToastNotice.qml</file>
     <file>CloneProgressDialog.qml</file>
     <file>NewProjectDialog.qml</file>
     <file>WorkingPane.qml</file>

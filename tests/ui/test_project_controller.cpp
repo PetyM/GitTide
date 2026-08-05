@@ -1,5 +1,6 @@
 #include <QObject>
 #include <QSignalSpy>
+#include <QUrl>
 #include <QUuid>
 #include <QtTest/QtTest>
 #include <filesystem>
@@ -29,6 +30,11 @@ private slots:
     }
     void cleanupTestCase()
     {
+        for (const auto& root : m_scanRoots)
+        {
+            std::error_code ec;
+            std::filesystem::remove_all(root, ec);
+        }
         git_libgit2_shutdown();
     }
 
@@ -258,6 +264,390 @@ private slots:
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(!spy.at(0).at(0).toString().isEmpty());
+    }
+
+    // localPathFromUrl must decode a file:// URL via QUrl::toLocalFile() semantics
+    // rather than string surgery, so a folder containing a space round-trips
+    // exactly instead of coming back with a stray "%20".
+    void localPathFromUrl_decodes_percent_encoded_space()
+    {
+        ProjectStore store;
+        ProjectController controller(&store);
+
+        const QUrl url = QUrl::fromLocalFile(QStringLiteral("/home/user/my repos/api"));
+        QCOMPARE(controller.localPathFromUrl(url), QStringLiteral("/home/user/my repos/api"));
+    }
+
+    void localPathFromUrl_plain_path_round_trips()
+    {
+        ProjectStore store;
+        ProjectController controller(&store);
+
+        const QUrl url = QUrl::fromLocalFile(QStringLiteral("/home/user/repos/api"));
+        QCOMPARE(controller.localPathFromUrl(url), QStringLiteral("/home/user/repos/api"));
+    }
+
+    void addRepos_adds_the_batch_and_saves_once()
+    {
+        const auto root      = makeScanRoot({"api", "web"});
+        const auto storePath = std::filesystem::temp_directory_path() /
+                               ("gittide-pc-batch-" +
+                                QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString() + ".json");
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store, storePath);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QString::fromStdString((root / "api").generic_string()),
+                             QString::fromStdString((root / "web").generic_string())},
+                            {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1); // one signal for the whole batch, not one per repo
+        QCOMPARE(spy.at(0).at(0).toInt(), 2);
+        QCOMPARE(spy.at(0).at(1).toStringList().size(), 0);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        auto reloaded = ProjectStore::load(storePath);
+        QVERIFY(reloaded.has_value());
+        QCOMPARE(static_cast<int>(reloaded->projects()[0].repos.size()), 2);
+    }
+
+    void addRepos_reports_failures_without_aborting_the_batch()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QStringLiteral("/definitely/not/a/repo"),
+                             QString::fromStdString((root / "api").generic_string())},
+                            {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+        QCOMPARE(spy.at(0).at(1).toStringList().size(), 1);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+    }
+
+    void addRepos_registers_a_source_with_the_unchecked_paths_ignored()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())},
+                            {QString::fromStdString((root / "web").generic_string())},
+                            QString::fromStdString(root.generic_string()), 3);
+
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 1);
+        QCOMPARE(store.projects()[0].sources[0].maxDepth, 3);
+        QCOMPARE(static_cast<int>(store.projects()[0].sources[0].ignored.size()), 1);
+        QCOMPARE(QString::fromStdString(store.projects()[0].sources[0].ignored[0]),
+                 QString::fromStdString((root / "web").generic_string()));
+    }
+
+    // Review finding: addRepos pushed addSource's error into the same
+    // `failures` list documented as "one line per repository that could not be
+    // added", unprefixed — so re-running the dialog on an already-registered
+    // folder read as "N repositories failed to add" even though every
+    // repository in the batch succeeded. The source failure must be
+    // distinguishable from a repository failure.
+    void addRepos_reports_a_source_registration_failure_distinctly_from_repo_failures()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        // Register the source once, up front — mirrors an earlier successful
+        // run of the dialog on this same folder.
+        controller.addRepos({}, {}, QString::fromStdString(root.generic_string()), 2);
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 1);
+
+        // Re-running it: the repository itself adds cleanly, but the source is
+        // already registered.
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
+                            QString::fromStdString(root.generic_string()), 2);
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // the repository was added
+        const QStringList failures = spy.at(0).at(1).toStringList();
+        QCOMPARE(failures.size(), 1);
+        QVERIFY2(failures.at(0).startsWith(QStringLiteral("Source:")),
+                 qPrintable(QStringLiteral("failure line did not read as a source failure: ") + failures.at(0)));
+    }
+
+    void addRepos_without_an_active_project_fails_loudly()
+    {
+        ProjectStore      store;
+        ProjectController controller(&store);
+
+        QSignalSpy spy(&controller, &ProjectController::repoAddFailed);
+        controller.addRepos({QStringLiteral("/anything")}, {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1);
+    }
+
+    void rescanSources_adds_a_repo_that_appeared_after_registration()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
+                            QString::fromStdString(root.generic_string()), 1);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        // A repo cloned into the source folder after registration.
+        const auto later = root / "web";
+        std::filesystem::create_directories(later);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, later.generic_string().c_str(), 0);
+        git_repository_free(raw);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+    }
+
+    void rescanSources_never_re_adds_a_removed_repo()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.addRepos({QString::fromStdString((root / "api").generic_string()),
+                             QString::fromStdString((root / "web").generic_string())},
+                            {}, QString::fromStdString(root.generic_string()), 1);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        controller.removeRepo(QString::fromStdString((root / "web").generic_string()));
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 0);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+    }
+
+    // Review finding: scanForRepos(P) returns P itself when P is a repository,
+    // so registering a source on a folder that IS a repository gives it
+    // sourcePath == the repo's own path. ignoreInSources used to never match
+    // that (isUnder() requires a strictly longer child path), so removal never
+    // stuck and the next rescan re-added the repo forever — reproduces the
+    // full cycle end to end through the controller, not just the store.
+    void rescanSources_never_re_adds_a_removed_repo_whose_source_is_its_own_folder()
+    {
+        const auto repoRoot = std::filesystem::temp_directory_path() /
+                              ("gittide-pc-selfrepo-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::create_directories(repoRoot);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, repoRoot.generic_string().c_str(), 0);
+        git_repository_free(raw);
+        m_scanRoots.push_back(repoRoot); // cleaned up with the fixture
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        const QString repoPath = QString::fromStdString(repoRoot.generic_string());
+        // Source path == repo path, exactly what the dialog does when the
+        // scanned folder turns out to be a repository itself.
+        controller.addRepos({repoPath}, {}, repoPath, 2);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        controller.removeRepo(repoPath);
+        QCOMPARE(controller.repos()->rowCount(), 0);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 0); // must NOT be re-added
+        QCOMPARE(controller.repos()->rowCount(), 0);
+    }
+
+    void rescanSources_counts_an_unavailable_source_and_keeps_going()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        // One source that does not exist, one that does.
+        store.projects()[0].sources.push_back(gittide::RepoSource{.path = "/definitely/not/here", .maxDepth = 1});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        QVERIFY(spy.wait(5000)); // activate() kicks the rescan itself
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // the reachable source still added its repo
+        QCOMPARE(spy.at(0).at(1).toInt(), 1); // and the missing one is reported
+    }
+
+    // rescanSources has no queue: a pass started while one is already running for
+    // this controller is dropped immediately, not stacked — mirroring pollRepos'
+    // m_polling single-flight guard. activate() kicks its own pass synchronously
+    // (up to its first co_await), so by the time it returns here a pass is
+    // already in flight and the manual call below is guaranteed to see it,
+    // deterministically. Unlike a dropped poll tick, though, a dropped rescan is
+    // not simply lost: it is coalesced into exactly one more pass, re-kicked
+    // once the in-flight one finishes (see RescanGuard in rescanSources()) — so
+    // the manual call below still gets its own rescan, deferred rather than
+    // dropped for good.
+    void rescanSources_drops_a_pass_started_while_one_is_in_flight()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources(); // dropped immediately: the activate()-triggered pass is still in flight
+
+        QVERIFY(spy.wait(5000)); // activate()'s own pass settles first
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // it added "api"
+
+        QVERIFY(spy.wait(5000)); // the coalesced re-kick for the dropped manual call settles next
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(spy.at(1).at(0).toInt(), 0); // "api" is already in the project — nothing new to add
+    }
+
+    // A project switch mid-pass must not let a stale pass drive the *new* active
+    // project's UI: no sourcesRescanned for results that belong to the project the
+    // user just navigated away from, and no model refresh stealing a turn from the
+    // new project's own state.
+    void rescanSources_abandons_a_pass_whose_project_was_switched_away()
+    {
+        const auto root = makeScanRoot({"web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+        store.projects().push_back(
+            Project{.id    = "id-b",
+                    .name  = "Play",
+                    .repos = {RepoRef{.path = "/home/u/other", .alias = "other"}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass for id-a; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        // Same event-loop turn as above: the suspended pass cannot have resumed yet,
+        // so this switch deterministically lands before it does.
+        controller.activate(QStringLiteral("id-b"));
+
+        // Let the suspended pass resume and settle (or, if this regresses, fire).
+        QTest::qWait(2000);
+
+        QCOMPARE(spy.count(), 0);
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("id-b"));
+        QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own repo, untouched by the stale pass
+    }
+
+    // Review finding: activate(B) while A's pass is still in flight drops B's
+    // own rescanSources() call too (the single-flight guard sees A's pass still
+    // running) — and when A's pass later resumes it abandons itself (project
+    // switched away) without ever re-kicking a pass for B. B's source is then
+    // never rescanned until the *next* activation. The fix coalesces a dropped
+    // call into one re-kicked pass once the in-flight one finishes, for
+    // whichever project is active by then.
+    void activate_switching_projects_during_an_in_flight_rescan_still_rescans_the_new_project()
+    {
+        const auto rootA = makeScanRoot({"web"});
+        const auto rootB = makeScanRoot({"apiB"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = rootA.generic_string(), .maxDepth = 1});
+        store.projects().push_back(Project{.id = "id-b", .name = "Play"});
+        store.projects()[1].sources.push_back(
+            gittide::RepoSource{.path = rootB.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass for id-a; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        // Same event-loop turn: A's pass cannot have resumed yet, so this
+        // switch — and the rescanSources() call activate(id-b) makes itself —
+        // deterministically lands while A's pass is still in flight.
+        controller.activate(QStringLiteral("id-b"));
+
+        QVERIFY(spy.wait(5000)); // the coalesced pass for id-b eventually settles
+        QTest::qWait(1000);      // give a second, unwanted pass a window to also fire
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // apiB was added to id-b
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("id-b"));
+        QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own source picked up apiB
+    }
+
+    void activeProjectSources_reports_paths_depth_ignores_and_availability()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 3, .ignored = {"x"}});
+        store.projects()[0].sources.push_back(gittide::RepoSource{.path = "/definitely/not/here", .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        const QVariantList rows = controller.activeProjectSources();
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows.at(0).toMap().value("maxDepth").toInt(), 3);
+        QCOMPARE(rows.at(0).toMap().value("ignoredCount").toInt(), 1);
+        QCOMPARE(rows.at(0).toMap().value("available").toBool(), true);
+        QCOMPARE(rows.at(1).toMap().value("available").toBool(), false);
+    }
+
+    void removeSource_and_clearIgnoredForSource_mutate_the_store()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = "/home/u/projects", .maxDepth = 2, .ignored = {"/home/u/projects/x"}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        controller.clearIgnoredForSource(QStringLiteral("/home/u/projects"));
+        QCOMPARE(static_cast<int>(store.projects()[0].sources[0].ignored.size()), 0);
+
+        controller.removeSource(QStringLiteral("/home/u/projects"));
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 0);
     }
 
     void initRepo_creates_repo_and_emits_repoAdded()
@@ -923,6 +1313,44 @@ private slots:
         QVERIFY(!controller.fetchingAll());
     }
 
+    void scanFolder_lists_candidates_and_marks_already_added()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id    = "id-a",
+                                           .name  = "Work",
+                                           .repos = {RepoRef{.path = (root / "api").generic_string()}}});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::scanFinished);
+        controller.scanFolder(QString::fromStdString(root.generic_string()), 1);
+        QVERIFY(spy.wait(5000));
+
+        const QVariantList candidates = spy.at(0).at(0).toList();
+        QCOMPARE(candidates.size(), 2);
+
+        // Sorted by path, so "api" precedes "web".
+        const QVariantMap api = candidates.at(0).toMap();
+        QCOMPARE(api.value("name").toString(), QStringLiteral("api"));
+        QCOMPARE(api.value("alreadyAdded").toBool(), true);
+        QCOMPARE(candidates.at(1).toMap().value("alreadyAdded").toBool(), false);
+    }
+
+    void scanFolder_reports_a_missing_folder()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::scanFailed);
+        controller.scanFolder(QStringLiteral("/definitely/not/here"), 2);
+        QVERIFY(spy.wait(5000));
+        QVERIFY(!spy.at(0).at(0).toString().isEmpty());
+    }
+
 private:
     // Returns the path of a fresh working repo whose 'origin' is one commit ahead.
     // Kept alive by leaking the TempRepos into a member vector (cleaned in dtor).
@@ -969,7 +1397,27 @@ private:
         return ptr;
     }
 
+    // A scratch folder holding one empty repository per name, removed with the
+    // fixture. Used to exercise the folder scan without a full TempRepo each.
+    std::filesystem::path makeScanRoot(const QStringList& names)
+    {
+        const auto root = std::filesystem::temp_directory_path() /
+                          ("gittide-pc-scan-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::create_directories(root);
+        for (const QString& name : names)
+        {
+            const auto dir = root / name.toStdString();
+            std::filesystem::create_directories(dir);
+            git_repository* raw = nullptr;
+            git_repository_init(&raw, dir.generic_string().c_str(), 0);
+            git_repository_free(raw);
+        }
+        m_scanRoots.push_back(root);
+        return root;
+    }
+
     std::vector<std::unique_ptr<gittide::test::TempRepo>> m_temps;
+    std::vector<std::filesystem::path>                    m_scanRoots;
 };
 
 #include "test_project_controller.moc"

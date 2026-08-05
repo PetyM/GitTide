@@ -91,7 +91,11 @@ AppDialog {
 
     FolderDialog {
         id: destFolder
+        objectName: "cloneRepoDestFolder"
         title: "Choose destination folder"
-        onAccepted: dialog.destDir = selectedFolder.toString().replace(/^file:\/\//, "")
+        // toLocalFile() via the controller, not toString().replace() — the latter
+        // is percent-encoded, so a destination containing a space would be
+        // stored (and compared elsewhere) as e.g. "my%20projects".
+        onAccepted: dialog.destDir = projectController ? projectController.localPathFromUrl(selectedFolder) : ""
     }
 }
