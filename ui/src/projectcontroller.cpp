@@ -213,6 +213,10 @@ void ProjectController::activate(const QString& projectId)
             saveStore();
             emit activeProjectChanged();
             emit projectActivated(projectId);
+            // Pick up repos that appeared in a registered source since last time.
+            // The task is intentionally not awaited — it settles on its own and
+            // reports via sourcesRescanned, the same way refreshSubmodules does.
+            rescanSources();
             return;
         }
     }
@@ -337,6 +341,65 @@ QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)
     emit scanFinished(candidates);
 }
 
+QCoro::Task<void> ProjectController::rescanSources()
+{
+    QPointer<ProjectController> self(this);
+    if (m_activeId.isEmpty())
+        co_return;
+
+    const std::string pid = m_activeId.toStdString();
+
+    // Copy the sources: the store is mutated below and may be re-entered across
+    // a co_await, so iterating it directly would be a dangling-reference bug.
+    std::vector<gittide::RepoSource> sources;
+    for (const auto& p : m_store->projects())
+    {
+        if (p.id == pid)
+        {
+            sources = p.sources;
+            break;
+        }
+    }
+    if (sources.empty())
+        co_return;
+
+    int added       = 0;
+    int unavailable = 0;
+    for (const auto& src : sources)
+    {
+        const std::filesystem::path root(src.path);
+        const int                   depth = src.maxDepth;
+
+        auto found = co_await QtConcurrent::run(
+            [root, depth] { return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = depth}); });
+        if (!self)
+            co_return;
+
+        if (!found)
+        {
+            ++unavailable; // folder gone or unreadable: report, never unregister
+            continue;
+        }
+
+        for (const auto& path : *found)
+        {
+            if (std::find(src.ignored.begin(), src.ignored.end(), path) != src.ignored.end())
+                continue;
+            // addRepo rejects a path already in the project, so it doubles as the
+            // duplicate filter — a repo the user already has is silently skipped.
+            if (m_store->addRepo(pid, gittide::RepoRef{.path = path}))
+                ++added;
+        }
+    }
+
+    if (added > 0)
+    {
+        saveStore();
+        refreshRepoModel(); // also hydrates the (new) rows — see refreshRepoModel
+    }
+    emit sourcesRescanned(added, unavailable);
+}
+
 void ProjectController::initRepo(const QString& parentDir, const QString& name)
 {
     if (m_activeId.isEmpty())
@@ -443,6 +506,9 @@ void ProjectController::removeRepo(const QString& path)
             break;
         }
     }
+    // Removing a repo that came from a source must stick: record it so the next
+    // rescan does not add it straight back.
+    m_store->ignoreInSources(m_activeId.toStdString(), path.toStdString());
     saveStore();
     refreshRepoModel();
     emit repoRemoved(path);

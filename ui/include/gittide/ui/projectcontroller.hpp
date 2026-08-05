@@ -99,6 +99,11 @@ public slots:
     /// scanFailed. Safe to call with no active project — every candidate is then
     /// reported as not-already-added.
     Q_INVOKABLE QCoro::Task<void> scanFolder(QString path, int maxDepth);
+    /// Rescan every source of the active project and add what is new — skipping
+    /// repositories already in the project and those on a source's ignore list.
+    /// One save and one model refresh for the whole pass. A source whose folder
+    /// has gone is counted as unavailable and left registered.
+    Q_INVOKABLE QCoro::Task<void> rescanSources();
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
     // QML-facing fire-and-forget wrapper: kicks cloneRepo() so QML (which cannot
@@ -183,6 +188,8 @@ signals:
     /// { path: QString, name: QString, alreadyAdded: bool }.
     void scanFinished(const QVariantList& candidates);
     void scanFailed(const QString& message);
+    /// Result of one rescan pass over the active project's sources.
+    void sourcesRescanned(int added, int unavailableSources);
     void cloneProgress(int received, int total);
     void repoRemoved(const QString& path);
     void projectRemoved(const QString& id);

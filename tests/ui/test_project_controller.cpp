@@ -17,6 +17,7 @@
 using gittide::Project;
 using gittide::ProjectStore;
 using gittide::RepoRef;
+using gittide::RepoSource;
 using gittide::ui::ProjectController;
 
 class TestProjectController : public QObject
@@ -341,6 +342,78 @@ private slots:
         controller.addRepos({QStringLiteral("/anything")}, {}, QString(), 2);
 
         QCOMPARE(spy.count(), 1);
+    }
+
+    void rescanSources_adds_a_repo_that_appeared_after_registration()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
+                            QString::fromStdString(root.generic_string()), 1);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        // A repo cloned into the source folder after registration.
+        const auto later = root / "web";
+        std::filesystem::create_directories(later);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, later.generic_string().c_str(), 0);
+        git_repository_free(raw);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+    }
+
+    void rescanSources_never_re_adds_a_removed_repo()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.addRepos({QString::fromStdString((root / "api").generic_string()),
+                             QString::fromStdString((root / "web").generic_string())},
+                            {}, QString::fromStdString(root.generic_string()), 1);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        controller.removeRepo(QString::fromStdString((root / "web").generic_string()));
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 0);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+    }
+
+    void rescanSources_counts_an_unavailable_source_and_keeps_going()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        // One source that does not exist, one that does.
+        store.projects()[0].sources.push_back(gittide::RepoSource{.path = "/definitely/not/here", .maxDepth = 1});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        QVERIFY(spy.wait(5000)); // activate() kicks the rescan itself
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // the reachable source still added its repo
+        QCOMPARE(spy.at(0).at(1).toInt(), 1); // and the missing one is reported
     }
 
     void initRepo_creates_repo_and_emits_repoAdded()
