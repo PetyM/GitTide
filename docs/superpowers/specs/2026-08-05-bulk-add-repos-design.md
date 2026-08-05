@@ -32,6 +32,7 @@ pre-empt one for the other.
 | Scan depth | **Per-source `maxDepth`, default 2.** Descent stops at a repo. |
 | Entry point | **One dialog with a "keep as source" toggle.** Unticked = one-shot import. |
 | Target project | The active project, as single-add today. |
+| Submodules | **Never added as repositories.** They already reach the user through the parent repo's submodule tree; a scan that added them too would duplicate every submodule as a top-level row. |
 
 ## Architecture
 
@@ -65,9 +66,13 @@ struct ScanOptions
 ///
 /// `maxDepth` counts directory levels below `root` (1 = its immediate
 /// subdirectories). Descent stops at a repository — a repository's interior is
-/// never searched, so submodules and nested repos are not swept up alongside
-/// their parent. Directories whose name starts with '.' are skipped, as are
+/// never searched, so **submodules and nested checkouts are never returned**;
+/// submodules reach the user through the parent repo's submodule tree, and
+/// returning them here would duplicate each one as a top-level repository.
+/// Directories whose name starts with '.' are skipped, as are
 /// directories that cannot be read (a permission error is not a scan failure).
+/// When `root` is itself a repository it is the sole result — picking a repo
+/// folder by mistake still does something sensible.
 ///
 /// @returns repository paths as generic UTF-8, sorted and deduplicated; an
 /// empty vector when the tree holds no repositories. Fails only when `root`
@@ -235,9 +240,11 @@ subline *"folder not found"* in `theme.stateDeleted` — the same token `AppButt
 
 ### Feedback
 
-Auto-added repos surface as a brief inline notice in the sidebar/project header
-(*"2 repositories added from ~/projects"*), never a modal. Add failures from an
-explicit batch reuse the existing error-dialog path used by `repoAddFailed`.
+Auto-added repos surface as a brief, non-blocking toast (*"2 repositories added
+from sources"*) — a modal would interrupt project switching, which is exactly
+when the rescan runs. That needs one new self-contained component,
+`ToastNotice.qml`, built from `OverlayCard` and theme tokens. Add failures from
+an explicit batch reuse the existing error-dialog path used by `repoAddFailed`.
 
 ## Error handling
 
@@ -245,6 +252,7 @@ explicit batch reuse the existing error-dialog path used by `repoAddFailed`.
 |--|--|
 | Root missing / not a directory | `scanForRepos` error → `scanFailed`, dialog shows the message inline |
 | Unreadable subdirectory | Skipped silently; scan succeeds |
+| Root is itself a repository | Returned as the only candidate |
 | No repositories found | Empty vector → dialog's empty-state line |
 | One repo fails to add | Rest are still added; failures reported in `reposAdded` |
 | Duplicate repo path | Already rejected by `addRepo`; surfaces as *already added*, never an error |
@@ -256,8 +264,9 @@ explicit batch reuse the existing error-dialog path used by `repoAddFailed`.
 
 **`tests/test_repo_scan.cpp`** (new, `TempRepo`): depth 1 vs depth 2; descent
 stops at a repository (a nested repo under a found repo is not returned);
-dot-directories skipped; bare repository found; missing root → error; a tree with
-no repositories → empty, not an error.
+**a repository's submodules are not returned**; dot-directories skipped; bare
+repository found; missing root → error; a tree with no repositories → empty, not
+an error.
 
 **`tests/test_project_store.cpp`**: add/remove source; duplicate source rejected;
 JSON round-trip with sources; a document **without** `"sources"` loads with an
