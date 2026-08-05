@@ -102,7 +102,10 @@ public slots:
     ///
     /// When `sourcePath` is non-empty the folder is also registered as a
     /// RepoSource with `maxDepth`, seeded with `unchecked` as its ignore list —
-    /// a repo left unchecked at registration is never offered again.
+    /// a repo left unchecked at registration is never offered again. The source
+    /// is registered regardless of how many repositories (if any) were added —
+    /// registering with `paths` empty is how a folder is tracked with nothing
+    /// added yet.
     Q_INVOKABLE void addRepos(const QStringList& paths, const QStringList& unchecked,
                               const QString& sourcePath, int maxDepth);
     /// Scan `path` for repositories, `maxDepth` levels deep, off the GUI thread.
@@ -114,6 +117,14 @@ public slots:
     /// repositories already in the project and those on a source's ignore list.
     /// One save and one model refresh for the whole pass. A source whose folder
     /// has gone is counted as unavailable and left registered.
+    ///
+    /// Single-flight: a call arriving while a pass is already running is
+    /// dropped rather than stacked (mirrors the fleet-poll's m_polling guard),
+    /// but coalesced — exactly one more pass is kicked once the in-flight one
+    /// finishes, for whichever project is active by then. This is what makes a
+    /// project switch mid-pass still rescan the project switched *to*, instead
+    /// of silently dropping it: the in-flight pass belongs to the project
+    /// switched *away from* and abandons itself without touching the new one.
     Q_INVOKABLE QCoro::Task<void> rescanSources();
     void initRepo(const QString& parentDir, const QString& name);
     QCoro::Task<void> cloneRepo(QString url, QString dest);
@@ -202,7 +213,10 @@ signals:
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
     /// Result of one addRepos batch. `failures` holds a "name: message" line per
-    /// repository that could not be added.
+    /// repository that could not be added, plus — if `sourcePath` was given and
+    /// its registration itself failed (e.g. already registered) — one further
+    /// "Source: message" line, distinguishable by that prefix from a
+    /// repository failure since it does not count against `added`.
     void reposAdded(int added, const QStringList& failures);
     /// One QVariantMap per discovered repository:
     /// { path: QString, name: QString, alreadyAdded: bool }.
@@ -230,6 +244,11 @@ private:
     QString m_activeId;
     std::atomic<bool> m_cloneCancel{false};
     bool m_rescanning = false; ///< a rescanSources pass is in flight (single-flight, like m_polling)
+    /// A rescanSources() call was dropped while a pass was in flight (single-flight
+    /// guard). Consumed by RescanGuard's destructor, which re-kicks exactly one
+    /// more pass — for whichever project is active by then — once the in-flight
+    /// pass finishes, so a project switch mid-pass still gets its own rescan.
+    bool m_rescanPending = false;
 
     bool                 m_fetchingAll = false;
     QString              m_fetchSummary;

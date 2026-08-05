@@ -354,6 +354,40 @@ private slots:
                  QString::fromStdString((root / "web").generic_string()));
     }
 
+    // Review finding: addRepos pushed addSource's error into the same
+    // `failures` list documented as "one line per repository that could not be
+    // added", unprefixed — so re-running the dialog on an already-registered
+    // folder read as "N repositories failed to add" even though every
+    // repository in the batch succeeded. The source failure must be
+    // distinguishable from a repository failure.
+    void addRepos_reports_a_source_registration_failure_distinctly_from_repo_failures()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        // Register the source once, up front — mirrors an earlier successful
+        // run of the dialog on this same folder.
+        controller.addRepos({}, {}, QString::fromStdString(root.generic_string()), 2);
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 1);
+
+        // Re-running it: the repository itself adds cleanly, but the source is
+        // already registered.
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
+                            QString::fromStdString(root.generic_string()), 2);
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // the repository was added
+        const QStringList failures = spy.at(0).at(1).toStringList();
+        QCOMPARE(failures.size(), 1);
+        QVERIFY2(failures.at(0).startsWith(QStringLiteral("Source:")),
+                 qPrintable(QStringLiteral("failure line did not read as a source failure: ") + failures.at(0)));
+    }
+
     void addRepos_without_an_active_project_fails_loudly()
     {
         ProjectStore      store;
@@ -416,6 +450,44 @@ private slots:
         QCOMPARE(controller.repos()->rowCount(), 1);
     }
 
+    // Review finding: scanForRepos(P) returns P itself when P is a repository,
+    // so registering a source on a folder that IS a repository gives it
+    // sourcePath == the repo's own path. ignoreInSources used to never match
+    // that (isUnder() requires a strictly longer child path), so removal never
+    // stuck and the next rescan re-added the repo forever — reproduces the
+    // full cycle end to end through the controller, not just the store.
+    void rescanSources_never_re_adds_a_removed_repo_whose_source_is_its_own_folder()
+    {
+        const auto repoRoot = std::filesystem::temp_directory_path() /
+                              ("gittide-pc-selfrepo-" + QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString());
+        std::filesystem::create_directories(repoRoot);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, repoRoot.generic_string().c_str(), 0);
+        git_repository_free(raw);
+        m_scanRoots.push_back(repoRoot); // cleaned up with the fixture
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        const QString repoPath = QString::fromStdString(repoRoot.generic_string());
+        // Source path == repo path, exactly what the dialog does when the
+        // scanned folder turns out to be a repository itself.
+        controller.addRepos({repoPath}, {}, repoPath, 2);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        controller.removeRepo(repoPath);
+        QCOMPARE(controller.repos()->rowCount(), 0);
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources();
+        QVERIFY(spy.wait(5000));
+
+        QCOMPARE(spy.at(0).at(0).toInt(), 0); // must NOT be re-added
+        QCOMPARE(controller.repos()->rowCount(), 0);
+    }
+
     void rescanSources_counts_an_unavailable_source_and_keeps_going()
     {
         const auto root = makeScanRoot({"api"});
@@ -438,10 +510,15 @@ private slots:
     }
 
     // rescanSources has no queue: a pass started while one is already running for
-    // this controller must be dropped, not stacked — mirroring pollRepos' m_polling
-    // single-flight guard. activate() kicks its own pass synchronously (up to its
-    // first co_await), so by the time it returns here a pass is already in flight
-    // and the manual call below is guaranteed to see it, deterministically.
+    // this controller is dropped immediately, not stacked — mirroring pollRepos'
+    // m_polling single-flight guard. activate() kicks its own pass synchronously
+    // (up to its first co_await), so by the time it returns here a pass is
+    // already in flight and the manual call below is guaranteed to see it,
+    // deterministically. Unlike a dropped poll tick, though, a dropped rescan is
+    // not simply lost: it is coalesced into exactly one more pass, re-kicked
+    // once the in-flight one finishes (see RescanGuard in rescanSources()) — so
+    // the manual call below still gets its own rescan, deferred rather than
+    // dropped for good.
     void rescanSources_drops_a_pass_started_while_one_is_in_flight()
     {
         const auto root = makeScanRoot({"api"});
@@ -455,16 +532,14 @@ private slots:
         controller.activate(QStringLiteral("id-a")); // kicks a pass; suspended at its co_await
 
         QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
-        controller.rescanSources(); // dropped: the activate()-triggered pass is still in flight
+        controller.rescanSources(); // dropped immediately: the activate()-triggered pass is still in flight
 
-        QVERIFY(spy.wait(5000)); // the in-flight pass eventually settles
-        // Only two passes were ever kicked in this test (activate()'s and the manual
-        // call above); give a dropped-but-actually-running second pass a generous
-        // extra window to also settle before asserting there was only ever one
-        // signal — otherwise this would race against the manual call's own scan.
-        QTest::qWait(1000);
-        QCOMPARE(spy.count(), 1); // never two — the second call produced no signal of its own
-        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+        QVERIFY(spy.wait(5000)); // activate()'s own pass settles first
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // it added "api"
+
+        QVERIFY(spy.wait(5000)); // the coalesced re-kick for the dropped manual call settles next
+        QCOMPARE(spy.count(), 2);
+        QCOMPARE(spy.at(1).at(0).toInt(), 0); // "api" is already in the project — nothing new to add
     }
 
     // A project switch mid-pass must not let a stale pass drive the *new* active
@@ -498,6 +573,43 @@ private slots:
         QCOMPARE(spy.count(), 0);
         QCOMPARE(controller.activeProjectId(), QStringLiteral("id-b"));
         QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own repo, untouched by the stale pass
+    }
+
+    // Review finding: activate(B) while A's pass is still in flight drops B's
+    // own rescanSources() call too (the single-flight guard sees A's pass still
+    // running) — and when A's pass later resumes it abandons itself (project
+    // switched away) without ever re-kicking a pass for B. B's source is then
+    // never rescanned until the *next* activation. The fix coalesces a dropped
+    // call into one re-kicked pass once the in-flight one finishes, for
+    // whichever project is active by then.
+    void activate_switching_projects_during_an_in_flight_rescan_still_rescans_the_new_project()
+    {
+        const auto rootA = makeScanRoot({"web"});
+        const auto rootB = makeScanRoot({"apiB"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = rootA.generic_string(), .maxDepth = 1});
+        store.projects().push_back(Project{.id = "id-b", .name = "Play"});
+        store.projects()[1].sources.push_back(
+            gittide::RepoSource{.path = rootB.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass for id-a; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        // Same event-loop turn: A's pass cannot have resumed yet, so this
+        // switch — and the rescanSources() call activate(id-b) makes itself —
+        // deterministically lands while A's pass is still in flight.
+        controller.activate(QStringLiteral("id-b"));
+
+        QVERIFY(spy.wait(5000)); // the coalesced pass for id-b eventually settles
+        QTest::qWait(1000);      // give a second, unwanted pass a window to also fire
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1); // apiB was added to id-b
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("id-b"));
+        QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own source picked up apiB
     }
 
     void activeProjectSources_reports_paths_depth_ignores_and_availability()

@@ -265,8 +265,7 @@ void ProjectController::addExistingRepo(const QString& path)
     emit repoAdded(path);
 }
 
-void ProjectController::addRepos(const QStringList& paths, const QStringList& unchecked,
-                                 const QString& sourcePath, int maxDepth)
+void ProjectController::addRepos(const QStringList& paths, const QStringList& unchecked, const QString& sourcePath, int maxDepth)
 {
     if (m_activeId.isEmpty())
     {
@@ -274,11 +273,11 @@ void ProjectController::addRepos(const QStringList& paths, const QStringList& un
         return;
     }
 
-    int         added = 0;
+    int added = 0;
     QStringList failures;
     for (const QString& path : paths)
     {
-        const QString               name = QFileInfo(path).fileName();
+        const QString name = QFileInfo(path).fileName();
         const std::filesystem::path p(path.toStdString());
 
         auto validation = gittide::GitRepo::open(p);
@@ -303,7 +302,10 @@ void ProjectController::addRepos(const QStringList& paths, const QStringList& un
             src.ignored.push_back(skipped.toStdString());
         auto registered = m_store->addSource(m_activeId.toStdString(), std::move(src));
         if (!registered)
-            failures << QString::fromStdString(registered.error().message);
+            // Prefixed so this reads as what it is — a source-registration
+            // failure, not a repository failure — even though it rides the same
+            // list (see the reposAdded Doxygen).
+            failures << (QStringLiteral("Source: ") + QString::fromStdString(registered.error().message));
     }
 
     // One save and one model refresh for the whole batch — never per repository.
@@ -318,7 +320,10 @@ QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)
     const std::filesystem::path root(path.toStdString());
 
     auto result = co_await QtConcurrent::run(
-        [root, maxDepth] { return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = maxDepth}); });
+        [root, maxDepth]
+        {
+            return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = maxDepth});
+        });
     if (!self)
         co_return; // controller went away while the scan ran
 
@@ -352,7 +357,18 @@ QCoro::Task<void> ProjectController::rescanSources()
     if (m_activeId.isEmpty())
         co_return;
     if (m_rescanning)
-        co_return; // a pass is already running — dropping this one beats stacking it (mirrors pollRepos' m_polling)
+    {
+        // A pass is already running — dropping this one beats stacking it
+        // (mirrors pollRepos' m_polling). But unlike a poll tick, a dropped
+        // rescan must not simply vanish: it is very often activate() switching
+        // projects mid-pass, and the project that triggered this call may never
+        // get rescanned otherwise (the in-flight pass belongs to the *previous*
+        // project and abandons itself without touching this one). Coalesce it:
+        // RescanGuard re-kicks exactly one more pass, for whichever project is
+        // active once the in-flight one finishes.
+        m_rescanPending = true;
+        co_return;
+    }
 
     m_rescanning = true;
     // Clear the guard on every exit, including the early co_returns below. Holds
@@ -362,8 +378,17 @@ QCoro::Task<void> ProjectController::rescanSources()
         QPointer<ProjectController> c;
         ~RescanGuard()
         {
-            if (c)
-                c->m_rescanning = false;
+            if (!c)
+                return;
+            c->m_rescanning = false;
+            if (c->m_rescanPending && !c->m_activeId.isEmpty())
+            {
+                // Consume the coalesced request before re-kicking: rescanSources()
+                // re-enters this same guard type, and its own early-return paths
+                // (e.g. empty sources) must not see a stale pending flag.
+                c->m_rescanPending = false;
+                QCoro::connect(c->rescanSources(), c.data(), [] {});
+            }
         }
     } rescanGuard{this};
 
@@ -388,10 +413,13 @@ QCoro::Task<void> ProjectController::rescanSources()
     for (const auto& src : sources)
     {
         const std::filesystem::path root(src.path);
-        const int                   depth = src.maxDepth;
+        const int depth = src.maxDepth;
 
         auto found = co_await QtConcurrent::run(
-            [root, depth] { return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = depth}); });
+            [root, depth]
+            {
+                return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = depth});
+            });
         if (!self)
             co_return;
         // The active project may have switched while this source was scanning.
@@ -610,7 +638,7 @@ QVariantList ProjectController::activeProjectSources() const
         for (const auto& s : p.sources)
         {
             std::error_code ec;
-            const bool      available = std::filesystem::is_directory(std::filesystem::path(s.path), ec) && !ec;
+            const bool available = std::filesystem::is_directory(std::filesystem::path(s.path), ec) && !ec;
             rows.append(QVariantMap{{QStringLiteral("path"), QString::fromStdString(s.path)},
                                     {QStringLiteral("maxDepth"), s.maxDepth},
                                     {QStringLiteral("ignoredCount"), static_cast<int>(s.ignored.size())},
