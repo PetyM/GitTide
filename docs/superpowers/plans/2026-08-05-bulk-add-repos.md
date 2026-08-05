@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-08-05 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`specs/2026-08-05-bulk-add-repos-design.md`](../specs/2026-08-05-bulk-add-repos-design.md); on close, `spec/product`, `spec/engineering`, `spec/design` |
 | **Depends on** | — |
 
@@ -73,7 +73,7 @@ Expected<std::vector<std::string>> scanForRepos(const std::filesystem::path& roo
 }
 ```
 
-- [ ] **Step 1: Write the failing test** — create `tests/test_repo_scan.cpp`:
+- [x] **Step 1: Write the failing test** — create `tests/test_repo_scan.cpp`:
 
 ```cpp
 #include <catch2/catch_test_macros.hpp>
@@ -262,11 +262,11 @@ TEST_CASE("scanForRepos errors when the root is missing", "[scan]")
 
 Register the file: add `test_repo_scan.cpp` to the `gittide_core_tests` source list in `tests/CMakeLists.txt` (after `test_project_store.cpp`).
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `gittide/reposcan.hpp: No such file or directory`.
 
-- [ ] **Step 3: Write the header**
+- [x] **Step 3: Write the header**
 
 `core/include/gittide/reposcan.hpp`:
 
@@ -306,7 +306,7 @@ Expected<std::vector<std::string>> scanForRepos(const std::filesystem::path& roo
 } // namespace gittide
 ```
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `core/src/reposcan.cpp`:
 
@@ -378,12 +378,12 @@ Expected<std::vector<std::string>> scanForRepos(const std::filesystem::path& roo
 
 Add `${CMAKE_CURRENT_SOURCE_DIR}/src/reposcan.cpp` to `target_sources(gittide_core ...)` in `core/CMakeLists.txt`, after `projectstore.cpp`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_core_tests "[scan]"`
 Expected: PASS, 9 test cases.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add core/include/gittide/reposcan.hpp core/src/reposcan.cpp core/CMakeLists.txt tests/test_repo_scan.cpp tests/CMakeLists.txt
@@ -406,7 +406,7 @@ struct gittide::RepoSource { std::string path; int maxDepth = 2; std::vector<std
 // gittide::Project gains: std::vector<RepoSource> sources;
 ```
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/test_project_store.cpp`:
+- [x] **Step 1: Write the failing tests** — append to `tests/test_project_store.cpp`:
 
 ```cpp
 TEST_CASE("sources round-trip through JSON", "[store][sources]")
@@ -462,11 +462,11 @@ TEST_CASE("malformed source entries are skipped, not fatal", "[store][sources]")
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'sources' in 'gittide::Project'`.
 
-- [ ] **Step 3: Add the type**
+- [x] **Step 3: Add the type**
 
 In `core/include/gittide/projectstore.hpp`, after `struct RepoRef`:
 
@@ -489,7 +489,7 @@ and add to `struct Project`, after `repos`:
     std::vector<RepoSource> sources;
 ```
 
-- [ ] **Step 4: Serialize**
+- [x] **Step 4: Serialize**
 
 In `ProjectStore::to_json`, after the `jp["repos"] = std::move(repos);` line:
 
@@ -530,12 +530,12 @@ In `ProjectStore::from_json`, after the `"repos"` block:
                 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_core_tests "[store]"`
 Expected: PASS, including every pre-existing `[store]` case.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add core/include/gittide/projectstore.hpp core/src/projectstore.cpp tests/test_project_store.cpp
@@ -560,7 +560,7 @@ void           ProjectStore::ignoreInSources(const std::string& projectId, const
 Expected<void> ProjectStore::clearIgnored(const std::string& projectId, const std::string& sourcePath);
 ```
 
-- [ ] **Step 1: Write the failing tests** — append to `tests/test_project_store.cpp`:
+- [x] **Step 1: Write the failing tests** — append to `tests/test_project_store.cpp`:
 
 ```cpp
 TEST_CASE("addSource appends a source to the project", "[store][sources]")
@@ -672,11 +672,11 @@ TEST_CASE("clearIgnored empties one source's ignore list", "[store][sources]")
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'addSource' in 'gittide::ProjectStore'`.
 
-- [ ] **Step 3: Declare the mutators**
+- [x] **Step 3: Declare the mutators**
 
 In `core/include/gittide/projectstore.hpp`, after `removeRepo`:
 
@@ -701,7 +701,7 @@ In `core/include/gittide/projectstore.hpp`, after `removeRepo`:
     Expected<void> clearIgnored(const std::string& projectId, const std::string& sourcePath);
 ```
 
-- [ ] **Step 4: Implement them**
+- [x] **Step 4: Implement them**
 
 In `core/src/projectstore.cpp`, after `removeRepo`. The file already has a project-lookup idiom (a loop over `m_projects`); add a file-local helper next to the other anonymous-namespace helpers if one exists, otherwise inline the loop as below.
 
@@ -800,12 +800,12 @@ Expected<void> ProjectStore::clearIgnored(const std::string& projectId, const st
 
 Add `#include <algorithm>` at the top of `core/src/projectstore.cpp` if it is not already there (`std::find`).
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_core_tests "[store]"`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add core/include/gittide/projectstore.hpp core/src/projectstore.cpp tests/test_project_store.cpp
@@ -829,7 +829,7 @@ signals: void scanFinished(const QVariantList& candidates); // { path, name, alr
          void scanFailed(const QString& message);
 ```
 
-- [ ] **Step 1: Write the failing test** — add these two slots to `TestProjectController` in `tests/ui/test_project_controller.cpp`, plus the helper at the bottom of the class (next to `makeRepoWithUpstream`):
+- [x] **Step 1: Write the failing test** — add these two slots to `TestProjectController` in `tests/ui/test_project_controller.cpp`, plus the helper at the bottom of the class (next to `makeRepoWithUpstream`):
 
 ```cpp
     void scanFolder_lists_candidates_and_marks_already_added()
@@ -906,11 +906,11 @@ and remove them in `cleanupTestCase()`, before `git_libgit2_shutdown()`:
         }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'scanFolder' in 'ProjectController'`.
 
-- [ ] **Step 3: Declare the API**
+- [x] **Step 3: Declare the API**
 
 In `ui/include/gittide/ui/projectcontroller.hpp`, in `public slots:` next to `addExistingRepo`:
 
@@ -931,7 +931,7 @@ and in `signals:`:
     void scanFailed(const QString& message);
 ```
 
-- [ ] **Step 4: Implement it**
+- [x] **Step 4: Implement it**
 
 In `ui/src/projectcontroller.cpp` — add `#include <QPointer>`, `#include <QSet>`, `#include <QVariantMap>` and `#include "gittide/reposcan.hpp"` / `#include "gittide/pathutil.hpp"` to the include block, then:
 
@@ -971,12 +971,12 @@ QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: PASS; `[ui-test] running TestProjectController` reports no failures.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -1000,7 +1000,7 @@ Q_INVOKABLE void ProjectController::addRepos(const QStringList& paths, const QSt
 signals: void reposAdded(int added, const QStringList& failures);
 ```
 
-- [ ] **Step 1: Write the failing tests** — add to `TestProjectController`:
+- [x] **Step 1: Write the failing tests** — add to `TestProjectController`:
 
 ```cpp
     void addRepos_adds_the_batch_and_saves_once()
@@ -1082,11 +1082,11 @@ signals: void reposAdded(int added, const QStringList& failures);
     }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'addRepos'`.
 
-- [ ] **Step 3: Declare the API**
+- [x] **Step 3: Declare the API**
 
 In `public slots:`, after `addExistingRepo`:
 
@@ -1110,7 +1110,7 @@ In `signals:`:
     void reposAdded(int added, const QStringList& failures);
 ```
 
-- [ ] **Step 4: Implement it**
+- [x] **Step 4: Implement it**
 
 Add `#include <QFileInfo>` to `ui/src/projectcontroller.cpp`, then after `addExistingRepo`:
 
@@ -1164,12 +1164,12 @@ void ProjectController::addRepos(const QStringList& paths, const QStringList& un
 }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -1192,7 +1192,7 @@ Q_INVOKABLE QCoro::Task<void> ProjectController::rescanSources();
 signals: void sourcesRescanned(int added, int unavailableSources);
 ```
 
-- [ ] **Step 1: Write the failing tests** — add to `TestProjectController`:
+- [x] **Step 1: Write the failing tests** — add to `TestProjectController`:
 
 ```cpp
     void rescanSources_adds_a_repo_that_appeared_after_registration()
@@ -1270,11 +1270,11 @@ signals: void sourcesRescanned(int added, int unavailableSources);
 
 Add `#include "gittide/projectstore.hpp"`-scoped `using gittide::RepoSource;` next to the existing `using` lines if the fully-qualified name is not used.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'rescanSources'`.
 
-- [ ] **Step 3: Declare the API**
+- [x] **Step 3: Declare the API**
 
 In `public slots:`:
 
@@ -1293,7 +1293,7 @@ In `signals:`:
     void sourcesRescanned(int added, int unavailableSources);
 ```
 
-- [ ] **Step 4: Implement it**
+- [x] **Step 4: Implement it**
 
 In `ui/src/projectcontroller.cpp`:
 
@@ -1361,7 +1361,7 @@ QCoro::Task<void> ProjectController::rescanSources()
 
 Add `#include <algorithm>` if absent.
 
-- [ ] **Step 5: Kick the rescan from `activate()` and feed the ignore list from `removeRepo()`**
+- [x] **Step 5: Kick the rescan from `activate()` and feed the ignore list from `removeRepo()`**
 
 In `ProjectController::activate`, immediately before `return;` in the matching branch (after `emit projectActivated(projectId);`):
 
@@ -1380,12 +1380,12 @@ In `ProjectController::removeRepo`, after the `lastActiveRepo` clean-up loop and
     m_store->ignoreInSources(m_activeId.toStdString(), path.toStdString());
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: PASS, including the pre-existing `activate_*` and `removeRepo` cases.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -1404,7 +1404,7 @@ git commit -m "feat(ui): rescan repository sources on project activation"
 
 **Interfaces produced:** QML `objectName`s `addFromFolderDialog`, `addFromFolderList`, `addFromFolderConfirm`, `addFromFolderKeepSource`, `addFromFolderCta`, and the `Sidebar`/`EmptyState`/`WorkingPane` signal `addFromFolderRequested()`.
 
-- [ ] **Step 1: Write the failing test** — create `tests/ui/test_qml_add_from_folder.cpp`:
+- [x] **Step 1: Write the failing test** — create `tests/ui/test_qml_add_from_folder.cpp`:
 
 ```cpp
 #include <QQmlApplicationEngine>
@@ -1453,12 +1453,12 @@ private slots:
 
 Register it: add `${CMAKE_CURRENT_SOURCE_DIR}/ui/test_qml_add_from_folder.cpp` to `gittide_ui_test_sources` in `tests/CMakeLists.txt`, add `#include "test_qml_add_from_folder.cpp"` and `RUN(TestQmlAddFromFolder);` to `tests/ui/main.cpp`. Both edits are mandatory.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: FAIL — `addFromFolderDialog` not found.
 
-- [ ] **Step 3: Write the dialog**
+- [x] **Step 3: Write the dialog**
 
 `ui/qml/AddFromFolderDialog.qml` — every visual comes from `theme`, and the
 structure follows `CloneRepoDialog.qml` (picker row) and `BranchPickerDialog.qml`
@@ -1774,7 +1774,7 @@ AppDialog {
 }
 ```
 
-- [ ] **Step 4: Register and wire it**
+- [x] **Step 4: Register and wire it**
 
 1. `ui/qml/qml.qrc` — add `<file>AddFromFolderDialog.qml</file>` next to `CloneRepoDialog.qml`.
 2. `ui/qml/Sidebar.qml` — add `signal addFromFolderRequested()` next to `addExistingRequested()`, and a menu item in `addRepoMenu` after "Add existing repository…":
@@ -1896,16 +1896,16 @@ AppDialog {
    > If `fetchErrorDialog` does not expose a `failures` property, follow the shape
    > it already uses for `fleetFetchFailed` and pass the list the same way.
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: PASS, and `TestQmlShell` still green (no new QML warnings).
 
-- [ ] **Step 6: Verify by hand**
+- [x] **Step 6: Verify by hand**
 
 Run the app, create/activate a project, choose *Add repositories from folder…*, point it at a folder holding two repos, confirm the checklist matches the folder, add them, and confirm both appear in the sidebar.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add ui/qml tests/ui/test_qml_add_from_folder.cpp tests/ui/main.cpp tests/CMakeLists.txt
@@ -1929,7 +1929,7 @@ Q_INVOKABLE void ProjectController::removeSource(const QString& path);
 Q_INVOKABLE void ProjectController::clearIgnoredForSource(const QString& path);
 ```
 
-- [ ] **Step 1: Write the failing test** — add to `TestProjectController`:
+- [x] **Step 1: Write the failing test** — add to `TestProjectController`:
 
 ```cpp
     void activeProjectSources_reports_paths_depth_ignores_and_availability()
@@ -1971,11 +1971,11 @@ Q_INVOKABLE void ProjectController::clearIgnoredForSource(const QString& path);
     }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel` — expected: FAIL, `no member named 'activeProjectSources'`.
 
-- [ ] **Step 3: Declare the API**
+- [x] **Step 3: Declare the API**
 
 In `public slots:`, next to `activeProjectRepos`:
 
@@ -1990,7 +1990,7 @@ In `public slots:`, next to `activeProjectRepos`:
     Q_INVOKABLE void clearIgnoredForSource(const QString& path);
 ```
 
-- [ ] **Step 4: Implement them**
+- [x] **Step 4: Implement them**
 
 ```cpp
 QVariantList ProjectController::activeProjectSources() const
@@ -2034,7 +2034,7 @@ void ProjectController::clearIgnoredForSource(const QString& path)
 }
 ```
 
-- [ ] **Step 5: Add the Sources section to the dialog**
+- [x] **Step 5: Add the Sources section to the dialog**
 
 In `ui/qml/ProjectOptionsDialog.qml`: extend `refresh()` with
 
@@ -2140,16 +2140,16 @@ and append this section to the `DialogColumn`, after the repositories block:
         }
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && ./build/tests/gittide_ui_tests`
 Expected: PASS.
 
-- [ ] **Step 7: Verify by hand**
+- [x] **Step 7: Verify by hand**
 
 Register a source via the new dialog, open Project Options, confirm the source is listed with its depth; remove a repo from the project, reopen Project Options and confirm the ignored count went up; hit *Clear ignored* then *Rescan now* and confirm the repo comes back.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add ui/qml/ProjectOptionsDialog.qml ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -2164,12 +2164,12 @@ git commit -m "feat(ui): manage repository sources in project options"
 - Modify: `docs/spec/product/product.md`, `docs/spec/engineering/engineering.md`, `docs/spec/design/design.md`, `docs/wishlist/bulk-add-projects.md`, `docs/wishlist/index.md`, this plan
 - Move: `docs/wishlist/bulk-add-projects.md` → `docs/wishlist/shipped/bulk-add-projects.md`
 
-- [ ] **Step 1: Run the whole suite**
+- [x] **Step 1: Run the whole suite**
 
 Run: `cmake --build build --parallel && ctest --test-dir build --output-on-failure`
 Expected: everything green. Do not proceed until it is.
 
-- [ ] **Step 2: Update the living spec**
+- [x] **Step 2: Update the living spec**
 
 - `spec/product`: the bulk-add flow — pick folder → depth → checklist → add, and what a registered source does (auto-add on activation, removal is permanent).
 - `spec/engineering`: `scanForRepos` and the `RepoSource` model, the `"sources"` key in `projects.json` (additive, still version 1), and the batch rule — **one save and one model refresh per batch/pass, never per repo**.
@@ -2177,13 +2177,13 @@ Expected: everything green. Do not proceed until it is.
 
 Symbol-level facts stay in the Doxygen comments written in Tasks 1–8 — do not restate them in the spec.
 
-- [ ] **Step 3: Close the wish**
+- [x] **Step 3: Close the wish**
 
 In `docs/wishlist/bulk-add-projects.md`: set **Status** to `done`, add **Shipped** `2026-08-05`, and fill the graduation footer with links to the spec sections and this plan. Note explicitly that scan depth became configurable (default 2) rather than direct-children-only, and that repository sources were added beyond the original wish. Move the file to `docs/wishlist/shipped/` and move its row to the Shipped table in `docs/wishlist/index.md`, fixing the link.
 
-- [ ] **Step 4: Fill in this plan's Outcome and flip its Status to `done`.**
+- [x] **Step 4: Fill in this plan's Outcome and flip its Status to `done`.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs
@@ -2194,8 +2194,38 @@ git commit -m "docs: close the bulk-add-repositories wish"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
+- **Shipped:** Add many existing repositories in one action by scanning a
+  folder — pick folder → depth → checklist → add, with already-added repos
+  shown disabled rather than hidden — and, going beyond the original wish,
+  register that folder as a **repository source** that is rescanned
+  automatically on every project activation so repositories that appear there
+  later join the project without revisiting the dialog. Removing a repo that
+  came from a source is permanent across rescans. Sources are inspected,
+  rescanned on demand, and removed from a new Sources section in Project
+  Options. Scan depth is a configurable stepper (default 2), not the
+  direct-children-only cut the original wish scoped to. Also fixed a
+  pre-existing bug along the way: folder-picker URLs now convert via
+  `QUrl::toLocalFile()` instead of string surgery, so a path containing a space
+  is no longer stored percent-encoded.
+- **Spec updated:**
+  [`spec/product#bulk-add--repository-sources`](../spec/product/product.md#bulk-add--repository-sources)
+  (the flow and what a source does), plus a note in
+  [`spec/product#data--persistence-what-is-stored-and-where`](../spec/product/product.md#data--persistence-what-is-stored-and-where);
+  [`spec/engineering#bulk-add-folder-scan-and-repository-sources`](../spec/engineering/engineering.md#bulk-add-folder-scan-and-repository-sources)
+  (`scanForRepos`, `RepoSource`, the additive `"sources"` key, the
+  single-save/single-refresh batch and pass rule, the single-flight /
+  stale-pass-abandonment shape of `rescanSources`); and two additions to
+  [`spec/design`](../spec/design/design.md#components) (the add-from-folder
+  dialog + toast notice in the dialog inventory, and the Project Options
+  Sources section).
+- **Code:** `core/include/gittide/reposcan.hpp` + `core/src/reposcan.cpp`
+  (`scanForRepos`, `ScanOptions`); `RepoSource` and `Project::sources` plus the
+  `addSource`/`removeSource`/`ignoreInSources`/`clearIgnored` mutators in
+  `core/include/gittide/projectstore.hpp` + `core/src/projectstore.cpp`;
+  `ProjectController::scanFolder`/`addRepos`/`rescanSources`/
+  `activeProjectSources`/`removeSource`/`clearIgnoredForSource`/
+  `localPathFromUrl` in `ui/include/gittide/ui/projectcontroller.hpp` +
+  `ui/src/projectcontroller.cpp`; `ui/qml/AddFromFolderDialog.qml` and
+  `ui/qml/ToastNotice.qml` (new), plus entry points wired into
+  `EmptyState.qml`, `Sidebar.qml`, `WorkingPane.qml`, `Main.qml`, and a new
+  Sources section in `ProjectOptionsDialog.qml`.

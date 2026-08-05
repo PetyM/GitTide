@@ -17,7 +17,6 @@ and it links out to them.
 | Wish | Added | Status | Touches |
 |------|-------|--------|---------|
 | [Deployment — native installers (apt / brew / .exe)](deployment-packaging.md) | 2026-06-22 | `idea` | engineering, product |
-| [Bulk-add existing repositories](bulk-add-projects.md) | 2026-06-18 | `idea` | product, engineering, design |
 | [Rebase](rebase.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [History editing — amend, squash, reword](history-editing.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
 | [Network sync — fetch / pull / push](network-sync.md) | 2026-06-17 | `partly shipped` | product, engineering, design |
@@ -45,3 +44,4 @@ plan from the bottom of its file.
 | [Code syntax highlighting in diffs](shipped/diff-syntax-highlighting.md) | 2026-06-21 | 2026-06-30 | product, design, engineering |
 | [Author avatars in commit history](shipped/author-avatars.md) | 2026-06-17 | 2026-07-20 | product, design, engineering |
 | [Local-only vs pushed commits in History](shipped/local-vs-remote-commits.md) | 2026-07-20 | 2026-07-20 | product, design, engineering |
+| [Bulk-add existing repositories](shipped/bulk-add-projects.md) | 2026-06-18 | 2026-08-05 | product, engineering, design |

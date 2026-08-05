@@ -314,6 +314,42 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
 - **Clone progress modal.** `OverlayCard`, themed `accent` progress bar with a
   percentage readout (`received / total objects (NN%)`), Cancel as a secondary
   button.
+- **Add-from-folder dialog** (`AddFromFolderDialog`, `objectName:
+  addFromFolderDialog`). Built entirely from the existing `AppDialog` /
+  `DialogColumn` / `DialogButtons` / `AppButton` / `AppCheckBox` primitives — no
+  bespoke chrome. A folder-picker row (path + elided subtext, "Choose…") sits
+  above a scan-depth `SpinBox` and a live "N repositories found" caption; the
+  result area is one of scanning / error / "no repositories found" / the
+  checklist, never more than one at once. The checklist (`addFromFolderList`)
+  is a `ListView` of `AppCheckBox` rows — a name over its full path in
+  `text.muted`, all pre-checked; a repo already in the project is disabled and
+  carries an "already added" trailing label rather than being hidden. A
+  bottom row's checkbox (`addFromFolderKeepSource`) reads "Keep this folder as
+  a source — add new repositories automatically". The footer's primary
+  **Add** button (`addFromFolderConfirm`) is disabled with nothing checked or
+  while a scan is in flight. Changing the depth or reopening the dialog
+  re-scans and replaces the checklist outright, guarded by a monotonic request
+  token so a response for an abandoned scan can never land on a newer one.
+  Entry points: an item in the sidebar's add-repo menu and a CTA
+  (`addFromFolderCta`) on the empty state, both wired the same way as the
+  existing "Add existing repository…" affordance.
+- **Toast notice** (`ToastNotice`, `objectName: toastNotice`). A brief,
+  non-modal surface — an `OverlayCard` pill centred at the window bottom, fades
+  in, holds ~3.5s, fades out — for outcomes the user does not have to act on: a
+  registered source's rescan picking up new repositories ("N repositories added
+  from sources"). Non-modal by design, since the rescan it reports on runs
+  silently off a project activation the user did not ask to pause for.
+- **Project Options — Sources section.** Below the project's repository list, a
+  "Repository sources" block lists every registered source: its folder path, a
+  `depth N · M ignored` caption in `text.muted` (or `folder not found` in
+  `state.deleted` when the folder is unreachable), and two trailing
+  `AppButton`s — secondary *Clear ignored* (disabled with nothing ignored) and
+  danger *Remove*. A header-row secondary *Rescan now* (`rescanSourcesButton`)
+  runs one source scan on demand; an empty list shows a hint pointing at *Add
+  repositories from folder…* instead of a bare blank block. The dialog's
+  sources snapshot is re-taken whenever a rescan settles
+  (`sourcesRescanned`) as well as after any of these three actions, so it never
+  shows a count that just went stale.
 - **Menus** (`AppMenu` / `AppMenuItem`). All popup menus (add-repo, project
   switcher, repo context, pull-strategy) ride on a `surface.overlay` rounded card
   (radius 10, 1px `border` ring); items are `text.primary` with an `accent`-tint
