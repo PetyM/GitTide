@@ -167,21 +167,31 @@ MouseArea {
         return handled
     }
 
-    onPressed: function(mouse) { mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers) }
-    onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
-    onReleased: function(mouse) {
+    // Ends the drag (if any) and does the click-count bookkeeping, or calls
+    // clickAt() for a plain click. Factored out of onReleased for the same
+    // reason as handlePress: a QML "released" signal handler isn't itself
+    // invokable from C++, headless tests need a way in.
+    function handleRelease(x, y) {
         endDrag()
         if (moved) {
+            // A drag is its own gesture: the click that follows it starts a
+            // fresh count, not a double-click on whatever came before the drag.
             moved = false
+            clickCount = 0
+            clickRow = -1
             return
         }
-        const row = rowAt(mouse.y)
+        const row = rowAt(y)
         const now = Date.now()
         clickCount = (now - lastClickAt < 400 && row === clickRow) ? clickCount + 1 : 1
         lastClickAt = now
         clickRow = row
-        clickAt(mouse.x, mouse.y, clickCount)
+        clickAt(x, y, clickCount)
     }
+
+    onPressed: function(mouse) { mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers) }
+    onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
+    onReleased: function(mouse) { handleRelease(mouse.x, mouse.y) }
 
     Keys.onPressed: function(event) {
         event.accepted = handleKey(event.key, event.modifiers)

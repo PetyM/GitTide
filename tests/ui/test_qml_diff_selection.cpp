@@ -521,6 +521,45 @@ private slots:
         QVERIFY(handled.toBool());
         QVERIFY(overlay->property("focus").toBool());
     }
+
+    // A drag is its own gesture. If the click counter survives it, a click
+    // right after a same-row drag misreads as a double-click and selects a
+    // word instead of clearing — see the sequence in the method name.
+    void a_click_right_after_a_same_row_drag_does_not_count_as_a_double_click()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Click 1 on row 1 ("ctx one"): count 1, clears (no-op, nothing selected).
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
+
+        // Drag on the same row: press, move (sets "moved"), release. The
+        // release must reset the click counter, not just skip clickAt().
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 150), Q_ARG(QVariant, 25));
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 150), Q_ARG(QVariant, 25));
+        QVERIFY(selection.property("hasSelection").toBool()); // the drag itself selected text
+
+        // Click 2, immediately after, same row: with a working reset this is
+        // a fresh count-1 click (clears); with the bug it inherits the stale
+        // count and lands as a double-click (selects a word instead).
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
 };
 
 #include "test_qml_diff_selection.moc"
