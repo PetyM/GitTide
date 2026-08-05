@@ -40,6 +40,7 @@
 #include "test_qml_sync.cpp"
 #include "test_changed_files_model.cpp"
 #include "test_diff_lines_model.cpp"
+#include "test_diff_selection.cpp"
 #include "test_repo_view_model.cpp"
 #include "test_branch_list_model.cpp"
 #include "test_logging.cpp"
@@ -155,6 +156,7 @@ int main(int argc, char** argv)
     RUN(TestQmlSync);
     RUN(TestChangedFilesModel);
     RUN(TestDiffLinesModel);
+    RUN(TestDiffSelection);
     RUN(TestRepoViewModel);
     RUN(TestBranchListModel);
     RUN(TestLogging);
