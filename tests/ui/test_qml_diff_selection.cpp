@@ -12,6 +12,7 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QSignalSpy>
 #include <memory>
 
 #include "gittide/diff.hpp"
@@ -363,6 +364,162 @@ private slots:
         QVERIFY(selection.property("hasSelection").toBool());
         QCOMPARE(selection.startInRow(1), 0);
         QCOMPARE(selection.endInRow(1), 7);
+    }
+
+    void a_plain_click_clears_the_selection()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        selection.selectAll();
+        QMetaObject::invokeMethod(overlay, "clickAt", Q_ARG(QVariant, 150), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 1));
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
+
+    void a_double_click_selects_the_word_and_a_triple_click_the_row()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Row 1 is "ctx one"; x = 100 is its first character.
+        QMetaObject::invokeMethod(overlay, "clickAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 2));
+        QCOMPARE(selection.copyText(false), QStringLiteral("ctx\n"));
+
+        QMetaObject::invokeMethod(overlay, "clickAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 3));
+        QCOMPARE(selection.copyText(false), QStringLiteral("ctx one\n"));
+    }
+
+    void ctrl_a_selects_all_and_ctrl_c_copies()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+        QSignalSpy copySpy(overlay, SIGNAL(copyRequested(QString)));
+
+        QVariant consumed;
+        QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
+                                  Q_ARG(QVariant, int(Qt::Key_A)),
+                                  Q_ARG(QVariant, int(Qt::ControlModifier)));
+        QVERIFY(consumed.toBool());
+        QVERIFY(selection.property("hasSelection").toBool());
+
+        QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
+                                  Q_ARG(QVariant, int(Qt::Key_C)),
+                                  Q_ARG(QVariant, int(Qt::ControlModifier)));
+        QVERIFY(consumed.toBool());
+        QCOMPARE(copySpy.count(), 1);
+        QCOMPARE(copySpy.at(0).at(0).toString(),
+                 QStringLiteral("@@ -1,1 +1,2 @@\nctx one\nadded two\n"));
+
+        QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
+                                  Q_ARG(QVariant, int(Qt::Key_C)),
+                                  Q_ARG(QVariant, int(Qt::ControlModifier | Qt::ShiftModifier)));
+        QCOMPARE(copySpy.count(), 2);
+        QCOMPARE(copySpy.at(1).at(0).toString(),
+                 QStringLiteral("@@ -1,1 +1,2 @@\n  ctx one\n+ added two\n"));
+    }
+
+    void keys_without_control_are_left_alone()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        QVariant consumed;
+        QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
+                                  Q_ARG(QVariant, int(Qt::Key_A)), Q_ARG(QVariant, 0));
+        QVERIFY(!consumed.toBool());
+    }
+
+    // forceActiveFocus() has no QQuickWindow to promise activeFocus to under the
+    // offscreen platform, but it does flip the item's own "focus" property — so
+    // that is what pins down the fix that focus must follow only an accepted
+    // press. Driven through handlePress(), the function onPressed delegates to,
+    // since a QML "pressed" signal handler is not itself invokable from C++.
+    void a_rejected_press_leaves_focus_alone_but_an_accepted_press_takes_it()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+        QVERIFY(!overlay->property("focus").toBool());
+
+        // Left of the code column: pressAt (and so handlePress) rejects it.
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "handlePress", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 40), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+        QVERIFY(!overlay->property("focus").toBool());
+
+        // Inside the code column: handlePress accepts it and takes focus.
+        QMetaObject::invokeMethod(overlay, "handlePress", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 100), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(handled.toBool());
+        QVERIFY(overlay->property("focus").toBool());
     }
 };
 

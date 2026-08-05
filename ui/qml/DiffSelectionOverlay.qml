@@ -97,6 +97,7 @@ MouseArea {
             return
         lastX = x
         lastY = y
+        moved = true
         const row = rowAt(y)
         if (row < 0)
             return
@@ -114,17 +115,77 @@ MouseArea {
         autoScroll.running = false
     }
 
-    onPressed: function(mouse) {
-        // Only take focus when the press actually starts a selection — a
-        // rejected press (checkbox, gutter, sign column, conflict Accept
-        // buttons) must leave focus with whatever is underneath.
-        const handled = pressAt(mouse.x, mouse.y, mouse.modifiers)
+    // count: 1 = plain click (clears), 2 = word, 3 = whole row.
+    function clickAt(x, y, count) {
+        if (!selection)
+            return
+        const row = rowAt(y)
+        const col = columnAt(row, x, y)
+        if (row < 0 || col < 0)
+            return
+        if (count >= 3)
+            selection.selectLine(row)
+        else if (count === 2)
+            selection.selectWord(row, col)
+        else
+            selection.clear()
+    }
+
+    // Returns true when the key was consumed. Ctrl+C copies code text,
+    // Ctrl+Shift+C the same selection with diff markers, Ctrl+A selects the
+    // whole diff.
+    function handleKey(key, modifiers) {
+        if (!selection || !(modifiers & Qt.ControlModifier))
+            return false
+        if (key === Qt.Key_A) {
+            selection.selectAll()
+            return true
+        }
+        if (key === Qt.Key_C) {
+            overlay.copyRequested(selection.copyText((modifiers & Qt.ShiftModifier) !== 0))
+            return true
+        }
+        return false
+    }
+
+    // Qt has no triple-click signal — count presses that land close together on
+    // the same row, the way editors do.
+    property int clickCount: 0
+    property int clickRow: -1
+    property double lastClickAt: 0
+    property bool moved: false
+
+    // Starts a selection via pressAt and, only when it did, takes keyboard
+    // focus — a rejected press (checkbox, gutter, sign column, conflict Accept
+    // buttons) must leave focus with whatever is underneath. Factored out of
+    // onPressed so it can be driven directly (a QML "pressed" signal handler
+    // isn't itself invokable from C++, headless tests need a way in).
+    function handlePress(x, y, modifiers) {
+        const handled = pressAt(x, y, modifiers)
         if (handled)
             overlay.forceActiveFocus()
-        mouse.accepted = handled
+        return handled
     }
+
+    onPressed: function(mouse) { mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers) }
     onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
-    onReleased: endDrag()
+    onReleased: function(mouse) {
+        endDrag()
+        if (moved) {
+            moved = false
+            return
+        }
+        const row = rowAt(mouse.y)
+        const now = Date.now()
+        clickCount = (now - lastClickAt < 400 && row === clickRow) ? clickCount + 1 : 1
+        lastClickAt = now
+        clickRow = row
+        clickAt(mouse.x, mouse.y, clickCount)
+    }
+
+    Keys.onPressed: function(event) {
+        event.accepted = handleKey(event.key, event.modifiers)
+    }
 
     Timer {
         id: autoScroll
