@@ -365,9 +365,10 @@ repositories and lets the user add many at once, in the active project.
   looks (how many folders deep to search, not "direct children only" — a
   `~/projects/<org>/<repo>` layout needs depth 2). Every rescan of the same
   folder (a depth change, or reopening the dialog) replaces the result, never
-  appends to it. The result is a checklist, all discovered repos pre-checked;
-  a repo already in the project shows disabled with an "already added" hint
-  rather than being silently dropped, so the user sees the whole picture.
+  appends to it. The result is a checklist, every not-already-added repository
+  pre-checked; a repo already in the project shows disabled and unchecked with
+  an "already added" hint rather than being silently dropped, so the user sees
+  the whole picture.
   Unticking a repo excludes it from this add. Confirming adds every still-checked
   repo to the active project in one action — same "No active project" guard as
   the existing add flows. An empty scan says so plainly ("No git repositories

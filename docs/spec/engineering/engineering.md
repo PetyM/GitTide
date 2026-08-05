@@ -425,10 +425,12 @@ persistence one:
   for a project the user has since switched away from must never mutate or
   report against whatever project is on screen now. A source whose folder is
   unreachable is **counted as unavailable and left registered**, not dropped —
-  network drives and removable media come and go. One save and one model
-  refresh cover the whole pass, exactly as for `addRepos`. `activate()` kicks a
-  rescan (fire-and-forget, like `refreshSubmodules`) so sources are picked up on
-  every project switch.
+  network drives and removable media come and go. Unlike `addRepos`, the save
+  and model refresh are conditional on `added > 0` — a pass that finds nothing
+  new (every source unreachable, or everything already in the project or
+  ignored) skips both rather than writing the store for a no-op. `activate()`
+  kicks a rescan (fire-and-forget, like `refreshSubmodules`) so sources are
+  picked up on every project switch.
 - **`removeRepo`** now also calls `ignoreInSources` before it saves, which is
   what makes a removal stick across the next rescan — without it, a repo
   removed from the project would simply reappear the next time its source's

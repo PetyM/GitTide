@@ -322,8 +322,9 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   result area is one of scanning / error / "no repositories found" / the
   checklist, never more than one at once. The checklist (`addFromFolderList`)
   is a `ListView` of `AppCheckBox` rows — a name over its full path in
-  `text.muted`, all pre-checked; a repo already in the project is disabled and
-  carries an "already added" trailing label rather than being hidden. A
+  `text.muted`, every not-already-added row pre-checked; a repo already in the
+  project is disabled and unchecked, carrying an "already added" trailing
+  label rather than being hidden. A
   bottom row's checkbox (`addFromFolderKeepSource`) reads "Keep this folder as
   a source — add new repositories automatically". The footer's primary
   **Add** button (`addFromFolderConfirm`) is disabled with nothing checked or

@@ -2212,9 +2212,10 @@ git commit -m "docs: close the bulk-add-repositories wish"
   (the flow and what a source does), plus a note in
   [`spec/product#data--persistence-what-is-stored-and-where`](../spec/product/product.md#data--persistence-what-is-stored-and-where);
   [`spec/engineering#bulk-add-folder-scan-and-repository-sources`](../spec/engineering/engineering.md#bulk-add-folder-scan-and-repository-sources)
-  (`scanForRepos`, `RepoSource`, the additive `"sources"` key, the
-  single-save/single-refresh batch and pass rule, the single-flight /
-  stale-pass-abandonment shape of `rescanSources`); and two additions to
+  (`scanForRepos`, `RepoSource`, the additive `"sources"` key, `addRepos`'s
+  unconditional single-save/single-refresh batch rule and `rescanSources`'s
+  conditional (only-when-it-added-something) counterpart, and its
+  single-flight / stale-pass-abandonment shape); and two additions to
   [`spec/design`](../spec/design/design.md#components) (the add-from-folder
   dialog + toast notice in the dialog inventory, and the Project Options
   Sources section).
