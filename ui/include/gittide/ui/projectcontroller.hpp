@@ -209,6 +209,7 @@ private:
     RepoListModel* m_repoModel;
     QString m_activeId;
     std::atomic<bool> m_cloneCancel{false};
+    bool m_rescanning = false; ///< a rescanSources pass is in flight (single-flight, like m_polling)
 
     bool                 m_fetchingAll = false;
     QString              m_fetchSummary;

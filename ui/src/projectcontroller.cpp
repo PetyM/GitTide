@@ -346,6 +346,21 @@ QCoro::Task<void> ProjectController::rescanSources()
     QPointer<ProjectController> self(this);
     if (m_activeId.isEmpty())
         co_return;
+    if (m_rescanning)
+        co_return; // a pass is already running — dropping this one beats stacking it (mirrors pollRepos' m_polling)
+
+    m_rescanning = true;
+    // Clear the guard on every exit, including the early co_returns below. Holds
+    // a QPointer so a controller destroyed mid-pass is not written through.
+    struct RescanGuard
+    {
+        QPointer<ProjectController> c;
+        ~RescanGuard()
+        {
+            if (c)
+                c->m_rescanning = false;
+        }
+    } rescanGuard{this};
 
     const std::string pid = m_activeId.toStdString();
 
@@ -373,6 +388,13 @@ QCoro::Task<void> ProjectController::rescanSources()
         auto found = co_await QtConcurrent::run(
             [root, depth] { return gittide::scanForRepos(root, gittide::ScanOptions{.maxDepth = depth}); });
         if (!self)
+            co_return;
+        // The active project may have switched while this source was scanning.
+        // Finish writing pid's own results into the store below (they are correct
+        // for pid and stay), but never let a stale pass drive whatever project is
+        // on screen now: no save/refresh keyed off the current m_activeId, and no
+        // sourcesRescanned toast reporting pid's numbers against it.
+        if (m_activeId.toStdString() != pid)
             co_return;
 
         if (!found)

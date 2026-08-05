@@ -17,7 +17,6 @@
 using gittide::Project;
 using gittide::ProjectStore;
 using gittide::RepoRef;
-using gittide::RepoSource;
 using gittide::ui::ProjectController;
 
 class TestProjectController : public QObject
@@ -414,6 +413,69 @@ private slots:
 
         QCOMPARE(spy.at(0).at(0).toInt(), 1); // the reachable source still added its repo
         QCOMPARE(spy.at(0).at(1).toInt(), 1); // and the missing one is reported
+    }
+
+    // rescanSources has no queue: a pass started while one is already running for
+    // this controller must be dropped, not stacked — mirroring pollRepos' m_polling
+    // single-flight guard. activate() kicks its own pass synchronously (up to its
+    // first co_await), so by the time it returns here a pass is already in flight
+    // and the manual call below is guaranteed to see it, deterministically.
+    void rescanSources_drops_a_pass_started_while_one_is_in_flight()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        controller.rescanSources(); // dropped: the activate()-triggered pass is still in flight
+
+        QVERIFY(spy.wait(5000)); // the in-flight pass eventually settles
+        // Only two passes were ever kicked in this test (activate()'s and the manual
+        // call above); give a dropped-but-actually-running second pass a generous
+        // extra window to also settle before asserting there was only ever one
+        // signal — otherwise this would race against the manual call's own scan.
+        QTest::qWait(1000);
+        QCOMPARE(spy.count(), 1); // never two — the second call produced no signal of its own
+        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+    }
+
+    // A project switch mid-pass must not let a stale pass drive the *new* active
+    // project's UI: no sourcesRescanned for results that belong to the project the
+    // user just navigated away from, and no model refresh stealing a turn from the
+    // new project's own state.
+    void rescanSources_abandons_a_pass_whose_project_was_switched_away()
+    {
+        const auto root = makeScanRoot({"web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+        store.projects().push_back(
+            Project{.id    = "id-b",
+                    .name  = "Play",
+                    .repos = {RepoRef{.path = "/home/u/other", .alias = "other"}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a")); // kicks a pass for id-a; suspended at its co_await
+
+        QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
+        // Same event-loop turn as above: the suspended pass cannot have resumed yet,
+        // so this switch deterministically lands before it does.
+        controller.activate(QStringLiteral("id-b"));
+
+        // Let the suspended pass resume and settle (or, if this regresses, fire).
+        QTest::qWait(2000);
+
+        QCOMPARE(spy.count(), 0);
+        QCOMPARE(controller.activeProjectId(), QStringLiteral("id-b"));
+        QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own repo, untouched by the stale pass
     }
 
     void initRepo_creates_repo_and_emits_repoAdded()
