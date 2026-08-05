@@ -622,6 +622,61 @@ private slots:
         QCOMPARE(copySpy.at(1).at(0).toString(),
                  QStringLiteral("@@ -1,1 +1,2 @@\n  ctx one\n+ added two\n"));
     }
+
+    // Right-click never changes the selection — it acts on it. Drives the
+    // overlay's real button-dispatch path (dispatchPress/dispatchRelease,
+    // what onPressed/onReleased forward mouse.button to) rather than the
+    // button-agnostic handlePress/handleRelease the other tests use, since
+    // this is specifically about the right-button branch those don't cover.
+    void right_click_press_and_release_does_not_touch_the_selection_or_click_counter()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        selection.selectAll();
+        const QString before = selection.copyText(false);
+
+        // Right-press inside row 1's ("ctx one") code column: accepted (so a
+        // right-click can't leak through to whatever sits underneath), but
+        // the selection must be exactly what it was before.
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "dispatchPress", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, int(Qt::RightButton)), Q_ARG(QVariant, 100),
+                                  Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(handled.toBool());
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.copyText(false), before);
+
+        // The paired right-release must be a no-op too: not just leave the
+        // selection alone, but not run the click-counting path at all.
+        QMetaObject::invokeMethod(overlay, "dispatchRelease", Q_ARG(QVariant, int(Qt::RightButton)),
+                                  Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.copyText(false), before);
+
+        // A plain left click on the same row right after must still land as
+        // a fresh single click (clears the selection), not a double (which
+        // would select a word instead, leaving hasSelection true). Before
+        // the fix, the unguarded right-release ran handleRelease() and
+        // planted a bogus "click 1" in the counter, so this left click
+        // misread as click 2 of a double-click.
+        QMetaObject::invokeMethod(overlay, "dispatchRelease", Q_ARG(QVariant, int(Qt::LeftButton)),
+                                  Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
 };
 
 #include "test_qml_diff_selection.moc"

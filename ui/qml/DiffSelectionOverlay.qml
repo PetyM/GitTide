@@ -189,20 +189,35 @@ MouseArea {
         clickAt(x, y, clickCount)
     }
 
-    // Right-button dispatch lives here rather than in handlePress(): only
-    // onPressed sees mouse.button, and handlePress's (x, y, modifiers)
-    // signature is what the tests drive directly.
-    onPressed: function(mouse) {
-        if (mouse.button === Qt.RightButton) {
+    // Routes a press by button. Left starts/extends the selection via
+    // handlePress(); right never touches the selection — it opens the
+    // context menu instead. Factored out of onPressed, like handlePress
+    // itself, so button dispatch is invokable from a headless test rather
+    // than only reachable through a real QML "pressed" event.
+    function dispatchPress(button, x, y, modifiers) {
+        if (button === Qt.RightButton) {
             // Right-click never changes the selection — it acts on it.
             contextMenu.popup()
-            mouse.accepted = true
-            return
+            return true
         }
-        mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers)
+        return handlePress(x, y, modifiers)
     }
+
+    // Routes a release by button. A right-button release must never reach
+    // handleRelease(): its paired press already left the selection and the
+    // click counter untouched, and running the click-counting/clickAt()
+    // path here would clear or mutate the selection out from under an open
+    // context menu, and would also plant a bogus click in the counter that
+    // misreads the next left click as a double.
+    function dispatchRelease(button, x, y) {
+        if (button === Qt.RightButton)
+            return
+        handleRelease(x, y)
+    }
+
+    onPressed: function(mouse) { mouse.accepted = dispatchPress(mouse.button, mouse.x, mouse.y, mouse.modifiers) }
     onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
-    onReleased: function(mouse) { handleRelease(mouse.x, mouse.y) }
+    onReleased: function(mouse) { dispatchRelease(mouse.button, mouse.x, mouse.y) }
 
     Keys.onPressed: function(event) {
         event.accepted = handleKey(event.key, event.modifiers)
