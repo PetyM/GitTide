@@ -141,6 +141,162 @@ private slots:
         selection.extendTo(2, 9);
         QCOMPARE(obj->property("selectedText").toString(), QStringLiteral("two"));
     }
+
+    // A stand-in for the diff ListView. The overlay only ever asks a list for
+    // indexAt / itemAtIndex / contentY / contentHeight / height, so a stub with
+    // those members exercises it fully — and unlike a real ListView it works
+    // headless, where delegates are never instantiated.
+    void overlay_drag_builds_a_selection_across_rows()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QQmlComponent comp(&engine);
+        comp.setData(R"QML(
+            import QtQuick
+
+            // Rows are 20px tall; each row's code column starts at x = 100.
+            Item {
+                id: host
+                width: 400
+                height: 60
+
+                property var rows: ["@@ -1,1 +1,2 @@", "ctx one", "added two"]
+
+                Column {
+                    id: fakeList
+                    objectName: "fakeList"
+                    property real contentY: 0
+                    property real contentHeight: 60
+                    width: 400
+                    height: 60
+                    function indexAt(x, y) {
+                        const row = Math.floor(y / 20)
+                        return (row < 0 || row > 2) ? -1 : row
+                    }
+                    function itemAtIndex(i) { return repeater.itemAt(i) }
+                    Repeater {
+                        id: repeater
+                        model: 3
+                        delegate: Item {
+                            width: 400
+                            height: 20
+                            DiffCodeText {
+                                x: 100
+                                width: 300
+                                height: 20
+                                row: index
+                                selection: testSelection
+                                plainText: host.rows[index]
+                            }
+                        }
+                    }
+                }
+
+                DiffSelectionOverlay {
+                    objectName: "overlay"
+                    anchors.fill: parent
+                    list: fakeList
+                    selection: testSelection
+                }
+            }
+        )QML", QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
+        QVERIFY2(comp.errorString().isEmpty(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> root(comp.create());
+        QVERIFY2(root != nullptr, qPrintable(comp.errorString()));
+
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Press inside row 1 ("ctx one") at its very start, drag into row 2.
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 400), Q_ARG(QVariant, 45));
+        QMetaObject::invokeMethod(overlay, "endDrag");
+
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.startInRow(1), 0);
+        QCOMPARE(selection.endInRow(2), 9); // dragged past the end of "added two"
+    }
+
+    void overlay_rejects_a_press_left_of_the_code_column()
+    {
+        // The checkbox, line-number gutter and sign columns must keep their own
+        // click behaviour — a press there is not a text selection.
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QQmlComponent comp(&engine);
+        comp.setData(R"QML(
+            import QtQuick
+            Item {
+                width: 400
+                height: 60
+                Column {
+                    id: fakeList
+                    property real contentY: 0
+                    property real contentHeight: 60
+                    width: 400
+                    height: 60
+                    function indexAt(x, y) {
+                        const row = Math.floor(y / 20)
+                        return (row < 0 || row > 2) ? -1 : row
+                    }
+                    function itemAtIndex(i) { return repeater.itemAt(i) }
+                    Repeater {
+                        id: repeater
+                        model: 3
+                        delegate: Item {
+                            width: 400
+                            height: 20
+                            DiffCodeText {
+                                x: 100
+                                width: 300
+                                height: 20
+                                row: index
+                                selection: testSelection
+                                plainText: "ctx one"
+                            }
+                        }
+                    }
+                }
+                DiffSelectionOverlay {
+                    objectName: "overlay"
+                    anchors.fill: parent
+                    list: fakeList
+                    selection: testSelection
+                }
+            }
+        )QML", QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
+        std::unique_ptr<QObject> root(comp.create());
+        QVERIFY2(root != nullptr, qPrintable(comp.errorString()));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 40), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
 };
 
 #include "test_qml_diff_selection.moc"
