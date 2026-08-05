@@ -12,6 +12,7 @@ add_executable(gittide_core_tests
   test_git_repo_commit.cpp
   test_git_repo_identity.cpp
   test_project_store.cpp
+  test_repo_scan.cpp
   test_credentials_store.cpp
   test_build_patch.cpp
   test_git_repo_discard.cpp
