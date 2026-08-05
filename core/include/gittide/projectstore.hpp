@@ -14,11 +14,23 @@ struct RepoRef
     std::string alias;
 };
 
+/// A folder that is rescanned for repositories to add to a project.
+struct RepoSource
+{
+    std::string path; ///< absolute, stored as UTF-8 generic path
+    int maxDepth = 2; ///< see ScanOptions::maxDepth
+    /// Repo paths this source must never add again — seeded from the repos the
+    /// user left unchecked when registering, grown by removals from the project.
+    std::vector<std::string> ignored;
+};
+
 struct Project
 {
     std::string id;
     std::string name;
     std::vector<RepoRef> repos;
+    /// Folders rescanned on project activation; see RepoSource.
+    std::vector<RepoSource> sources;
     std::string lastActiveRepo;
 };
 

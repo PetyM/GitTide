@@ -198,3 +198,55 @@ TEST_CASE("addRepo round-trips through save/load", "[store][mutations]")
 
     std::filesystem::remove(path);
 }
+
+TEST_CASE("sources round-trip through JSON", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    gittide::Project p;
+    p.id   = "uuid-1";
+    p.name = "Work";
+    p.sources.push_back(gittide::RepoSource{.path = "/home/u/projects", .maxDepth = 3, .ignored = {"/home/u/projects/scratch"}});
+    store.projects().push_back(p);
+
+    auto loaded = gittide::ProjectStore::from_json(store.to_json());
+
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects()[0].sources.size() == 1);
+    REQUIRE(loaded->projects()[0].sources[0].path == "/home/u/projects");
+    REQUIRE(loaded->projects()[0].sources[0].maxDepth == 3);
+    REQUIRE(loaded->projects()[0].sources[0].ignored.size() == 1);
+    REQUIRE(loaded->projects()[0].sources[0].ignored[0] == "/home/u/projects/scratch");
+}
+
+TEST_CASE("a document without \"sources\" loads with an empty source list", "[store][sources]")
+{
+    // The pre-sources on-disk schema: still version 1, no migration needed.
+    const std::string legacy = R"({
+      "version": 1,
+      "activeProject": "uuid-1",
+      "projects": [ { "id": "uuid-1", "name": "Work", "repos": [ { "path": "/home/u/api", "alias": "" } ] } ]
+    })";
+
+    auto loaded = gittide::ProjectStore::from_json(legacy);
+
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects().size() == 1);
+    REQUIRE(loaded->projects()[0].repos.size() == 1);
+    REQUIRE(loaded->projects()[0].sources.empty());
+    REQUIRE(loaded->loadedVersion() == gittide::ProjectStore::kVersion);
+}
+
+TEST_CASE("malformed source entries are skipped, not fatal", "[store][sources]")
+{
+    const std::string doc = R"({
+      "version": 1,
+      "projects": [ { "id": "uuid-1", "name": "Work", "sources": [ 42, { "path": "/home/u/projects" } ] } ]
+    })";
+
+    auto loaded = gittide::ProjectStore::from_json(doc);
+
+    REQUIRE(loaded.has_value());
+    REQUIRE(loaded->projects()[0].sources.size() == 1);
+    REQUIRE(loaded->projects()[0].sources[0].path == "/home/u/projects");
+    REQUIRE(loaded->projects()[0].sources[0].maxDepth == 2); // default
+}

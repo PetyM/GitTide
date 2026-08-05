@@ -31,6 +31,14 @@ std::string ProjectStore::to_json() const
             repos.push_back({{"path", r.path}, {"alias", r.alias}});
         }
         jp["repos"] = std::move(repos);
+
+        json sources = json::array();
+        for (const auto& s : p.sources)
+        {
+            sources.push_back({{"path", s.path}, {"maxDepth", s.maxDepth}, {"ignored", s.ignored}});
+        }
+        jp["sources"] = std::move(sources);
+
         arr.push_back(std::move(jp));
     }
     root["projects"] = std::move(arr);
@@ -74,6 +82,29 @@ Expected<ProjectStore> ProjectStore::from_json(const std::string& text)
                         if (!jr.is_object())
                             continue;
                         p.repos.push_back(RepoRef{jr.value("path", std::string{}), jr.value("alias", std::string{})});
+                    }
+                }
+                // "sources" is additive to the v1 schema: a document written
+                // before sources existed simply has none.
+                if (jp.contains("sources") && jp.at("sources").is_array())
+                {
+                    for (const auto& js : jp.at("sources"))
+                    {
+                        if (!js.is_object())
+                            continue; // skip malformed source entries
+                        RepoSource s;
+                        s.path     = js.value("path", std::string{});
+                        s.maxDepth = js.value("maxDepth", 2);
+                        if (js.contains("ignored") && js.at("ignored").is_array())
+                        {
+                            for (const auto& ji : js.at("ignored"))
+                            {
+                                if (ji.is_string())
+                                    s.ignored.push_back(ji.get<std::string>());
+                            }
+                        }
+                        if (!s.path.empty())
+                            p.sources.push_back(std::move(s));
                     }
                 }
                 store.m_projects.push_back(std::move(p));
