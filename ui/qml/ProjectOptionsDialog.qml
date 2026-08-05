@@ -25,6 +25,8 @@ AppDialog {
     property var choices: []
     // Snapshot of the active project's repos: [{path,name}]. Rebuilt on open.
     property var repos: []
+    // Snapshot of the active project's repository sources: [{path,maxDepth,ignoredCount,available}].
+    property var sources: []
 
     function labelForId(id) {
         for (var i = 0; i < choices.length; ++i)
@@ -60,6 +62,8 @@ AppDialog {
         choices = ready ? credentialManager.identityChoices() : []
         repos = (typeof projectController !== "undefined" && projectController)
                 ? projectController.activeProjectRepos() : []
+        sources = (typeof projectController !== "undefined" && projectController)
+                  ? projectController.activeProjectSources() : []
     }
 
     function openDialog() {
@@ -199,6 +203,92 @@ AppDialog {
                         onActivated: (index) => {
                             if (dialog.ready)
                                 credentialManager.setRepoOverride(modelData.path, rows[index].id)
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: theme.border }
+
+        // ---- Repository sources ----
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                Label {
+                    Layout.fillWidth: true
+                    text: "Repository sources"
+                    color: theme.textSecondary
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                AppButton {
+                    objectName: "rescanSourcesButton"
+                    variant: "secondary"
+                    text: "Rescan now"
+                    visible: dialog.sources.length > 0
+                    onClicked: if (projectController) projectController.rescanSources()
+                }
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: dialog.sources.length === 0
+                text: "No sources. Add one from “Add repositories from folder…”."
+                color: theme.textMuted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: dialog.sources
+                delegate: RowLayout {
+                    id: sourceRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        Label {
+                            Layout.fillWidth: true
+                            text: sourceRow.modelData.path
+                            color: theme.textPrimary
+                            font.pixelSize: 13
+                            elide: Text.ElideMiddle
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: sourceRow.modelData.available
+                                  ? ("depth " + sourceRow.modelData.maxDepth
+                                     + " · " + sourceRow.modelData.ignoredCount + " ignored")
+                                  : "folder not found"
+                            color: sourceRow.modelData.available ? theme.textMuted : theme.stateDeleted
+                            font.pixelSize: 11
+                        }
+                    }
+                    AppButton {
+                        variant: "secondary"
+                        text: "Clear ignored"
+                        enabled: sourceRow.modelData.ignoredCount > 0
+                        onClicked: {
+                            if (projectController)
+                                projectController.clearIgnoredForSource(sourceRow.modelData.path)
+                            dialog.refresh()
+                        }
+                    }
+                    AppButton {
+                        variant: "danger"
+                        text: "Remove"
+                        onClicked: {
+                            if (projectController)
+                                projectController.removeSource(sourceRow.modelData.path)
+                            dialog.refresh()
                         }
                     }
                 }

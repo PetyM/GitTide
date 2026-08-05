@@ -174,6 +174,15 @@ public slots:
     // Empty when no project is active.
     Q_INVOKABLE QVariantList activeProjectRepos() const;
 
+    /// The active project's sources as { path, maxDepth, ignoredCount, available }
+    /// maps for the Project Options dialog. `available` is false when the folder
+    /// no longer exists. Empty when no project is active.
+    Q_INVOKABLE QVariantList activeProjectSources() const;
+    /// Unregister a source. The repositories it added stay in the project.
+    Q_INVOKABLE void removeSource(const QString& path);
+    /// Empty one source's ignore list, so its next scan offers everything again.
+    Q_INVOKABLE void clearIgnoredForSource(const QString& path);
+
     // Fetch the submodule tree for repoPath off-thread and refresh the model row.
     Q_INVOKABLE QCoro::Task<void> refreshSubmodules(QString repoPath);
     // Re-initialise the submodule at the absolute submodulePath and refresh the tree.

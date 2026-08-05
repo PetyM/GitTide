@@ -597,6 +597,46 @@ QVariantList ProjectController::activeProjectRepos() const
     return out;
 }
 
+QVariantList ProjectController::activeProjectSources() const
+{
+    QVariantList rows;
+    if (m_activeId.isEmpty())
+        return rows;
+
+    for (const auto& p : m_store->projects())
+    {
+        if (QString::fromStdString(p.id) != m_activeId)
+            continue;
+        for (const auto& s : p.sources)
+        {
+            std::error_code ec;
+            const bool      available = std::filesystem::is_directory(std::filesystem::path(s.path), ec) && !ec;
+            rows.append(QVariantMap{{QStringLiteral("path"), QString::fromStdString(s.path)},
+                                    {QStringLiteral("maxDepth"), s.maxDepth},
+                                    {QStringLiteral("ignoredCount"), static_cast<int>(s.ignored.size())},
+                                    {QStringLiteral("available"), available}});
+        }
+        break;
+    }
+    return rows;
+}
+
+void ProjectController::removeSource(const QString& path)
+{
+    if (m_activeId.isEmpty())
+        return;
+    if (m_store->removeSource(m_activeId.toStdString(), path.toStdString()))
+        saveStore();
+}
+
+void ProjectController::clearIgnoredForSource(const QString& path)
+{
+    if (m_activeId.isEmpty())
+        return;
+    if (m_store->clearIgnored(m_activeId.toStdString(), path.toStdString()))
+        saveStore();
+}
+
 void ProjectController::removeProject()
 {
     if (m_activeId.isEmpty())

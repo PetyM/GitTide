@@ -500,6 +500,44 @@ private slots:
         QCOMPARE(controller.repos()->rowCount(), 1); // id-b's own repo, untouched by the stale pass
     }
 
+    void activeProjectSources_reports_paths_depth_ignores_and_availability()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 3, .ignored = {"x"}});
+        store.projects()[0].sources.push_back(gittide::RepoSource{.path = "/definitely/not/here", .maxDepth = 1});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        const QVariantList rows = controller.activeProjectSources();
+        QCOMPARE(rows.size(), 2);
+        QCOMPARE(rows.at(0).toMap().value("maxDepth").toInt(), 3);
+        QCOMPARE(rows.at(0).toMap().value("ignoredCount").toInt(), 1);
+        QCOMPARE(rows.at(0).toMap().value("available").toBool(), true);
+        QCOMPARE(rows.at(1).toMap().value("available").toBool(), false);
+    }
+
+    void removeSource_and_clearIgnoredForSource_mutate_the_store()
+    {
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = "/home/u/projects", .maxDepth = 2, .ignored = {"/home/u/projects/x"}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        controller.clearIgnoredForSource(QStringLiteral("/home/u/projects"));
+        QCOMPARE(static_cast<int>(store.projects()[0].sources[0].ignored.size()), 0);
+
+        controller.removeSource(QStringLiteral("/home/u/projects"));
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 0);
+    }
+
     void initRepo_creates_repo_and_emits_repoAdded()
     {
         const auto parentDir       = std::filesystem::temp_directory_path();
