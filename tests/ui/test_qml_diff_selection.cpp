@@ -52,6 +52,79 @@ gittide::DiffResult twoLineDiff()
     r.hunks = {h};
     return r;
 }
+
+// Builds the fake-list + DiffSelectionOverlay host every overlay test drives.
+// The engine must already carry "theme" and "testSelection" context
+// properties. Rows are 20px tall; each row's code column starts at x = 100.
+// Row @p noCodeRow (default: none) gets no DiffCodeText at all — like a
+// conflict header row, which has no code column for the overlay to select in.
+// On a QML error, @p errorOut (if given) receives the component's error
+// string and the returned pointer is null.
+std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1, QString* errorOut = nullptr)
+{
+    QQmlComponent comp(&engine);
+    const QByteArray qml = QStringLiteral(R"QML(
+        import QtQuick
+
+        Item {
+            id: host
+            width: 400
+            height: 60
+
+            property var rows: ["@@ -1,1 +1,2 @@", "ctx one", "added two"]
+            property int noCodeRow: %1
+
+            Column {
+                id: fakeList
+                objectName: "fakeList"
+                property real contentY: 0
+                property real contentHeight: 60
+                width: 400
+                height: 60
+                function indexAt(x, y) {
+                    const row = Math.floor(y / 20)
+                    return (row < 0 || row > 2) ? -1 : row
+                }
+                function itemAtIndex(i) { return repeater.itemAt(i) }
+                Repeater {
+                    id: repeater
+                    model: 3
+                    delegate: Item {
+                        width: 400
+                        height: 20
+                        // Row noCodeRow gets no DiffCodeText at all, not just
+                        // a hidden one — the overlay's hit-testing looks for
+                        // an actual "diffCodeText" descendant.
+                        Loader {
+                            active: index !== host.noCodeRow
+                            sourceComponent: DiffCodeText {
+                                x: 100
+                                width: 300
+                                height: 20
+                                row: index
+                                selection: testSelection
+                                plainText: host.rows[index]
+                            }
+                        }
+                    }
+                }
+            }
+
+            DiffSelectionOverlay {
+                objectName: "overlay"
+                anchors.fill: parent
+                list: fakeList
+                selection: testSelection
+            }
+        }
+    )QML")
+                                    .arg(noCodeRow)
+                                    .toUtf8();
+    comp.setData(qml, QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
+    if (errorOut)
+        *errorOut = comp.errorString();
+    return std::unique_ptr<QObject>(comp.create());
+}
 } // namespace
 
 class TestQmlDiffSelection : public QObject
@@ -160,59 +233,9 @@ private slots:
         selection.setModel(&model);
         engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
 
-        QQmlComponent comp(&engine);
-        comp.setData(R"QML(
-            import QtQuick
-
-            // Rows are 20px tall; each row's code column starts at x = 100.
-            Item {
-                id: host
-                width: 400
-                height: 60
-
-                property var rows: ["@@ -1,1 +1,2 @@", "ctx one", "added two"]
-
-                Column {
-                    id: fakeList
-                    objectName: "fakeList"
-                    property real contentY: 0
-                    property real contentHeight: 60
-                    width: 400
-                    height: 60
-                    function indexAt(x, y) {
-                        const row = Math.floor(y / 20)
-                        return (row < 0 || row > 2) ? -1 : row
-                    }
-                    function itemAtIndex(i) { return repeater.itemAt(i) }
-                    Repeater {
-                        id: repeater
-                        model: 3
-                        delegate: Item {
-                            width: 400
-                            height: 20
-                            DiffCodeText {
-                                x: 100
-                                width: 300
-                                height: 20
-                                row: index
-                                selection: testSelection
-                                plainText: host.rows[index]
-                            }
-                        }
-                    }
-                }
-
-                DiffSelectionOverlay {
-                    objectName: "overlay"
-                    anchors.fill: parent
-                    list: fakeList
-                    selection: testSelection
-                }
-            }
-        )QML", QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
-        QVERIFY2(comp.errorString().isEmpty(), qPrintable(comp.errorString()));
-        std::unique_ptr<QObject> root(comp.create());
-        QVERIFY2(root != nullptr, qPrintable(comp.errorString()));
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
 
         QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
         QVERIFY(overlay != nullptr);
@@ -244,50 +267,9 @@ private slots:
         selection.setModel(&model);
         engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
 
-        QQmlComponent comp(&engine);
-        comp.setData(R"QML(
-            import QtQuick
-            Item {
-                width: 400
-                height: 60
-                Column {
-                    id: fakeList
-                    property real contentY: 0
-                    property real contentHeight: 60
-                    width: 400
-                    height: 60
-                    function indexAt(x, y) {
-                        const row = Math.floor(y / 20)
-                        return (row < 0 || row > 2) ? -1 : row
-                    }
-                    function itemAtIndex(i) { return repeater.itemAt(i) }
-                    Repeater {
-                        id: repeater
-                        model: 3
-                        delegate: Item {
-                            width: 400
-                            height: 20
-                            DiffCodeText {
-                                x: 100
-                                width: 300
-                                height: 20
-                                row: index
-                                selection: testSelection
-                                plainText: "ctx one"
-                            }
-                        }
-                    }
-                }
-                DiffSelectionOverlay {
-                    objectName: "overlay"
-                    anchors.fill: parent
-                    list: fakeList
-                    selection: testSelection
-                }
-            }
-        )QML", QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
-        std::unique_ptr<QObject> root(comp.create());
-        QVERIFY2(root != nullptr, qPrintable(comp.errorString()));
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
         QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
         QVERIFY(overlay != nullptr);
 
@@ -296,6 +278,91 @@ private slots:
                                   Q_ARG(QVariant, 40), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
         QVERIFY(!handled.toBool());
         QVERIFY(!selection.property("hasSelection").toBool());
+    }
+
+    void overlay_rejects_a_press_on_a_row_with_no_code_item()
+    {
+        // A conflict header row (or any row DiffView doesn't give a code
+        // column) must not start a selection, even when the press falls
+        // squarely inside where the code column would otherwise be.
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, /*noCodeRow=*/1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Row 1 ("ctx one") has no code item on this host; x=150 sits well
+        // inside the code column, so a rejection here is about the missing
+        // item, not the left-of-column case covered above.
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 150), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
+
+    void overlay_drag_through_a_row_with_no_code_item_extends_to_its_edge()
+    {
+        // moveTo()'s fallback for a code-less row picks an edge column based
+        // on drag direction: the row's full length when the drag is moving
+        // down through it, column 0 when moving back up.
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        // Row 1 ("ctx one") has no code item; row 0 (the hunk header) and
+        // row 2 ("added two") do.
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, /*noCodeRow=*/1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Dragging down from row 0 into the code-less row 1 extends through
+        // it to its full length (7 == strlen("ctx one")).
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 10),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 150), Q_ARG(QVariant, 25));
+        QMetaObject::invokeMethod(overlay, "endDrag");
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.startInRow(1), 0);
+        QCOMPARE(selection.endInRow(1), 7);
+
+        selection.clear();
+
+        // Dragging up from row 2 into the code-less row 1: the cursor lands
+        // at column 0 there, so once row 1 is the first row of the ordered
+        // selection its start is 0 too — startInRow is what would catch a
+        // reversed direction check; row 1 is still fully selected (endInRow
+        // is its full length regardless of direction, since it isn't the
+        // last row of the selection).
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 400), Q_ARG(QVariant, 45),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 150), Q_ARG(QVariant, 25));
+        QMetaObject::invokeMethod(overlay, "endDrag");
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.startInRow(1), 0);
+        QCOMPARE(selection.endInRow(1), 7);
     }
 };
 

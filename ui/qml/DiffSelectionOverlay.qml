@@ -115,8 +115,13 @@ MouseArea {
     }
 
     onPressed: function(mouse) {
-        overlay.forceActiveFocus()
-        mouse.accepted = pressAt(mouse.x, mouse.y, mouse.modifiers)
+        // Only take focus when the press actually starts a selection — a
+        // rejected press (checkbox, gutter, sign column, conflict Accept
+        // buttons) must leave focus with whatever is underneath.
+        const handled = pressAt(mouse.x, mouse.y, mouse.modifiers)
+        if (handled)
+            overlay.forceActiveFocus()
+        mouse.accepted = handled
     }
     onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
     onReleased: endDrag()
