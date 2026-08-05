@@ -150,15 +150,15 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Idle));
 
         QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
-        m.setFetchState(0, RepoListModel::FetchState::Running);
+        QVERIFY(m.setFetchStateByPath(QStringLiteral("/home/u/api"), RepoListModel::FetchState::Running));
         QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Running));
         QCOMPARE(spy.count(), 1);
 
-        m.setSyncCounts(0, 1, 3, false);
+        QVERIFY(m.setSyncCountsByPath(QStringLiteral("/home/u/api"), 1, 3, false));
         QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 1);
         QCOMPARE(m.data(i0, RepoListModel::BehindRole).toInt(), 3);
 
-        m.setFetchState(0, RepoListModel::FetchState::Failed, QStringLiteral("boom"));
+        QVERIFY(m.setFetchStateByPath(QStringLiteral("/home/u/api"), RepoListModel::FetchState::Failed, QStringLiteral("boom")));
         QCOMPARE(m.data(i0, RepoListModel::FetchErrorRole).toString(), QStringLiteral("boom"));
 
         m.resetFetchStates();
@@ -171,7 +171,7 @@ private slots:
         using gittide::ui::RepoListModel;
         RepoListModel m;
         m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
-        m.setFetchState(5, RepoListModel::FetchState::Running); // must not crash
+        QVERIFY(!m.setFetchStateByPath(QStringLiteral("/no/such/repo"), RepoListModel::FetchState::Running));
         QCOMPARE(m.topLevelCount(), 1);
     }
 
@@ -420,18 +420,18 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false);
 
         QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
-        m.setRepoHead(0, QStringLiteral("main"), false, QStringLiteral("abc1234"), 3);
+        QVERIFY(m.setRepoHeadByPath(QStringLiteral("/home/u/api"), QStringLiteral("main"), false, QStringLiteral("abc1234"), 3));
         QCOMPARE(m.data(i0, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
         QCOMPARE(m.data(i0, RepoListModel::DirtyCountRole).toInt(), 3);
         QVERIFY(spy.count() >= 1);
 
         // Detached: branch empty, detached true, short oid carried in ShortOidRole.
-        m.setRepoHead(0, QString(), true, QStringLiteral("deadbee"), 0);
+        QVERIFY(m.setRepoHeadByPath(QStringLiteral("/home/u/api"), QString(), true, QStringLiteral("deadbee"), 0));
         QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), true);
         QCOMPARE(m.data(i0, RepoListModel::ShortOidRole).toString(), QStringLiteral("deadbee"));
 
-        // hasUpstream flows through setSyncCounts.
-        m.setSyncCounts(0, 2, 1, true);
+        // hasUpstream flows through setSyncCountsByPath.
+        QVERIFY(m.setSyncCountsByPath(QStringLiteral("/home/u/api"), 2, 1, true));
         QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 2);
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), true);
     }
@@ -489,8 +489,44 @@ private slots:
     {
         RepoListModel m;
         m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
-        m.setRepoHead(9, QStringLiteral("x"), false, QString(), 0); // must not crash
+        QVERIFY(!m.setRepoHeadByPath(QStringLiteral("/no/such/repo"), QStringLiteral("x"), false, QString(), 0));
         QCOMPARE(m.topLevelCount(), 1);
+    }
+
+    // Root rows must be addressable by path, not by position: a follow-up adds
+    // source-group nodes as extra root rows, which would make row index and
+    // repo index diverge if any setter still assumed m_roots[row] == repos[row].
+    void fetch_state_is_addressable_by_path()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<RepoRef> repos{
+            RepoRef{.path = tmp.generic_string(), .alias = "one"},
+            RepoRef{.path = (tmp / "gittide-two").generic_string(), .alias = "two"},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos);
+
+        QVERIFY(m.setFetchStateByPath(QString::fromStdString((tmp / "gittide-two").generic_string()),
+                                      RepoListModel::FetchState::Running));
+
+        // The addressed row changed; its sibling did not.
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Running));
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
+    }
+
+    void fetch_state_by_unknown_path_is_a_no_op()
+    {
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = "/tmp/gittide-only", .alias = "only"}});
+
+        QVERIFY(!m.setFetchStateByPath(QStringLiteral("/no/such/repo"), RepoListModel::FetchState::Running));
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
     }
 
     // setRepos runs on the UI thread on every project switch, so it must not do

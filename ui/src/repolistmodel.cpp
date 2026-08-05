@@ -241,22 +241,21 @@ void RepoListModel::resetFetchStates()
     }
 }
 
-void RepoListModel::setFetchState(int rootRow, FetchState state, const QString& error)
+bool RepoListModel::setFetchStateByPath(const QString& path, FetchState state, const QString& error)
 {
-    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
-        return;
-    Node& n      = *m_roots[rootRow];
-    n.fetchState = state;
-    n.fetchError = error;
-    const QModelIndex idx = createIndex(rootRow, 0, &n);
-    emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole});
+    Node* n = findByPath(path);
+    if (!n)
+        return false;
+    applyFetchState(*n, state, error);
+    return true;
 }
 
-void RepoListModel::setSyncCounts(int rootRow, int ahead, int behind, bool hasUpstream)
+void RepoListModel::applyFetchState(Node& n, FetchState state, const QString& error)
 {
-    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
-        return;
-    applySyncCounts(*m_roots[rootRow], ahead, behind, hasUpstream);
+    n.fetchState = state;
+    n.fetchError = error;
+    const QModelIndex idx = createIndex(rowOf(&n), 0, &n);
+    emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole});
 }
 
 bool RepoListModel::setSyncCountsByPath(const QString& path, int ahead, int behind, bool hasUpstream)
@@ -275,14 +274,6 @@ void RepoListModel::applySyncCounts(Node& n, int ahead, int behind, bool hasUpst
     n.hasUpstream = hasUpstream;
     const QModelIndex idx = createIndex(rowOf(&n), 0, &n);
     emit dataChanged(idx, idx, {AheadRole, BehindRole, HasUpstreamRole});
-}
-
-void RepoListModel::setRepoHead(int rootRow, const QString& branch, bool detached,
-                                const QString& shortOid, int dirtyCount)
-{
-    if (rootRow < 0 || rootRow >= static_cast<int>(m_roots.size()))
-        return;
-    applyRepoHead(*m_roots[rootRow], branch, detached, shortOid, dirtyCount);
 }
 
 bool RepoListModel::setRepoHeadByPath(const QString& path, const QString& branch, bool detached,

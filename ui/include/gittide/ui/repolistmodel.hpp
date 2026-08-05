@@ -82,22 +82,22 @@ public:
 
     int  topLevelCount() const;
     void resetFetchStates();
-    void setFetchState(int rootRow, FetchState state, const QString& error = {});
-    void setSyncCounts(int rootRow, int ahead, int behind, bool hasUpstream);
-    /// Set the current-branch / dirty state of the top-level repo at `rootRow`.
-    /// `shortOid` is used only for the detached-HEAD fallback (reuses ShortOidRole).
-    void setRepoHead(int rootRow, const QString& branch, bool detached,
-                     const QString& shortOid, int dirtyCount);
 
-    /// As setRepoHead, but addressing the node by its exact `path` at any depth —
-    /// the repo pushing its own state may be a submodule opened as a first-class
-    /// repo, which no top-level row index can reach. Returns false (and changes
-    /// nothing) when the path is not in the tree.
+    /// Set the current-branch / dirty state of the node at the exact `path`, at
+    /// any depth — the repo pushing its own state may be a submodule opened as
+    /// a first-class repo, which no top-level row index can reach. `shortOid` is
+    /// used only for the detached-HEAD fallback (reuses ShortOidRole). Returns
+    /// false (and changes nothing) when the path is not in the tree.
     bool setRepoHeadByPath(const QString& path, const QString& branch, bool detached,
                            const QString& shortOid, int dirtyCount);
-    /// As setSyncCounts, addressing the node by its exact `path` at any depth.
-    /// Returns false when the path is not in the tree.
+    /// Set the ahead/behind/upstream cluster of the node at the exact `path`, at
+    /// any depth. Returns false (and changes nothing) when the path is not in
+    /// the tree.
     bool setSyncCountsByPath(const QString& path, int ahead, int behind, bool hasUpstream);
+    /// Set the fetch-state / error of the node at the exact `path`, at any
+    /// depth. Returns false (and changes nothing) when the path is not in the
+    /// tree.
+    bool setFetchStateByPath(const QString& path, FetchState state, const QString& error = {});
 
 private:
     struct Node
@@ -133,11 +133,12 @@ private:
                          const std::vector<gittide::SubmoduleNode>& subs) const;
     // Any node by exact path (depth-first), or nullptr.
     Node* findByPath(const QString& path);
-    // Shared bodies behind the row-indexed and by-path setters, so both entry
-    // points write the same fields and emit the same dataChanged role list.
+    // Shared bodies behind the by-path setters: field writes + the dataChanged
+    // role list, factored out of the *ByPath entry point that resolves `path`.
     void applyRepoHead(Node& n, const QString& branch, bool detached,
                        const QString& shortOid, int dirtyCount);
     void applySyncCounts(Node& n, int ahead, int behind, bool hasUpstream);
+    void applyFetchState(Node& n, FetchState state, const QString& error);
     // Minimally update `parent`'s submodule children to match `subs`: when the
     // child path-set/order is unchanged, mutate changed fields in place and emit
     // dataChanged, recursing into grandchildren — this preserves each node's

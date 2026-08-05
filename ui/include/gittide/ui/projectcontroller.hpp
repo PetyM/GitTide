@@ -256,7 +256,10 @@ private:
     int                  m_fetchTotal   = 0;             // repos in the current fetch batch (for the progress bar)
     int                  m_fetchOk      = 0;
     int                  m_fetchFailed  = 0;
-    std::vector<int>     m_authFailedRows;             // rows that failed on auth (retried in submitFleetCredentials)
+    /// Repos that failed on auth, retried in submitFleetCredentials. Stored as
+    /// refs rather than row indices: rows are no longer positional once source
+    /// groups exist, and the project's repo list may have changed meanwhile.
+    std::vector<gittide::RepoRef> m_authFailedRefs;
     QStringList          m_fetchErrors;                // "name: message" per non-auth failure, shown once settled
     gittide::Credentials m_sessionCred;
     CredentialManager*   m_credentials = nullptr; // process-wide; not owned
@@ -270,7 +273,7 @@ private:
     // Kick one poll pass now, so rows built by setRepos (which does no git I/O)
     // are filled in immediately instead of at the next timer tick.
     void hydrateRepoModel();
-    QCoro::Task<void> fetchOne(int row, gittide::RepoRef ref);
+    QCoro::Task<void> fetchOne(gittide::RepoRef ref);
     void              finishOneFetch();                // counter bookkeeping + finalize
 
     // One poll pass: re-read each non-missing top-level repo's local sync counts
