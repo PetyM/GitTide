@@ -265,6 +265,84 @@ private slots:
         QVERIFY(!spy.at(0).at(0).toString().isEmpty());
     }
 
+    void addRepos_adds_the_batch_and_saves_once()
+    {
+        const auto root      = makeScanRoot({"api", "web"});
+        const auto storePath = std::filesystem::temp_directory_path() /
+                               ("gittide-pc-batch-" +
+                                QUuid::createUuid().toString(QUuid::WithoutBraces).toStdString() + ".json");
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store, storePath);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QString::fromStdString((root / "api").generic_string()),
+                             QString::fromStdString((root / "web").generic_string())},
+                            {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1); // one signal for the whole batch, not one per repo
+        QCOMPARE(spy.at(0).at(0).toInt(), 2);
+        QCOMPARE(spy.at(0).at(1).toStringList().size(), 0);
+        QCOMPARE(controller.repos()->rowCount(), 2);
+
+        auto reloaded = ProjectStore::load(storePath);
+        QVERIFY(reloaded.has_value());
+        QCOMPARE(static_cast<int>(reloaded->projects()[0].repos.size()), 2);
+    }
+
+    void addRepos_reports_failures_without_aborting_the_batch()
+    {
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        QSignalSpy spy(&controller, &ProjectController::reposAdded);
+        controller.addRepos({QStringLiteral("/definitely/not/a/repo"),
+                             QString::fromStdString((root / "api").generic_string())},
+                            {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toInt(), 1);
+        QCOMPARE(spy.at(0).at(1).toStringList().size(), 1);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+    }
+
+    void addRepos_registers_a_source_with_the_unchecked_paths_ignored()
+    {
+        const auto root = makeScanRoot({"api", "web"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())},
+                            {QString::fromStdString((root / "web").generic_string())},
+                            QString::fromStdString(root.generic_string()), 3);
+
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 1);
+        QCOMPARE(store.projects()[0].sources[0].maxDepth, 3);
+        QCOMPARE(static_cast<int>(store.projects()[0].sources[0].ignored.size()), 1);
+        QCOMPARE(QString::fromStdString(store.projects()[0].sources[0].ignored[0]),
+                 QString::fromStdString((root / "web").generic_string()));
+    }
+
+    void addRepos_without_an_active_project_fails_loudly()
+    {
+        ProjectStore      store;
+        ProjectController controller(&store);
+
+        QSignalSpy spy(&controller, &ProjectController::repoAddFailed);
+        controller.addRepos({QStringLiteral("/anything")}, {}, QString(), 2);
+
+        QCOMPARE(spy.count(), 1);
+    }
+
     void initRepo_creates_repo_and_emits_repoAdded()
     {
         const auto parentDir       = std::filesystem::temp_directory_path();

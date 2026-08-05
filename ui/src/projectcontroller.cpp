@@ -1,5 +1,6 @@
 #include "gittide/ui/projectcontroller.hpp"
 
+#include <QFileInfo>
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
@@ -253,6 +254,53 @@ void ProjectController::addExistingRepo(const QString& path)
     saveStore();
     refreshRepoModel();
     emit repoAdded(path);
+}
+
+void ProjectController::addRepos(const QStringList& paths, const QStringList& unchecked,
+                                 const QString& sourcePath, int maxDepth)
+{
+    if (m_activeId.isEmpty())
+    {
+        emit repoAddFailed(QStringLiteral("No active project"));
+        return;
+    }
+
+    int         added = 0;
+    QStringList failures;
+    for (const QString& path : paths)
+    {
+        const QString               name = QFileInfo(path).fileName();
+        const std::filesystem::path p(path.toStdString());
+
+        auto validation = gittide::GitRepo::open(p);
+        if (!validation)
+        {
+            failures << (name + QStringLiteral(": ") + QString::fromStdString(validation.error().message));
+            continue;
+        }
+        auto result = m_store->addRepo(m_activeId.toStdString(), gittide::RepoRef{.path = path.toStdString()});
+        if (!result)
+        {
+            failures << (name + QStringLiteral(": ") + QString::fromStdString(result.error().message));
+            continue;
+        }
+        ++added;
+    }
+
+    if (!sourcePath.isEmpty())
+    {
+        gittide::RepoSource src{.path = sourcePath.toStdString(), .maxDepth = maxDepth};
+        for (const QString& skipped : unchecked)
+            src.ignored.push_back(skipped.toStdString());
+        auto registered = m_store->addSource(m_activeId.toStdString(), std::move(src));
+        if (!registered)
+            failures << QString::fromStdString(registered.error().message);
+    }
+
+    // One save and one model refresh for the whole batch — never per repository.
+    saveStore();
+    refreshRepoModel();
+    emit reposAdded(added, failures);
 }
 
 QCoro::Task<void> ProjectController::scanFolder(QString path, int maxDepth)

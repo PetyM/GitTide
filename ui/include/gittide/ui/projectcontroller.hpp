@@ -85,6 +85,15 @@ public slots:
     void activate(const QString& projectId);
     void createProject(const QString& name);
     void addExistingRepo(const QString& path);
+    /// Add every path in `paths` to the active project in one batch: a repo that
+    /// fails validation is reported, never aborts the rest, and the store is
+    /// saved and the model refreshed once for the whole batch.
+    ///
+    /// When `sourcePath` is non-empty the folder is also registered as a
+    /// RepoSource with `maxDepth`, seeded with `unchecked` as its ignore list —
+    /// a repo left unchecked at registration is never offered again.
+    Q_INVOKABLE void addRepos(const QStringList& paths, const QStringList& unchecked,
+                              const QString& sourcePath, int maxDepth);
     /// Scan `path` for repositories, `maxDepth` levels deep, off the GUI thread.
     /// Results arrive on scanFinished (one QVariantMap per candidate) or
     /// scanFailed. Safe to call with no active project — every candidate is then
@@ -167,6 +176,9 @@ signals:
     void projectCreated(const QString& projectId);
     void repoAdded(const QString& path);
     void repoAddFailed(const QString& message);
+    /// Result of one addRepos batch. `failures` holds a "name: message" line per
+    /// repository that could not be added.
+    void reposAdded(int added, const QStringList& failures);
     /// One QVariantMap per discovered repository:
     /// { path: QString, name: QString, alreadyAdded: bool }.
     void scanFinished(const QVariantList& candidates);
