@@ -235,6 +235,11 @@ void ProjectController::createProject(const QString& name)
     emit projectCreated(id);
 }
 
+QString ProjectController::localPathFromUrl(const QUrl& url) const
+{
+    return url.toLocalFile();
+}
+
 void ProjectController::addExistingRepo(const QString& path)
 {
     if (m_activeId.isEmpty())

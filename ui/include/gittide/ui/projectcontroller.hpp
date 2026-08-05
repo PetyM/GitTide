@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 #include <QVariantList>
 #include <atomic>
 #include <filesystem>
@@ -85,6 +86,16 @@ public slots:
     void activate(const QString& projectId);
     void createProject(const QString& name);
     void addExistingRepo(const QString& path);
+    /// Convert a `file://` URL (as produced by QML's `FolderDialog.selectedFolder`)
+    /// to a plain filesystem path, via `QUrl::toLocalFile()`. Exists because the
+    /// obvious `url.toString()` is percent-encoded — a folder containing a space
+    /// round-trips as `%20` — and on Windows leaves a stray leading slash
+    /// (`/C:/...`). Every path taken from a folder picker must go through this
+    /// (or an equivalent) before reaching the store: paths are compared as exact
+    /// strings elsewhere (scan's `alreadyAdded`, batch-add duplicate rejection,
+    /// source ignore-list matching), and any of those silently misses for a
+    /// mis-decoded path.
+    Q_INVOKABLE QString localPathFromUrl(const QUrl& url) const;
     /// Add every path in `paths` to the active project in one batch: a repo that
     /// fails validation is reported, never aborts the rest, and the store is
     /// saved and the model refreshed once for the whole batch.

@@ -1,5 +1,6 @@
 #include <QObject>
 #include <QSignalSpy>
+#include <QUrl>
 #include <QUuid>
 #include <QtTest/QtTest>
 #include <filesystem>
@@ -263,6 +264,27 @@ private slots:
 
         QCOMPARE(spy.count(), 1);
         QVERIFY(!spy.at(0).at(0).toString().isEmpty());
+    }
+
+    // localPathFromUrl must decode a file:// URL via QUrl::toLocalFile() semantics
+    // rather than string surgery, so a folder containing a space round-trips
+    // exactly instead of coming back with a stray "%20".
+    void localPathFromUrl_decodes_percent_encoded_space()
+    {
+        ProjectStore store;
+        ProjectController controller(&store);
+
+        const QUrl url = QUrl::fromLocalFile(QStringLiteral("/home/user/my repos/api"));
+        QCOMPARE(controller.localPathFromUrl(url), QStringLiteral("/home/user/my repos/api"));
+    }
+
+    void localPathFromUrl_plain_path_round_trips()
+    {
+        ProjectStore store;
+        ProjectController controller(&store);
+
+        const QUrl url = QUrl::fromLocalFile(QStringLiteral("/home/user/repos/api"));
+        QCOMPARE(controller.localPathFromUrl(url), QStringLiteral("/home/user/repos/api"));
     }
 
     void addRepos_adds_the_batch_and_saves_once()

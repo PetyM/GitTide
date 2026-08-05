@@ -473,7 +473,7 @@ ApplicationWindow {
         id: addExistingFolder
         title: "Choose a repository folder"
         onAccepted: if (projectController)
-                        projectController.addExistingRepo(selectedFolder.toString().replace(/^file:\/\//, ""))
+                        projectController.addExistingRepo(projectController.localPathFromUrl(selectedFolder))
     }
 
     // ---- Auto-open a repository ----
