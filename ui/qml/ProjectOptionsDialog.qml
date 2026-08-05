@@ -71,6 +71,19 @@ AppDialog {
         open()
     }
 
+    // Re-take the snapshot once a rescan pass settles. This is not the dialog
+    // going reactive (see the comment on refresh() above) — it is still a
+    // snapshot, just re-taken at the one moment the sources data is known to
+    // have changed under the "Rescan now" button, which itself kicks an async
+    // rescanSources() with no other way to reach the dialog. Safe against a
+    // stale pass: rescanSources() already withholds this signal when the
+    // active project changed mid-pass, so this can't refresh onto the wrong
+    // project's data.
+    Connections {
+        target: projectController
+        function onSourcesRescanned(added, unavailableSources) { dialog.refresh() }
+    }
+
     // No footer — assignments apply live (setProjectDefault/setRepoOverride are
     // immediate). The header ✕ and Escape dismiss.
     footer: null

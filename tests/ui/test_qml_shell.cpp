@@ -821,6 +821,69 @@ private slots:
                  qPrintable(QStringLiteral("expected inherit row to name the global identity, got: ") + inheritLabel));
         QVERIFY(!inheritLabel.contains(QStringLiteral("Project Pat")));
     }
+
+    // Review fix: "Rescan now" kicks an async rescanSources() pass whose
+    // completion the dialog previously never observed, so the snapshot (repos,
+    // sources) stayed stale until the dialog was closed and reopened. This drives
+    // the fix end-to-end through the real QML button click and the real async
+    // controller pass, not by calling refresh() directly from the test — the
+    // dialog's own Connections { onSourcesRescanned: dialog.refresh() } must be
+    // what makes the newly discovered repo appear.
+    void rescan_now_button_refreshes_the_dialog_snapshot_once_the_pass_settles()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        RepoListModel repoModel;
+
+        const auto scanRoot = std::filesystem::temp_directory_path() /
+            ("gittide-qsh-scan-" + std::to_string(::QRandomGenerator::global()->generate()));
+        const auto repoDir = scanRoot / "api";
+        std::filesystem::create_directories(repoDir);
+        git_libgit2_init();
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, repoDir.generic_string().c_str(), 0);
+        git_repository_free(raw);
+        git_libgit2_shutdown();
+
+        gittide::ProjectStore store;
+        auto& proj = store.createProject("Work");
+
+        ProjectController controller(&store);
+        controller.activate(QString::fromStdString(proj.id)); // no sources yet: its own rescan is a no-op
+
+        // Register the folder as a source without adding "api" to the project —
+        // a rescan is what should discover and add it.
+        controller.addRepos({}, {}, QString::fromStdString(scanRoot.generic_string()), 2);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr, nullptr, {},
+                          nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QObject* dlg = root->findChild<QObject*>(QStringLiteral("projectOptionsDialog"));
+        QVERIFY(dlg != nullptr);
+        QVERIFY(QMetaObject::invokeMethod(dlg, "openDialog"));
+
+        // Not yet added: the dialog's own repos snapshot is empty on open.
+        QCOMPARE(dlg->property("repos").toList().size(), 0);
+
+        QObject* rescanBtn = dlg->findChild<QObject*>(QStringLiteral("rescanSourcesButton"));
+        QVERIFY(rescanBtn != nullptr);
+
+        QSignalSpy rescanned(&controller, &ProjectController::sourcesRescanned);
+        QMetaObject::invokeMethod(rescanBtn, "clicked", Qt::DirectConnection);
+        QVERIFY(rescanned.wait(5000));
+
+        // The fix under test: the dialog's snapshot reflects the newly
+        // discovered repo without the dialog being closed and reopened.
+        QCOMPARE(dlg->property("repos").toList().size(), 1);
+
+        std::error_code ec;
+        std::filesystem::remove_all(scanRoot, ec);
+    }
 };
 
 #include "test_qml_shell.moc"
