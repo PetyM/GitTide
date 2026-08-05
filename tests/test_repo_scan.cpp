@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
+#include <fstream>
 #include <git2.h>
 #include <random>
 #include <string>
@@ -144,6 +145,28 @@ TEST_CASE("scanForRepos finds a bare repository", "[scan]")
     REQUIRE(found.has_value());
     REQUIRE(found->size() == 1);
     REQUIRE(contains(*found, root.path() / "mirror.git"));
+}
+
+TEST_CASE("scanForRepos does not treat a directory with a bogus .git file as a repository", "[scan]")
+{
+    // The cheap pre-check that gates GitRepo::open() (avoiding a Warning-level
+    // log per ordinary subdirectory) treats any ".git" entry as a plausible
+    // repository, directory or file alike, since a file is legitimate for a
+    // linked worktree/submodule. Here the file exists but is not a valid
+    // gitlink, so the pre-check passes but the authoritative GitRepo::open()
+    // must still reject it.
+    gittide::LibGit2Context ctx;
+    TempDir root;
+    std::filesystem::create_directories(root.path() / "fake");
+    {
+        std::ofstream f(root.path() / "fake" / ".git");
+        f << "not a real gitdir\n";
+    }
+
+    auto found = gittide::scanForRepos(root.path(), gittide::ScanOptions{.maxDepth = 1});
+
+    REQUIRE(found.has_value());
+    REQUIRE(found->empty());
 }
 
 TEST_CASE("scanForRepos returns the root itself when it is a repository", "[scan]")
