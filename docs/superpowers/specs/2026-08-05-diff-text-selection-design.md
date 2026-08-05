@@ -35,9 +35,11 @@ buttons, and syntax highlighting all stay.
 ui/include/gittide/ui/diffselection.hpp   DiffSelection : QObject
 ui/src/diffselection.cpp
 ui/src/qmlcontext.cpp                     qmlRegisterType<DiffSelection>("GitTide", 1, 0, "DiffSelection")
-ui/qml/DiffCodeText.qml                   shared code-column item (TextEdit + selection wiring + hit area)
-ui/qml/DiffView.qml                       uses DiffCodeText, owns a DiffSelection
-ui/qml/CommitDetail.qml                   uses DiffCodeText, owns a DiffSelection
+ui/qml/DiffCodeText.qml                   shared code-column item (TextEdit + selection painting)
+ui/qml/DiffSelectionOverlay.qml           drag, autoscroll, shortcuts, menu — sibling of the list
+ui/qml/DiffContextMenu.qml                Copy / Copy with Diff Markers / Select All
+ui/qml/DiffView.qml                       uses all three, owns a DiffSelection
+ui/qml/CommitDetail.qml                   uses all three, owns a DiffSelection
 ```
 
 `DiffSelection` is instantiable from QML (precedent: `GraphColumn`). Each diff
@@ -91,30 +93,43 @@ are near-identical copies; this extraction removes the duplication.
 - `selectionColor: theme.selectionBg`, `selectedTextColor: theme.selectionText`
 - binds `select(selection.startInRow(row), selection.endInRow(row))`, so a row
   recycled back into view repaints the correct highlight
-- a `MouseArea` covering only this item — the checkbox, gutter and sign columns
-  keep their current click behaviour
+- presentational only: no mouse handling of its own (see the overlay below)
 
 `TextEdit` has no `elide`. Long lines are hard-clipped without the `…` the
 current `Label` shows. Accepted: copy still yields the full line, and horizontal
 scrolling for long lines is a separate wish.
 
-### Drag mechanics
+### `DiffSelectionOverlay.qml`
 
-On press the origin `MouseArea` grabs the mouse, so movement over other rows is
-still delivered to it. Each move maps pointer position to a model position:
+A `MouseArea` sized over the whole list, a **sibling** of the `ListView`, not a
+child of any delegate. Delegate-owned mouse handling does not work here: an
+autoscrolling drag scrolls the row it started on out of view, the `ListView`
+destroys that delegate, and the mouse grab dies with it. The overlay also
+carries the keyboard shortcuts and the context menu, so both diff surfaces get
+the whole interaction by declaring one item.
+
+Pointer → model position:
 
 ```
-p    = mapToItem(list.contentItem, mouse.x, mouse.y)
-row  = list.indexAt(p.x, p.y)
-item = list.itemAtIndex(row)          // the row's DiffCodeText
-col  = item.positionAt(mapped x, y)
+row  = list.indexAt(1, clamp(y, 0, list.height - 1) + list.contentY)
+code = the row item's child named "diffCodeText"
+p    = code.mapFromItem(overlay, x, y)
+col  = p.x < 0 ? -1 : code.positionAt(p.x, p.y)
 ```
 
-Rows that are not code rows (conflict-start headers) are not drag targets;
-dragging across them extends the selection through them by row index.
+`col == -1` means the press landed left of the code column (checkbox, gutter,
+sign) or on a row with no code item (a conflict-start header). On press that
+sets `mouse.accepted = false`, so the checkbox or Accept button underneath keeps
+its current behaviour. Mid-drag it means "extend through this row": to column 0
+when dragging up, to the row's full length when dragging down.
+
+The overlay reaches the list only through `indexAt`, `itemAtIndex`, `contentY`,
+`contentHeight` and `height` — a stub object with those members drives it in
+tests.
 
 An autoscroll `Timer` runs while the pointer is past the viewport's top or
-bottom edge, stepping `contentY` by an amount proportional to the overshoot.
+bottom edge, stepping `contentY` by an amount proportional to the overshoot and
+re-extending the selection at the new position.
 
 ## Interaction
 
@@ -171,15 +186,24 @@ TDD — each test written failing first.
   row still prefixed
 - `block` rows skipped; `hunk` rows verbatim and unprefixed
 
-**`tests/ui/test_qml_diff_selection.cpp`** (headless `Main.qml`, pattern of
-`test_qml_wheelscroller.cpp`)
+**`tests/ui/test_qml_diff_selection.cpp`** (component-level, pattern of
+`test_qml_appcontrols.cpp` / `test_qml_stash.cpp`)
 
-- diff code rows exist with the expected object names in both surfaces
-- driving `begin`/`extendTo` paints `selectionStart`/`selectionEnd` on visible
-  rows
-- `selectionColor` resolves from the theme token and changes with the theme
+- `DiffCodeText.qml` instantiated directly with a `DiffSelection`: driving
+  `begin`/`extendTo` paints `selectionStart`/`selectionEnd`; `selectionColor`
+  resolves from the theme token and follows a theme change
 - a highlighted (rich-text) row selects at the same offsets as its `TextRole`
   string — guards the document-vs-source-offset risk below
+- `DiffSelectionOverlay.qml` driven against a **stub list** object: press/move
+  builds the expected selection, a press left of the code column is rejected,
+  `Ctrl+A` / `Ctrl+C` / `Ctrl+Shift+C` produce the expected copy text
+- `DiffView.qml` and `CommitDetail.qml` each own an overlay and a selection
+  bound to their list's model
+
+Note for whoever writes these: the offscreen harness never renders a frame, so
+`ListView` **delegates are not instantiated** (see the comment in
+`test_qml_history.cpp`). No test may reach a diff row through the real list —
+component-level instantiation and the stub list are the way in.
 
 New source `ui/src/diffselection.cpp` → `ui/CMakeLists.txt`; both test files →
 the ui list in `tests/CMakeLists.txt`.
