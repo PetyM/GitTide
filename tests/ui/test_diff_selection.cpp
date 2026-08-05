@@ -284,6 +284,83 @@ private slots:
         const QString copied = sel.copyText(false);
         QCOMPARE(copied, QStringLiteral("@@ -1,2 +1,2 @@\nctx one\nadded two\nremoved three\n"));
     }
+
+    void select_word_expands_to_the_identifier_under_the_column()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectWord(2, 7); // inside "two" of "added two"
+        QCOMPARE(sel.startInRow(2), 6);
+        QCOMPARE(sel.endInRow(2), 9);
+        QCOMPARE(sel.copyText(false), QStringLiteral("two\n"));
+    }
+
+    void select_word_at_the_start_of_a_row_stops_at_the_row_start()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectWord(1, 0); // "ctx one"
+        QCOMPARE(sel.startInRow(1), 0);
+        QCOMPARE(sel.endInRow(1), 3);
+    }
+
+    void select_word_on_a_separator_takes_the_single_character()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectWord(1, 3); // the space in "ctx one"
+        QCOMPARE(sel.startInRow(1), 3);
+        QCOMPARE(sel.endInRow(1), 4);
+    }
+
+    void select_word_past_the_end_takes_the_last_word()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectWord(1, 999);
+        QCOMPARE(sel.startInRow(1), 4);
+        QCOMPARE(sel.endInRow(1), 7);
+    }
+
+    void select_line_takes_the_whole_row()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectLine(3);
+        QCOMPARE(sel.startInRow(3), 0);
+        QCOMPARE(sel.endInRow(3), 13);
+        QCOMPARE(sel.copyText(false), QStringLiteral("removed three\n"));
+    }
+
+    void selecting_an_empty_row_selects_nothing()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false, true); // block rows carry empty text
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        // Row 2 is the synthetic block row inserted before the added/removed run.
+        QCOMPARE(sel.rowLength(2), 0);
+        sel.selectLine(2);
+        QVERIFY(!sel.property("hasSelection").toBool());
+        sel.selectWord(2, 0);
+        QVERIFY(!sel.property("hasSelection").toBool());
+    }
 };
 
 #include "test_diff_selection.moc"

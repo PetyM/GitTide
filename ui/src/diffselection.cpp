@@ -1,5 +1,12 @@
 #include "gittide/ui/diffselection.hpp"
 
+namespace {
+bool isWordChar(QChar c)
+{
+    return c.isLetterOrNumber() || c == QLatin1Char('_');
+}
+} // namespace
+
 namespace gittide::ui {
 
 DiffSelection::DiffSelection(QObject* parent)
@@ -79,6 +86,39 @@ void DiffSelection::clear()
 {
     m_anchor = Pos{};
     m_cursor = Pos{};
+    emit selectionChanged();
+}
+
+void DiffSelection::selectWord(int row, int col)
+{
+    const QString text = rowText(row);
+    if (text.isEmpty())
+    {
+        begin(row, 0);
+        return;
+    }
+
+    const int c     = qBound(0, col, static_cast<int>(text.size()) - 1);
+    int       start = c;
+    int       end   = c + 1;
+    if (isWordChar(text.at(c)))
+    {
+        while (start > 0 && isWordChar(text.at(start - 1)))
+            --start;
+        end = c;
+        while (end < text.size() && isWordChar(text.at(end)))
+            ++end;
+    }
+
+    m_anchor = Pos{row, start};
+    m_cursor = Pos{row, end};
+    emit selectionChanged();
+}
+
+void DiffSelection::selectLine(int row)
+{
+    m_anchor = Pos{row, 0};
+    m_cursor = Pos{row, rowLength(row)};
     emit selectionChanged();
 }
 

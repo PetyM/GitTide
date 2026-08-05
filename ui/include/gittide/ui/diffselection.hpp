@@ -55,6 +55,16 @@ public:
     /// Drop the selection.
     Q_INVOKABLE void clear();
 
+    /// Select the word around (@p row, @p col) — a run of letters, digits and
+    /// underscores. On a separator character selects that single character; on an
+    /// empty row selects nothing. @p col past the row end is treated as the last
+    /// character, so a double-click in the blank area past a line takes its last
+    /// word.
+    Q_INVOKABLE void selectWord(int row, int col);
+
+    /// Select all of @p row. Selects nothing on an empty row.
+    Q_INVOKABLE void selectLine(int row);
+
     /// First selected column in @p row, or -1 when the row is outside the
     /// selection. Clamped to the row's length.
     Q_INVOKABLE int startInRow(int row) const;
