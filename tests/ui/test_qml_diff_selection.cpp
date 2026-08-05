@@ -705,6 +705,31 @@ private slots:
         QCOMPARE(overlay->property("selection").value<QObject*>(), selection);
         QCOMPARE(overlay->property("list").value<QObject*>(), list);
     }
+
+    void commit_detail_declares_its_own_selection_over_the_commit_diff()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        engine.rootContext()->setContextProperty(QStringLiteral("repoVm"),
+                                                 static_cast<QObject*>(nullptr));
+        engine.rootContext()->setContextProperty(QStringLiteral("avatarService"),
+                                                 static_cast<QObject*>(nullptr));
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/CommitDetail.qml")));
+        QVERIFY2(comp.errorString().isEmpty(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> detail(comp.create());
+        QVERIFY2(detail != nullptr, qPrintable(comp.errorString()));
+
+        QObject* selection = detail->findChild<QObject*>(QStringLiteral("commitDiffSelection"));
+        QObject* overlay = detail->findChild<QObject*>(QStringLiteral("commitDiffSelectionOverlay"));
+        QObject* list = detail->findChild<QObject*>(QStringLiteral("commitDiffList"));
+        QVERIFY(selection != nullptr);
+        QVERIFY(overlay != nullptr);
+        QCOMPARE(overlay->property("selection").value<QObject*>(), selection);
+        QCOMPARE(overlay->property("list").value<QObject*>(), list);
+    }
 };
 
 #include "test_qml_diff_selection.moc"

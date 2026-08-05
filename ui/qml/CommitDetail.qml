@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import GitTide
 import "PathElide.js" as PathElide
 
 ColumnLayout {
@@ -22,6 +23,14 @@ ColumnLayout {
     property bool syntaxDark: theme.dark
     onSyntaxDarkChanged: if (repoVm && repoVm.commitDiff) repoVm.commitDiff.setSyntaxDark(syntaxDark)
     Component.onCompleted: if (repoVm && repoVm.commitDiff) repoVm.commitDiff.setSyntaxDark(theme.dark)
+
+    // Commit diffs are read-only, but selectable and copyable like the working
+    // diff. A separate DiffSelection: the two lists select independently.
+    DiffSelection {
+        id: commitDiffSelection
+        objectName: "commitDiffSelection"
+        model: commitDiffList.model
+    }
 
     // Range header / hint shown when a multi-commit selection is active.
     Label {
@@ -361,63 +370,76 @@ ColumnLayout {
         }
 
         // ---- Read-only diff (no per-line checkboxes) ----
-        ListView {
-            id: commitDiffList
-            objectName: "commitDiffList"
+        // Wraps the list so DiffSelectionOverlay can sit as its sibling instead of
+        // being redirected into ListView's contentItem (its default property) —
+        // otherwise the overlay would scroll with the content instead of staying
+        // fixed over the viewport.
+        Item {
             SplitView.fillHeight: true
             SplitView.minimumHeight: 120
-            clip: true
-            model: repoVm ? repoVm.commitDiff : null
 
-            ScrollBar.vertical: AppScrollBar {}
-            WheelScroller {}
+            ListView {
+                id: commitDiffList
+                objectName: "commitDiffList"
+                anchors.fill: parent
+                clip: true
+                model: repoVm ? repoVm.commitDiff : null
 
-            delegate: Rectangle {
-                width: ListView.view.width
-                height: 20
-                color: model.lineKind === "added" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.12)
-                       : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r, theme.stateDeleted.g, theme.stateDeleted.b, 0.12)
-                       : model.lineKind === "hunk" ? theme.surfaceOverlay
-                       : "transparent"
+                ScrollBar.vertical: AppScrollBar {}
+                WheelScroller {}
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 6
-                    Label {
-                        Layout.preferredWidth: 64
-                        horizontalAlignment: Text.AlignRight
-                        font.family: "monospace"
-                        font.pixelSize: 11
-                        color: theme.textMuted
-                        text: model.lineKind === "hunk" ? ""
-                              : (model.oldNo > 0 ? model.oldNo : "") + " " + (model.newNo > 0 ? model.newNo : "")
-                    }
-                    Label {
-                        Layout.preferredWidth: 10
-                        font.family: "monospace"
-                        font.pixelSize: 12
-                        text: model.lineKind === "added" ? "+" : model.lineKind === "removed" ? "−" : ""
-                        color: model.lineKind === "added" ? theme.stateAdded
-                               : model.lineKind === "removed" ? theme.stateDeleted
-                               : theme.textMuted
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        font.family: "monospace"
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                        clip: true
-                        textFormat: model.lineHtml && model.lineHtml.length > 0
-                                    ? Text.RichText : Text.PlainText
-                        text: model.lineHtml && model.lineHtml.length > 0
-                              ? model.lineHtml : model.lineText
-                        color: model.lineKind === "hunk"   ? theme.textMuted
-                             : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
-                             : model.lineKind === "added"  ? theme.stateAdded
-                             : model.lineKind === "removed" ? theme.stateDeleted
-                             : theme.textPrimary
+                delegate: Rectangle {
+                    width: ListView.view.width
+                    height: 20
+                    color: model.lineKind === "added" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.12)
+                           : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r, theme.stateDeleted.g, theme.stateDeleted.b, 0.12)
+                           : model.lineKind === "hunk" ? theme.surfaceOverlay
+                           : "transparent"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 6
+                        Label {
+                            Layout.preferredWidth: 64
+                            horizontalAlignment: Text.AlignRight
+                            font.family: "monospace"
+                            font.pixelSize: 11
+                            color: theme.textMuted
+                            text: model.lineKind === "hunk" ? ""
+                                  : (model.oldNo > 0 ? model.oldNo : "") + " " + (model.newNo > 0 ? model.newNo : "")
+                        }
+                        Label {
+                            Layout.preferredWidth: 10
+                            font.family: "monospace"
+                            font.pixelSize: 12
+                            text: model.lineKind === "added" ? "+" : model.lineKind === "removed" ? "−" : ""
+                            color: model.lineKind === "added" ? theme.stateAdded
+                                   : model.lineKind === "removed" ? theme.stateDeleted
+                                   : theme.textMuted
+                        }
+                        DiffCodeText {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            row: index
+                            selection: commitDiffSelection
+                            plainText: model.lineText
+                            html: model.lineHtml ? model.lineHtml : ""
+                            color: model.lineKind === "hunk"   ? theme.textMuted
+                                 : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
+                                 : model.lineKind === "added"  ? theme.stateAdded
+                                 : model.lineKind === "removed" ? theme.stateDeleted
+                                 : theme.textPrimary
+                        }
                     }
                 }
+            }
+
+            DiffSelectionOverlay {
+                objectName: "commitDiffSelectionOverlay"
+                anchors.fill: parent
+                list: commitDiffList
+                selection: commitDiffSelection
+                onCopyRequested: function(text) { if (repoVm) repoVm.copyToClipboard(text) }
             }
         }
     }
