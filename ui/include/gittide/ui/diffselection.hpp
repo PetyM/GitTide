@@ -77,8 +77,14 @@ private:
         int col = 0;
     };
 
+    /// True if cursor comes before anchor in document order.
+    bool    cursorIsFirst() const;
     Pos     orderedStart() const;
     Pos     orderedEnd() const;
+
+    /// Fetch data for a row by role name, handling model/bounds checks.
+    QVariant dataFor(int row, const QByteArray& roleName) const;
+
     QString rowText(int row) const;
     QString rowKind(int row) const;
     int     roleOf(const QByteArray& name) const;

@@ -110,18 +110,20 @@ int DiffSelection::rowLength(int row) const
     return static_cast<int>(rowText(row).size());
 }
 
+bool DiffSelection::cursorIsFirst() const
+{
+    return m_cursor.row < m_anchor.row ||
+           (m_cursor.row == m_anchor.row && m_cursor.col < m_anchor.col);
+}
+
 DiffSelection::Pos DiffSelection::orderedStart() const
 {
-    const bool cursorFirst = m_cursor.row < m_anchor.row ||
-                             (m_cursor.row == m_anchor.row && m_cursor.col < m_anchor.col);
-    return cursorFirst ? m_cursor : m_anchor;
+    return cursorIsFirst() ? m_cursor : m_anchor;
 }
 
 DiffSelection::Pos DiffSelection::orderedEnd() const
 {
-    const bool cursorFirst = m_cursor.row < m_anchor.row ||
-                             (m_cursor.row == m_anchor.row && m_cursor.col < m_anchor.col);
-    return cursorFirst ? m_anchor : m_cursor;
+    return cursorIsFirst() ? m_anchor : m_cursor;
 }
 
 int DiffSelection::roleOf(const QByteArray& name) const
@@ -135,24 +137,24 @@ int DiffSelection::roleOf(const QByteArray& name) const
     return -1;
 }
 
-QString DiffSelection::rowText(int row) const
+QVariant DiffSelection::dataFor(int row, const QByteArray& roleName) const
 {
     if (!m_model || row < 0 || row >= m_model->rowCount())
         return {};
-    const int role = roleOf("lineText");
+    const int role = roleOf(roleName);
     if (role < 0)
         return {};
-    return m_model->data(m_model->index(row, 0), role).toString();
+    return m_model->data(m_model->index(row, 0), role);
+}
+
+QString DiffSelection::rowText(int row) const
+{
+    return dataFor(row, "lineText").toString();
 }
 
 QString DiffSelection::rowKind(int row) const
 {
-    if (!m_model || row < 0 || row >= m_model->rowCount())
-        return {};
-    const int role = roleOf("lineKind");
-    if (role < 0)
-        return {};
-    return m_model->data(m_model->index(row, 0), role).toString();
+    return dataFor(row, "lineKind").toString();
 }
 
 } // namespace gittide::ui
