@@ -373,18 +373,13 @@ auth failure prompts once, caches, and the rest reuse it.
 
 Discovering repositories under a folder is pure filesystem + git validation, so
 it lives in `core/` as **`gittide::scanForRepos(root, ScanOptions{maxDepth})`**
-(`core/src/reposcan.cpp`) — a depth-first walk over `std::filesystem` that opens
-each directory with `GitRepo::open` as the authoritative test, gated by a cheap
-filesystem probe first so an ordinary folder scan doesn't emit a libgit2 warning
-per non-repo directory it passes over. **Descent stops at a repository**: once a
-directory opens as a repo it is emitted and never recursed into, which is what
-keeps submodules and nested checkouts out of the result — they already reach the
-user through the parent repo's submodule tree
-([product](../product/product.md#submodules)). Dot-directories
-and directories that fail to open (permissions) are skipped, not treated as scan
-failures; a `root` that is itself a repository short-circuits to that one result.
-`maxDepth` counts levels below `root` (1 = its direct children); `ScanOptions`
-clamps values below 1 up to 1.
+(`core/include/gittide/reposcan.hpp` / `core/src/reposcan.cpp`; per-symbol
+contract in its Doxygen). The one invariant worth calling out here because it
+crosses into the submodule design: **descent stops at a repository**, so
+submodules and nested checkouts are never returned — they already reach the
+user through the parent repository's submodule tree
+([product](../product/product.md#submodules)), and returning them here would
+duplicate each one as a top-level repository.
 
 A **`RepoSource`** (`path`, `maxDepth`, `ignored` — `core/include/gittide/projectstore.hpp`)
 is a folder a project remembers to rescan. `Project` gained a `sources` vector,
