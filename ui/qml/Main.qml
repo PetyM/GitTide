@@ -434,15 +434,23 @@ ApplicationWindow {
 
         property var failures: []
         property string actionVerb: "fetch" // "fetch" | "add" — selects the wording
+        // "add" also covers a failed *source* registration riding in the same
+        // list (prefixed "Source: " by the controller) alongside repository
+        // failures, so its noun is the neutral "item" rather than "repository" —
+        // a source failure must never read as if a repository failed to add.
+        readonly property string failureNounSingular: actionVerb === "add" ? "item" : "repository"
+        readonly property string failureNounPlural: actionVerb === "add" ? "items" : "repositories"
         function showFailures(list, verb) { failures = list; actionVerb = verb || "fetch"; open() }
 
         contentItem: DialogColumn {
             spacing: 12
             Label {
+                objectName: "fetchErrorHeader"
                 Layout.fillWidth: true
                 text: fetchErrorDialog.failures.length === 1
-                      ? ("One repository failed to " + fetchErrorDialog.actionVerb + ":")
-                      : (fetchErrorDialog.failures.length + " repositories failed to " + fetchErrorDialog.actionVerb + ":")
+                      ? ("One " + fetchErrorDialog.failureNounSingular + " failed to " + fetchErrorDialog.actionVerb + ":")
+                      : (fetchErrorDialog.failures.length + " " + fetchErrorDialog.failureNounPlural
+                         + " failed to " + fetchErrorDialog.actionVerb + ":")
                 color: theme.textPrimary
                 font.pixelSize: 13
                 font.weight: Font.DemiBold

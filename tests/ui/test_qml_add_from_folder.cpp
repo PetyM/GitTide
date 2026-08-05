@@ -1,5 +1,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QUuid>
 #include <QtTest>
@@ -146,6 +148,193 @@ private slots:
         // "Choose…" click would trigger) must not start another request.
         QVERIFY(QMetaObject::invokeMethod(dialog, "startScan"));
         QCOMPARE(dialog->property("scanToken").toInt(), tokenAfterFirstScan);
+    }
+
+    // Review finding: reposAdded's failures list carried addSource's error
+    // unprefixed, so re-running the dialog on an already-registered folder
+    // opened fetchErrorDialog reading "One repository failed to add:" even
+    // though the repository itself added cleanly — only the source
+    // registration failed. The wording must not claim a repository failed.
+    void a_source_registration_failure_does_not_read_as_a_repository_failure()
+    {
+        const auto scanRoot = makeScanRoot();
+
+        gittide::ProjectStore store;
+        store.projects().push_back(gittide::Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        // Register the source once, up front (mirrors an earlier successful
+        // run of the dialog on this same folder).
+        controller.addRepos({}, {}, QString::fromStdString(scanRoot.generic_string()), 2);
+
+        ThemeManager  mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme      theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        QObject* root        = engine.rootObjects().first();
+        QObject* errorDialog = root->findChild<QObject*>(QStringLiteral("fetchErrorDialog"));
+        QVERIFY(errorDialog != nullptr);
+        QObject* header = errorDialog->findChild<QObject*>(QStringLiteral("fetchErrorHeader"));
+        QVERIFY(header != nullptr);
+
+        // Re-run addRepos on the same folder: the repo itself adds cleanly, but
+        // the source is already registered.
+        controller.addRepos({QString::fromStdString((scanRoot / "api").generic_string())}, {},
+                            QString::fromStdString(scanRoot.generic_string()), 2);
+
+        QVERIFY(errorDialog->property("visible").toBool());
+        const QStringList failures = errorDialog->property("failures").toStringList();
+        QCOMPARE(failures.size(), 1);
+        QVERIFY(failures.at(0).startsWith(QStringLiteral("Source:")));
+
+        // The header must not read as a repository failure.
+        const QString headerText = header->property("text").toString();
+        QVERIFY2(!headerText.contains(QStringLiteral("repository")) && !headerText.contains(QStringLiteral("repositories")),
+                 qPrintable(QStringLiteral("header still reads as a repository failure: ") + headerText));
+    }
+
+    // Covers the "also fix" checklist-helper finding: setChecked / setAllChecked
+    // / checkedCount / the already-added exclusion decide what lands in
+    // `unchecked` — the paths seeded into a source's permanent ignore list — so
+    // they need a real interaction test over a genuine scan result, not just
+    // the existence checks the other tests in this file cover. Also pins that
+    // both the ListView delegate (ItemDelegate.onClicked) and its AppCheckBox
+    // (CheckBox.onClicked) independently toggle the same row.
+    void checklist_toggling_select_all_and_already_added_exclusion()
+    {
+        const auto scanRoot = makeScanRoot(); // scanRoot/api
+        const auto webRepo  = scanRoot / "web";
+        std::filesystem::create_directories(webRepo);
+        git_repository* raw = nullptr;
+        git_repository_init(&raw, webRepo.generic_string().c_str(), 0);
+        git_repository_free(raw);
+
+        gittide::ProjectStore store;
+        store.projects().push_back(gittide::Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        // "web" is already in the project before the folder is scanned.
+        controller.addRepos({QString::fromStdString(webRepo.generic_string())}, {}, QString(), 2);
+        QCOMPARE(controller.repos()->rowCount(), 1);
+
+        ThemeManager  mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme      theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        QObject* root = engine.rootObjects().first();
+        // The checklist ListView only instantiates delegates (itemAtIndex) once
+        // its window is actually exposed — merely loading the component is not
+        // enough to drive a polish/layout pass.
+        auto* window = qobject_cast<QQuickWindow*>(root);
+        QVERIFY(window != nullptr);
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("addFromFolderDialog"));
+        QVERIFY(dialog != nullptr);
+
+        QSignalSpy finishedSpy(&controller, &ProjectController::scanFinished);
+        QVERIFY(QMetaObject::invokeMethod(dialog, "openDialog"));
+        dialog->setProperty("folder", QString::fromStdString(scanRoot.generic_string()));
+        QVERIFY(QMetaObject::invokeMethod(dialog, "startScan"));
+        QVERIFY(finishedSpy.wait(5000));
+
+        const QVariantList scanned = dialog->property("candidates").toList();
+        QCOMPARE(scanned.size(), 2);
+        int apiIndex = -1, webIndex = -1;
+        for (int i = 0; i < scanned.size(); ++i)
+        {
+            const auto m = scanned.at(i).toMap();
+            if (m.value("name").toString() == QStringLiteral("api"))
+                apiIndex = i;
+            if (m.value("name").toString() == QStringLiteral("web"))
+                webIndex = i;
+        }
+        QVERIFY(apiIndex >= 0);
+        QVERIFY(webIndex >= 0);
+
+        // The already-added row starts unchecked and excluded from the count;
+        // only the fresh one counts.
+        QCOMPARE(dialog->property("checkedCount").toInt(), 1);
+        QVERIFY(!scanned.at(webIndex).toMap().value("checked").toBool());
+
+        // setChecked toggles a single row. QML JS functions are exposed on the
+        // metaobject with QVariant-typed parameters, so Q_ARG must say QVariant
+        // — not the JS-visible int/bool — or invokeMethod fails to match.
+        QVERIFY(QMetaObject::invokeMethod(dialog, "setChecked", Q_ARG(QVariant, apiIndex), Q_ARG(QVariant, false)));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 0);
+
+        // Select all / select none — the already-added row must never join in.
+        QVERIFY(QMetaObject::invokeMethod(dialog, "setAllChecked", Q_ARG(QVariant, true)));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 1);
+        QVERIFY(!dialog->property("candidates").toList().at(webIndex).toMap().value("checked").toBool());
+        QVERIFY(QMetaObject::invokeMethod(dialog, "setAllChecked", Q_ARG(QVariant, false)));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 0);
+
+        // Real interaction: clicking the ListView delegate (ItemDelegate's own
+        // onClicked) toggles the row. Re-fetched via itemAtIndex before each
+        // click rather than cached: `candidates` is reassigned wholesale on
+        // every toggle (QML doesn't track in-place array mutation), which the
+        // ListView may answer by recreating its delegates rather than
+        // rebinding the existing ones.
+        QObject* list = root->findChild<QObject*>(QStringLiteral("addFromFolderList"));
+        QVERIFY(list != nullptr);
+        QTest::qWait(50); // let the now-visible ListView finish instantiating its delegates
+
+        auto delegateAt = [&](int index) -> QQuickItem*
+        {
+            QQuickItem* item = nullptr;
+            QMetaObject::invokeMethod(list, "itemAtIndex", Qt::DirectConnection, Q_RETURN_ARG(QQuickItem*, item),
+                                      Q_ARG(int, index));
+            return item;
+        };
+
+        QQuickItem* apiDelegate = delegateAt(apiIndex);
+        QVERIFY2(apiDelegate != nullptr, "api delegate not created");
+        QVERIFY(QMetaObject::invokeMethod(apiDelegate, "click"));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 1);
+
+        // ...and clicking its AppCheckBox (a separate onClicked handler) does too.
+        QTest::qWait(50);
+        apiDelegate = delegateAt(apiIndex);
+        QVERIFY2(apiDelegate != nullptr, "api delegate not re-created after the model reset");
+        QObject* checkbox = apiDelegate->findChild<QObject*>(QStringLiteral("addFromFolderRowCheckbox"));
+        QVERIFY2(checkbox != nullptr, "row checkbox not found");
+        QVERIFY(QMetaObject::invokeMethod(checkbox, "click"));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 0);
+
+        // The already-added delegate is interactively disabled.
+        QTest::qWait(50);
+        QQuickItem* webDelegate = delegateAt(webIndex);
+        QVERIFY2(webDelegate != nullptr, "web delegate not created");
+        QCOMPARE(webDelegate->property("enabled").toBool(), false);
+
+        // Finally: an already-added row can never end up in "chosen", even
+        // though it is still present (unchecked) in the checklist — drive the
+        // real confirm button and check what actually reached the store.
+        QVERIFY(QMetaObject::invokeMethod(dialog, "setChecked", Q_ARG(QVariant, apiIndex), Q_ARG(QVariant, true)));
+        QCOMPARE(dialog->property("checkedCount").toInt(), 1);
+
+        QObject* confirmButton = root->findChild<QObject*>(QStringLiteral("addFromFolderConfirm"));
+        QVERIFY(confirmButton != nullptr);
+        QSignalSpy addedSpy(&controller, &ProjectController::reposAdded);
+        QVERIFY(QMetaObject::invokeMethod(confirmButton, "click"));
+        if (addedSpy.isEmpty())
+            QVERIFY(addedSpy.wait(2000));
+
+        QCOMPARE(addedSpy.at(0).at(0).toInt(), 1); // only "api" — "web" never resubmitted
+        QCOMPARE(addedSpy.at(0).at(1).toStringList().size(), 0);
+        QCOMPARE(controller.repos()->rowCount(), 2); // web (pre-existing) + api (new)
     }
 
 private:

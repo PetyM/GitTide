@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QAbstractItemModel>
+#include <QFile>
 #include <QSignalSpy>
 
 #include "gittide/ui/avatarservice.hpp"
@@ -883,6 +884,45 @@ private slots:
 
         std::error_code ec;
         std::filesystem::remove_all(scanRoot, ec);
+    }
+
+    // Review finding: InitRepoDialog and CloneRepoDialog still converted their
+    // FolderDialog's selectedFolder via toString().replace(/^file:\/\//, "")
+    // instead of the controller's localPathFromUrl() (QUrl::toLocalFile()) that
+    // AddFromFolderDialog and the "Add existing repository" flow already use.
+    // toString() is percent-encoded, so a folder containing a space reached
+    // initRepo()/cloneRepo() as e.g. "my%20projects" — for init specifically,
+    // GitRepo::init() then creates a directory literally named that.
+    //
+    // QtQuick.Dialogs' FolderDialog has no native backend in the offscreen test
+    // harness, and its `selectedFolder` cannot be driven deterministically from
+    // C++ (a programmatic write is silently dropped rather than round-tripping)
+    // — the same offscreen-harness limitation history_delegate_has_tap_handler_
+    // not_mouse_area works around in test_qml_history.cpp. So, like that test,
+    // this asserts on the compiled QRC source rather than driving the control.
+    void init_repo_dialog_decodes_the_folder_url_without_percent_encoding()
+    {
+        QFile src(QStringLiteral(":/qml/InitRepoDialog.qml"));
+        QVERIFY(src.open(QIODevice::ReadOnly));
+        const QByteArray text = src.readAll();
+
+        QVERIFY2(!text.contains("toString().replace(/^file:"),
+                 "InitRepoDialog.qml must not decode the folder URL via string surgery "
+                 "(percent-encoded — a space would reach GitRepo::init() as \"%20\")");
+        QVERIFY2(text.contains("localPathFromUrl(selectedFolder)"),
+                 "InitRepoDialog.qml must convert the folder URL via localPathFromUrl()");
+    }
+
+    void clone_repo_dialog_decodes_the_folder_url_without_percent_encoding()
+    {
+        QFile src(QStringLiteral(":/qml/CloneRepoDialog.qml"));
+        QVERIFY(src.open(QIODevice::ReadOnly));
+        const QByteArray text = src.readAll();
+
+        QVERIFY2(!text.contains("toString().replace(/^file:"),
+                 "CloneRepoDialog.qml must not decode the folder URL via string surgery");
+        QVERIFY2(text.contains("localPathFromUrl(selectedFolder)"),
+                 "CloneRepoDialog.qml must convert the folder URL via localPathFromUrl()");
     }
 };
 

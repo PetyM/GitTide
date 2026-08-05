@@ -253,6 +253,7 @@ AppDialog {
                 contentItem: RowLayout {
                     spacing: 8
                     AppCheckBox {
+                        objectName: "addFromFolderRowCheckbox"
                         checked: row.modelData.checked
                         enabled: row.enabled
                         onClicked: dialog.setChecked(row.index, checked)
@@ -312,7 +313,12 @@ AppDialog {
             objectName: "addFromFolderConfirm"
             variant: "primary"
             text: "Add"
-            enabled: dialog.checkedCount > 0 && !dialog.scanning
+            // Source-only registration is allowed: "keep this folder as a
+            // source" is a legitimate outcome with zero repositories checked
+            // (every candidate already added, or the folder is empty/a future
+            // clone target) — so the gate is checkedCount>0 OR the source
+            // checkbox, not checkedCount alone.
+            enabled: (dialog.checkedCount > 0 || keepSource.checked) && !dialog.scanning && dialog.folder.length > 0
             onClicked: {
                 var chosen = []
                 var skipped = []
