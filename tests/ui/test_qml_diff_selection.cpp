@@ -677,6 +677,34 @@ private slots:
                                   Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
         QVERIFY(!selection.property("hasSelection").toBool());
     }
+
+    void diff_view_declares_a_selection_bound_to_its_list_model()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        // Cast the null explicitly — setContextProperty(QString, QObject*) is
+        // ambiguous with the QVariant overload for a bare nullptr.
+        engine.rootContext()->setContextProperty(QStringLiteral("repoVm"),
+                                                 static_cast<QObject*>(nullptr));
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/DiffView.qml")));
+        QVERIFY2(comp.errorString().isEmpty(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> view(comp.create());
+        QVERIFY2(view != nullptr, qPrintable(comp.errorString()));
+
+        QObject* selection = view->findChild<QObject*>(QStringLiteral("diffSelection"));
+        QObject* overlay = view->findChild<QObject*>(QStringLiteral("diffSelectionOverlay"));
+        QObject* list = view->findChild<QObject*>(QStringLiteral("diffList"));
+        QVERIFY(selection != nullptr);
+        QVERIFY(overlay != nullptr);
+        QVERIFY(list != nullptr);
+
+        // The overlay drives that selection over that list.
+        QCOMPARE(overlay->property("selection").value<QObject*>(), selection);
+        QCOMPARE(overlay->property("list").value<QObject*>(), list);
+    }
 };
 
 #include "test_qml_diff_selection.moc"
