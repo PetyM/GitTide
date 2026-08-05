@@ -37,6 +37,8 @@ class QmlTheme : public QObject
     Q_PROPERTY(QColor stateIncoming READ stateIncoming NOTIFY changed)
     Q_PROPERTY(QColor shadow READ shadow NOTIFY changed)
     Q_PROPERTY(QColor focusBorder READ focusBorder NOTIFY changed)
+    Q_PROPERTY(QColor selectionBg READ selectionBg NOTIFY changed)
+    Q_PROPERTY(QColor selectionText READ selectionText NOTIFY changed)
     Q_PROPERTY(QVariantList laneColors READ laneColors CONSTANT)
     Q_PROPERTY(QString iconSource READ iconSource NOTIFY changed)
 
@@ -71,6 +73,8 @@ public:
     QColor stateIncoming() const;
     QColor shadow() const;
     QColor focusBorder() const;
+    QColor selectionBg() const;
+    QColor selectionText() const;
     QVariantList laneColors() const;
     QString iconSource() const;
 

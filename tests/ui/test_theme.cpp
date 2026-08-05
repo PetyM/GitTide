@@ -98,6 +98,17 @@ private slots:
         QCOMPARE(dark.focusBorder,  dark.accent);
         QCOMPARE(light.focusBorder, light.accent);
     }
+    void selection_tokens_are_translucent_accent()
+    {
+        // Selection paints *behind* syntax-highlighted code, so it must be
+        // translucent — an opaque fill would flatten the highlighting away.
+        QCOMPARE(darkTheme().selectionBg, QStringLiteral("#5942A5F5"));
+        QCOMPARE(darkTheme().selectionText, QStringLiteral("#E4E4E6"));
+        QCOMPARE(lightTheme().selectionBg, QStringLiteral("#401976D2"));
+        QCOMPARE(lightTheme().selectionText, QStringLiteral("#212121"));
+        QVERIFY(QColor(darkTheme().selectionBg).alpha() < 255);
+        QVERIFY(QColor(lightTheme().selectionBg).alpha() < 255);
+    }
 };
 
 #include "test_theme.moc"

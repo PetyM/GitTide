@@ -90,6 +90,18 @@ private slots:
         QMetaObject::invokeMethod(&theme, "cycleMode");
         QCOMPARE(theme.property("mode").toInt(), int(ThemeManager::Mode::System));
     }
+    void selection_tokens_are_exposed_to_qml()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QCOMPARE(theme.property("selectionBg").value<QColor>(), QColor("#5942A5F5"));
+        QCOMPARE(theme.property("selectionText").value<QColor>(), QColor("#E4E4E6"));
+
+        mgr.setMode(ThemeManager::Mode::Light);
+        QCOMPARE(theme.property("selectionBg").value<QColor>(), QColor("#401976D2"));
+        QCOMPARE(theme.property("selectionText").value<QColor>(), QColor("#212121"));
+    }
 };
 
 #include "test_qml_theme.moc"

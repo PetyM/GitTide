@@ -126,6 +126,16 @@ QColor QmlTheme::focusBorder() const
     return QColor(theme().focusBorder);
 }
 
+QColor QmlTheme::selectionBg() const
+{
+    return QColor(theme().selectionBg);
+}
+
+QColor QmlTheme::selectionText() const
+{
+    return QColor(theme().selectionText);
+}
+
 QVariantList QmlTheme::laneColors() const
 {
     // Graph lane palette — the one documented exception to single-accent.
