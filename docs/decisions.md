@@ -585,6 +585,45 @@ an entry with a newer one if it changes.
   and the op is local. →
   [`engineering`](spec/engineering/engineering.md#network-operations--credentials)
 
+- **D64 — Bulk-add repositories: rescan-on-activation, permanent per-source
+  ignore, an additive schema key, and submodules never surface as repos.**
+  Four choices from the same feature, each with a real rejected alternative.
+  (1) A registered **repository source** is rescanned on project activation
+  (plus on-demand from Project Options), not watched continuously.
+  *Rejected:* a `QFileSystemWatcher` per source, matching D35's watcher for the
+  active repo — a source is typically a large, often-external tree (many repos
+  under one parent) the project isn't actively working in, so a live watch
+  would pay a standing OS watch-descriptor cost for freshness nobody is
+  waiting on; activation is already the natural "the user is paying attention"
+  moment. (2) Removing a repo that came from a source is **permanent**: the
+  removal is recorded in that source's `ignored` list, and a source's own
+  folder counts as containing the repo when the folder *is* the repository
+  (an exact-path match, not just a directory-boundary one — see the
+  `ignoreInSources` fix below). *Rejected:* re-offering a removed repo on the
+  next rescan (defeats the point of removing it — "auto-add" must compose with
+  "the user said no"). (3) `RepoSource` is serialized as an additive
+  `"sources"` array with **no `ProjectStore::kVersion` bump**: an older
+  document simply loads with an empty source list. *Rejected:* bumping the
+  version — the new key is purely additive and degrades safely one direction
+  (an older *build*, however, silently drops `"sources"` on its next save,
+  since its `to_json` doesn't know the key exists — a real one-way trap, not
+  chosen deliberately but accepted as the cost of no migration machinery for
+  a first cut). (4) `scanForRepos` **never returns a repository's submodules**
+  — descent stops at a repository. *Rejected:* returning them as ordinary
+  top-level candidates (they already reach the user through the parent's
+  submodule tree; offering them again would duplicate each one as a
+  free-standing repository with none of the pin/init/deinit lifecycle that
+  makes it a submodule).
+  *Follow-up fixed in review:* `ignoreInSources` initially matched only
+  `isUnder(source, repo)`, which is false by construction when the source's
+  path equals the repo's own path — exactly what registering a source on a
+  folder that is itself a repository produces. Removal recorded nothing, so
+  D64(2)'s permanence silently didn't hold for that one case; a source's own
+  path now also counts as containing the repo. →
+  [`product`](spec/product/product.md#bulk-add--repository-sources),
+  [`engineering`](spec/engineering/engineering.md#bulk-add-folder-scan-and-repository-sources),
+  [Bulk-add repositories plan](superpowers/plans/2026-08-05-bulk-add-repos.md)
+
 ## Design
 
 - **D17 — One accent (Material Blue brand); never a second hue** for emphasis.

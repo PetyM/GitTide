@@ -327,8 +327,11 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   label rather than being hidden. A
   bottom row's checkbox (`addFromFolderKeepSource`) reads "Keep this folder as
   a source — add new repositories automatically". The footer's primary
-  **Add** button (`addFromFolderConfirm`) is disabled with nothing checked or
-  while a scan is in flight. Changing the depth or reopening the dialog
+  **Add** button (`addFromFolderConfirm`) is disabled while a scan is in
+  flight, or with nothing checked *and* the source checkbox unchecked —
+  registering a source with zero repositories checked (every candidate
+  already added, or a folder kept empty for future clones) is a legitimate
+  outcome, not just a batch add. Changing the depth or reopening the dialog
   re-scans and replaces the checklist outright, guarded by a monotonic request
   token so a response for an abandoned scan can never land on a newer one.
   Entry points: an item in the sidebar's add-repo menu and a CTA

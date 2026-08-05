@@ -2230,3 +2230,20 @@ git commit -m "docs: close the bulk-add-repositories wish"
   `ui/qml/ToastNotice.qml` (new), plus entry points wired into
   `EmptyState.qml`, `Sidebar.qml`, `WorkingPane.qml`, `Main.qml`, and a new
   Sources section in `ProjectOptionsDialog.qml`.
+
+**Post-close fix wave (same day):** a whole-branch review of Tasks 1–9 found
+five behavioural findings, fixed in one pass rather than a second plan wave
+(see D64 in [`decisions.md`](../../decisions.md)):
+`ignoreInSources` now also matches a source's own path (a source registered
+on a folder that is itself the repository could never record its removal);
+`rescanSources()` coalesces a call dropped by its single-flight guard into one
+re-kicked pass, so switching projects mid-rescan no longer strands the newly
+active project unscanned until the next activation; `addRepos` prefixes a
+source-registration failure `"Source: ..."` in its `failures` list so it never
+reads as a repository failure; `AddFromFolderDialog`'s Add button now also
+enables on the source checkbox alone (§ "Task 7" below no longer mandates the
+old "at least one row checked" rule — the human partner overturned it, so
+source-only registration is supported); and `InitRepoDialog` /
+`CloneRepoDialog` — missed when Task 6 converted `AddFromFolderDialog` and
+`Main.qml` off `toString().replace(/^file:\/\//, "")` — now go through
+`localPathFromUrl()` too.
