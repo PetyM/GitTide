@@ -25,7 +25,7 @@ MouseArea {
     property real lastX: 0
     property real lastY: 0
 
-    acceptedButtons: Qt.LeftButton
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: Qt.IBeamCursor
 
     // --- hit testing -------------------------------------------------------
@@ -189,12 +189,31 @@ MouseArea {
         clickAt(x, y, clickCount)
     }
 
-    onPressed: function(mouse) { mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers) }
+    // Right-button dispatch lives here rather than in handlePress(): only
+    // onPressed sees mouse.button, and handlePress's (x, y, modifiers)
+    // signature is what the tests drive directly.
+    onPressed: function(mouse) {
+        if (mouse.button === Qt.RightButton) {
+            // Right-click never changes the selection — it acts on it.
+            contextMenu.popup()
+            mouse.accepted = true
+            return
+        }
+        mouse.accepted = handlePress(mouse.x, mouse.y, mouse.modifiers)
+    }
     onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
     onReleased: function(mouse) { handleRelease(mouse.x, mouse.y) }
 
     Keys.onPressed: function(event) {
         event.accepted = handleKey(event.key, event.modifiers)
+    }
+
+    DiffContextMenu {
+        id: contextMenu
+        hasSelection: overlay.selection ? overlay.selection.hasSelection : false
+        onCopy: overlay.copyRequested(overlay.selection.copyText(false))
+        onCopyWithMarkers: overlay.copyRequested(overlay.selection.copyText(true))
+        onSelectAll: if (overlay.selection) overlay.selection.selectAll()
     }
 
     Timer {

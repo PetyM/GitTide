@@ -42,6 +42,7 @@
     <file>RepoContextMenu.qml</file>
     <file>SubmoduleContextMenu.qml</file>
     <file>FileContextMenu.qml</file>
+    <file>DiffContextMenu.qml</file>
     <file>MergeBanner.qml</file>
     <file>RebaseBanner.qml</file>
     <file>WindowButton.qml</file>

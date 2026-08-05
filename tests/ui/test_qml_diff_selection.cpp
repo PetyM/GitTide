@@ -560,6 +560,68 @@ private slots:
         QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
         QVERIFY(!selection.property("hasSelection").toBool());
     }
+
+    void context_menu_disables_copy_without_a_selection()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/DiffContextMenu.qml")));
+        QVERIFY2(comp.errorString().isEmpty(), qPrintable(comp.errorString()));
+        std::unique_ptr<QObject> menu(comp.create());
+        QVERIFY2(menu != nullptr, qPrintable(comp.errorString()));
+
+        QObject* copyItem = menu->findChild<QObject*>(QStringLiteral("diffMenuCopy"));
+        QObject* markersItem = menu->findChild<QObject*>(QStringLiteral("diffMenuCopyMarkers"));
+        QObject* selectAllItem = menu->findChild<QObject*>(QStringLiteral("diffMenuSelectAll"));
+        QVERIFY(copyItem != nullptr);
+        QVERIFY(markersItem != nullptr);
+        QVERIFY(selectAllItem != nullptr);
+
+        QVERIFY(!copyItem->property("enabled").toBool());
+        QVERIFY(!markersItem->property("enabled").toBool());
+        QVERIFY(selectAllItem->property("enabled").toBool());
+
+        menu->setProperty("hasSelection", true);
+        QVERIFY(copyItem->property("enabled").toBool());
+        QVERIFY(markersItem->property("enabled").toBool());
+    }
+
+    void overlay_menu_actions_copy_and_select_all()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QObject* menu = root->findChild<QObject*>(QStringLiteral("diffContextMenu"));
+        QVERIFY(menu != nullptr);
+        QSignalSpy copySpy(overlay, SIGNAL(copyRequested(QString)));
+
+        QMetaObject::invokeMethod(menu, "selectAll");
+        QVERIFY(selection.property("hasSelection").toBool());
+
+        QMetaObject::invokeMethod(menu, "copy");
+        QCOMPARE(copySpy.count(), 1);
+        QCOMPARE(copySpy.at(0).at(0).toString(),
+                 QStringLiteral("@@ -1,1 +1,2 @@\nctx one\nadded two\n"));
+
+        QMetaObject::invokeMethod(menu, "copyWithMarkers");
+        QCOMPARE(copySpy.count(), 2);
+        QCOMPARE(copySpy.at(1).at(0).toString(),
+                 QStringLiteral("@@ -1,1 +1,2 @@\n  ctx one\n+ added two\n"));
+    }
 };
 
 #include "test_qml_diff_selection.moc"
