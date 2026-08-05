@@ -206,6 +206,84 @@ private slots:
         sel.begin(2, 0);
         QCOMPARE(sel.property("anchorRow").toInt(), 2);
     }
+
+    void copy_text_joins_rows_and_honours_partial_ends()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.begin(1, 4);    // "ctx |one"
+        sel.extendTo(3, 7); // "removed| three"
+
+        QCOMPARE(sel.copyText(false), QStringLiteral("one\nadded two\nremoved\n"));
+    }
+
+    void copy_text_is_empty_without_a_selection()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        QCOMPARE(sel.copyText(false), QString());
+    }
+
+    void copy_with_markers_prefixes_every_row()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.begin(1, 0);
+        sel.extendTo(3, 13);
+
+        // Context gets two spaces, added "+ ", removed "- " — ASCII hyphen, not
+        // the "−" the view draws, so the result pastes as a patch-ish fragment.
+        QCOMPARE(sel.copyText(true),
+                 QStringLiteral("  ctx one\n+ added two\n- removed three\n"));
+    }
+
+    void a_partially_selected_row_still_gets_its_marker()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.begin(2, 6);
+        sel.extendTo(3, 7);
+        QCOMPARE(sel.copyText(true), QStringLiteral("+ two\n- removed\n"));
+    }
+
+    void hunk_headers_copy_verbatim_and_unprefixed()
+    {
+        DiffLinesModel model;
+        model.setDiff(sampleDiff(), {}, false);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectAll();
+        const QString withMarkers = sel.copyText(true);
+        QVERIFY2(withMarkers.startsWith(QStringLiteral("@@ -1,2 +1,2 @@\n")),
+                 qPrintable(withMarkers));
+    }
+
+    void block_rows_contribute_nothing()
+    {
+        DiffLinesModel model;
+        // blocks = true inserts a synthetic "block" row before the added/removed
+        // run; it is a staging affordance, not diff content.
+        model.setDiff(sampleDiff(), {}, false, true);
+        DiffSelection sel;
+        sel.setModel(&model);
+
+        sel.selectAll();
+        const QString copied = sel.copyText(false);
+        QCOMPARE(copied, QStringLiteral("@@ -1,2 +1,2 @@\nctx one\nadded two\nremoved three\n"));
+    }
 };
 
 #include "test_diff_selection.moc"

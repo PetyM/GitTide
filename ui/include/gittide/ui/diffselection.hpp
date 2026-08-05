@@ -66,6 +66,13 @@ public:
     /// Character count of @p row's text; 0 for an unknown row.
     Q_INVOKABLE int rowLength(int row) const;
 
+    /// The selected text. With @p withMarkers each row is prefixed "+ ", "- " or
+    /// "  " by its kind (ASCII hyphen, not the "−" the view draws), so the result
+    /// reads as a patch fragment; hunk headers are always copied verbatim and
+    /// unprefixed. Synthetic "block" rows contribute nothing. Rows are joined
+    /// with "\n" and a trailing "\n" is appended. Empty without a selection.
+    Q_INVOKABLE QString copyText(bool withMarkers = false) const;
+
 signals:
     void modelChanged();
     void selectionChanged();

@@ -157,4 +157,36 @@ QString DiffSelection::rowKind(int row) const
     return dataFor(row, "lineKind").toString();
 }
 
+QString DiffSelection::copyText(bool withMarkers) const
+{
+    if (!hasSelection())
+        return {};
+
+    const Pos s = orderedStart();
+    const Pos e = orderedEnd();
+    QString   out;
+    for (int row = s.row; row <= e.row; ++row)
+    {
+        const QString kind = rowKind(row);
+        if (kind == QLatin1String("block"))
+            continue;
+        const int from = startInRow(row);
+        const int to   = endInRow(row);
+        if (from < 0 || to < from)
+            continue;
+
+        QString slice = rowText(row).mid(from, to - from);
+        if (withMarkers && kind != QLatin1String("hunk"))
+        {
+            const QChar sign = kind == QLatin1String("added")     ? QLatin1Char('+')
+                               : kind == QLatin1String("removed") ? QLatin1Char('-')
+                                                                  : QLatin1Char(' ');
+            slice.prepend(QString(sign) + QLatin1Char(' '));
+        }
+        out += slice;
+        out += QLatin1Char('\n');
+    }
+    return out;
+}
+
 } // namespace gittide::ui
