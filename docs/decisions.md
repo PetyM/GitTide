@@ -661,7 +661,9 @@ an entry with a newer one if it changes.
 
 - **D59 — A rename is one row (`R`), detected via libgit2, and staged/discarded as
   a pair.** `FileStatus` carries an `oldPath`; `status()` sets the
-  `GIT_STATUS_OPT_RENAMES_*` flags and `commitFiles()` runs `git_diff_find_similar`,
+  `GIT_STATUS_OPT_RENAMES_*` flags and every tree-to-tree file list —
+  `commitFiles()`, `rangeFiles()`, `stashFiles()` — plus `commitDetail()`'s stats
+  run `git_diff_find_similar`,
   so a moved file collapses from a delete + add into a single renamed entry shown as
   *`old → new`* in `state.incoming` blue. Because git tracks content, not moves, the
   row still maps to **two** index operations: committing an `R` row stages the
@@ -672,7 +674,12 @@ an entry with a newer one if it changes.
   `state.renamed` theme token (reused the existing blue `state.incoming`); modelling
   renames only in commit history and leaving the working tree as delete+add (the
   working-tree view is where the user first sees the move). Rename rows always stage
-  whole-file — a partial (line-level) rename stage has no meaningful UI. →
+  whole-file — a partial (line-level) rename stage has no meaningful UI. Two
+  limits are accepted: a stash of an **unstaged** move keeps the new name in the
+  stash's separate untracked tree, so there is no delete+add pair to fold; and the
+  per-file diff is fetched by path (`commitDiff` / `rangeDiff` / `diff`), which
+  filters the source path out before detection can pair it — a rename's diff
+  therefore still renders as all-added. →
   [`design`](spec/design/design.md#components)
 
 - **D60 — Contrast-driven palette re-tune: `text.muted` lifted, git-state colours

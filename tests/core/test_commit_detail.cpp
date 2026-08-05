@@ -3,6 +3,8 @@
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 
+#include <filesystem>
+
 using gittide::GitRepo;
 using gittide::test::TempRepo;
 
@@ -36,6 +38,27 @@ TEST_CASE("commitDetail reports message split, author and line stats", "[commitd
     CHECK(d->filesChanged == 2);     // a.txt modified, b.txt added
     CHECK(d->additions == 3);        // b.txt: 2, a.txt: 1
     CHECK(d->deletions == 1);        // a.txt: "two" removed
+}
+
+TEST_CASE("commitDetail counts a pure rename as one file, not a delete plus an add", "[commitdetail]")
+{
+    TempRepo repo;
+    repo.writeFile("old.txt", "alpha\nbeta\ngamma\ndelta\n");
+    repo.commitAll("c1");
+    repo.writeFile("new.txt", "alpha\nbeta\ngamma\ndelta\n"); // same content, new name
+    std::filesystem::remove(repo.path() / "old.txt");
+    repo.commitAll("c2 rename");
+
+    auto gr = GitRepo::open(repo.path());
+    REQUIRE(gr);
+    auto log = gr->log(0);
+    REQUIRE(log);
+
+    auto d = gr->commitDetail(log->at(0).oid);
+    REQUIRE(d);
+    CHECK(d->filesChanged == 1); // one moved file, matching commitFiles()'s single row
+    CHECK(d->additions == 0);
+    CHECK(d->deletions == 0);
 }
 
 TEST_CASE("commitDetail on the root commit diffs against the empty tree", "[commitdetail]")

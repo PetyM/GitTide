@@ -71,6 +71,35 @@ TEST_CASE("rangeFiles of a single commit equals that commit's files", "[range]")
     REQUIRE_FALSE(has(*single, "a.txt"));
 }
 
+TEST_CASE("rangeFiles reports a file moved inside the range as one renamed entry", "[range]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("old.txt", "alpha\nbeta\ngamma\ndelta\n");
+    tmp.writeFile("keep.txt", "k\n");
+    tmp.commitAll("c1");
+    tmp.writeFile("keep.txt", "k2\n");
+    tmp.commitAll("c2");
+    tmp.writeFile("new.txt", "alpha\nbeta\ngamma\ndelta\n"); // same content, new name
+    std::filesystem::remove(tmp.path() / "old.txt");
+    tmp.commitAll("c3 rename");
+
+    auto repo = GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto h = repo->log();
+    REQUIRE(h.has_value());
+    const std::string c3 = (*h)[0].oid;
+    const std::string c2 = (*h)[1].oid;
+
+    auto files = repo->rangeFiles(c2, c3);
+    REQUIRE(files.has_value());
+    auto it = std::find_if(files->begin(), files->end(),
+                           [](const auto& f) { return f.path.generic_string() == "new.txt"; });
+    REQUIRE(it != files->end());
+    REQUIRE(hasFlag(it->flags, StatusFlag::IndexRenamed));
+    REQUIRE(it->oldPath.generic_string() == "old.txt");
+    REQUIRE_FALSE(has(*files, "old.txt")); // no separate deletion row
+}
+
 TEST_CASE("rangeFiles starting from the root commit includes the root's own files", "[range]")
 {
     gittide::test::TempRepo tmp;

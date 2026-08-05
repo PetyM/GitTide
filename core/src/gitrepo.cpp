@@ -2334,6 +2334,16 @@ Expected<void> GitRepo::commitTrees(const std::string& oidHex, git_tree** outTre
     return {};
 }
 
+// Fold each delete+add pair that is really one moved file into a single
+// GIT_DELTA_RENAMED delta, so a rename reads as a move rather than as a removal
+// plus an unrelated new file. Best-effort: a failure leaves the deltas untouched.
+static void detectRenames(git_diff* raw)
+{
+    git_diff_find_options find = GIT_DIFF_FIND_OPTIONS_INIT;
+    find.flags                 = GIT_DIFF_FIND_RENAMES;
+    git_diff_find_similar(raw, &find);
+}
+
 // Append every delta of a tree-to-tree diff to @p out as a FileStatus, mapping
 // git delta status to an index-side StatusFlag (added/deleted/modified).
 static void appendDiffDeltas(git_diff* raw, std::vector<FileStatus>& out)
@@ -2384,11 +2394,7 @@ Expected<std::vector<FileStatus>> GitRepo::commitFiles(std::string oid) const
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
 
-    // Detect renames so a moved file reads as one renamed entry rather than a
-    // delete+add pair. Best-effort: a failure leaves the raw deltas untouched.
-    git_diff_find_options find = GIT_DIFF_FIND_OPTIONS_INIT;
-    find.flags                 = GIT_DIFF_FIND_RENAMES;
-    git_diff_find_similar(raw, &find);
+    detectRenames(raw);
 
     std::vector<FileStatus> result;
     appendDiffDeltas(raw, result);
@@ -2432,6 +2438,10 @@ Expected<CommitDetail> GitRepo::commitDetail(std::string oidHex) const
     if (rc < 0)
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
+
+    // Same rename folding as commitFiles(), so the header's "N files changed"
+    // matches the row count and a pure move reports no line churn.
+    detectRenames(raw);
 
     git_diff_stats* stats = nullptr;
     rc                    = git_diff_get_stats(&stats, raw);
@@ -2542,6 +2552,7 @@ Expected<std::vector<FileStatus>> GitRepo::stashFiles(std::string oid) const
         if (int rc = git_diff_tree_to_tree(&raw, m_repo, baseTree, stashTree, nullptr); rc < 0)
             return std::unexpected(lastGitError(rc));
         std::unique_ptr<git_diff, decltype(&git_diff_free)> dg(raw, git_diff_free);
+        detectRenames(raw);
         appendDiffDeltas(raw, result);
     }
 
@@ -2619,30 +2630,10 @@ Expected<std::vector<FileStatus>> GitRepo::rangeFiles(std::string oldOid, std::s
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_diff, decltype(&git_diff_free)> diff_guard(raw, git_diff_free);
 
+    detectRenames(raw);
+
     std::vector<FileStatus> result;
-    size_t n = git_diff_num_deltas(raw);
-    result.reserve(n);
-    for (size_t i = 0; i < n; ++i)
-    {
-        const git_diff_delta* d = git_diff_get_delta(raw, i);
-        StatusFlag flag         = StatusFlag::IndexModified;
-        const char* path        = d->new_file.path;
-        switch (d->status)
-        {
-            case GIT_DELTA_ADDED:
-                flag = StatusFlag::IndexNew;
-                break;
-            case GIT_DELTA_DELETED:
-                flag = StatusFlag::IndexDeleted;
-                path = d->old_file.path;
-                break;
-            default:
-                flag = StatusFlag::IndexModified;
-                break;
-        }
-        if (path)
-            result.push_back(FileStatus{fromGitPath(path), flag});
-    }
+    appendDiffDeltas(raw, result);
     return result;
 }
 

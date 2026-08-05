@@ -3,6 +3,10 @@
 #include "gittide/gitrepo.hpp"
 #include "support/temprepo.hpp"
 
+#include <algorithm>
+#include <filesystem>
+#include <optional>
+
 TEST_CASE("stashCount reflects the stash stack", "[stash]")
 {
     gittide::test::TempRepo tmp;
@@ -165,4 +169,37 @@ TEST_CASE("stashFiles lists both tracked changes and untracked files", "[stash]"
     auto d = repo->stashDiff(oid, std::filesystem::path("untracked.txt"));
     REQUIRE(d.has_value());
     REQUIRE_FALSE(d->hunks.empty());
+}
+
+TEST_CASE("stashFiles reports a moved file as a single renamed entry", "[stash]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.writeFile("old.txt", "alpha\nbeta\ngamma\ndelta\n");
+    tmp.commitAll("init");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    // Move the file and stage both sides, so the stash commit carries the move
+    // in its tree. (An UNSTAGED move stashes the new name into the stash's
+    // separate untracked tree, where it cannot be paired with the deletion.)
+    tmp.writeFile("new.txt", "alpha\nbeta\ngamma\ndelta\n");
+    std::filesystem::remove(tmp.path() / "old.txt");
+    REQUIRE(repo->stage(gittide::StageSelection{"new.txt", std::nullopt, {}}).has_value());
+    REQUIRE(repo->stage(gittide::StageSelection{"old.txt", std::nullopt, {}}).has_value());
+    REQUIRE(repo->stashSave("moved").value());
+
+    auto list = repo->stashList();
+    REQUIRE(list.has_value());
+    REQUIRE(list->size() == 1);
+
+    auto files = repo->stashFiles((*list)[0].oid);
+    REQUIRE(files.has_value());
+    auto it = std::find_if(files->begin(), files->end(),
+                           [](const auto& f) { return f.path.generic_string() == "new.txt"; });
+    REQUIRE(it != files->end());
+    REQUIRE(gittide::hasFlag(it->flags, gittide::StatusFlag::IndexRenamed));
+    REQUIRE(it->oldPath.generic_string() == "old.txt");
+    REQUIRE(std::none_of(files->begin(), files->end(), [](const auto& f)
+                         { return f.path.generic_string() == "old.txt"; }));
 }

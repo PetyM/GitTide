@@ -196,7 +196,10 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   would only duplicate it. A **moved file is one `R` row**, not a delete + add:
   the core enables libgit2 rename detection (`git_diff_find_similar`, and the
   `GIT_STATUS_OPT_RENAMES_*` flags for the working tree) and carries the source
-  path, which the row shows as *`old/path → new/path`* — the **full** source path
+  path. Detection runs on **every** tree-to-tree file list the pane can show — a
+  single commit, a multi-commit range, and a stash preview — plus the
+  commit-header stats, so a move never reads as one file in the list and two in
+  the *N files changed* count. The row shows the move as *`old/path → new/path`* — the **full** source path
   and new directory in `text.secondary`, the new file name tinted — so a move into another
   folder still reads even when the file name is unchanged (a basename-only
   *`name → name`* would look pointless). Committing an `R` row stages both operations — add the
