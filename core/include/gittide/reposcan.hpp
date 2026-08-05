@@ -23,7 +23,9 @@ struct ScanOptions
 /// here would duplicate each one as a top-level repository.
 /// Directories whose name begins with '.' are skipped, as are directories that
 /// cannot be read (a permission error is not a scan failure). When `root` is
-/// itself a repository it is the sole result.
+/// itself a repository it is the sole result. Directory symlinks are followed
+/// by the walk (`is_directory()` resolves them), bounded by `maxDepth` like
+/// any other directory.
 ///
 /// @returns repository paths as generic UTF-8 (forward slashes), sorted and
 /// deduplicated; an empty vector when the tree holds none.

@@ -101,9 +101,11 @@ public:
     Expected<void> removeSource(const std::string& projectId, const std::string& path);
 
     // Record repoPath as ignored in every source that contains it, so a rescan
-    // never re-adds a repository the user removed. Matching is on directory
-    // boundaries; a path already recorded is not duplicated. Unknown project,
-    // or a path under no source: no-op.
+    // never re-adds a repository the user removed. A source's own folder
+    // counts as containing repoPath when the folder is itself the repository
+    // (equal paths); otherwise matching is on directory boundaries. A path
+    // already recorded is not duplicated. Unknown project, or a path under no
+    // source: no-op.
     void ignoreInSources(const std::string& projectId, const std::string& repoPath);
 
     // Empty one source's ignore list, so its next scan offers everything again.

@@ -322,9 +322,25 @@ TEST_CASE("ignoreInSources matches on directory boundaries only", "[store][sourc
     REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/proj"}).has_value());
 
     store.ignoreInSources(p.id, "/home/u/projects/api"); // "/home/u/proj" is NOT a parent
-    store.ignoreInSources(p.id, "/home/u/proj");         // the source folder itself is not "under" it
 
     REQUIRE(store.projects()[0].sources[0].ignored.empty());
+}
+
+TEST_CASE("ignoreInSources records a source's own path when it is itself the repository",
+          "[store][sources]")
+{
+    // scanForRepos(root) returns root itself as the sole result when root is a
+    // repository, so a source can be registered with path == the repo's own
+    // path. isUnder() alone never matches this (child.size() <= parent.size()
+    // is false by construction) — without this case, removing that repo could
+    // never be recorded as ignored, and the next rescan would re-add it forever.
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects/api"}).has_value());
+
+    store.ignoreInSources(p.id, "/home/u/projects/api");
+
+    REQUIRE(store.projects()[0].sources[0].ignored == std::vector<std::string>{"/home/u/projects/api"});
 }
 
 TEST_CASE("ignoreInSources never records the same path twice", "[store][sources]")

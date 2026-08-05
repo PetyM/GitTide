@@ -75,7 +75,11 @@ Expected<std::vector<std::string>> scanForRepos(const std::filesystem::path& roo
         return std::unexpected(GitError{-1, "not a directory: " + toGitPath(root)});
 
     std::vector<std::string> out;
-    if (GitRepo::open(root))
+    // Gated by the same cheap probe as walk(), for the same reason: root is
+    // usually a plain container folder (the common "pick a parent of many
+    // repos" case), so calling GitRepo::open() on it unconditionally would log
+    // a Warning on nearly every ordinary scan.
+    if (looksLikeRepo(root) && GitRepo::open(root))
     {
         out.push_back(toGitPath(root));
         return out;

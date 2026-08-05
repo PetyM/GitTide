@@ -321,7 +321,12 @@ void ProjectStore::ignoreInSources(const std::string& projectId, const std::stri
 
     for (auto& s : it->sources)
     {
-        if (!isUnder(s.path, repoPath))
+        // A source's own folder counts as "containing" the repo when the
+        // folder is itself the repository (scanForRepos returns the root as
+        // the sole candidate in that case, so addRepos registers a source
+        // whose path equals the repo's path) — isUnder() alone never matches
+        // that (child.size() <= parent.size() is false by construction).
+        if (s.path != repoPath && !isUnder(s.path, repoPath))
             continue;
         if (std::find(s.ignored.begin(), s.ignored.end(), repoPath) == s.ignored.end())
             s.ignored.push_back(repoPath);
