@@ -11,6 +11,23 @@
 
 using json = nlohmann::json;
 
+namespace {
+
+// True when `child` lies inside directory `parent` — a plain prefix test is
+// wrong ("/home/u/proj" would swallow "/home/u/projects/api"), so the prefix
+// must end on a separator. Paths here are always generic (forward-slash) form.
+bool isUnder(const std::string& parent, const std::string& child)
+{
+    if (parent.empty() || child.size() <= parent.size())
+        return false;
+    if (child.compare(0, parent.size(), parent) != 0)
+        return false;
+    const bool parentEndsWithSlash = parent.back() == '/';
+    return parentEndsWithSlash || child[parent.size()] == '/';
+}
+
+} // namespace
+
 namespace gittide {
 
 std::string ProjectStore::to_json() const
@@ -241,6 +258,97 @@ Expected<void> ProjectStore::removeRepo(const std::string& projectId, const std:
     if (r == repos.end())
         return std::unexpected(GitError{-1, "repo not found: " + path});
     repos.erase(r);
+    return {};
+}
+
+Expected<void> ProjectStore::addSource(const std::string& projectId, RepoSource src)
+{
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
+    if (it == m_projects.end())
+        return std::unexpected(GitError{-1, "project not found: " + projectId});
+
+    for (const auto& existing : it->sources)
+    {
+        if (existing.path == src.path)
+            return std::unexpected(GitError{-1, "source already registered: " + src.path});
+    }
+    it->sources.push_back(std::move(src));
+    return {};
+}
+
+Expected<void> ProjectStore::removeSource(const std::string& projectId, const std::string& path)
+{
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
+    if (it == m_projects.end())
+        return std::unexpected(GitError{-1, "project not found: " + projectId});
+
+    auto& sources = it->sources;
+    auto s        = std::find_if(sources.begin(),
+                          sources.end(),
+                          [&](const RepoSource& src)
+                          {
+                              return src.path == path;
+                          });
+    if (s == sources.end())
+        return std::unexpected(GitError{-1, "source not found: " + path});
+
+    // Deliberately leaves it->repos alone: unregistering a source must not
+    // silently drop repositories the user is working in.
+    sources.erase(s);
+    return {};
+}
+
+void ProjectStore::ignoreInSources(const std::string& projectId, const std::string& repoPath)
+{
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
+    if (it == m_projects.end())
+        return;
+
+    for (auto& s : it->sources)
+    {
+        if (!isUnder(s.path, repoPath))
+            continue;
+        if (std::find(s.ignored.begin(), s.ignored.end(), repoPath) == s.ignored.end())
+            s.ignored.push_back(repoPath);
+    }
+}
+
+Expected<void> ProjectStore::clearIgnored(const std::string& projectId, const std::string& sourcePath)
+{
+    auto it = std::find_if(m_projects.begin(),
+                           m_projects.end(),
+                           [&](const Project& p)
+                           {
+                               return p.id == projectId;
+                           });
+    if (it == m_projects.end())
+        return std::unexpected(GitError{-1, "project not found: " + projectId});
+
+    auto s = std::find_if(it->sources.begin(),
+                          it->sources.end(),
+                          [&](const RepoSource& src)
+                          {
+                              return src.path == sourcePath;
+                          });
+    if (s == it->sources.end())
+        return std::unexpected(GitError{-1, "source not found: " + sourcePath});
+
+    s->ignored.clear();
     return {};
 }
 

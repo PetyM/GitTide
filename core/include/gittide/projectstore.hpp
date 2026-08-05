@@ -91,6 +91,25 @@ public:
     // Remove a repo by path from the named project. Returns error if not found.
     Expected<void> removeRepo(const std::string& projectId, const std::string& path);
 
+    // Register a folder as a repository source of the named project. Returns an
+    // error if projectId is not found, or if a source with the same path already
+    // exists in that project. Call save() after mutating to persist the change.
+    Expected<void> addSource(const std::string& projectId, RepoSource src);
+
+    // Unregister a source by path. The repositories it already added stay in the
+    // project. Returns an error if the project or the source is not found.
+    Expected<void> removeSource(const std::string& projectId, const std::string& path);
+
+    // Record repoPath as ignored in every source that contains it, so a rescan
+    // never re-adds a repository the user removed. Matching is on directory
+    // boundaries; a path already recorded is not duplicated. Unknown project,
+    // or a path under no source: no-op.
+    void ignoreInSources(const std::string& projectId, const std::string& repoPath);
+
+    // Empty one source's ignore list, so its next scan offers everything again.
+    // Returns an error if the project or the source is not found.
+    Expected<void> clearIgnored(const std::string& projectId, const std::string& sourcePath);
+
     // Remove a project by id. If it was the active project, activeProject is cleared.
     void removeProject(const std::string& id);
 

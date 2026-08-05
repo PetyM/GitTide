@@ -250,3 +250,112 @@ TEST_CASE("malformed source entries are skipped, not fatal", "[store][sources]")
     REQUIRE(loaded->projects()[0].sources[0].path == "/home/u/projects");
     REQUIRE(loaded->projects()[0].sources[0].maxDepth == 2); // default
 }
+
+TEST_CASE("addSource appends a source to the project", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+
+    auto result = store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects", .maxDepth = 3});
+
+    REQUIRE(result.has_value());
+    REQUIRE(store.projects()[0].sources.size() == 1);
+    REQUIRE(store.projects()[0].sources[0].maxDepth == 3);
+}
+
+TEST_CASE("addSource rejects a duplicate source path", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects"}).has_value());
+
+    auto again = store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects"});
+
+    REQUIRE_FALSE(again.has_value());
+    REQUIRE(store.projects()[0].sources.size() == 1);
+}
+
+TEST_CASE("addSource returns an error for an unknown project id", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    REQUIRE_FALSE(store.addSource("nope", gittide::RepoSource{.path = "/home/u/projects"}).has_value());
+}
+
+TEST_CASE("removeSource drops the source but keeps the repos it added", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects"}).has_value());
+    REQUIRE(store.addRepo(p.id, gittide::RepoRef{.path = "/home/u/projects/api"}).has_value());
+
+    auto result = store.removeSource(p.id, "/home/u/projects");
+
+    REQUIRE(result.has_value());
+    REQUIRE(store.projects()[0].sources.empty());
+    REQUIRE(store.projects()[0].repos.size() == 1);
+}
+
+TEST_CASE("removeSource errors on an unknown source path", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE_FALSE(store.removeSource(p.id, "/home/u/projects").has_value());
+}
+
+TEST_CASE("ignoreInSources records the repo under the containing source", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects"}).has_value());
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/work"}).has_value());
+
+    store.ignoreInSources(p.id, "/home/u/projects/api");
+
+    REQUIRE(store.projects()[0].sources[0].ignored == std::vector<std::string>{"/home/u/projects/api"});
+    REQUIRE(store.projects()[0].sources[1].ignored.empty());
+}
+
+TEST_CASE("ignoreInSources matches on directory boundaries only", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/proj"}).has_value());
+
+    store.ignoreInSources(p.id, "/home/u/projects/api"); // "/home/u/proj" is NOT a parent
+    store.ignoreInSources(p.id, "/home/u/proj");         // the source folder itself is not "under" it
+
+    REQUIRE(store.projects()[0].sources[0].ignored.empty());
+}
+
+TEST_CASE("ignoreInSources never records the same path twice", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects"}).has_value());
+
+    store.ignoreInSources(p.id, "/home/u/projects/api");
+    store.ignoreInSources(p.id, "/home/u/projects/api");
+
+    REQUIRE(store.projects()[0].sources[0].ignored.size() == 1);
+}
+
+TEST_CASE("ignoreInSources on an unknown project is a no-op", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    store.ignoreInSources("nope", "/home/u/projects/api"); // must not throw
+    REQUIRE(store.projects().empty());
+}
+
+TEST_CASE("clearIgnored empties one source's ignore list", "[store][sources]")
+{
+    gittide::ProjectStore store;
+    auto& p = store.createProject("Work");
+    REQUIRE(
+        store.addSource(p.id, gittide::RepoSource{.path = "/home/u/projects", .maxDepth = 2, .ignored = {"/home/u/projects/api"}})
+            .has_value());
+
+    REQUIRE(store.clearIgnored(p.id, "/home/u/projects").has_value());
+
+    REQUIRE(store.projects()[0].sources[0].ignored.empty());
+    REQUIRE_FALSE(store.clearIgnored(p.id, "/home/u/nowhere").has_value());
+}
