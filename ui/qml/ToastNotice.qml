@@ -22,6 +22,9 @@ Item {
     function show(message) {
         if (message.length === 0)
             return
+        // A still-running fade-out from a previous toast would otherwise race
+        // the opacity = 1 below and win, leaving this new toast invisible.
+        fade.stop()
         toast.text = message
         toast.opacity = 1
         hold.restart()

@@ -19,6 +19,20 @@ AppDialog {
     property var candidates: []
     property string errorText: ""
 
+    // Monotonic guard against stale scanFinished/scanFailed responses.
+    // ProjectController::scanFolder carries no request id — every call
+    // independently emits on the same shared signal — so a response for an
+    // abandoned request can otherwise land after a newer one has already
+    // updated the checklist, or after the dialog was closed and reopened.
+    // scanToken is bumped on every fresh request AND on every openDialog();
+    // pendingScanToken captures which request is the one currently awaited.
+    // Because startScan() is single-flight (see below) there is at most one
+    // outstanding request per open session, so a response is current iff its
+    // captured token still matches scanToken — anything else means either a
+    // later request superseded it or the dialog moved on to a new session.
+    property int scanToken: 0
+    property int pendingScanToken: -1
+
     readonly property int checkedCount: {
         var n = 0
         for (var i = 0; i < candidates.length; ++i)
@@ -32,6 +46,9 @@ AppDialog {
         candidates = []
         errorText = ""
         scanning = false
+        // Invalidate any request still in flight from a previous session —
+        // its eventual response must not populate this fresh checklist.
+        scanToken++
         keepSource.checked = false
         open()
     }
@@ -52,18 +69,25 @@ AppDialog {
     }
 
     function startScan() {
-        if (folder.length === 0 || !projectController)
+        // Single-flight: never issue a second request while one is still
+        // outstanding. The depth SpinBox and "Choose…" are also disabled
+        // while scanning so this should never trigger through the UI; it is
+        // the code-level backstop the token check above relies on — without
+        // it, two live requests could each satisfy the token compare and the
+        // last response to arrive would win regardless of which is current.
+        if (folder.length === 0 || !projectController || scanning)
             return
         errorText = ""
         candidates = []
         scanning = true
+        pendingScanToken = ++scanToken
         projectController.scanFolder(folder, depthBox.value)
     }
 
     Connections {
         target: projectController
         function onScanFinished(found) {
-            if (!dialog.visible)
+            if (!dialog.visible || dialog.pendingScanToken !== dialog.scanToken)
                 return
             var rows = []
             for (var i = 0; i < found.length; ++i)
@@ -74,7 +98,7 @@ AppDialog {
             dialog.scanning = false
         }
         function onScanFailed(message) {
-            if (!dialog.visible)
+            if (!dialog.visible || dialog.pendingScanToken !== dialog.scanToken)
                 return
             dialog.candidates = []
             dialog.scanning = false
@@ -116,6 +140,7 @@ AppDialog {
                 objectName: "addFromFolderChoose"
                 variant: "secondary"
                 text: "Choose…"
+                enabled: !dialog.scanning
                 onClicked: folderPicker.open()
             }
         }
@@ -135,6 +160,7 @@ AppDialog {
                 to: 5
                 value: 2
                 editable: false
+                enabled: !dialog.scanning
                 onValueChanged: if (dialog.folder.length > 0) dialog.startScan()
                 contentItem: Label {
                     text: depthBox.value
