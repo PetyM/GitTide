@@ -131,6 +131,35 @@ zone (top / middle / bottom third) disambiguates reorder from squash. Selection
 (single click, Shift-range, Ctrl-toggle) is handled by `TapHandler`s that
 cooperate with the `DragHandler`, fixing the earlier `MouseArea` grab-steal bug.
 
+### Diff selection & copy
+
+The diff panel supports character-accurate text selection and copying, shared by
+both the editable working-tree diff (Changes tab) and the read-only commit diff
+(History tab); the Changes tab and History tab each hold their own independent
+selection, since each has its own `DiffSelection`/diff model pair.
+
+- **What is selectable.** Only the code column: the line-number gutter, staging
+  checkboxes, and block-checkbox rows are not part of the selection surface.
+  Per-region conflict headers (the *Accept Current / Accept Incoming / Accept
+  Both* rows from [inline conflict resolution](#merge)) carry no code text and
+  are not selectable — a drag through one extends straight to the row before or
+  after it, depending on drag direction.
+- **Copy has two forms.** *Copy* copies the selected code, unprefixed. *Copy with
+  Diff Markers* copies the same selection with each row prefixed `+ ` / `- ` /
+  `  ` by its kind (an ASCII hyphen, not the "−" the view draws), so the result
+  reads as a patch fragment. Hunk headers are always copied verbatim and
+  unprefixed; block-checkbox rows contribute nothing to either form.
+- **Interactions.** Drag selects across rows, autoscrolling past the top or
+  bottom edge of the visible list. A plain click clears the selection; a
+  double-click selects the word under the pointer; a triple-click selects the
+  whole row. `Ctrl+A` selects the whole diff, `Ctrl+C` copies plain, and
+  `Ctrl+Shift+C` copies with diff markers (see
+  [keyboard-controls](keyboard-controls.md)). Right-click opens a context menu
+  with the same three actions (see
+  [context-menus §4.6](context-menus.md#46-diffcontextmenuqml)).
+- **The selection clears** whenever its diff model resets: switching the active
+  file, a refresh, or entering or leaving stash preview.
+
 ### Graph tab
 
 A read-only **full git graph** of all refs — local branches, remote-tracking

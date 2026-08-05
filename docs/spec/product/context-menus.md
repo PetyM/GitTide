@@ -301,7 +301,9 @@ DiffContextMenu {
 
 ## 5. Right-click wiring pattern
 
-All views use the same `TapHandler` pattern:
+All views use the same `TapHandler` pattern, with two exceptions that own
+pointer input themselves and route right-click through it instead: the branch
+row (§4.2) and the diff selection overlay (§4.6).
 
 ```qml
 TapHandler {

@@ -758,6 +758,24 @@ an entry with a newer one if it changes.
   more clearly than a live button that no-ops). →
   [`design`](spec/design/design.md#accent-brand)
 
+- **D64 — Diff text selection is per-row `TextEdit` items painting slices of a
+  C++-held `DiffSelection`, driven by one `MouseArea` sibling of the list.**
+  *Why:* the `ListView` destroys off-screen delegates, so selection state cannot
+  live in a delegate, and an autoscrolling drag would kill a delegate-owned mouse
+  grab. *Rejected — one `TextEdit` for the whole diff:* free selection for
+  nothing, but it destroys per-line staging checkboxes, block rows, the
+  line-number gutter and the conflict headers, which are the pane's primary
+  function. *Rejected — monospace column arithmetic:* mapping x to a column by
+  fixed advance width is simple and wrong for tabs, CJK widths and whatever the
+  platform resolves `"monospace"` to. *Consequence:* long lines lost their elide
+  ellipsis — `TextEdit` has no `elide` — and are hard-clipped instead; copy is
+  unaffected, it reads the model. *Gotcha:* `TextEdit.select()`/`deselect()`
+  themselves emit `textChanged`, so re-applying the selection from an
+  `onTextChanged` handler recurses — `DiffCodeText.qml` re-applies on its own
+  `plainText`/`html` properties instead. →
+  [`product`](spec/product/product.md#diff-selection--copy),
+  [`context-menus §4.6`](spec/product/context-menus.md#46-diffcontextmenuqml)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

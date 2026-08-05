@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-08-05 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`specs/2026-08-05-diff-text-selection-design.md`](../specs/2026-08-05-diff-text-selection-design.md); on close, `spec/design`, `spec/product/keyboard-controls.md`, `spec/product/context-menus.md` |
 | **Depends on** | — |
 
@@ -2471,7 +2471,7 @@ git commit -m "feat(ui): selectable, copyable text in the commit diff"
 
 **Interfaces:** none — documentation only.
 
-- [ ] **Step 1: Record the decision**
+- [x] **Step 1: Record the decision**
 
 Add an entry to `docs/decisions.md` in that file's existing format, covering:
 
@@ -2489,19 +2489,19 @@ Add an entry to `docs/decisions.md` in that file's existing format, covering:
 - **Consequence:** long lines lost their elide ellipsis — `TextEdit` has no
   `elide` — and are hard-clipped instead. Copy is unaffected: it reads the model.
 
-- [ ] **Step 2: Update the product spec**
+- [x] **Step 2: Update the product spec**
 
 Add the selection/copy flow to the diff-view section of
 `docs/spec/product/product.md`: what is selectable (code column only), the two
 copy forms, and when the selection clears. Keep it cross-cutting — the
 symbol-level facts belong in the Doxygen comments already written.
 
-- [ ] **Step 3: Fill in this plan's Outcome and index it**
+- [x] **Step 3: Fill in this plan's Outcome and index it**
 
 Set **Status** to `done` at the top of this file, fill in the Outcome section
 below, and add a row for this plan to the table in `docs/plans/index.md`.
 
-- [ ] **Step 4: Full verification**
+- [x] **Step 4: Full verification**
 
 Run:
 
@@ -2513,7 +2513,7 @@ ctest --test-dir build --output-on-failure
 Expected: the whole suite passes — core and UI. Paste the summary line into the
 Outcome section.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/decisions.md docs/spec/product/product.md docs/plans/index.md \
@@ -2525,9 +2525,47 @@ git commit -m "docs: close out diff text selection and copy"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
-> - Test run: <the ctest summary line>.
+- **Shipped:** character-accurate text selection and copy across the diff panel,
+  in both the working-tree diff (`DiffView.qml`) and the commit/history diff
+  (`CommitDetail.qml`). Selection spans rows via `gittide::ui::DiffSelection`
+  (row/column in model coordinates); `DiffCodeText.qml` paints each row's slice;
+  `DiffSelectionOverlay.qml` (a `MouseArea` sibling of the list) drives drag with
+  autoscroll, plain/double/triple click, `Ctrl+A`/`Ctrl+C`/`Ctrl+Shift+C`, and the
+  right-click `DiffContextMenu.qml` (Copy / Copy with Diff Markers / Select All).
+  Two theme tokens (`selectionBg`, `selectionText`) drive the paint. Selection
+  clears on any model reset — file switch, refresh, or entering/leaving stash
+  preview — and each of the two diff surfaces owns its own `DiffSelection`, so
+  the two panes never cross-select.
+- **Spec updated:** `docs/spec/design/design.md` (token table — done in Task 1);
+  `docs/spec/product/keyboard-controls.md` §2 (done in Task 7);
+  `docs/spec/product/context-menus.md` §4.6 (done in Task 8) and §5 (this task —
+  added a cross-reference so the "all views use TapHandler" opener doesn't
+  mislead a reader about the diff overlay's and the branch row's exceptions);
+  `docs/spec/product/product.md` new "Diff selection & copy" section (this task);
+  `docs/decisions.md` D64 (this task).
+- **Code:** `ui/include/gittide/ui/diffselection.hpp` +
+  `ui/src/diffselection.cpp` (`gittide::ui::DiffSelection`), `ui/qml/DiffCodeText.qml`,
+  `ui/qml/DiffSelectionOverlay.qml`, `ui/qml/DiffContextMenu.qml`; wired into
+  `ui/qml/DiffView.qml` and `ui/qml/CommitDetail.qml`; theme tokens in
+  `ui/include/gittide/ui/theme.hpp` / `ui/src/theme.cpp` /
+  `ui/include/gittide/ui/qmltheme.hpp` / `ui/src/qmltheme.cpp`.
+- **Test run:**
+  ```
+  100% tests passed, 0 tests failed out of 221
+  Total Test time (real) =  32.50 sec
+  ```
+  The `gittide_ui_tests` binary within that run: `Totals` across all classes sum
+  to **507 passed, 0 failed, 0 skipped, 0 blacklisted** (summed from each test
+  class's own `Totals:` line — the binary itself doesn't print a grand total).
+- **Outstanding — not verified by hand.** Tasks 9 and 10 each had a "verify by
+  hand in the running app" step (drag-select with autoscroll, `Ctrl+C`/`Ctrl+Shift+C`
+  paste, double/triple click, the right-click menu, and — critically — confirming
+  the per-line/block staging checkboxes and the conflict Accept buttons still
+  work, plus that the working-diff and commit-diff selections don't cross-talk).
+  Every agent on this plan, including this closing task, ran headless
+  (`QT_QPA_PLATFORM=offscreen`); **the app was never actually run.** This is real
+  risk for the two "must not regress" items called out in the plan's global
+  constraints (staging checkboxes, conflict Accept buttons) — the QML tests cover
+  the overlay's hit-testing logic against a stub list, not a real `ListView` with
+  those controls composited underneath it. A manual pass through Task 9 Step 5 and
+  Task 10 Step 5 is still owed before this is trusted in the running app.
