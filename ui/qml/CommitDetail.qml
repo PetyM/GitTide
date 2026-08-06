@@ -385,7 +385,7 @@ ColumnLayout {
                 clip: true
                 model: repoVm ? repoVm.commitDiff : null
 
-                ScrollBar.vertical: AppScrollBar {}
+                ScrollBar.vertical: AppScrollBar { id: commitDiffVScrollBar }
                 WheelScroller {}
 
                 delegate: Rectangle {
@@ -439,6 +439,7 @@ ColumnLayout {
                 anchors.fill: parent
                 list: commitDiffList
                 selection: commitDiffSelection
+                scrollBar: commitDiffVScrollBar
                 onCopyRequested: function(text) { if (repoVm) repoVm.copyToClipboard(text) }
             }
         }

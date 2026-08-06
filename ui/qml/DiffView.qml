@@ -115,7 +115,7 @@ ColumnLayout {
             // In stash preview show the commit (stash) diff; otherwise the working diff.
             model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitDiff : repoVm.diffLines) : null
 
-            ScrollBar.vertical: AppScrollBar {}
+            ScrollBar.vertical: AppScrollBar { id: diffVScrollBar }
             WheelScroller {}
 
             delegate: Rectangle {
@@ -261,6 +261,7 @@ ColumnLayout {
             anchors.fill: parent
             list: diffList
             selection: diffSelection
+            scrollBar: diffVScrollBar
             onCopyRequested: function(text) { if (repoVm) repoVm.copyToClipboard(text) }
         }
     }

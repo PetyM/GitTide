@@ -16,6 +16,9 @@ MouseArea {
     property var list: null
     // The DiffSelection to drive.
     property var selection: null
+    // The list's vertical AppScrollBar, if any. A press over it must reach the
+    // scrollbar, not start a text selection — see inScrollBar().
+    property var scrollBar: null
 
     // Emitted with the text to put on the clipboard; the owning view routes it to
     // repoVm.copyToClipboard so clipboard access stays in one place.
@@ -24,14 +27,21 @@ MouseArea {
     property bool dragging: false
     property real lastX: 0
     property real lastY: 0
+    // Last hovered position, tracked whether or not a button is down — drives
+    // the cursor shape (see cursorShape below). (-1, -1) means "not hovering".
+    property point hoverPos: Qt.point(-1, -1)
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    cursorShape: Qt.IBeamCursor
+    hoverEnabled: true
+    // I-beam only where a press would actually start a selection; everywhere
+    // else (checkboxes, gutter, sign column, conflict buttons, the scrollbar)
+    // keeps the ordinary arrow, matching what's actually clickable there.
+    cursorShape: canSelectAt(hoverPos.x, hoverPos.y) ? Qt.IBeamCursor : Qt.ArrowCursor
 
     // --- hit testing -------------------------------------------------------
 
     function findCode(item) {
-        if (!item)
+        if (!item || !item.visible)
             return null
         if (item.objectName === "diffCodeText")
             return item
@@ -70,25 +80,51 @@ MouseArea {
         return code.positionAt(local.x, local.y)
     }
 
+    // True when (x, y) falls inside the scrollbar's current on-screen rect.
+    // Only checked while the bar is actually visible, so a hidden/AsNeeded
+    // bar (or one whose width changes with the style) never blocks a press —
+    // there is nothing there to protect.
+    function inScrollBar(x, y) {
+        if (!scrollBar || !scrollBar.visible)
+            return false
+        const topLeft = scrollBar.mapToItem(overlay, 0, 0)
+        return x >= topLeft.x && x <= topLeft.x + scrollBar.width &&
+               y >= topLeft.y && y <= topLeft.y + scrollBar.height
+    }
+
+    // True when a press/hover at (x, y) would land in a row's code column —
+    // shared by pressAt() (should this press start a selection?) and the
+    // hover cursor (should it show an I-beam?).
+    function canSelectAt(x, y) {
+        if (!selection || inScrollBar(x, y))
+            return false
+        const row = rowAt(y)
+        return row >= 0 && columnAt(row, x, y) >= 0
+    }
+
     // --- selection driving -------------------------------------------------
 
     // Returns true when the press started a selection, false when it belongs to
-    // whatever sits underneath (checkbox, gutter, conflict buttons).
+    // whatever sits underneath (checkbox, gutter, conflict buttons, scrollbar).
     function pressAt(x, y, modifiers) {
-        if (!selection)
+        if (!canSelectAt(x, y))
             return false
         const row = rowAt(y)
         const col = columnAt(row, x, y)
-        if (row < 0 || col < 0)
-            return false
 
         lastX = x
         lastY = y
-        if (modifiers & Qt.ShiftModifier)
+        const shiftExtend = (modifiers & Qt.ShiftModifier) !== 0
+        if (shiftExtend)
             selection.extendTo(row, col)
         else
             selection.begin(row, col)
         dragging = true
+        // A shift-click extend is its own gesture, like a drag: the paired
+        // release (handleRelease) must not run the click-count path, which
+        // would otherwise call clickAt(..., 1) and clear what this press
+        // just extended.
+        shiftExtendPress = shiftExtend
         return true
     }
 
@@ -133,16 +169,22 @@ MouseArea {
 
     // Returns true when the key was consumed. Ctrl+C copies code text,
     // Ctrl+Shift+C the same selection with diff markers, Ctrl+A selects the
-    // whole diff.
+    // whole diff. Modifiers are matched exactly (not just "Control is among
+    // the bits set") — `modifiers & Qt.ControlModifier` alone would also fire
+    // for Ctrl+Alt+A, stealing a shortcut that belongs to something else.
     function handleKey(key, modifiers) {
-        if (!selection || !(modifiers & Qt.ControlModifier))
+        if (!selection)
             return false
-        if (key === Qt.Key_A) {
+        if (key === Qt.Key_A && modifiers === Qt.ControlModifier) {
             selection.selectAll()
             return true
         }
-        if (key === Qt.Key_C) {
-            overlay.copyRequested(selection.copyText((modifiers & Qt.ShiftModifier) !== 0))
+        if (key === Qt.Key_C && modifiers === Qt.ControlModifier) {
+            overlay.copyRequested(selection.copyText(false))
+            return true
+        }
+        if (key === Qt.Key_C && modifiers === (Qt.ControlModifier | Qt.ShiftModifier)) {
+            overlay.copyRequested(selection.copyText(true))
             return true
         }
         return false
@@ -154,6 +196,9 @@ MouseArea {
     property int clickRow: -1
     property double lastClickAt: 0
     property bool moved: false
+    // Set by pressAt() when the press just handled was a Shift+click extend —
+    // consumed (and reset) by the very next handleRelease(), see pressAt().
+    property bool shiftExtendPress: false
 
     // Starts a selection via pressAt and, only when it did, takes keyboard
     // focus — a rejected press (checkbox, gutter, sign column, conflict Accept
@@ -173,10 +218,14 @@ MouseArea {
     // invokable from C++, headless tests need a way in.
     function handleRelease(x, y) {
         endDrag()
-        if (moved) {
-            // A drag is its own gesture: the click that follows it starts a
-            // fresh count, not a double-click on whatever came before the drag.
+        if (moved || shiftExtendPress) {
+            // A drag, or a Shift+click extend, is its own gesture: the click
+            // that follows starts a fresh count, not a double-click on
+            // whatever came before — and, for the shift case, this release
+            // must not itself run clickAt(..., 1), which would clear the
+            // selection the paired press just extended.
             moved = false
+            shiftExtendPress = false
             clickCount = 0
             clickRow = -1
             return
@@ -216,8 +265,17 @@ MouseArea {
     }
 
     onPressed: function(mouse) { mouse.accepted = dispatchPress(mouse.button, mouse.x, mouse.y, mouse.modifiers) }
-    onPositionChanged: function(mouse) { moveTo(mouse.x, mouse.y) }
+    onPositionChanged: function(mouse) {
+        hoverPos = Qt.point(mouse.x, mouse.y)
+        moveTo(mouse.x, mouse.y)
+    }
     onReleased: function(mouse) { dispatchRelease(mouse.button, mouse.x, mouse.y) }
+    onExited: hoverPos = Qt.point(-1, -1)
+    // The grab can be cancelled out from under a drag (window deactivation,
+    // another handler stealing it) without ever delivering a release. Without
+    // this, "dragging" stays true forever and the autoscroll timer keeps
+    // stepping contentY and extending the selection on its own.
+    onCanceled: endDrag()
 
     Keys.onPressed: function(event) {
         event.accepted = handleKey(event.key, event.modifiers)
@@ -226,8 +284,8 @@ MouseArea {
     DiffContextMenu {
         id: contextMenu
         hasSelection: overlay.selection ? overlay.selection.hasSelection : false
-        onCopy: overlay.copyRequested(overlay.selection.copyText(false))
-        onCopyWithMarkers: overlay.copyRequested(overlay.selection.copyText(true))
+        onCopy: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(false))
+        onCopyWithMarkers: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(true))
         onSelectAll: if (overlay.selection) overlay.selection.selectAll()
     }
 

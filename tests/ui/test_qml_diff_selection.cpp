@@ -79,14 +79,40 @@ gittide::DiffResult twoLineDiff()
     return r;
 }
 
+// Captures qWarning/qCritical output during a message handler install, so a
+// test can assert that an action produced *no* runtime warning — QML
+// swallows an uncaught JS TypeError (e.g. calling a method on null) into a
+// warning rather than crashing, so that's the only observable signal that
+// onCopy/onCopyWithMarkers dereferenced a null `overlay.selection`.
+QStringList* g_capturedMessages = nullptr;
+void captureMessages(QtMsgType, const QMessageLogContext&, const QString& message)
+{
+    if (g_capturedMessages)
+        g_capturedMessages->push_back(message);
+}
+
 // Builds the fake-list + DiffSelectionOverlay host every overlay test drives.
 // The engine must already carry "theme" and "testSelection" context
 // properties. Rows are 20px tall; each row's code column starts at x = 100.
+//
 // Row @p noCodeRow (default: none) gets no DiffCodeText at all — like a
 // conflict header row, which has no code column for the overlay to select in.
+//
+// Row @p hiddenCodeRow (default: none) gets a real DiffCodeText that stays in
+// the tree but sits behind a wrapper whose `visible` is false — modelling
+// DiffView.qml's real conflict-start delegate, where the RowLayout holding
+// the code column (and the Accept buttons' RowLayout underneath it) is
+// `visible: model.lineKind !== "conflict-start"` while the row item itself
+// (what itemAtIndex() returns) stays visible throughout.
+//
+// @p withScrollBar (default false) adds a 6px-wide stand-in scrollbar item
+// docked to the host's right edge (x in [394, 400]) and wires it as the
+// overlay's `scrollBar`, so a press there can be asserted as rejected.
+//
 // On a QML error, @p errorOut (if given) receives the component's error
 // string and the returned pointer is null.
-std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1, QString* errorOut = nullptr)
+std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1, QString* errorOut = nullptr,
+                                          int hiddenCodeRow = -1, bool withScrollBar = false)
 {
     QQmlComponent comp(&engine);
     const QByteArray qml = QStringLiteral(R"QML(
@@ -99,6 +125,17 @@ std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1
 
             property var rows: ["@@ -1,1 +1,2 @@", "ctx one", "added two"]
             property int noCodeRow: %1
+            property int hiddenCodeRow: %2
+
+            Rectangle {
+                id: scrollBarStub
+                objectName: "scrollBarStub"
+                x: host.width - width
+                y: 0
+                width: 6
+                height: host.height
+                color: "transparent"
+            }
 
             Column {
                 id: fakeList
@@ -121,15 +158,23 @@ std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1
                         // Row noCodeRow gets no DiffCodeText at all, not just
                         // a hidden one — the overlay's hit-testing looks for
                         // an actual "diffCodeText" descendant.
-                        Loader {
-                            active: index !== host.noCodeRow
-                            sourceComponent: DiffCodeText {
-                                x: 100
-                                width: 300
-                                height: 20
-                                row: index
-                                selection: testSelection
-                                plainText: host.rows[index]
+                        //
+                        // Row hiddenCodeRow gets one, but wrapped in an
+                        // invisible parent — the item itself is always
+                        // visible (it's what itemAtIndex() returns).
+                        Item {
+                            anchors.fill: parent
+                            visible: index !== host.hiddenCodeRow
+                            Loader {
+                                active: index !== host.noCodeRow
+                                sourceComponent: DiffCodeText {
+                                    x: 100
+                                    width: 300
+                                    height: 20
+                                    row: index
+                                    selection: testSelection
+                                    plainText: host.rows[index]
+                                }
                             }
                         }
                     }
@@ -141,10 +186,13 @@ std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1
                 anchors.fill: parent
                 list: fakeList
                 selection: testSelection
+                scrollBar: %3 ? scrollBarStub : null
             }
         }
     )QML")
                                     .arg(noCodeRow)
+                                    .arg(hiddenCodeRow)
+                                    .arg(withScrollBar ? QStringLiteral("true") : QStringLiteral("false"))
                                     .toUtf8();
     comp.setData(qml, QUrl(QStringLiteral("qrc:/qml/_test_diff_overlay_host.qml")));
     if (errorOut)
@@ -301,6 +349,56 @@ private slots:
         QCOMPARE(selection.endInRow(2), 9); // dragged past the end of "added two"
     }
 
+    // Shift+click extends from the current anchor via pressAt() — but the
+    // paired release, if it falls into the ordinary click-count path (no
+    // movement happened, so it looks like a plain click), calls
+    // clickAt(..., 1), which clears what the press just extended. A
+    // Shift+click is its own gesture and must survive its own release.
+    void shift_click_extends_and_the_release_does_not_clear_it()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // A drag establishes anchor = row 1, cursor = row 2 (mirrors the
+        // test above); its release takes the "moved" branch, same as always.
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 400), Q_ARG(QVariant, 45));
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 400), Q_ARG(QVariant, 45));
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.property("anchorRow").toInt(), 1);
+        QCOMPARE(selection.startInRow(0), -1); // row 0 not part of the selection yet
+
+        // Shift+click on row 0, with no movement before its release: pressAt
+        // extends the cursor there (the anchor stays row 1); the release
+        // must leave that extension alone rather than clearing it.
+        QVariant pressed;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, pressed),
+                                  Q_ARG(QVariant, 100), Q_ARG(QVariant, 10),
+                                  Q_ARG(QVariant, int(Qt::ShiftModifier)));
+        QVERIFY(pressed.toBool());
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 100), Q_ARG(QVariant, 10));
+
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(selection.property("anchorRow").toInt(), 1); // anchor untouched
+        QCOMPARE(selection.startInRow(0), 0); // the shift-click's extension held
+    }
+
     void overlay_rejects_a_press_left_of_the_code_column()
     {
         // The checkbox, line-number gutter and sign columns must keep their own
@@ -361,6 +459,86 @@ private slots:
                                   Q_ARG(QVariant, 150), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
         QVERIFY(!handled.toBool());
         QVERIFY(!selection.property("hasSelection").toBool());
+    }
+
+    // A conflict-start row's real delegate (DiffView.qml) always instantiates
+    // its normal RowLayout — including the DiffCodeText — and merely sets
+    // `visible: false` on it; the item stays in the tree. findCode() must
+    // treat that the same as "no code item here", or a press on such a row
+    // is read as a text-selection press and mouse.accepted swallows it
+    // before it can reach the conflict Accept buttons that live in the same
+    // spot on the sibling (visible) header layout.
+    void overlay_rejects_a_press_on_a_row_whose_code_item_is_hidden_not_absent()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, /*noCodeRow=*/-1, &error, /*hiddenCodeRow=*/1);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Row 1's DiffCodeText is present (unlike the noCodeRow case above)
+        // but its wrapper is invisible. x=150 sits inside where its code
+        // column would be.
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 150), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+        QVERIFY(!selection.property("hasSelection").toBool());
+
+        // A neighbouring visible row is unaffected — this isn't a global
+        // regression, just row 1.
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 150), Q_ARG(QVariant, 45), Q_ARG(QVariant, 0));
+        QVERIFY(handled.toBool());
+    }
+
+    // The overlay is anchors.fill'd above the whole ListView, including the
+    // AppScrollBar docked to its right edge — a press on the handle must
+    // reach the scrollbar, not be swallowed as a text-selection press.
+    void overlay_rejects_a_press_on_the_scrollbar_but_accepts_beside_it()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root =
+            buildOverlayHost(engine, /*noCodeRow=*/-1, &error, /*hiddenCodeRow=*/-1, /*withScrollBar=*/true);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // The stub scrollbar docks to the host's right edge, x in [394, 400].
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 397), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+        QVERIFY(!selection.property("hasSelection").toBool());
+
+        // Just to its left, still inside the code column: a normal press.
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 380), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(handled.toBool());
     }
 
     void overlay_drag_through_a_row_with_no_code_item_extends_to_its_edge()
@@ -531,6 +709,35 @@ private slots:
         QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
                                   Q_ARG(QVariant, int(Qt::Key_A)), Q_ARG(QVariant, 0));
         QVERIFY(!consumed.toBool());
+    }
+
+    // `modifiers & Qt.ControlModifier` alone is true for Ctrl+Alt+A too, which
+    // would steal a shortcut that belongs to something else (an Alt-chord).
+    // handleKey must match the modifier set exactly.
+    void ctrl_alt_a_is_left_alone()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        QVariant consumed;
+        QMetaObject::invokeMethod(overlay, "handleKey", Q_RETURN_ARG(QVariant, consumed),
+                                  Q_ARG(QVariant, int(Qt::Key_A)),
+                                  Q_ARG(QVariant, int(Qt::ControlModifier | Qt::AltModifier)));
+        QVERIFY(!consumed.toBool());
+        QVERIFY(!selection.property("hasSelection").toBool());
     }
 
     // forceActiveFocus() has no QQuickWindow to promise activeFocus to under the
