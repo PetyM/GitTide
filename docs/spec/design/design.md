@@ -38,7 +38,7 @@ clears WCAG 4.5:1 on its surfaces in both themes; `text.muted` was re-tuned from
 split handles read on the low-contrast dark ground (panels barely separated
 before); it is a divider colour, never text, so the contrast floor is unaffected.
 
-### Selection
+### Selection (list rows)
 
 Selection is **one shared treatment across every list** — the repo tree, the
 changed-files list, the commit-files list, and the History / Graph rows: a fill of

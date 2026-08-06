@@ -152,11 +152,17 @@ selection, since each has its own `DiffSelection`/diff model pair.
 - **Interactions.** Drag selects across rows, autoscrolling past the top or
   bottom edge of the visible list. A plain click clears the selection; a
   double-click selects the word under the pointer; a triple-click selects the
-  whole row. `Ctrl+A` selects the whole diff, `Ctrl+C` copies plain, and
-  `Ctrl+Shift+C` copies with diff markers (see
+  whole row; Shift+click extends the selection from the current anchor to the
+  clicked point, the same as a drag would. `Ctrl+A` selects the whole diff,
+  `Ctrl+C` copies plain, and `Ctrl+Shift+C` copies with diff markers (see
   [keyboard-controls](keyboard-controls.md)). Right-click opens a context menu
   with the same three actions (see
   [context-menus §4.6](context-menus.md#46-diffcontextmenuqml)).
+- **Long lines are hard-clipped, not elided.** The code column has no `elide`
+  support (it renders through a `TextEdit`, needed for character-accurate
+  selection — a `Label` can't paint one), so a line wider than the pane is
+  clipped without the "…" a `Label` would draw. Copy is unaffected: it reads
+  the line from the model, not the rendered/clipped text.
 - **The selection clears** whenever its diff model resets: switching the active
   file, a refresh, or entering or leaving stash preview.
 

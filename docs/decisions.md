@@ -726,7 +726,7 @@ an entry with a newer one if it changes.
   plumbing for a colour that already passes contrast — deferred); differentiating
   Graph ref pills by tag/branch/remote (needs the row model to expose ref *kind* —
   follow-up). →
-  [`design`](spec/design/design.md#selection)
+  [`design`](spec/design/design.md#selection-list-rows)
 
 - **D62 — Graph ref chips carry their kind (branch / remote / tag), not just a
   name.** The D61 follow-up. Core already classified each tip (`RefTipKind`
