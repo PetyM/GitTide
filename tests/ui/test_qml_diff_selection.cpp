@@ -998,7 +998,7 @@ private slots:
         // some earlier test class in the same process happened to register
         // it first; call it explicitly here, the way test_qml_history.cpp
         // does for its own QML-instantiating tests.
-        registerQmlTypes();
+        gittide::ui::registerQmlTypes();
 
         ThemeManager mgr;
         QmlTheme theme(&mgr);
@@ -1039,7 +1039,7 @@ private slots:
 
     void commit_detail_declares_its_own_selection_over_the_commit_diff()
     {
-        registerQmlTypes(); // see diff_view_declares_a_selection_bound_to_its_list_model()
+        gittide::ui::registerQmlTypes(); // see diff_view_declares_a_selection_bound_to_its_list_model()
 
         ThemeManager mgr;
         QmlTheme theme(&mgr);
