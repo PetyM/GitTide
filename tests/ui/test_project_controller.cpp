@@ -929,6 +929,39 @@ private slots:
         QVERIFY(msgs.at(0).contains(failName));   // names the repo
     }
 
+    // fetchOne's failure-line name is read back from the sidebar model by path
+    // (RepoListModel::indexForRepoPath), not hand-derived from the RepoRef, so
+    // it shares setRepos' alias-over-basename precedence rather than a partial
+    // copy of it. An aliased repo's failure line must name it by alias, not by
+    // its directory basename.
+    void fetchAll_failure_message_uses_alias_not_basename()
+    {
+        gittide::test::TempRepo noRemote;
+        noRemote.setIdentity("N", "n@e.x");
+        noRemote.writeFile("x.txt", "x");
+        noRemote.commitAll("c1");
+        const QString failPath = QString::fromStdString(noRemote.path().generic_string());
+        const QString failBasename = QString::fromStdString(noRemote.path().filename().generic_string());
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "p1", .name = "Fleet",
+            .repos = {RepoRef{.path = failPath.toStdString(), .alias = "my-alias"}}});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("p1"));
+
+        QSignalSpy failed(&controller, &ProjectController::fleetFetchFailed);
+        QSignalSpy finished(&controller, &ProjectController::fleetFetchFinished);
+        controller.fetchAll();
+        QVERIFY(finished.wait(15000));
+
+        QCOMPARE(failed.count(), 1);
+        const QStringList msgs = failed.at(0).at(0).toStringList();
+        QCOMPARE(msgs.size(), 1);
+        QVERIFY(msgs.at(0).startsWith(QStringLiteral("my-alias:")));
+        QVERIFY(!msgs.at(0).contains(failBasename));
+    }
+
     // Fleet fetch exposes determinate progress: fetchTotal is the batch size set
     // synchronously, fetchDone advances to fetchTotal once every repo settles.
     void fetchAll_exposes_determinate_progress()

@@ -55,6 +55,19 @@ private slots:
         QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("api-server"));
     }
 
+    void empty_alias_and_basename_falls_back_to_raw_path()
+    {
+        // Third tier of the fallback: a path whose filename() AND parent's
+        // filename() are both empty (e.g. the filesystem root) still has to
+        // render something other than a blank row — the raw path itself.
+        // Pinned at the model level (not through ProjectController::fetchOne)
+        // because "/" cannot be opened as a repo to exercise a real fetch.
+        std::vector<RepoRef> repos{RepoRef{.path = "/", .alias = ""}};
+        RepoListModel model;
+        model.setRepos(repos);
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("/"));
+    }
+
     void tree_model_parent_of_top_level_item_is_invalid()
     {
         std::vector<RepoRef> repos{RepoRef{.path = "/home/u/api", .alias = "api"}};

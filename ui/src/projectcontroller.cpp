@@ -742,12 +742,11 @@ QCoro::Task<void> ProjectController::fetchOne(gittide::RepoRef ref)
     m_repoModel->setFetchStateByPath(path, RepoListModel::FetchState::Running);
 
     // Alias-aware display name for any failure line (matches the tree row).
-    // Taken from the ref rather than read back out of the model: root rows are
-    // no longer positionally addressable once source groups exist.
-    const std::filesystem::path p(ref.path);
-    const std::filesystem::path base = p.has_filename() ? p.filename() : p.parent_path().filename();
-    const QString name = !ref.alias.empty() ? QString::fromStdString(ref.alias)
-                                            : QString::fromStdString(gittide::toGitPath(base));
+    // Read back from the model by path — not by row, since root rows are no
+    // longer positionally addressable once source groups exist — so it shares
+    // setRepos' full alias/basename/raw-path fallback rather than duplicating
+    // a partial copy of it here.
+    const QString name = m_repoModel->data(m_repoModel->indexForRepoPath(path), Qt::DisplayRole).toString();
 
     // Each repo gets its OWN handle — the one-owner invariant holds; we never
     // touch the active RepoController's repo. The AsyncRepo lives in this
