@@ -33,9 +33,20 @@ TextEdit {
     font.family: "monospace"
     font.pixelSize: 12
     textFormat: html.length > 0 ? Text.RichText : Text.PlainText
-    text: html.length > 0 ? html : plainText
+    // QTextDocument's HTML parser collapses leading indentation and runs of
+    // internal spaces by default, which would shift every document position
+    // (positionAt/select) away from the source-string column the highlighted
+    // fragment came from — wrapping it in a `white-space:pre` span keeps
+    // document positions 1:1 with plainText's column offsets, the same
+    // mapping DiffSelection's row/col coordinates already assume.
+    text: html.length > 0 ? ('<span style="white-space:pre">' + html + '</span>') : plainText
     selectionColor: theme.selectionBg
     selectedTextColor: theme.selectionText
+    // RowLayout centres non-fillHeight siblings (the gutter/sign Labels)
+    // vertically in the row; this item opts into Layout.fillHeight so its
+    // clip region covers the whole row, so it must centre its own text the
+    // same way or it reads a couple of pixels higher than its neighbours.
+    verticalAlignment: TextEdit.AlignVCenter
 
     function applySelection() {
         if (selFrom < 0 || selTo <= selFrom)

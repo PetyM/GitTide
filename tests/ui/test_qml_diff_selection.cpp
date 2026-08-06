@@ -28,6 +28,31 @@ using gittide::ui::ThemeManager;
 
 namespace
 {
+// One line, deliberately indented with a leading tab and carrying a run of
+// internal spaces plus a "<" that syntax highlighting would HTML-escape.
+// QTextDocument's default HTML parser strips leading whitespace and collapses
+// internal space runs, which the "added two" sample above can't catch since
+// it has neither.
+gittide::DiffResult indentedLineDiff()
+{
+    gittide::DiffLine ctx;
+    ctx.origin    = gittide::DiffLineOrigin::Context;
+    ctx.oldLineno = 1;
+    ctx.newLineno = 1;
+    ctx.text      = "\tif (a  < b)";
+
+    gittide::DiffHunk h;
+    h.oldStart = 1;
+    h.oldLines = 1;
+    h.newStart = 1;
+    h.newLines = 1;
+    h.lines    = {ctx};
+
+    gittide::DiffResult r;
+    r.hunks = {h};
+    return r;
+}
+
 gittide::DiffResult twoLineDiff()
 {
     gittide::DiffLine ctx;
@@ -214,6 +239,30 @@ private slots:
         selection.begin(2, 6);
         selection.extendTo(2, 9);
         QCOMPARE(obj->property("selectedText").toString(), QStringLiteral("two"));
+
+        // Now the case that actually exercises HTML whitespace collapsing: a
+        // leading tab and a run of two internal spaces, plus an escaped "<".
+        // Selecting the whole row by its source length (12 columns) must
+        // still yield exactly the source text back — if document positions
+        // have drifted from source columns, this either throws (position
+        // past the collapsed document's end) or returns a truncated/shifted
+        // slice instead of the full 12-character line.
+        DiffLinesModel indentedModel;
+        indentedModel.setDiff(indentedLineDiff(), {}, false);
+        DiffSelection indentedSelection;
+        indentedSelection.setModel(&indentedModel);
+
+        const QString indentedPlain = QStringLiteral("\tif (a  < b)");
+        QCOMPARE(indentedPlain.size(), 12);
+        obj->setProperty("row", 1);
+        obj->setProperty("plainText", indentedPlain);
+        obj->setProperty("html",
+                          QStringLiteral("\t<span style=\"color:#ff0000;\">if</span> (a  &lt; b)"));
+        obj->setProperty("selection", QVariant::fromValue(&indentedSelection));
+
+        indentedSelection.begin(1, 0);
+        indentedSelection.extendTo(1, indentedPlain.size());
+        QCOMPARE(obj->property("selectedText").toString(), indentedPlain);
     }
 
     // A stand-in for the diff ListView. The overlay only ever asks a list for
