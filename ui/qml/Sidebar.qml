@@ -229,11 +229,30 @@ Rectangle {
             Keys.onBacktabPressed: { sidebar.tabPrev(); event.accepted = true }
 
             // Rows start collapsed; opening a repo (row click) expands it, and the
-            // chevron toggles any subtree manually.
+            // chevron toggles any subtree manually. Source groups are the one
+            // exception: a registered folder is expanded on load, because seeing
+            // what is inside it is the whole point of grouping. Expansion is view
+            // state, so it is driven here rather than by the model.
+            function expandSourceRows() {
+                if (!repoTree.model || !repoTree.model.isSourceRow)
+                    return
+                for (var r = 0; r < repoTree.rows; ++r)
+                    if (repoTree.model.isSourceRow(r))
+                        repoTree.expand(r)
+            }
+
+            // Both entry points are needed: a project switch resets the model
+            // while the view is up, but at launch the model is already populated
+            // before this view exists, so no reset ever arrives.
+            Component.onCompleted: expandSourceRows()
+            Connections {
+                target: repoTree.model
+                function onModelReset() { repoTree.expandSourceRows() }
+            }
 
             delegate: TreeViewDelegate {
                 id: row
-                implicitHeight: row.uninit ? 30 : 46
+                implicitHeight: (row.uninit || row.isSource) ? 30 : 46
                 indentation: 16
                 // Drop the built-in indicator: its tap-to-toggle proved unreliable
                 // here. We draw our own chevron in the content row with a MouseArea
@@ -246,6 +265,12 @@ Rectangle {
                 // uninitialised submodule has no repo on disk, so it does nothing.
                 // Shared by mouse clicks and keyboard activation (Enter/Space).
                 function activate() {
+                    // A source row is a folder, not a repository: there is
+                    // nothing to open, so activating it toggles the group.
+                    if (row.isSource) {
+                        repoTree.toggleExpanded(row.row)
+                        return
+                    }
                     if (!repoVm || row.uninit)
                         return
                     repoVm.open(model.repoPath)
@@ -258,6 +283,8 @@ Rectangle {
                 }
 
                 readonly property bool isSub: model.isSubmodule === true
+                // A registered source folder: a grouping row, not a repository.
+                readonly property bool isSource: model.isSource === true
                 readonly property bool uninit: isSub && model.status === 2
                 // The repository currently open in the working pane — the row the
                 // user is acting on. Matched by path so it tracks auto-open too,
@@ -296,8 +323,32 @@ Rectangle {
                         }
                     }
 
+                    // Source group: one line — folder name plus either how many
+                    // repositories it holds or, when the folder has gone, the
+                    // same "folder not found" note Project Options shows.
+                    Label {
+                        visible: row.isSource
+                        Layout.fillWidth: true
+                        Layout.rightMargin: 8
+                        text: model.display
+                        color: model.available === false ? theme.textMuted : theme.textPrimary
+                        font.pixelSize: 13
+                        elide: Text.ElideMiddle
+                        ToolTip.visible: sourceHover.hovered
+                        ToolTip.text: model.repoPath
+                        HoverHandler { id: sourceHover }
+                    }
+                    Label {
+                        visible: row.isSource
+                        Layout.rightMargin: 10
+                        text: model.available === false ? "folder not found" : model.repoCount
+                        color: model.available === false ? theme.stateDeleted : theme.textMuted
+                        font.pixelSize: 11
+                    }
+
                     // Name (line 1) + branch/sync (line 2, repos + initialised submodules).
                     ColumnLayout {
+                        visible: !row.isSource
                         Layout.fillWidth: true
                         Layout.rightMargin: 10   // breathing room so right-aligned badges/sync don't touch the edge
                         spacing: 2
@@ -520,7 +571,10 @@ Rectangle {
                 TapHandler {
                     acceptedButtons: Qt.RightButton
                     onTapped: {
-                        if (row.isSub) {
+                        if (row.isSource) {
+                            sourceContextMenu.sourcePath = model.repoPath
+                            sourceContextMenu.popup()
+                        } else if (row.isSub) {
                             submoduleContextMenu.ownerRepoPath = model.ownerRepoPath
                             submoduleContextMenu.submodulePath = model.repoPath
                             submoduleContextMenu.status        = model.status
@@ -574,6 +628,16 @@ Rectangle {
         onRemoveFromProject:    if (projectController && repoContextMenu.repoPath.length > 0)
                                    projectController.removeRepo(repoContextMenu.repoPath)
         onUpdateAllSubmodules:  if (projectController) projectController.updateAllSubmodules(repoContextMenu.repoPath)
+    }
+
+    // ---- Repository-source context menu ----
+    SourceContextMenu {
+        id: sourceContextMenu
+        onRescanRequested:       if (projectController) projectController.rescanSources()
+        onClearIgnoredRequested: if (projectController && sourceContextMenu.sourcePath.length > 0)
+                                    projectController.clearIgnoredForSource(sourceContextMenu.sourcePath)
+        onRemoveRequested:       if (projectController && sourceContextMenu.sourcePath.length > 0)
+                                    projectController.removeSource(sourceContextMenu.sourcePath)
     }
 
     // ---- Submodule context menu ----

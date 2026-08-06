@@ -70,6 +70,11 @@ QString RepoListModel::firstRepoPath() const
     return {};
 }
 
+bool RepoListModel::isSourceRow(int row) const
+{
+    return row >= 0 && row < static_cast<int>(m_roots.size()) && m_roots[row]->isSource;
+}
+
 QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
 {
     if (path.isEmpty())

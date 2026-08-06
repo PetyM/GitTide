@@ -86,6 +86,11 @@ public:
     /// rather than the empty page.
     Q_INVOKABLE QString firstRepoPath() const;
 
+    /// True when top-level row `row` is a source group. Lets QML expand source
+    /// rows on a model reset without hard-coding a numeric role value, which
+    /// would break silently the day the Roles enum is reordered.
+    Q_INVOKABLE bool isSourceRow(int row) const;
+
     /// Index of the repo or submodule node whose path matches `path` (exact
     /// match), searching the whole tree; an invalid index when not found. Lets the
     /// sidebar expand/reveal the active repo — e.g. a restored submodule that sits
