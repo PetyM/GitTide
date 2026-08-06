@@ -354,6 +354,29 @@ private slots:
                  QString::fromStdString((root / "web").generic_string()));
     }
 
+    void refreshRepoModel_groups_repos_under_their_source()
+    {
+        using gittide::ui::RepoListModel;
+
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        store.projects()[0].sources.push_back(
+            gittide::RepoSource{.path = root.generic_string(), .maxDepth = 1});
+        store.projects()[0].repos.push_back(
+            RepoRef{.path = (root / "api").generic_string()});
+
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        // One root row — the source group — with the repo nested inside it.
+        QCOMPARE(controller.repos()->rowCount(), 1);
+        const QModelIndex group = controller.repos()->index(0, 0);
+        QCOMPARE(controller.repos()->data(group, RepoListModel::IsSourceRole).toBool(), true);
+        QCOMPARE(controller.repos()->rowCount(group), 1);
+    }
+
     // Review finding: addRepos pushed addSource's error into the same
     // `failures` list documented as "one line per repository that could not be
     // added", unprefixed — so re-running the dialog on an already-registered
@@ -409,7 +432,7 @@ private slots:
         controller.activate(QStringLiteral("id-a"));
         controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
                             QString::fromStdString(root.generic_string()), 1);
-        QCOMPARE(controller.repos()->rowCount(), 1);
+        QCOMPARE(repoRowCount(controller.repos()), 1);
 
         // A repo cloned into the source folder after registration.
         const auto later = root / "web";
@@ -423,7 +446,7 @@ private slots:
         QVERIFY(spy.wait(5000));
 
         QCOMPARE(spy.at(0).at(0).toInt(), 1);
-        QCOMPARE(controller.repos()->rowCount(), 2);
+        QCOMPARE(repoRowCount(controller.repos()), 2);
     }
 
     void rescanSources_never_re_adds_a_removed_repo()
@@ -437,17 +460,17 @@ private slots:
         controller.addRepos({QString::fromStdString((root / "api").generic_string()),
                              QString::fromStdString((root / "web").generic_string())},
                             {}, QString::fromStdString(root.generic_string()), 1);
-        QCOMPARE(controller.repos()->rowCount(), 2);
+        QCOMPARE(repoRowCount(controller.repos()), 2);
 
         controller.removeRepo(QString::fromStdString((root / "web").generic_string()));
-        QCOMPARE(controller.repos()->rowCount(), 1);
+        QCOMPARE(repoRowCount(controller.repos()), 1);
 
         QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
         controller.rescanSources();
         QVERIFY(spy.wait(5000));
 
         QCOMPARE(spy.at(0).at(0).toInt(), 0);
-        QCOMPARE(controller.repos()->rowCount(), 1);
+        QCOMPARE(repoRowCount(controller.repos()), 1);
     }
 
     // Review finding: scanForRepos(P) returns P itself when P is a repository,
@@ -475,17 +498,17 @@ private slots:
         // Source path == repo path, exactly what the dialog does when the
         // scanned folder turns out to be a repository itself.
         controller.addRepos({repoPath}, {}, repoPath, 2);
-        QCOMPARE(controller.repos()->rowCount(), 1);
+        QCOMPARE(repoRowCount(controller.repos()), 1);
 
         controller.removeRepo(repoPath);
-        QCOMPARE(controller.repos()->rowCount(), 0);
+        QCOMPARE(repoRowCount(controller.repos()), 0);
 
         QSignalSpy spy(&controller, &ProjectController::sourcesRescanned);
         controller.rescanSources();
         QVERIFY(spy.wait(5000));
 
         QCOMPARE(spy.at(0).at(0).toInt(), 0); // must NOT be re-added
-        QCOMPARE(controller.repos()->rowCount(), 0);
+        QCOMPARE(repoRowCount(controller.repos()), 0);
     }
 
     void rescanSources_counts_an_unavailable_source_and_keeps_going()
@@ -1428,6 +1451,25 @@ private:
         auto* ptr = repo.get();
         m_temps.push_back(std::move(repo));
         return ptr;
+    }
+
+    // Repositories the model holds, wherever they sit: an ordinary root row IS a
+    // repository, while a source-group root is a folder holding repositories as
+    // its children. Source grouping changed what a top-level rowCount() counts,
+    // so a test asking "how many repos does this project have" must count the
+    // repos rather than the roots.
+    int repoRowCount(gittide::ui::RepoListModel* model) const
+    {
+        int n = 0;
+        for (int r = 0; r < model->rowCount(); ++r)
+        {
+            const QModelIndex idx = model->index(r, 0);
+            if (model->data(idx, gittide::ui::RepoListModel::IsSourceRole).toBool())
+                n += model->rowCount(idx);
+            else
+                ++n;
+        }
+        return n;
     }
 
     // A scratch folder holding one empty repository per name, removed with the

@@ -177,7 +177,7 @@ void ProjectController::refreshRepoModel()
     {
         if (QString::fromStdString(p.id) == m_activeId)
         {
-            m_repoModel->setRepos(p.repos);
+            m_repoModel->setRepos(p.repos, p.sources);
             hydrateRepoModel();
             return;
         }
@@ -203,7 +203,7 @@ void ProjectController::activate(const QString& projectId)
         if (p.id == id)
         {
             m_store->setActiveProject(id);
-            m_repoModel->setRepos(p.repos);
+            m_repoModel->setRepos(p.repos, p.sources);
             m_activeId = projectId;
             // The previous project's open repo is gone; until QML opens one in the
             // new project every row is poll-fed.
