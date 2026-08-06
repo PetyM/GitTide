@@ -18,6 +18,7 @@
 #include "gittide/diff.hpp"
 #include "gittide/ui/diffselection.hpp"
 #include "gittide/ui/difflinesmodel.hpp"
+#include "gittide/ui/qmlcontext.hpp"
 #include "gittide/ui/qmltheme.hpp"
 #include "gittide/ui/thememanager.hpp"
 
@@ -936,6 +937,13 @@ private slots:
 
     void diff_view_declares_a_selection_bound_to_its_list_model()
     {
+        // Registers DiffSelection under GitTide 1.0 — DiffView.qml `import
+        // GitTide` needs it. This test worked without the call only because
+        // some earlier test class in the same process happened to register
+        // it first; call it explicitly here, the way test_qml_history.cpp
+        // does for its own QML-instantiating tests.
+        registerQmlTypes();
+
         ThemeManager mgr;
         QmlTheme theme(&mgr);
         QQmlEngine engine;
@@ -960,10 +968,23 @@ private slots:
         // The overlay drives that selection over that list.
         QCOMPARE(overlay->property("selection").value<QObject*>(), selection);
         QCOMPARE(overlay->property("list").value<QObject*>(), list);
+
+        // The selection follows whichever model the list is currently
+        // showing (working diff, or the commit diff during stash preview) —
+        // `diffSelection.model: diffList.model` in DiffView.qml. Reassign
+        // the list's model and confirm the selection's model binding tracks
+        // it, rather than only checking the two started out both null.
+        DiffLinesModel altModel;
+        altModel.setDiff(twoLineDiff(), {}, false);
+        list->setProperty("model", QVariant::fromValue<QAbstractItemModel*>(&altModel));
+        QCOMPARE(selection->property("model").value<QAbstractItemModel*>(),
+                 static_cast<QAbstractItemModel*>(&altModel));
     }
 
     void commit_detail_declares_its_own_selection_over_the_commit_diff()
     {
+        registerQmlTypes(); // see diff_view_declares_a_selection_bound_to_its_list_model()
+
         ThemeManager mgr;
         QmlTheme theme(&mgr);
         QQmlEngine engine;
@@ -985,6 +1006,174 @@ private slots:
         QVERIFY(overlay != nullptr);
         QCOMPARE(overlay->property("selection").value<QObject*>(), selection);
         QCOMPARE(overlay->property("list").value<QObject*>(), list);
+
+        // Same wiring assertion as DiffView above, for the read-only commit
+        // diff's own selection/list pair.
+        DiffLinesModel altModel;
+        altModel.setDiff(twoLineDiff(), {}, false);
+        list->setProperty("model", QVariant::fromValue<QAbstractItemModel*>(&altModel));
+        QCOMPARE(selection->property("model").value<QAbstractItemModel*>(),
+                 static_cast<QAbstractItemModel*>(&altModel));
+    }
+
+    // MouseArea's grab can be cancelled mid-drag (window deactivation,
+    // another handler stealing it) without a matching onReleased. Without an
+    // onCanceled handler, "dragging" stays true forever and the autoscroll
+    // timer keeps stepping contentY and extending the selection on its own.
+    void a_cancelled_grab_ends_the_drag()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 150), Q_ARG(QVariant, 45));
+        QVERIFY(overlay->property("dragging").toBool());
+
+        // MouseArea's "canceled" signal is an ordinary invokable in the
+        // meta-object system — invoking it here emits it exactly as a real
+        // grab loss would, running the onCanceled handler under test.
+        QVERIFY(QMetaObject::invokeMethod(overlay, "canceled"));
+        QVERIFY(!overlay->property("dragging").toBool());
+    }
+
+    // The overlay is topmost across the whole viewport, so a static I-beam
+    // cursor would show over the checkboxes, gutter, sign column, Accept
+    // buttons and scrollbar too. cursorShape is driven from canSelectAt(),
+    // the same hit test pressAt() uses, via the hoverPos property that
+    // onPositionChanged keeps updated — set directly here since the
+    // offscreen platform delivers no real hover events.
+    void cursor_shape_follows_the_hover_hit_test()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root =
+            buildOverlayHost(engine, /*noCodeRow=*/-1, &error, /*hiddenCodeRow=*/-1, /*withScrollBar=*/true);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Over the code column: I-beam.
+        overlay->setProperty("hoverPos", QPointF(150, 25));
+        QCOMPARE(overlay->property("cursorShape").toInt(), int(Qt::IBeamCursor));
+
+        // Left of the code column (checkbox/gutter/sign area): arrow.
+        overlay->setProperty("hoverPos", QPointF(40, 25));
+        QCOMPARE(overlay->property("cursorShape").toInt(), int(Qt::ArrowCursor));
+
+        // Over the scrollbar, at the right edge: arrow, not I-beam — the
+        // scrollbar handle needs its own (default) cursor, not a text one.
+        overlay->setProperty("hoverPos", QPointF(397, 25));
+        QCOMPARE(overlay->property("cursorShape").toInt(), int(Qt::ArrowCursor));
+
+        // Back over the code column: I-beam again.
+        overlay->setProperty("hoverPos", QPointF(150, 25));
+        QCOMPARE(overlay->property("cursorShape").toInt(), int(Qt::IBeamCursor));
+    }
+
+    // onCopy/onCopyWithMarkers must guard a null `overlay.selection` the same
+    // way onSelectAll already did — without the guard they dereference it
+    // directly and crash the moment a context-menu copy action fires while
+    // no DiffSelection is wired up.
+    void context_menu_copy_actions_guard_against_a_null_selection()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"),
+                                                 static_cast<QObject*>(nullptr));
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QObject* menu = root->findChild<QObject*>(QStringLiteral("diffContextMenu"));
+        QVERIFY(overlay != nullptr);
+        QVERIFY(menu != nullptr);
+        QSignalSpy copySpy(overlay, SIGNAL(copyRequested(QString)));
+
+        QStringList captured;
+        g_capturedMessages = &captured;
+        QtMessageHandler previous = qInstallMessageHandler(captureMessages);
+        QMetaObject::invokeMethod(menu, "copy");
+        QMetaObject::invokeMethod(menu, "copyWithMarkers");
+        QMetaObject::invokeMethod(menu, "selectAll");
+        qInstallMessageHandler(previous);
+        g_capturedMessages = nullptr;
+
+        // Unguarded, calling overlay.selection.copyText() on a null selection
+        // raises an uncaught TypeError that QML swallows into a runtime
+        // warning rather than a crash — so "no warning" is the guard's
+        // observable effect here.
+        QVERIFY2(captured.isEmpty(), qPrintable(captured.join(QStringLiteral("; "))));
+        // None of the three should have emitted anything either, since there
+        // is no selection to copy.
+        QCOMPARE(copySpy.count(), 0);
+    }
+
+    // DiffCodeText's selFrom/selTo bindings read `selection.hasSelection`
+    // inside their expression, and hasSelection's NOTIFY is
+    // selectionChanged() — fired on every mutation, per the invariant
+    // documented on that signal in diffselection.hpp. This is what makes
+    // painting track a drag that only ever extends an already-active
+    // selection, where hasSelection's *value* never flips: without that
+    // guarantee (e.g. a future "only emit when the value changes" tidy-up)
+    // this would silently stop updating while every other test stayed green.
+    void extending_an_active_selection_keeps_the_painted_text_in_sync()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+
+        QQmlComponent comp(&engine, QUrl(QStringLiteral("qrc:/qml/DiffCodeText.qml")));
+        std::unique_ptr<QObject> obj(comp.create());
+        QVERIFY2(obj != nullptr, qPrintable(comp.errorString()));
+
+        obj->setProperty("row", 2);
+        obj->setProperty("plainText", QStringLiteral("added two"));
+        obj->setProperty("selection", QVariant::fromValue(&selection));
+
+        selection.begin(2, 0);
+        selection.extendTo(2, 5); // "added"
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(obj->property("selectedText").toString(), QStringLiteral("added"));
+
+        // Extend further without ever dropping the selection: hasSelection
+        // is true both before and after, so this is exactly the case where
+        // a value-gated NOTIFY would stop the binding from re-evaluating.
+        selection.extendTo(2, 9); // "added two"
+        QVERIFY(selection.property("hasSelection").toBool());
+        QCOMPARE(obj->property("selectedText").toString(), QStringLiteral("added two"));
     }
 };
 

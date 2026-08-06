@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariant>
 
 namespace gittide::ui {
 
@@ -85,6 +86,19 @@ public:
 
 signals:
     void modelChanged();
+
+    /// Fired on **every** mutation (begin(), extendTo(), selectAll(), clear(),
+    /// selectWord(), selectLine()) — even when hasSelection's *value* does not
+    /// change, e.g. extending a selection that was already non-empty. QML
+    /// relies on this: DiffCodeText.qml's selFrom/selTo bindings read
+    /// `selection.hasSelection` inside their expression, and since
+    /// `hasSelection`'s NOTIFY is this signal, every mutation re-evaluates
+    /// them regardless of whether the boolean itself flipped — that's what
+    /// keeps the painted highlight tracking a drag that only ever extends an
+    /// already-active selection. A future change that only emits when the
+    /// value changes would silently stop that tracking with every existing
+    /// test still green (see the extending_an_active_selection_keeps_the_
+    /// painted_text_in_sync test in test_qml_diff_selection.cpp).
     void selectionChanged();
 
 private:
@@ -99,16 +113,24 @@ private:
     Pos     orderedStart() const;
     Pos     orderedEnd() const;
 
-    /// Fetch data for a row by role name, handling model/bounds checks.
-    QVariant dataFor(int row, const QByteArray& roleName) const;
+    /// Look up and cache the "lineText"/"lineKind" role ids for the current
+    /// model. Called once from setModel() rather than on every row lookup —
+    /// QAbstractItemModel::roleNames() builds and returns a fresh QHash by
+    /// value each call, and dataFor() runs on the drag/hover path at up to
+    /// 60Hz times the visible row count.
+    void cacheRoles();
+
+    /// Fetch data for a row by cached role id, handling model/bounds checks.
+    QVariant dataFor(int row, int role) const;
 
     QString rowText(int row) const;
     QString rowKind(int row) const;
-    int     roleOf(const QByteArray& name) const;
 
     QPointer<QAbstractItemModel> m_model;
     Pos                          m_anchor;
     Pos                          m_cursor;
+    int                          m_lineTextRole = -1;
+    int                          m_lineKindRole = -1;
 };
 
 } // namespace gittide::ui

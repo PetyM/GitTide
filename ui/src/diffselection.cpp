@@ -35,6 +35,7 @@ void DiffSelection::setModel(QAbstractItemModel* model)
         connect(m_model, &QAbstractItemModel::rowsRemoved, this, &DiffSelection::clear);
         connect(m_model, &QAbstractItemModel::layoutChanged, this, &DiffSelection::clear);
     }
+    cacheRoles();
     clear();
     emit modelChanged();
 }
@@ -166,35 +167,37 @@ DiffSelection::Pos DiffSelection::orderedEnd() const
     return cursorIsFirst() ? m_anchor : m_cursor;
 }
 
-int DiffSelection::roleOf(const QByteArray& name) const
+void DiffSelection::cacheRoles()
 {
+    m_lineTextRole = -1;
+    m_lineKindRole = -1;
     if (!m_model)
-        return -1;
+        return;
     const auto roles = m_model->roleNames();
     for (auto it = roles.cbegin(); it != roles.cend(); ++it)
-        if (it.value() == name)
-            return it.key();
-    return -1;
+    {
+        if (it.value() == "lineText")
+            m_lineTextRole = it.key();
+        else if (it.value() == "lineKind")
+            m_lineKindRole = it.key();
+    }
 }
 
-QVariant DiffSelection::dataFor(int row, const QByteArray& roleName) const
+QVariant DiffSelection::dataFor(int row, int role) const
 {
-    if (!m_model || row < 0 || row >= m_model->rowCount())
-        return {};
-    const int role = roleOf(roleName);
-    if (role < 0)
+    if (!m_model || row < 0 || row >= m_model->rowCount() || role < 0)
         return {};
     return m_model->data(m_model->index(row, 0), role);
 }
 
 QString DiffSelection::rowText(int row) const
 {
-    return dataFor(row, "lineText").toString();
+    return dataFor(row, m_lineTextRole).toString();
 }
 
 QString DiffSelection::rowKind(int row) const
 {
-    return dataFor(row, "lineKind").toString();
+    return dataFor(row, m_lineKindRole).toString();
 }
 
 QString DiffSelection::copyText(bool withMarkers) const
