@@ -468,6 +468,63 @@ store from a folder picker is compared as an exact string elsewhere (`scanFolder
 `alreadyAdded`, `addRepos`'s duplicate rejection, source ignore-list matching),
 so a mis-decoded path silently broke all three.
 
+### Source groups in the repository list
+
+A registered source is visible outside Project Options: `RepoListModel::setRepos`
+takes the active project's `RepoSource` list alongside its `RepoRef` list and
+builds one collapsible **group node** per source. **The grouping is a view
+concern only** — `projects.json` stays a flat repository list, and the model
+derives the tree from it on every call, in store order, one group per source
+ahead of any ungrouped repository. A repository is assigned to the **deepest**
+source whose folder contains it — a directory-boundary test (`/home/u/proj`
+must not capture `/home/u/projects/api`), or an exact path match so a source
+registered on a folder that is itself a repository holds that repository
+instead of orphaning it. A repository under no source becomes an ordinary
+top-level row, exactly as before source groups existed. Deriving rather than
+storing the grouping is what kept this change small: removal, the per-source
+ignore list, `lastActiveRepo`, duplicate rejection and the rescan pass
+([above](#bulk-add-folder-scan-and-repository-sources)) all keep operating on
+the flat list and needed no changes.
+
+**Invariant: no caller addresses a root row by position.** Before group nodes
+existed, root row *N* was always repository *N*, and two call sites relied on
+it — the poll pass (`setSyncCounts`/`setRepoHead`) and the fleet fetch
+(`setFetchState`, plus reading a row's display name back for a failure
+message). A group node breaks that assumption silently: nothing crashes and no
+existing test fails, but one repository's spinner, branch line, and
+ahead/behind counts land on another's row. Every caller that mutates a node's
+state now addresses it **by path** instead (`setSyncCountsByPath`,
+`setRepoHeadByPath`, `setFetchStateByPath`); the row-indexed setters were
+removed rather than left as a trap, and the fleet fetch's auth-retry list
+(`m_authFailedRefs`) carries `RepoRef`s rather than row indices for the same
+reason. A fetch failure's display name is read back through
+`indexForRepoPath()` rather than re-derived from the `RepoRef`, so it shares
+`setRepos`' full alias → basename → raw-path fallback instead of duplicating
+a partial copy of it.
+
+**Invariant: a path lookup never resolves to a source node.** Group nodes also
+ended the assumption that a node's path is unique — a source registered on a
+folder that is itself a repository gives the group and its only child the very
+same path. Resolving such a lookup to the group is not a cosmetic mix-up: it
+puts head and sync state on a row that has none, and a submodule pass aimed at
+that path reconciles the *group's* children against the repository's submodules
+and deletes the repository node outright, so the row disappears from the
+sidebar. `findByPath` and `indexForRepoPath` therefore skip source nodes even on
+an exact match, and every future by-path accessor must do the same. For the same
+reason `resetFetchStates` walks repositories — ungrouped roots plus each group's
+children — rather than roots.
+
+Two more reads had to be made group-aware once a root row could be a folder
+rather than a repository: `firstRepoPath()` (which seeds the startup
+auto-open) walks the roots and descends into a group for its first child,
+skipping an empty group in favour of the next root, since a source folder can
+never itself be opened as a repository; `OwnerRepoPathRole` reports a
+top-level repository as its own owner when its parent is a source group,
+rather than the group's folder path. QML expands every source row after a
+model reset via `RepoListModel::isSourceRow(int)` — an intention-revealing
+`Q_INVOKABLE` rather than a raw role int, which would silently break the day
+the `Roles` enum is reordered.
+
 ### Branch operations & the refresh cascade
 
 Branch enumeration and mutation (list / create / checkout / delete / rename, plus

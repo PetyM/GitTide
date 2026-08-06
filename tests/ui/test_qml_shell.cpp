@@ -106,6 +106,49 @@ private slots:
         QCOMPARE(tree->property("model").value<QAbstractItemModel*>(), &repoModel);
     }
 
+    // A registered source is a grouping row in the tree: it must arrive
+    // expanded (seeing what is inside the folder is the point of grouping),
+    // and it must have its own context menu — the repo menu's actions do not
+    // apply to a folder.
+    void source_group_rows_arrive_expanded_and_have_their_own_menu()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+
+        RepoListModel repoModel;
+        // TWO sources, each holding a repo. One source cannot catch the bug the
+        // expansion loop had: expanding the first group inserts rows and shifts
+        // every later view row, so a forwards loop tested the wrong index for
+        // the second group and left it collapsed.
+        std::vector<gittide::RepoRef> repos{
+            gittide::RepoRef{.path = "/tmp/gittide-src/api", .alias = "api"},
+            gittide::RepoRef{.path = "/tmp/gittide-other/web", .alias = "web"},
+        };
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = "/tmp/gittide-src", .maxDepth = 1},
+            gittide::RepoSource{.path = "/tmp/gittide-other", .maxDepth = 1},
+        };
+        repoModel.setRepos(repos, sources);
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, nullptr, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QCOMPARE(engine.rootObjects().size(), 1);
+        QObject* root = engine.rootObjects().first();
+
+        QVERIFY(repoModel.isSourceRow(0));
+        QVERIFY(repoModel.isSourceRow(1));
+
+        QObject* tree = root->findChild<QObject*>(QStringLiteral("repoTree"));
+        QVERIFY(tree != nullptr);
+        // Four visible rows = both groups AND both repos inside them. Three
+        // would mean the second group was left collapsed.
+        QTRY_COMPARE(tree->property("rows").toInt(), 4);
+
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("sourceContextMenu")) != nullptr);
+    }
+
     void branch_bar_binds_to_view_model()
     {
         const auto dir = qml_shell_test::make_dirty_repo();

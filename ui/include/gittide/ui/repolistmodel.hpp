@@ -39,6 +39,9 @@ public:
         HasUpstreamRole,
         BusyRole,
         OwnerRepoPathRole,
+        IsSourceRole,
+        RepoCountRole,
+        AvailableRole,
     };
 
     explicit RepoListModel(QObject* parent = nullptr);
@@ -51,12 +54,17 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    /// Rebuild the top-level rows from `repos`. Does **no** git I/O: it runs on
-    /// the UI thread on every project switch, so it only fills in display name,
-    /// path and on-disk presence. Branch, dirty count, sync counts and the
-    /// submodule subtree are hydrated afterwards, off-thread, by
-    /// ProjectController's poll pass.
-    void setRepos(const std::vector<gittide::RepoRef>& repos);
+    /// Rebuild the top-level rows from `repos`, grouped by `sources`. Each
+    /// source becomes a collapsible group node — in store order, before any
+    /// ungrouped repo — holding the repositories that live beneath its folder;
+    /// a repo joins the *deepest* source containing it, and repos under no
+    /// source follow as ordinary top-level rows. Passing no sources yields a
+    /// flat list. Does **no** git I/O: it runs on the UI thread on every project
+    /// switch, so it only fills in display name, path and on-disk presence.
+    /// Branch, dirty count, sync counts and the submodule subtree are hydrated
+    /// afterwards, off-thread, by ProjectController's poll pass.
+    void setRepos(const std::vector<gittide::RepoRef>& repos,
+                  const std::vector<gittide::RepoSource>& sources = {});
 
     /// Replace the submodule children of the top-level repo node identified by
     /// `repoPath`. When the new subtree is structurally identical (path + status
@@ -69,10 +77,19 @@ public:
     /// absolute `submodulePath` and emit `dataChanged` for `BusyRole`.
     void setSubmoduleBusy(const QString& submodulePath, bool busy);
 
-    /// Path of the first top-level repository, or an empty string when the
-    /// active project has no repositories. Used to auto-open a repo so the
-    /// main area shows working state rather than the empty page.
+    /// Path of the first repository reachable by walking the root rows in
+    /// order: an ordinary root is itself a repository, while a source-group
+    /// root is not — its first child (if any) is used instead, and an empty
+    /// group is skipped in favour of the next root. Returns an empty string
+    /// when no root yields a repository (no roots, or every source group is
+    /// empty). Used to auto-open a repo so the main area shows working state
+    /// rather than the empty page.
     Q_INVOKABLE QString firstRepoPath() const;
+
+    /// True when top-level row `row` is a source group. Lets QML expand source
+    /// rows on a model reset without hard-coding a numeric role value, which
+    /// would break silently the day the Roles enum is reordered.
+    Q_INVOKABLE bool isSourceRow(int row) const;
 
     /// Index of the repo or submodule node whose path matches `path` (exact
     /// match), searching the whole tree; an invalid index when not found. Lets the
@@ -80,24 +97,29 @@ public:
     /// collapsed under its parent on launch.
     Q_INVOKABLE QModelIndex indexForRepoPath(const QString& path) const;
 
+    /// Number of root rows — source groups plus ungrouped repositories, NOT the
+    /// repository count: a grouped repository lives one level down.
     int  topLevelCount() const;
+    /// Clear fetch state and ahead/behind on every repository — ungrouped roots
+    /// and the repositories inside each source group alike. Source nodes are
+    /// left alone; a folder has no fetch state of its own.
     void resetFetchStates();
-    void setFetchState(int rootRow, FetchState state, const QString& error = {});
-    void setSyncCounts(int rootRow, int ahead, int behind, bool hasUpstream);
-    /// Set the current-branch / dirty state of the top-level repo at `rootRow`.
-    /// `shortOid` is used only for the detached-HEAD fallback (reuses ShortOidRole).
-    void setRepoHead(int rootRow, const QString& branch, bool detached,
-                     const QString& shortOid, int dirtyCount);
 
-    /// As setRepoHead, but addressing the node by its exact `path` at any depth —
-    /// the repo pushing its own state may be a submodule opened as a first-class
-    /// repo, which no top-level row index can reach. Returns false (and changes
-    /// nothing) when the path is not in the tree.
+    /// Set the current-branch / dirty state of the node at the exact `path`, at
+    /// any depth — the repo pushing its own state may be a submodule opened as
+    /// a first-class repo, which no top-level row index can reach. `shortOid` is
+    /// used only for the detached-HEAD fallback (reuses ShortOidRole). Returns
+    /// false (and changes nothing) when the path is not in the tree.
     bool setRepoHeadByPath(const QString& path, const QString& branch, bool detached,
                            const QString& shortOid, int dirtyCount);
-    /// As setSyncCounts, addressing the node by its exact `path` at any depth.
-    /// Returns false when the path is not in the tree.
+    /// Set the ahead/behind/upstream cluster of the node at the exact `path`, at
+    /// any depth. Returns false (and changes nothing) when the path is not in
+    /// the tree.
     bool setSyncCountsByPath(const QString& path, int ahead, int behind, bool hasUpstream);
+    /// Set the fetch-state / error of the node at the exact `path`, at any
+    /// depth. Returns false (and changes nothing) when the path is not in the
+    /// tree.
+    bool setFetchStateByPath(const QString& path, FetchState state, const QString& error = {});
 
 private:
     struct Node
@@ -107,6 +129,11 @@ private:
         bool                               isSubmodule = false;
         bool                               missing     = false;
         bool                               busy        = false;
+        /// A source node is a registered folder, not a repository: it has no git
+        /// state of its own and its children are the repos that live beneath it.
+        bool                               isSource    = false;
+        /// Source nodes only: false when the folder no longer exists on disk.
+        bool                               available   = true;
         QString                            shortOid;
         gittide::SubmoduleStatus           status = gittide::SubmoduleStatus::Clean;
         FetchState                         fetchState = FetchState::Idle;
@@ -123,6 +150,9 @@ private:
 
     // Build child Nodes from a submodule subtree, linking parent pointers.
     void appendSubmodules(Node& parent, const std::vector<gittide::SubmoduleNode>& subs);
+    // Build one top-level repo node (display name, path, on-disk presence) from
+    // a RepoRef. No git I/O — see the note on setRepos.
+    std::unique_ptr<Node> makeRepoNode(const gittide::RepoRef& ref) const;
     // The Node behind an index (nullptr → the invisible root / top-level list).
     Node* nodeFor(const QModelIndex& index) const;
     // Row of `node` within its sibling list.
@@ -131,13 +161,17 @@ private:
     // (path + status + shortOid, recursively) — lets applySubmodules no-op.
     bool submodulesEqual(const Node& node,
                          const std::vector<gittide::SubmoduleNode>& subs) const;
-    // Any node by exact path (depth-first), or nullptr.
+    // A repository or submodule node by exact path (depth-first), or nullptr.
+    // Source nodes are skipped even on an exact match: a source registered on a
+    // folder that is itself a repository carries that repository's own path, and
+    // repository state must never land on the folder row.
     Node* findByPath(const QString& path);
-    // Shared bodies behind the row-indexed and by-path setters, so both entry
-    // points write the same fields and emit the same dataChanged role list.
+    // Shared bodies behind the by-path setters: field writes + the dataChanged
+    // role list, factored out of the *ByPath entry point that resolves `path`.
     void applyRepoHead(Node& n, const QString& branch, bool detached,
                        const QString& shortOid, int dirtyCount);
     void applySyncCounts(Node& n, int ahead, int behind, bool hasUpstream);
+    void applyFetchState(Node& n, FetchState state, const QString& error);
     // Minimally update `parent`'s submodule children to match `subs`: when the
     // child path-set/order is unchanged, mutate changed fields in place and emit
     // dataChanged, recursing into grandchildren — this preserves each node's

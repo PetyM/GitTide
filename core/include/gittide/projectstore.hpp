@@ -18,7 +18,9 @@ struct RepoRef
 struct RepoSource
 {
     std::string path; ///< absolute, stored as UTF-8 generic path
-    int maxDepth = 2; ///< see ScanOptions::maxDepth
+    int maxDepth = 1; ///< see ScanOptions::maxDepth; matches its default, so a
+                      ///< source loaded from a file written before this key
+                      ///< existed behaves like a freshly registered one
     /// Repo paths this source must never add again — seeded from the repos the
     /// user left unchecked when registering, grown by removals from the project.
     std::vector<std::string> ignored;

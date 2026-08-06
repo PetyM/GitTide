@@ -55,6 +55,19 @@ private slots:
         QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("api-server"));
     }
 
+    void empty_alias_and_basename_falls_back_to_raw_path()
+    {
+        // Third tier of the fallback: a path whose filename() AND parent's
+        // filename() are both empty (e.g. the filesystem root) still has to
+        // render something other than a blank row — the raw path itself.
+        // Pinned at the model level (not through ProjectController::fetchOne)
+        // because "/" cannot be opened as a repo to exercise a real fetch.
+        std::vector<RepoRef> repos{RepoRef{.path = "/", .alias = ""}};
+        RepoListModel model;
+        model.setRepos(repos);
+        QCOMPARE(model.data(model.index(0, 0), Qt::DisplayRole).toString(), QStringLiteral("/"));
+    }
+
     void tree_model_parent_of_top_level_item_is_invalid()
     {
         std::vector<RepoRef> repos{RepoRef{.path = "/home/u/api", .alias = "api"}};
@@ -150,15 +163,15 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Idle));
 
         QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
-        m.setFetchState(0, RepoListModel::FetchState::Running);
+        QVERIFY(m.setFetchStateByPath(QStringLiteral("/home/u/api"), RepoListModel::FetchState::Running));
         QCOMPARE(m.data(i0, RepoListModel::FetchStateRole).toInt(), int(RepoListModel::FetchState::Running));
         QCOMPARE(spy.count(), 1);
 
-        m.setSyncCounts(0, 1, 3, false);
+        QVERIFY(m.setSyncCountsByPath(QStringLiteral("/home/u/api"), 1, 3, false));
         QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 1);
         QCOMPARE(m.data(i0, RepoListModel::BehindRole).toInt(), 3);
 
-        m.setFetchState(0, RepoListModel::FetchState::Failed, QStringLiteral("boom"));
+        QVERIFY(m.setFetchStateByPath(QStringLiteral("/home/u/api"), RepoListModel::FetchState::Failed, QStringLiteral("boom")));
         QCOMPARE(m.data(i0, RepoListModel::FetchErrorRole).toString(), QStringLiteral("boom"));
 
         m.resetFetchStates();
@@ -171,7 +184,7 @@ private slots:
         using gittide::ui::RepoListModel;
         RepoListModel m;
         m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
-        m.setFetchState(5, RepoListModel::FetchState::Running); // must not crash
+        QVERIFY(!m.setFetchStateByPath(QStringLiteral("/no/such/repo"), RepoListModel::FetchState::Running));
         QCOMPARE(m.topLevelCount(), 1);
     }
 
@@ -420,18 +433,18 @@ private slots:
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), false);
 
         QSignalSpy spy(&m, &QAbstractItemModel::dataChanged);
-        m.setRepoHead(0, QStringLiteral("main"), false, QStringLiteral("abc1234"), 3);
+        QVERIFY(m.setRepoHeadByPath(QStringLiteral("/home/u/api"), QStringLiteral("main"), false, QStringLiteral("abc1234"), 3));
         QCOMPARE(m.data(i0, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
         QCOMPARE(m.data(i0, RepoListModel::DirtyCountRole).toInt(), 3);
         QVERIFY(spy.count() >= 1);
 
         // Detached: branch empty, detached true, short oid carried in ShortOidRole.
-        m.setRepoHead(0, QString(), true, QStringLiteral("deadbee"), 0);
+        QVERIFY(m.setRepoHeadByPath(QStringLiteral("/home/u/api"), QString(), true, QStringLiteral("deadbee"), 0));
         QCOMPARE(m.data(i0, RepoListModel::DetachedRole).toBool(), true);
         QCOMPARE(m.data(i0, RepoListModel::ShortOidRole).toString(), QStringLiteral("deadbee"));
 
-        // hasUpstream flows through setSyncCounts.
-        m.setSyncCounts(0, 2, 1, true);
+        // hasUpstream flows through setSyncCountsByPath.
+        QVERIFY(m.setSyncCountsByPath(QStringLiteral("/home/u/api"), 2, 1, true));
         QCOMPARE(m.data(i0, RepoListModel::AheadRole).toInt(), 2);
         QCOMPARE(m.data(i0, RepoListModel::HasUpstreamRole).toBool(), true);
     }
@@ -489,8 +502,374 @@ private slots:
     {
         RepoListModel m;
         m.setRepos({gittide::RepoRef{.path = "/home/u/api"}});
-        m.setRepoHead(9, QStringLiteral("x"), false, QString(), 0); // must not crash
+        QVERIFY(!m.setRepoHeadByPath(QStringLiteral("/no/such/repo"), QStringLiteral("x"), false, QString(), 0));
         QCOMPARE(m.topLevelCount(), 1);
+    }
+
+    // Root rows must be addressable by path, not by position: a follow-up adds
+    // source-group nodes as extra root rows, which would make row index and
+    // repo index diverge if any setter still assumed m_roots[row] == repos[row].
+    void fetch_state_is_addressable_by_path()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<RepoRef> repos{
+            RepoRef{.path = tmp.generic_string(), .alias = "one"},
+            RepoRef{.path = (tmp / "gittide-two").generic_string(), .alias = "two"},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos);
+
+        QVERIFY(m.setFetchStateByPath(QString::fromStdString((tmp / "gittide-two").generic_string()),
+                                      RepoListModel::FetchState::Running));
+
+        // The addressed row changed; its sibling did not.
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Running));
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
+    }
+
+    void fetch_state_by_unknown_path_is_a_no_op()
+    {
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = "/tmp/gittide-only", .alias = "only"}});
+
+        QVERIFY(!m.setFetchStateByPath(QStringLiteral("/no/such/repo"), RepoListModel::FetchState::Running));
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
+    }
+
+    void sources_become_groups_holding_the_repos_beneath_them()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-src").generic_string();
+
+        std::vector<RepoRef> repos{
+            RepoRef{.path = root + "/api"},
+            RepoRef{.path = root + "/web"},
+            RepoRef{.path = (tmp / "gittide-loose").generic_string()},
+        };
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        // Group first, loose repo after it.
+        QCOMPARE(m.rowCount(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::IsSourceRole).toBool(), true);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::PathRole).toString(), QString::fromStdString(root));
+        QCOMPARE(m.rowCount(m.index(0, 0)), 2);
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::IsSourceRole).toBool(), false);
+
+        // A source group is a folder, not a repository: a grouped repo reports
+        // itself as its own owner, not the group's folder path.
+        const QModelIndex grouped = m.index(0, 0, m.index(0, 0));
+        QCOMPARE(m.data(grouped, RepoListModel::OwnerRepoPathRole).toString(),
+                 QString::fromStdString(root + "/api"));
+    }
+
+    void a_repo_joins_the_deepest_containing_source()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto outer = (tmp / "gittide-outer").generic_string();
+        const auto inner = outer + "/team";
+
+        std::vector<RepoRef> repos{RepoRef{.path = inner + "/api"}};
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = outer, .maxDepth = 3},
+            gittide::RepoSource{.path = inner, .maxDepth = 1},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.rowCount(), 2);                                   // both groups, in store order
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0); // outer is empty
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::RepoCountRole).toInt(), 1); // inner owns it
+    }
+
+    void a_sibling_prefix_folder_does_not_capture_a_repo()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<RepoRef> repos{RepoRef{.path = (tmp / "gittide-projects" / "api").generic_string()}};
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = (tmp / "gittide-proj").generic_string(), .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0); // group empty
+        QCOMPARE(m.rowCount(), 2);                                                // repo stayed loose
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::IsSourceRole).toBool(), false);
+    }
+
+    void a_source_that_is_itself_a_repo_holds_that_repo()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto repo = (tmp / "gittide-self").generic_string();
+
+        std::vector<RepoRef> repos{RepoRef{.path = repo}};
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = repo, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.rowCount(), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 1);
+    }
+
+    void an_empty_source_is_still_shown_and_reports_availability()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = tmp.generic_string(), .maxDepth = 1},
+            gittide::RepoSource{.path = "/no/such/folder/gittide", .maxDepth = 1},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({}, sources);
+
+        QCOMPARE(m.rowCount(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::AvailableRole).toBool(), true);
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::AvailableRole).toBool(), false);
+    }
+
+    void no_sources_yields_todays_flat_list()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = tmp.generic_string(), .alias = "one"}});
+
+        QCOMPARE(m.rowCount(), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::IsSourceRole).toBool(), false);
+    }
+
+    // isSourceRow is what keeps QML off a numeric role literal, so it needs its
+    // own coverage: a wrong-but-plausible implementation (always true, or a
+    // missing bounds guard) would otherwise pass the whole suite.
+    void isSourceRow_reports_groups_only_and_is_bounds_safe()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-issrc").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = root + "/api"},
+                    RepoRef{.path = (tmp / "gittide-issrc-loose").generic_string()}},
+                   {gittide::RepoSource{.path = root, .maxDepth = 1}});
+
+        QCOMPARE(m.rowCount(), 2);
+        QVERIFY(m.isSourceRow(0));       // the group
+        QVERIFY(!m.isSourceRow(1));      // the ungrouped repo
+        QVERIFY(!m.isSourceRow(2));      // past the end
+        QVERIFY(!m.isSourceRow(-1));     // before the start
+    }
+
+    // A source registered on a folder that IS a repository gives the group and
+    // its sole child the identical path. Path lookups must resolve to the
+    // repository: resolving to the folder put head/sync state on a row that has
+    // none, and applySubmodules then wiped the repository's node out of the tree
+    // entirely — the row simply vanished from the sidebar.
+    void a_self_source_never_captures_its_repos_state()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto repo = (tmp / "gittide-selfsrc").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = repo}}, {gittide::RepoSource{.path = repo, .maxDepth = 1}});
+
+        QCOMPARE(m.rowCount(), 1);
+        const QModelIndex group = m.index(0, 0);
+        QCOMPARE(m.rowCount(group), 1);
+
+        QVERIFY(m.setRepoHeadByPath(QString::fromStdString(repo), QStringLiteral("main"), false,
+                                    QStringLiteral("abc1234"), 2));
+        QVERIFY(m.setSyncCountsByPath(QString::fromStdString(repo), 3, 1, true));
+
+        // The child carries the state; the folder row carries none.
+        const QModelIndex child = m.index(0, 0, group);
+        QCOMPARE(m.data(child, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
+        QCOMPARE(m.data(child, RepoListModel::AheadRole).toInt(), 3);
+        QCOMPARE(m.data(group, RepoListModel::BranchRole).toString(), QString());
+        QCOMPARE(m.data(group, RepoListModel::AheadRole).toInt(), 0);
+
+        // And the repo node survives a submodule pass aimed at that same path.
+        m.applySubmodules(QString::fromStdString(repo), {});
+        QCOMPARE(m.rowCount(m.index(0, 0)), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 1);
+    }
+
+    // resetFetchStates used to walk roots positionally, so a grouped repo kept a
+    // stale Failed badge across every later fleet fetch — most visibly one that
+    // fetchAll deliberately skips because it is missing on disk.
+    void resetFetchStates_clears_grouped_repos_too()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-resetgrp").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = root + "/api"}}, {gittide::RepoSource{.path = root, .maxDepth = 1}});
+
+        const QString apiPath = QString::fromStdString(root + "/api");
+        QVERIFY(m.setFetchStateByPath(apiPath, RepoListModel::FetchState::Failed, QStringLiteral("boom")));
+        QVERIFY(m.setSyncCountsByPath(apiPath, 2, 5, true));
+
+        m.resetFetchStates();
+
+        const QModelIndex child = m.index(0, 0, m.index(0, 0));
+        QCOMPARE(m.data(child, RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
+        QCOMPARE(m.data(child, RepoListModel::FetchErrorRole).toString(), QString());
+        QCOMPARE(m.data(child, RepoListModel::AheadRole).toInt(), 0);
+        QCOMPARE(m.data(child, RepoListModel::BehindRole).toInt(), 0);
+    }
+
+    void a_group_node_does_not_shift_state_onto_the_wrong_repo()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-shift").generic_string();
+
+        std::vector<RepoRef> repos{
+            RepoRef{.path = root + "/api", .alias = "api"},
+            RepoRef{.path = root + "/web", .alias = "web"},
+        };
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        // Root row 0 is now the GROUP, not "api" — a positional update would
+        // have landed here. The by-path update must reach the repo itself.
+        QVERIFY(m.setSyncCountsByPath(QString::fromStdString(root + "/api"), 4, 0, true));
+
+        const QModelIndex group = m.index(0, 0);
+        QCOMPARE(m.data(m.index(0, 0, group), RepoListModel::AheadRole).toInt(), 4);
+        QCOMPARE(m.data(m.index(1, 0, group), RepoListModel::AheadRole).toInt(), 0);
+        QCOMPARE(m.data(group, RepoListModel::AheadRole).toInt(), 0);
+    }
+
+    // firstRepoPath() feeds Main.qml's startup auto-open (repoVm.open(...)): it
+    // must never hand back a source-group's folder path, since that folder is
+    // not a repository and cannot be opened as one.
+    void firstRepoPath_descends_into_a_leading_source_group()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-first").generic_string();
+
+        // A leading group holding repos: the first repo *inside* it, not the
+        // group's own path.
+        {
+            std::vector<RepoRef> repos{
+                RepoRef{.path = root + "/api"},
+                RepoRef{.path = root + "/web"},
+            };
+            std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos(repos, sources);
+
+            QCOMPARE(m.firstRepoPath(), QString::fromStdString(root + "/api"));
+        }
+
+        // Every root is an empty source group: no repository anywhere to open.
+        {
+            std::vector<gittide::RepoSource> sources{
+                gittide::RepoSource{.path = tmp.generic_string(), .maxDepth = 1}};
+
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos({}, sources);
+
+            QCOMPARE(m.firstRepoPath(), QString());
+        }
+
+        // No sources: unchanged behaviour — the first (only) root is a plain repo.
+        {
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos({RepoRef{.path = tmp.generic_string(), .alias = "one"}});
+
+            QCOMPARE(m.firstRepoPath(), QString::fromStdString(tmp.generic_string()));
+        }
+    }
+
+    // The group -> repo -> submodule shape is new ground: every prior
+    // source-group test stops at two levels (group + repo), and every prior
+    // submodule test stops at two levels (repo + submodule) with no sources.
+    // Exercise all three levels together — through QAbstractItemModelTester,
+    // which validates index()/parent() round-tripping at every depth — to
+    // confirm reconcileChildren's parentIdx still resolves correctly one level
+    // deeper than it has ever been driven before.
+    void a_group_repo_can_grow_a_submodule_subtree()
+    {
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("child");
+
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("parent");
+        parent.addSubmodule("libchild", child.path());
+        parent.commitAll("add submodule");
+
+        const auto sourceDir = parent.path().parent_path().generic_string();
+        std::vector<RepoRef> repos{RepoRef{.path = parent.path().generic_string(), .alias = "parent"}};
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = sourceDir, .maxDepth = 1}};
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos(repos, sources);
+
+        const QModelIndex group = model.index(0, 0);
+        QCOMPARE(model.data(group, RepoListModel::IsSourceRole).toBool(), true);
+        QCOMPARE(model.rowCount(group), 1); // just the repo, before the submodule arrives
+
+        const QModelIndex repoIdx = model.index(0, 0, group);
+        QVERIFY(repoIdx.isValid());
+        QCOMPARE(model.data(repoIdx, RepoListModel::PathRole).toString(),
+                 QString::fromStdString(parent.path().generic_string()));
+
+        // setRepos does no git I/O; the subtree arrives through applySubmodules,
+        // exactly as it does for an ungrouped repo.
+        auto opened = gittide::GitRepo::open(parent.path());
+        QVERIFY(opened.has_value());
+        auto tree = opened->submoduleTree();
+        QVERIFY(tree.has_value());
+        model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+
+        QCOMPARE(model.rowCount(group), 1);    // still just the repo under the group...
+        QCOMPARE(model.rowCount(repoIdx), 1);  // ...the submodule landed under the REPO, not the group
+
+        const QModelIndex subIdx = model.index(0, 0, repoIdx);
+        QVERIFY(subIdx.isValid());
+        QCOMPARE(model.parent(subIdx), repoIdx); // round-trips at the third level
+        QCOMPARE(model.parent(repoIdx), group);
+        QCOMPARE(model.data(subIdx, RepoListModel::IsSubmoduleRole).toBool(), true);
+        QCOMPARE(model.data(subIdx, Qt::DisplayRole).toString(), QStringLiteral("libchild"));
+
+        // Re-applying an identical subtree three levels down is still a no-op.
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+        QCOMPARE(inserted.count(), 0);
+        QCOMPARE(removed.count(), 0);
+        QCOMPARE(changed.count(), 0);
     }
 
     // setRepos runs on the UI thread on every project switch, so it must not do

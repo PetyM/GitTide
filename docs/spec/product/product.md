@@ -56,8 +56,10 @@ The window is GitHub-Desktop-like, with three zones left-to-right:
 
 - **Project/repo sidebar (collapsible).** Top: the **project switcher** (a combo;
   its dropdown includes a "New project…" item). Below: the **repo tree** of the
-  active project, with an add-repo toolbar (three buttons: add existing / init /
-  clone) at the bottom. A toggle collapses the whole sidebar to a slim rail to
+  active project — a registered [source](#bulk-add--repository-sources) groups
+  its repositories under a single collapsible row, ahead of any ungrouped
+  repository — with an **Add repository** button at the bottom opening a menu
+  of the four add flows. A toggle collapses the whole sidebar to a slim rail to
   reclaim width; expanding restores it. This zone is GitTide's multi-repo
   differentiator and is always present (collapsed or not).
 - **List column.** A **branch bar** across the top shows the current branch and
@@ -399,37 +401,46 @@ the empty state once a project exists) scans a parent folder for git
 repositories and lets the user add many at once, in the active project.
 
 - **Pick folder → depth → checklist → add.** Choosing a folder scans it
-  immediately; a depth stepper controls how many directory levels down the scan
-  looks (how many folders deep to search, not "direct children only" — a
-  `~/projects/<org>/<repo>` layout needs depth 2). Every rescan of the same
-  folder (a depth change, or reopening the dialog) replaces the result, never
-  appends to it. The result is a checklist, every not-already-added repository
-  pre-checked; a repo already in the project shows disabled and unchecked with
-  an "already added" hint rather than being silently dropped, so the user sees
-  the whole picture.
+  immediately; a depth stepper (default **1** — direct children only) controls
+  how many directory levels down the scan looks — a `~/projects/<org>/<repo>`
+  layout needs depth 2. Every rescan of the same folder (a depth change, or
+  reopening the dialog) replaces the result, never appends to it. The result is
+  a checklist, every not-already-added repository pre-checked; a repo already
+  in the project shows disabled and unchecked with an "already added" hint
+  rather than being silently dropped, so the user sees the whole picture.
   Unticking a repo excludes it from this add. Confirming adds every still-checked
   repo to the active project in one action — same "No active project" guard as
   the existing add flows. An empty scan says so plainly ("No git repositories
   found in \<folder\>") instead of opening an empty checklist.
-- **Keep this folder as a source.** A checkbox in the dialog optionally
-  registers the scanned folder as a **repository source** — remembered at its
-  chosen depth. Every registered source is **rescanned automatically when its
-  project is activated**: repositories that have appeared there since — a
-  fresh clone, a newly created repo — are added without the user revisiting the
-  dialog. A brief, non-modal toast ("N repositories added from sources") reports
-  what a rescan picked up; it never interrupts the project switch it rides on.
+- **Keep this folder as a source.** A checkbox in the dialog — **ticked by
+  default** — optionally registers the scanned folder as a **repository
+  source**, remembered at its chosen depth; registering the folder is the
+  default action, not an opt-in a user has to notice. Every registered source
+  is **rescanned automatically when its project is activated**: repositories
+  that have appeared there since — a fresh clone, a newly created repo — are
+  added without the user revisiting the dialog. A brief, non-modal toast ("N
+  repositories added from sources") reports what a rescan picked up; it never
+  interrupts the project switch it rides on.
+- **A registered source is a group in the repository list.** Once registered,
+  a source is not just remembered for the next rescan — it appears as its own
+  row in the sidebar, holding the repositories that live beneath its folder
+  (see [design](../design/design.md#components) for the row itself). A
+  repository that came from a folder no source was ever registered on stays an
+  ordinary top-level row, exactly as before this existed.
 - **Removing a repo that came from a source is permanent.** Removing a repo
   from the project (however it was added) also excludes it from every source
   that would otherwise re-offer it — the removal sticks across rescans instead
   of the repo reappearing on the next project activation.
-- **Sources are managed from Project Options.** The **Sources** section lists
-  every registered source with its folder, depth, and how many repositories it
-  is currently excluding; a source whose folder is no longer reachable is
-  flagged rather than silently dropped. *Rescan now* runs a source's scan on
-  demand; *Clear ignored* forgets everything that section has excluded, so a
+- **Sources are managed from Project Options, or from their row in the
+  sidebar.** The **Sources** section in Project Options lists every registered
+  source with its folder, depth, and how many repositories it is currently
+  excluding; a source whose folder is no longer reachable is flagged rather
+  than silently dropped. *Rescan now* runs a source's scan on demand; *Clear
+  ignored* forgets everything that section has excluded, so a
   deliberately-removed repo can be picked up again; *Remove* unregisters the
   source — the repositories it already added are unaffected and stay in the
-  project.
+  project. The same three actions are one right-click away on the source's row
+  in the sidebar, so the common case never needs the dialog.
 
 ## Key flows
 

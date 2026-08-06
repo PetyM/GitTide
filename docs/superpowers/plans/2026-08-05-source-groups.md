@@ -5,7 +5,7 @@
 | | |
 |--|--|
 | **Date** | 2026-08-05 |
-| **Status** | `planned` |
+| **Status** | `done` |
 | **Spec** | [`specs/2026-08-05-source-groups-design.md`](../specs/2026-08-05-source-groups-design.md) |
 | **Depends on** | [`2026-08-05-bulk-add-repos.md`](2026-08-05-bulk-add-repos.md) (done) |
 
@@ -65,7 +65,7 @@ bool RepoListModel::setFetchStateByPath(const QString& path, FetchState state, c
 
 This is a pure refactor: no behaviour changes, and the suite stays at 245/245 throughout. It exists so Task 2 cannot introduce a silent misrouting bug.
 
-- [ ] **Step 1: Write the failing test** — in `tests/ui/test_repo_list_model.cpp`, add:
+- [x] **Step 1: Write the failing test** — in `tests/ui/test_repo_list_model.cpp`, add:
 
 ```cpp
     void fetch_state_is_addressable_by_path()
@@ -102,12 +102,12 @@ This is a pure refactor: no behaviour changes, and the suite stays at 245/245 th
     }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL — `no member named 'setFetchStateByPath' in 'RepoListModel'`.
 
-- [ ] **Step 3: Add the by-path setter**
+- [x] **Step 3: Add the by-path setter**
 
 In `ui/include/gittide/ui/repolistmodel.hpp`, beside the other `*ByPath` declarations:
 
@@ -132,12 +132,12 @@ bool RepoListModel::setFetchStateByPath(const QString& path, FetchState state, c
 
 Declare `void applyFetchState(Node& n, FetchState state, const QString& error);` next to `applyRepoHead` in the private section.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: PASS.
 
-- [ ] **Step 5: Migrate the poll pass**
+- [x] **Step 5: Migrate the poll pass**
 
 In `ui/src/projectcontroller.cpp::pollRepos`, replace the two row-indexed calls. The loop already computes `repoPath`:
 
@@ -153,7 +153,7 @@ and:
             m_repoModel->setRepoHeadByPath(repoPath, branch, detached, shortOid, dirty);
 ```
 
-- [ ] **Step 6: Migrate the fleet fetch**
+- [x] **Step 6: Migrate the fleet fetch**
 
 `fetchOne` already receives the `RepoRef`, so it needs no row at all. Change its signature in the header and the definition:
 
@@ -180,7 +180,7 @@ QCoro::Task<void> ProjectController::fetchOne(gittide::RepoRef ref)
 
 Replace each remaining `m_repoModel->setFetchState(row, …)` with `m_repoModel->setFetchStateByPath(path, …)` and the `setSyncCounts(row, …)` with `setSyncCountsByPath(path, …)`. Add `#include "gittide/pathutil.hpp"` if it is not already included.
 
-- [ ] **Step 7: Carry refs, not rows, through the auth retry**
+- [x] **Step 7: Carry refs, not rows, through the auth retry**
 
 `m_authFailedRows` stores indices into `activeRepos()` and re-resolves them later — the same positional coupling. In `ui/include/gittide/ui/projectcontroller.hpp` replace:
 
@@ -227,7 +227,7 @@ The `const auto& repos = activeRepos();` line in that function becomes unused �
 
 (`rows` still selects which repos are fetchable; it is only the *model* addressing that changes.)
 
-- [ ] **Step 8: Remove the row-indexed setters and migrate their tests**
+- [x] **Step 8: Remove the row-indexed setters and migrate their tests**
 
 Delete `setFetchState(int, …)`, `setSyncCounts(int, …)` and `setRepoHead(int, …)` from both the header and `ui/src/repolistmodel.cpp` — leaving them is leaving the trap. In `tests/ui/test_repo_list_model.cpp`, rewrite the six call sites to the by-path form, keeping each assertion's intent. The two out-of-range no-crash cases (`setFetchState(5, …)`, `setRepoHead(9, …)`) become unknown-path cases:
 
@@ -239,12 +239,12 @@ Delete `setFetchState(int, …)`, `setSyncCounts(int, …)` and `setRepoHead(int
         QVERIFY(!m.setRepoHeadByPath(QStringLiteral("/no/such/repo"), QStringLiteral("x"), false, QString(), 0));
 ```
 
-- [ ] **Step 9: Run the full suite**
+- [x] **Step 9: Run the full suite**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: PASS, 245/245 — this task changes no behaviour.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add ui/include/gittide/ui/repolistmodel.hpp ui/src/repolistmodel.cpp ui/include/gittide/ui/projectcontroller.hpp ui/src/projectcontroller.cpp tests/ui/test_repo_list_model.cpp
@@ -268,7 +268,7 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos,
                              const std::vector<gittide::RepoSource>& sources = {});
 ```
 
-- [ ] **Step 1: Write the failing tests** — add to `tests/ui/test_repo_list_model.cpp`:
+- [x] **Step 1: Write the failing tests** — add to `tests/ui/test_repo_list_model.cpp`:
 
 ```cpp
     void sources_become_groups_holding_the_repos_beneath_them()
@@ -381,12 +381,12 @@ void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos,
 
 Add `#include "gittide/projectstore.hpp"` if the file does not already have it (it does — it uses `RepoRef`).
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cmake --build build --parallel`
 Expected: FAIL — `no member named 'IsSourceRole'` / no two-argument `setRepos`.
 
-- [ ] **Step 3: Extend the node and the roles**
+- [x] **Step 3: Extend the node and the roles**
 
 In `ui/include/gittide/ui/repolistmodel.hpp`, add to the `Roles` enum after `OwnerRepoPathRole`:
 
@@ -422,7 +422,7 @@ Change the `setRepos` declaration:
                   const std::vector<gittide::RepoSource>& sources = {});
 ```
 
-- [ ] **Step 4: Implement the grouping**
+- [x] **Step 4: Implement the grouping**
 
 `Node` is a private nested type, so the per-repo node builder must be a **private member function**, not a free function. Declare it in the header's private section next to `appendSubmodules`:
 
@@ -533,12 +533,12 @@ And in `roleNames()`:
     roles[AvailableRole] = "available";
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: PASS, including every pre-existing `TestRepoListModel` case (they pass no sources, so they see today's flat list).
 
-- [ ] **Step 6: Add the misrouting regression test**
+- [x] **Step 6: Add the misrouting regression test**
 
 This is the test that would fail if Task 1 had not landed. Add to `tests/ui/test_repo_list_model.cpp`:
 
@@ -569,12 +569,12 @@ This is the test that would fail if Task 1 had not landed. Add to `tests/ui/test
     }
 ```
 
-- [ ] **Step 7: Run the suite**
+- [x] **Step 7: Run the suite**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add ui/include/gittide/ui/repolistmodel.hpp ui/src/repolistmodel.cpp tests/ui/test_repo_list_model.cpp
@@ -591,7 +591,7 @@ git commit -m "feat(ui): group repositories under their source folder"
 
 **Interfaces consumed:** `setRepos(repos, sources)` (Task 2).
 
-- [ ] **Step 1: Write the failing test** — add to `TestProjectController`:
+- [x] **Step 1: Write the failing test** — add to `TestProjectController`:
 
 ```cpp
     void refreshRepoModel_groups_repos_under_their_source()
@@ -618,12 +618,12 @@ git commit -m "feat(ui): group repositories under their source folder"
 
 Add `#include "gittide/ui/repolistmodel.hpp"` if it is not already included (it is).
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: FAIL — `rowCount()` is 1 but the row is the repo, so `IsSourceRole` is false.
 
-- [ ] **Step 3: Pass sources at all three call sites**
+- [x] **Step 3: Pass sources at all three call sites**
 
 In `ui/src/projectcontroller.cpp`, the three places that call `setRepos` with a project's repos become:
 
@@ -633,12 +633,12 @@ In `ui/src/projectcontroller.cpp`, the three places that call `setRepos` with a 
 
 (one in `refreshRepoModel`, one in `activate`). The two `setRepos({})` calls that clear the model stay as they are — an empty project has no groups either.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: PASS, 245/245 + the new cases.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/src/projectcontroller.cpp tests/ui/test_project_controller.cpp
@@ -657,7 +657,7 @@ git commit -m "feat(ui): show the active project's sources in the repo tree"
 
 **Interfaces produced:** `Q_INVOKABLE bool RepoListModel::isSourceRow(int row) const` (added in Step 4, so QML can expand source rows without a numeric role literal).
 
-- [ ] **Step 1: Write the failing test** — add a slot to `TestQmlShell`, following the setup of the neighbouring slots (they build a `ProjectStore`, a `ProjectController`, and load `Main.qml` via `installQmlContext`):
+- [x] **Step 1: Write the failing test** — add a slot to `TestQmlShell`, following the setup of the neighbouring slots (they build a `ProjectStore`, a `ProjectController`, and load `Main.qml` via `installQmlContext`):
 
 ```cpp
     void sidebar_shows_a_source_row_with_its_repo_count()
@@ -697,12 +697,12 @@ git commit -m "feat(ui): show the active project's sources in the repo tree"
 
 > **Note for the implementer:** copy the context-property setup verbatim from the neighbouring `TestQmlShell` slot that loads `Main.qml`; any context property it needs must be provided here too or the load emits warnings.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: FAIL — `sourceContextMenu` not found (Task 5 adds it; this step only pins the model wiring, and the menu assertion is what still fails).
 
-- [ ] **Step 3: Render the source row**
+- [x] **Step 3: Render the source row**
 
 In `ui/qml/Sidebar.qml`'s `TreeViewDelegate`, add next to the existing `isSub` property:
 
@@ -760,7 +760,7 @@ In the delegate's `contentItem`, the existing name/branch `ColumnLayout` gains a
 
 and give the existing repo `ColumnLayout` `visible: !row.isSource` so the two variants never both render.
 
-- [ ] **Step 4: Expand source groups after a reset**
+- [x] **Step 4: Expand source groups after a reset**
 
 Source rows exist to be looked into, so expand them when the model repopulates. Add to the `TreeView`:
 
@@ -798,12 +798,12 @@ bool RepoListModel::isSourceRow(int row) const
 
 Cover it in `tests/ui/test_repo_list_model.cpp` alongside the grouping cases: true for a group row, false for a loose repo row, false for an out-of-range row.
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: the new slot still fails only on the `sourceContextMenu` assertion; everything else passes.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add ui/qml/Sidebar.qml tests/ui/test_qml_shell.cpp
@@ -821,7 +821,7 @@ git commit -m "feat(ui): render repository sources as sidebar groups"
 
 **Interfaces consumed:** `projectController.rescanSources()`, `clearIgnoredForSource(path)`, `removeSource(path)` — all shipped.
 
-- [ ] **Step 1: Write the menu**
+- [x] **Step 1: Write the menu**
 
 `ui/qml/SourceContextMenu.qml`, modelled on `RepoContextMenu.qml`:
 
@@ -867,7 +867,7 @@ Register it in `ui/qml/qml.qrc` next to `RepoContextMenu.qml`:
     <file>SourceContextMenu.qml</file>
 ```
 
-- [ ] **Step 2: Wire it up**
+- [x] **Step 2: Wire it up**
 
 In `ui/qml/Sidebar.qml`, host the menu next to `repoContextMenu`:
 
@@ -891,16 +891,16 @@ and route right-clicks in the delegate's `MouseArea` (the block with `acceptedBu
                         } else if (row.isSub) {
 ```
 
-- [ ] **Step 3: Run the test to verify it now passes**
+- [x] **Step 3: Run the test to verify it now passes**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: PASS — `sidebar_shows_a_source_row_with_its_repo_count` is now fully green.
 
-- [ ] **Step 4: Verify by hand**
+- [x] **Step 4: Verify by hand**
 
 Run the app, register a folder as a source, confirm the sidebar shows the folder with its repos nested and expanded, right-click it and confirm all three actions work: *Rescan now* picks up a repo cloned into the folder, *Clear ignored* followed by a rescan brings a removed repo back, and *Remove source* drops the group while leaving its repositories in the project.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ui/qml/SourceContextMenu.qml ui/qml/qml.qrc ui/qml/Sidebar.qml
@@ -915,7 +915,7 @@ git commit -m "feat(ui): context menu for a repository source row"
 - Modify: `ui/qml/AddFromFolderDialog.qml`, `core/include/gittide/reposcan.hpp`, `core/include/gittide/projectstore.hpp`
 - Test: `tests/ui/test_qml_add_from_folder.cpp`, `tests/test_repo_scan.cpp`, `tests/test_project_store.cpp`
 
-- [ ] **Step 1: Write the failing test** — add to `TestQmlAddFromFolder`:
+- [x] **Step 1: Write the failing test** — add to `TestQmlAddFromFolder`:
 
 ```cpp
     void dialog_opens_at_depth_one_with_keep_as_source_checked()
@@ -945,12 +945,12 @@ git commit -m "feat(ui): context menu for a repository source row"
     }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ./build/tests/gittide_ui_tests`
 Expected: FAIL — value is 2, checked is false.
 
-- [ ] **Step 3: Change the defaults**
+- [x] **Step 3: Change the defaults**
 
 In `ui/qml/AddFromFolderDialog.qml`, the `SpinBox` gets `value: 1`, and `openDialog()`'s `keepSource.checked = false` becomes:
 
@@ -962,7 +962,7 @@ In `ui/qml/AddFromFolderDialog.qml`, the `SpinBox` gets `value: 1`, and `openDia
 
 In `core/include/gittide/reposcan.hpp` and `core/include/gittide/projectstore.hpp`, both `maxDepth` defaults become `1`, and their Doxygen comments say `1 = direct children only` where they currently say the default is 2. Update the two core test expectations that assert the old default: the `[scan]` case relying on the default argument, and the `[store][sources]` malformed-entry case asserting `maxDepth == 2` — change it to `1`, since it verifies the *default*, not the number.
 
-- [ ] **Step 4: Theme the stepper**
+- [x] **Step 4: Theme the stepper**
 
 Replace the `SpinBox`'s stock indicators. Keep the existing `contentItem` and `background`, and add:
 
@@ -1003,16 +1003,16 @@ Replace the `SpinBox`'s stock indicators. Keep the existing `contentItem` and `b
 
 and give the `background` `implicitWidth: 120` so the value sits between the two cells rather than under them. Verify by eye that at every value 1–5 the digit is centred and neither indicator overlaps it.
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: PASS.
 
-- [ ] **Step 6: Verify by hand**
+- [x] **Step 6: Verify by hand**
 
 Run the app, open *Add repositories from folder…*, and confirm: the stepper renders as one control with themed − / + cells, the depth starts at 1, "keep this folder as a source" starts ticked, and the Add button becomes enabled as soon as a folder is chosen.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add ui/qml/AddFromFolderDialog.qml core/include/gittide/reposcan.hpp core/include/gittide/projectstore.hpp tests/ui/test_qml_add_from_folder.cpp tests/test_repo_scan.cpp tests/test_project_store.cpp
@@ -1026,24 +1026,24 @@ git commit -m "fix(ui): theme the depth stepper, default depth 1, source by defa
 **Files:**
 - Modify: `docs/spec/product/product.md`, `docs/spec/design/design.md`, `docs/spec/engineering/engineering.md`, `docs/plans/index.md`, this plan
 
-- [ ] **Step 1: Run the whole suite**
+- [x] **Step 1: Run the whole suite**
 
 Run: `cmake --build build --parallel && QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure`
 Expected: green. Do not proceed until it is.
 
-- [ ] **Step 2: Update the living spec**
+- [x] **Step 2: Update the living spec**
 
 - `spec/product`: a registered source appears in the repository list as a group holding its repositories; the source row's actions; the new defaults (depth 1, keep-as-source on).
 - `spec/design`: the source row (single line, count, unavailable state) and the themed depth stepper; correct the depth default where the dialog is described.
 - `spec/engineering`: grouping is derived from source paths, not stored — `projects.json` stays flat — and the invariant that **no caller addresses a root row by position**, with the reason (group nodes make row index and repo index diverge).
 
-- [ ] **Step 3: Register the plan**
+- [x] **Step 3: Register the plan**
 
 Add a row for this plan to `docs/plans/index.md`, following the conventions of the existing rows.
 
-- [ ] **Step 4: Fill in this plan's Outcome and flip its Status to `done`.**
+- [x] **Step 4: Fill in this plan's Outcome and flip its Status to `done`.**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs
@@ -1054,8 +1054,57 @@ git commit -m "docs: source groups in the repository list"
 
 ## Outcome
 
-> Fill in when the plan reaches `done`.
->
-> - Shipped: <summary>.
-> - Spec updated: <which `spec/` sections now describe this>.
-> - Code: <the main files/types that resulted>.
+- **Shipped:** A registered repository source is now visible in the sidebar as
+  its own collapsible group row — folder name, repository count, "folder not
+  found" when the folder has gone, full path on hover — holding the
+  repositories that live beneath it, in the same order the sources were
+  registered and ahead of any ungrouped repository. Right-clicking a source
+  row opens a dedicated context menu (*Rescan now* / *Clear ignored* / *Remove
+  source*), the same three actions the Sources section of Project Options
+  already offered. The grouping is entirely derived from the project's
+  `RepoSource` list — `projects.json` stays a flat list — so removal, the
+  per-source ignore list, `lastActiveRepo` and duplicate rejection needed no
+  changes. Landing group nodes required moving every caller that mutates a
+  sidebar row off row-index addressing and onto path addressing first (Task
+  1), since a group node makes "root row N is repository N" false; three
+  follow-up fixes closed gaps that assumption's removal opened: `firstRepoPath()`
+  descending into a leading group instead of handing back a folder as if it
+  were a repo, `OwnerRepoPathRole` reporting a grouped repo as its own owner
+  rather than the group's folder, and the sidebar's expansion pass walking the
+  view's flattened rows **backwards** so expanding an earlier group doesn't
+  shift a later one out from under a forward-walking loop. Three smaller,
+  independently reported defects in the add-from-folder dialog also shipped:
+  the depth stepper's up/down cells are now themed instead of the Basic
+  style's unthemed stock indicators painted over a custom background, the
+  scan depth defaults to **1** (`ScanOptions::maxDepth`, `RepoSource::maxDepth`),
+  and "keep this folder as a source" starts **ticked**.
+- **Spec updated:**
+  [`spec/product`](../../spec/product/product.md#bulk-add--repository-sources) —
+  a registered source appearing as a sidebar group, the new dialog defaults,
+  and Project Options vs. the source row as the two places to manage a source;
+  also corrected the sidebar's add-repo affordance description (a single "Add
+  repository" button opening a 4-item menu, not three buttons — a pre-existing
+  drift from the earlier bulk-add close-out, unrelated to this plan but caught
+  in the same read-through).
+  [`spec/design`](../../spec/design/design.md) — the source group row
+  (single-line, count, unavailable state, expanded-by-default) alongside the
+  repo-tree-rows description, and the themed depth stepper + the two new
+  dialog defaults in the Add-from-folder dialog entry.
+  [`spec/engineering`](../../spec/engineering/engineering.md#source-groups-in-the-repository-list) —
+  a new "Source groups in the repository list" section: the derive-not-store
+  design, the **no caller addresses a root row by position** invariant and why
+  it had to land first, and the three group-aware fixes (`firstRepoPath`,
+  `OwnerRepoPathRole`, `isSourceRow`).
+- **Code:** `ui/include/gittide/ui/repolistmodel.hpp` +
+  `ui/src/repolistmodel.cpp` (`Node::isSource`/`available`, `IsSourceRole`/
+  `RepoCountRole`/`AvailableRole`, `setRepos(repos, sources)`, `isSourceRow`,
+  the `*ByPath` setters replacing the removed row-indexed ones, the
+  group-aware `firstRepoPath`/`OwnerRepoPathRole`); `ui/src/projectcontroller.cpp`
+  + `ui/include/gittide/ui/projectcontroller.hpp` (path-addressed poll and
+  fleet fetch, `m_authFailedRefs`, `fetchOne` taking a `RepoRef`, sources
+  passed to every `setRepos` call); `ui/qml/Sidebar.qml` (source row
+  rendering, `activate()`, the backwards `expandSourceRows()`, right-click
+  routing) and the new `ui/qml/SourceContextMenu.qml`; `ui/qml/AddFromFolderDialog.qml`
+  (themed `depthBox` stepper, depth-1 and keep-source-checked defaults);
+  `core/include/gittide/reposcan.hpp` / `core/include/gittide/projectstore.hpp`
+  (`maxDepth` default → 1).

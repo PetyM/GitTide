@@ -10,9 +10,10 @@ namespace gittide {
 /// Tuning for scanForRepos.
 struct ScanOptions
 {
-    /// Directory levels below the root to search; 1 = its immediate children.
+    /// Directory levels below the root to search; 1 = its immediate children
+    /// only, which is the common `~/projects/<repo>` layout and the default.
     /// Values below 1 are clamped to 1.
-    int maxDepth = 2;
+    int maxDepth = 1;
 };
 
 /// Find the git repositories under `root`.

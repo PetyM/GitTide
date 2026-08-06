@@ -94,7 +94,7 @@ QCoro::Task<void> ProjectController::pollRepos()
         if (!self)
             co_return;
         if (st)
-            m_repoModel->setSyncCounts(row, st->ahead, st->behind, st->hasUpstream);
+            m_repoModel->setSyncCountsByPath(repoPath, st->ahead, st->behind, st->hasUpstream);
 
         QString branch, shortOid;
         bool    detached = false;
@@ -118,7 +118,7 @@ QCoro::Task<void> ProjectController::pollRepos()
         if (!self)
             co_return;
         if (haveHead && haveStatus)
-            m_repoModel->setRepoHead(row, branch, detached, shortOid, dirty);
+            m_repoModel->setRepoHeadByPath(repoPath, branch, detached, shortOid, dirty);
 
         auto tree = co_await repo.submoduleTree();
         if (!self)
@@ -177,7 +177,7 @@ void ProjectController::refreshRepoModel()
     {
         if (QString::fromStdString(p.id) == m_activeId)
         {
-            m_repoModel->setRepos(p.repos);
+            m_repoModel->setRepos(p.repos, p.sources);
             hydrateRepoModel();
             return;
         }
@@ -203,7 +203,7 @@ void ProjectController::activate(const QString& projectId)
         if (p.id == id)
         {
             m_store->setActiveProject(id);
-            m_repoModel->setRepos(p.repos);
+            m_repoModel->setRepos(p.repos, p.sources);
             m_activeId = projectId;
             // The previous project's open repo is gone; until QML opens one in the
             // new project every row is poll-fed.
@@ -654,7 +654,13 @@ void ProjectController::removeSource(const QString& path)
     if (m_activeId.isEmpty())
         return;
     if (m_store->removeSource(m_activeId.toStdString(), path.toStdString()))
+    {
         saveStore();
+        // The source is a visible row now, so unregistering it has to redraw the
+        // tree: its group disappears and the repositories it held — which stay in
+        // the project — return to the top level.
+        refreshRepoModel();
+    }
 }
 
 void ProjectController::clearIgnoredForSource(const QString& path)
@@ -662,7 +668,12 @@ void ProjectController::clearIgnoredForSource(const QString& path)
     if (m_activeId.isEmpty())
         return;
     if (m_store->clearIgnored(m_activeId.toStdString(), path.toStdString()))
+    {
         saveStore();
+        // Nothing on the row shows the ignore count today, but keeping this in
+        // step with removeSource means a future badge cannot go stale silently.
+        refreshRepoModel();
+    }
 }
 
 void ProjectController::removeProject()
@@ -700,7 +711,7 @@ void ProjectController::fetchAll()
     m_repoModel->resetFetchStates();
     m_fetchOk     = 0;
     m_fetchFailed = 0;
-    m_authFailedRows.clear();
+    m_authFailedRefs.clear();
     m_fetchErrors.clear();
 
     // Only fetch non-missing top-level repos. A missing repo is SKIPPED — left in
@@ -725,7 +736,7 @@ void ProjectController::fetchAll()
     emit fetchProgressChanged();
 
     for (int row : rows)
-        QCoro::connect(fetchOne(row, repos[row]), this, [] {});
+        QCoro::connect(fetchOne(repos[row]), this, [] {});
 }
 
 void ProjectController::cancelFetchAll()
@@ -736,12 +747,17 @@ void ProjectController::cancelFetchAll()
         m_fleetCancel->store(true); // each in-flight fetchOne aborts via its callback
 }
 
-QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
+QCoro::Task<void> ProjectController::fetchOne(gittide::RepoRef ref)
 {
-    m_repoModel->setFetchState(row, RepoListModel::FetchState::Running);
+    const QString path = QString::fromStdString(ref.path);
+    m_repoModel->setFetchStateByPath(path, RepoListModel::FetchState::Running);
 
     // Alias-aware display name for any failure line (matches the tree row).
-    const QString name = m_repoModel->data(m_repoModel->index(row, 0), Qt::DisplayRole).toString();
+    // Read back from the model by path — not by row, since root rows are no
+    // longer positionally addressable once source groups exist — so it shares
+    // setRepos' full alias/basename/raw-path fallback rather than duplicating
+    // a partial copy of it here.
+    const QString name = m_repoModel->data(m_repoModel->indexForRepoPath(path), Qt::DisplayRole).toString();
 
     // Each repo gets its OWN handle — the one-owner invariant holds; we never
     // touch the active RepoController's repo. The AsyncRepo lives in this
@@ -749,8 +765,8 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     auto opened = AsyncRepo::open(std::filesystem::path(ref.path));
     if (!opened)
     {
-        m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
-                                   QString::fromStdString(opened.error().message));
+        m_repoModel->setFetchStateByPath(path, RepoListModel::FetchState::Failed,
+                                         QString::fromStdString(opened.error().message));
         m_fetchFailed++;
         m_fetchErrors << (name + QStringLiteral(": ") + QString::fromStdString(opened.error().message));
         finishOneFetch();
@@ -777,11 +793,11 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     if (!fr)
     {
         if (gittide::ui::isAuthError(fr.error()))
-            m_authFailedRows.push_back(row);   // retried after credentials — not a hard failure yet
+            m_authFailedRefs.push_back(ref);   // retried after credentials — not a hard failure yet
         else
             m_fetchErrors << (name + QStringLiteral(": ") + QString::fromStdString(fr.error().message));
-        m_repoModel->setFetchState(row, RepoListModel::FetchState::Failed,
-                                   QString::fromStdString(fr.error().message));
+        m_repoModel->setFetchStateByPath(path, RepoListModel::FetchState::Failed,
+                                         QString::fromStdString(fr.error().message));
         m_fetchFailed++;
         finishOneFetch();
         co_return;
@@ -795,42 +811,38 @@ QCoro::Task<void> ProjectController::fetchOne(int row, gittide::RepoRef ref)
     {
         ahead  = st->ahead;
         behind = st->behind;
-        m_repoModel->setSyncCounts(row, ahead, behind, st->hasUpstream);
+        m_repoModel->setSyncCountsByPath(path, ahead, behind, st->hasUpstream);
     }
-    m_repoModel->setFetchState(row, behind > 0 ? RepoListModel::FetchState::Updated
-                                               : RepoListModel::FetchState::UpToDate);
+    m_repoModel->setFetchStateByPath(path, behind > 0 ? RepoListModel::FetchState::Updated
+                                                       : RepoListModel::FetchState::UpToDate);
     m_fetchOk++;
     finishOneFetch();
 }
 
 void ProjectController::submitFleetCredentials(const QString& username, const QString& token)
 {
-    if (m_authFailedRows.empty() || m_fetchingAll)
+    if (m_authFailedRefs.empty() || m_fetchingAll)
         return;
 
     m_sessionCred.username    = username.toStdString();
     m_sessionCred.password    = token.toStdString();
     m_sessionCred.sshUseAgent = true;
 
-    const std::vector<int> retry = std::move(m_authFailedRows);
-    m_authFailedRows.clear();
+    const std::vector<gittide::RepoRef> retry = std::move(m_authFailedRefs);
+    m_authFailedRefs.clear();
 
-    // These rows were counted as failures in the initial run; we are re-attempting
+    // These repos were counted as failures in the initial run; we are re-attempting
     // them, so back them out — fetchOne re-counts each into ok or failed.
     m_fetchFailed -= static_cast<int>(retry.size());
 
-    const auto& repos = activeRepos();
-    m_fetchPending    = static_cast<int>(retry.size());
-    m_fetchTotal      = m_fetchPending;
-    m_fetchingAll     = true;
+    m_fetchPending = static_cast<int>(retry.size());
+    m_fetchTotal   = m_fetchPending;
+    m_fetchingAll  = true;
     emit fetchingAllChanged();
     emit fetchProgressChanged();
 
-    for (int row : retry)
-    {
-        if (row >= 0 && row < static_cast<int>(repos.size()))
-            QCoro::connect(fetchOne(row, repos[row]), this, [] {});
-    }
+    for (const auto& ref : retry)
+        QCoro::connect(fetchOne(ref), this, [] {});
 }
 
 void ProjectController::finishOneFetch()
@@ -846,7 +858,7 @@ void ProjectController::finishOneFetch()
     m_fetchSummary = QStringLiteral("%1 fetched, %2 failed").arg(m_fetchOk).arg(m_fetchFailed);
     emit fetchingAllChanged();
     emit fleetFetchFinished(m_fetchOk, m_fetchFailed);
-    if (!m_authFailedRows.empty())
+    if (!m_authFailedRefs.empty())
     {
         // Auth failures aren't hard failures yet — prompt for credentials and
         // retry. The error dialog waits until that second pass settles.
