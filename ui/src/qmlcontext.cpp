@@ -7,6 +7,7 @@
 #include "gittide/ui/avatarimageprovider.hpp"
 #include "gittide/ui/avatarservice.hpp"
 #include "gittide/ui/credentialmanager.hpp"
+#include "gittide/ui/diffselection.hpp"
 #include "gittide/ui/graphcolumn.hpp"
 #include "gittide/ui/hostlistmodel.hpp"
 #include "gittide/ui/sshkeylistmodel.hpp"
@@ -26,6 +27,7 @@ void registerQmlTypes()
         return;
     registered = true;
     qmlRegisterType<GraphColumn>("GitTide", 1, 0, "GraphColumn");
+    qmlRegisterType<DiffSelection>("GitTide", 1, 0, "DiffSelection");
 }
 
 void installQmlContext(QQmlContext* ctx, QmlTheme* theme, RepoListModel* repoModel, ProjectController* projectController,

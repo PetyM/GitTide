@@ -15,6 +15,9 @@ struct Theme
     QString stateAdded, stateModified, stateDeleted, stateUntracked, stateConflict, stateIncoming;
     QString shadow; // Translucent drop-shadow colour for overlay elevation (§9).
     QString focusBorder;
+    // Text selection in the diff view. selectionBg is deliberately translucent so
+    // syntax highlighting still reads through a selected run (#AARRGGBB).
+    QString selectionBg, selectionText;
 };
 
 Theme darkTheme();

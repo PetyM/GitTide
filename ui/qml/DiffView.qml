@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import GitTide
 
 ColumnLayout {
     id: diffView
@@ -62,6 +63,15 @@ ColumnLayout {
         }
     }
 
+    // Text selection shared by every diff row. Follows whichever model the list
+    // is showing, and clears itself on a reset — a file switch, a refresh, or
+    // entering/leaving stash preview.
+    DiffSelection {
+        id: diffSelection
+        objectName: "diffSelection"
+        model: diffList.model
+    }
+
     // Empty state — shown when no file is selected, instead of a blank void.
     ColumnLayout {
         objectName: "diffEmptyState"
@@ -88,157 +98,171 @@ ColumnLayout {
         Item { Layout.fillHeight: true }
     }
 
-    ListView {
-        id: diffList
-        objectName: "diffList"
-        visible: diffView.hasContent
+    // Wraps the list so DiffSelectionOverlay can sit as its sibling instead of
+    // being redirected into ListView's contentItem (its default property) —
+    // otherwise the overlay would scroll with the content instead of staying
+    // fixed over the viewport.
+    Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        clip: true
-        // In stash preview show the commit (stash) diff; otherwise the working diff.
-        model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitDiff : repoVm.diffLines) : null
+        visible: diffView.hasContent
 
-        ScrollBar.vertical: AppScrollBar {}
-        WheelScroller {}
+        ListView {
+            id: diffList
+            objectName: "diffList"
+            anchors.fill: parent
+            clip: true
+            // In stash preview show the commit (stash) diff; otherwise the working diff.
+            model: repoVm ? (repoVm.stashPreviewActive ? repoVm.commitDiff : repoVm.diffLines) : null
 
-        delegate: Rectangle {
-            id: diffRow
-            width: ListView.view.width
-            // Conflict-start rows are taller to accommodate the action header.
-            height: model.lineKind === "conflict-start" ? 44 : 20
-            color: model.lineKind === "added"   ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.12)
-                 : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r,   theme.stateDeleted.g,   theme.stateDeleted.b,   0.12)
-                 : model.lineKind === "hunk"    ? theme.surfaceOverlay
-                 : model.lineKind === "ours"    ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.10)
-                 : model.lineKind === "theirs"  ? Qt.rgba(theme.stateIncoming.r,  theme.stateIncoming.g,  theme.stateIncoming.b,  0.10)
-                 : model.lineKind === "conflict-start" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.06)
-                 : model.lineKind === "conflict-sep"   ? theme.surfaceOverlay
-                 : model.lineKind === "conflict-end"   ? Qt.rgba(theme.stateIncoming.r, theme.stateIncoming.g, theme.stateIncoming.b, 0.06)
-                 : "transparent"
+            ScrollBar.vertical: AppScrollBar { id: diffVScrollBar }
+            WheelScroller {}
 
-            // Per-region action header rendered on "conflict-start" rows.
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-                visible: model.lineKind === "conflict-start"
+            delegate: Rectangle {
+                id: diffRow
+                width: ListView.view.width
+                // Conflict-start rows are taller to accommodate the action header.
+                height: model.lineKind === "conflict-start" ? 44 : 20
+                color: model.lineKind === "added"   ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.12)
+                     : model.lineKind === "removed" ? Qt.rgba(theme.stateDeleted.r,   theme.stateDeleted.g,   theme.stateDeleted.b,   0.12)
+                     : model.lineKind === "hunk"    ? theme.surfaceOverlay
+                     : model.lineKind === "ours"    ? Qt.rgba(theme.stateAdded.r,     theme.stateAdded.g,     theme.stateAdded.b,     0.10)
+                     : model.lineKind === "theirs"  ? Qt.rgba(theme.stateIncoming.r,  theme.stateIncoming.g,  theme.stateIncoming.b,  0.10)
+                     : model.lineKind === "conflict-start" ? Qt.rgba(theme.stateAdded.r, theme.stateAdded.g, theme.stateAdded.b, 0.06)
+                     : model.lineKind === "conflict-sep"   ? theme.surfaceOverlay
+                     : model.lineKind === "conflict-end"   ? Qt.rgba(theme.stateIncoming.r, theme.stateIncoming.g, theme.stateIncoming.b, 0.06)
+                     : "transparent"
 
-                // Top line: marker text
-                Label {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 96
-                    font.family: "monospace"
-                    font.pixelSize: 12
-                    text: model.lineText
-                    color: theme.textMuted
-                    elide: Text.ElideRight
+                // Per-region action header rendered on "conflict-start" rows.
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 0
+                    visible: model.lineKind === "conflict-start"
+
+                    // Top line: marker text
+                    Label {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 96
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        text: model.lineText
+                        color: theme.textMuted
+                        elide: Text.ElideRight
+                    }
+
+                    // Bottom line: Accept action buttons
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 96
+                        spacing: 6
+
+                        AppButton {
+                            objectName: "acceptCurrentButton"
+                            variant: "secondary"
+                            compact: true
+                            text: qsTr("Accept Current")
+                            onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 0)
+                        }
+                        AppButton {
+                            objectName: "acceptIncomingButton"
+                            variant: "secondary"
+                            compact: true
+                            text: qsTr("Accept Incoming")
+                            onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 1)
+                        }
+                        AppButton {
+                            objectName: "acceptBothButton"
+                            variant: "secondary"
+                            compact: true
+                            text: qsTr("Accept Both")
+                            onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 2)
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
                 }
 
-                // Bottom line: Accept action buttons
+                // Normal diff row content (hidden on conflict-start rows which use the
+                // ColumnLayout above).
                 RowLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 96
+                    anchors.fill: parent
                     spacing: 6
+                    visible: model.lineKind !== "conflict-start"
 
-                    AppButton {
-                        objectName: "acceptCurrentButton"
-                        variant: "secondary"
-                        compact: true
-                        text: qsTr("Accept Current")
-                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 0)
+                    // Per-line checkbox column (changed lines) + block checkbox (block rows)
+                    Item {
+                        Layout.preferredWidth: 22
+                        Layout.fillHeight: true
+                        AppCheckBox {
+                            anchors.centerIn: parent
+                            // Hidden when line is not checkable OR when in stash preview (read-only).
+                            visible: model.checkable && (!repoVm || !repoVm.stashPreviewActive)
+                            checked: model.lineChecked
+                            accentColor: model.lineKind === "added" ? theme.stateAdded
+                                         : model.lineKind === "removed" ? theme.stateDeleted
+                                         : theme.accent
+                            onClicked: if (repoVm) repoVm.setLineChecked(index, !model.lineChecked)
+                        }
+                        AppCheckBox {
+                            anchors.centerIn: parent
+                            objectName: "diffBlockCheck"
+                            visible: model.lineKind === "block"
+                            tristate: true
+                            checkState: model.blockState
+                            onClicked: if (repoVm) repoVm.setBlockChecked(index, model.blockState !== Qt.Checked)
+                        }
                     }
-                    AppButton {
-                        objectName: "acceptIncomingButton"
-                        variant: "secondary"
-                        compact: true
-                        text: qsTr("Accept Incoming")
-                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 1)
+
+                    // Old/new line-number gutter
+                    Label {
+                        Layout.preferredWidth: 64
+                        horizontalAlignment: Text.AlignRight
+                        font.family: "monospace"
+                        font.pixelSize: 11
+                        color: theme.textMuted
+                        text: model.lineKind === "hunk" ? ""
+                              : (model.oldNo > 0 ? model.oldNo : "") + " " + (model.newNo > 0 ? model.newNo : "")
                     }
-                    AppButton {
-                        objectName: "acceptBothButton"
-                        variant: "secondary"
-                        compact: true
-                        text: qsTr("Accept Both")
-                        onClicked: if (repoVm) repoVm.acceptConflict(model.conflictRegion, 2)
+
+                    // Sign
+                    Label {
+                        Layout.preferredWidth: 10
+                        font.family: "monospace"
+                        font.pixelSize: 12
+                        text: model.lineKind === "added" ? "+" : model.lineKind === "removed" ? "−" : ""
+                        color: model.lineKind === "added" ? theme.stateAdded
+                               : model.lineKind === "removed" ? theme.stateDeleted
+                               : theme.textMuted
                     }
-                    Item { Layout.fillWidth: true }
+
+                    // Code / hunk header / conflict marker text
+                    DiffCodeText {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        row: index
+                        selection: diffSelection
+                        plainText: model.lineText
+                        html: model.lineHtml ? model.lineHtml : ""
+                        color: model.lineKind === "hunk"               ? theme.textMuted
+                             : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
+                             : model.lineKind === "added"              ? theme.stateAdded
+                             : model.lineKind === "removed"            ? theme.stateDeleted
+                             : model.lineKind === "ours"               ? theme.stateAdded
+                             : model.lineKind === "theirs"             ? theme.stateIncoming
+                             : model.lineKind === "conflict-sep"       ? theme.textMuted
+                             : model.lineKind === "conflict-end"       ? theme.textMuted
+                             : theme.textPrimary
+                    }
                 }
             }
+        }
 
-            // Normal diff row content (hidden on conflict-start rows which use the
-            // ColumnLayout above).
-            RowLayout {
-                anchors.fill: parent
-                spacing: 6
-                visible: model.lineKind !== "conflict-start"
-
-                // Per-line checkbox column (changed lines) + block checkbox (block rows)
-                Item {
-                    Layout.preferredWidth: 22
-                    Layout.fillHeight: true
-                    AppCheckBox {
-                        anchors.centerIn: parent
-                        // Hidden when line is not checkable OR when in stash preview (read-only).
-                        visible: model.checkable && (!repoVm || !repoVm.stashPreviewActive)
-                        checked: model.lineChecked
-                        accentColor: model.lineKind === "added" ? theme.stateAdded
-                                     : model.lineKind === "removed" ? theme.stateDeleted
-                                     : theme.accent
-                        onClicked: if (repoVm) repoVm.setLineChecked(index, !model.lineChecked)
-                    }
-                    AppCheckBox {
-                        anchors.centerIn: parent
-                        objectName: "diffBlockCheck"
-                        visible: model.lineKind === "block"
-                        tristate: true
-                        checkState: model.blockState
-                        onClicked: if (repoVm) repoVm.setBlockChecked(index, model.blockState !== Qt.Checked)
-                    }
-                }
-
-                // Old/new line-number gutter
-                Label {
-                    Layout.preferredWidth: 64
-                    horizontalAlignment: Text.AlignRight
-                    font.family: "monospace"
-                    font.pixelSize: 11
-                    color: theme.textMuted
-                    text: model.lineKind === "hunk" ? ""
-                          : (model.oldNo > 0 ? model.oldNo : "") + " " + (model.newNo > 0 ? model.newNo : "")
-                }
-
-                // Sign
-                Label {
-                    Layout.preferredWidth: 10
-                    font.family: "monospace"
-                    font.pixelSize: 12
-                    text: model.lineKind === "added" ? "+" : model.lineKind === "removed" ? "−" : ""
-                    color: model.lineKind === "added" ? theme.stateAdded
-                           : model.lineKind === "removed" ? theme.stateDeleted
-                           : theme.textMuted
-                }
-
-                // Code / hunk header / conflict marker text
-                Label {
-                    Layout.fillWidth: true
-                    font.family: "monospace"
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                    clip: true
-                    textFormat: model.lineHtml && model.lineHtml.length > 0
-                                ? Text.RichText : Text.PlainText
-                    text: model.lineHtml && model.lineHtml.length > 0
-                          ? model.lineHtml : model.lineText
-                    color: model.lineKind === "hunk"               ? theme.textMuted
-                         : (model.lineHtml && model.lineHtml.length > 0) ? theme.textPrimary
-                         : model.lineKind === "added"              ? theme.stateAdded
-                         : model.lineKind === "removed"            ? theme.stateDeleted
-                         : model.lineKind === "ours"               ? theme.stateAdded
-                         : model.lineKind === "theirs"             ? theme.stateIncoming
-                         : model.lineKind === "conflict-sep"       ? theme.textMuted
-                         : model.lineKind === "conflict-end"       ? theme.textMuted
-                         : theme.textPrimary
-                }
-            }
+        DiffSelectionOverlay {
+            objectName: "diffSelectionOverlay"
+            anchors.fill: parent
+            list: diffList
+            selection: diffSelection
+            scrollBar: diffVScrollBar
+            onCopyRequested: function(text) { if (repoVm) repoVm.copyToClipboard(text) }
         }
     }
 }

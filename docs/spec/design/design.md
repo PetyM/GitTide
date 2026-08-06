@@ -28,6 +28,8 @@ theme's table into a Qt **`QPalette`** plus a small accent stylesheet (§ Themin
 | `text.secondary` | `#A6A6AB` | `#5F5F5F` | Labels, secondary content |
 | `text.muted`     | `#8E8E93` | `#6E6E73` | Hints, disabled, captions |
 | `shadow`         | `#66000000` | `#24000000` | Overlay drop-shadow (translucent) |
+| `selectionBg`    | `#5942A5F5` | `#401976D2` | Diff text selection fill — translucent so syntax colour reads through |
+| `selectionText`  | `#E4E4E6`   | `#212121`   | Text inside a selection (= `text.primary`) |
 
 Neutrals are Material Grey — a neutral (unbiased) grey ground. Every text token
 clears WCAG 4.5:1 on its surfaces in both themes; `text.muted` was re-tuned from
@@ -36,7 +38,7 @@ clears WCAG 4.5:1 on its surfaces in both themes; `text.muted` was re-tuned from
 split handles read on the low-contrast dark ground (panels barely separated
 before); it is a divider colour, never text, so the contrast floor is unaffected.
 
-### Selection
+### Selection (list rows)
 
 Selection is **one shared treatment across every list** — the repo tree, the
 changed-files list, the commit-files list, and the History / Graph rows: a fill of

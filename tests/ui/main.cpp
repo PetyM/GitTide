@@ -40,6 +40,7 @@
 #include "test_qml_sync.cpp"
 #include "test_changed_files_model.cpp"
 #include "test_diff_lines_model.cpp"
+#include "test_diff_selection.cpp"
 #include "test_repo_view_model.cpp"
 #include "test_branch_list_model.cpp"
 #include "test_logging.cpp"
@@ -69,6 +70,7 @@
 #include "test_syntaxhighlighter.cpp"
 #include "test_qml_wheelscroller.cpp"
 #include "test_qml_add_from_folder.cpp"
+#include "test_qml_diff_selection.cpp"
 
 #include <QGuiApplication>
 #include <QThreadPool>
@@ -156,6 +158,7 @@ int main(int argc, char** argv)
     RUN(TestQmlSync);
     RUN(TestChangedFilesModel);
     RUN(TestDiffLinesModel);
+    RUN(TestDiffSelection);
     RUN(TestRepoViewModel);
     RUN(TestBranchListModel);
     RUN(TestLogging);
@@ -185,6 +188,7 @@ int main(int argc, char** argv)
     RUN(TestSyntaxHighlighter);
     RUN(TestQmlWheelScroller);
     RUN(TestQmlAddFromFolder);
+    RUN(TestQmlDiffSelection);
 
     // Join any lingering AsyncRepo workers here, at a controlled point, rather than
     // letting them run during static teardown after main returns — on Windows that

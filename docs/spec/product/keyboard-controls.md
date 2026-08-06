@@ -101,6 +101,9 @@ carries a 2 px accent left-stripe.
 | Cmd+3 (macOS) / Alt+3 | window | Switch to Graph tab; focus `graphList` |
 | Ctrl+R | window | Refresh: `repoVm.refreshHistory()` (status refresh is already triggered by the controller) |
 | ? | window (no text input focused) | Toggle shortcuts overlay |
+| Ctrl+A | Diff pane | Select the whole diff of the active file |
+| Ctrl+C | Diff pane | Copy the selected diff text (code only) |
+| Ctrl+Shift+C | Diff pane | Copy the selection with `+`/`-` diff markers |
 
 ### 2.1 Ctrl/Cmd+Enter commit wiring
 
@@ -262,7 +265,7 @@ No new theme tokens beyond `focusBorder` (§1.3).
 | Vim-style modal editing | Scope creep; first-cut ships a fixed default set |
 | User-rebindable keymap | Natural follow-on once the focus model is stable |
 | Command palette | Separate wish; requires search infrastructure |
-| Diff pane keyboard navigation | No keyboard actions on read-only diff today |
+| Diff pane keyboard navigation | Arrow-key cursor movement through the diff text; the selection shortcuts in §2 (Ctrl+A/C) don't need it |
 | Enter in `commitSummary` moves focus to description | Enter has no special meaning in a single-line `TextField`; Tab suffices |
 
 ---

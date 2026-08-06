@@ -259,11 +259,51 @@ Wiring:
 > is the "drill one level deeper" behaviour: once a submodule is initialised it
 > becomes a real repo whose direct submodules `updateAllSubmodules` can act on.
 
+### 4.6 `DiffContextMenu.qml`
+
+**Used in:** `DiffSelectionOverlay.qml` (the diff pane's selection surface, shared
+by `DiffView.qml` and `CommitDetail.qml`)
+
+**Properties:** `hasSelection: bool`
+
+**Signals:** `copy()`, `copyWithMarkers()`, `selectAll()`
+
+| Item | Rule |
+|------|------|
+| **Copy** | Disabled when `!hasSelection` |
+| **Copy with Diff Markers** | Disabled when `!hasSelection` |
+| — separator — | |
+| **Select All** | Always enabled |
+
+Unlike the other entity menus, right-click here does not go through a
+`TapHandler`: `DiffSelectionOverlay`'s own `MouseArea` accepts
+`Qt.RightButton` alongside the left button it already uses for text
+selection, and its `onPressed` routes a right-button press straight to
+`contextMenu.popup()` without calling `pressAt()` — right-click never changes
+the selection, it acts on whatever is already selected. The menu never
+touches the clipboard itself; `onCopy` / `onCopyWithMarkers` call
+`overlay.selection.copyText(...)` and emit it through the overlay's existing
+`copyRequested(text)` signal, the same path `Ctrl+C` / `Ctrl+Shift+C` use.
+
+Wiring in `DiffSelectionOverlay.qml`:
+
+```qml
+DiffContextMenu {
+    id: contextMenu
+    hasSelection: overlay.selection ? overlay.selection.hasSelection : false
+    onCopy: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(false))
+    onCopyWithMarkers: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(true))
+    onSelectAll: if (overlay.selection) overlay.selection.selectAll()
+}
+```
+
 ---
 
 ## 5. Right-click wiring pattern
 
-All views use the same `TapHandler` pattern:
+All views use the same `TapHandler` pattern, with two exceptions that own
+pointer input themselves and route right-click through it instead: the branch
+row (§4.2) and the diff selection overlay (§4.6).
 
 ```qml
 TapHandler {

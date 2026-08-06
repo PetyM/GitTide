@@ -33,6 +33,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/changedfilesmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/difflinesmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/difflinesmodel.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/diffselection.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/diffselection.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/stashlistmodel.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/stashlistmodel.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/syntaxhighlighter.cpp

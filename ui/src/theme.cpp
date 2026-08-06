@@ -26,6 +26,8 @@ Theme darkTheme()
         .stateIncoming  = QStringLiteral("#388BFD"),
         .shadow         = QStringLiteral("#66000000"), // 40% black — deep on dark surfaces
         .focusBorder    = QStringLiteral("#42A5F5"),  // = accent
+        .selectionBg    = QStringLiteral("#5942A5F5"), // 35% accent
+        .selectionText  = QStringLiteral("#E4E4E6"),   // = textPrimary
     };
 }
 
@@ -54,6 +56,8 @@ Theme lightTheme()
         .stateIncoming  = QStringLiteral("#0969DA"),
         .shadow         = QStringLiteral("#24000000"), // ~14% neutral black
         .focusBorder    = QStringLiteral("#1976D2"),  // = accent
+        .selectionBg    = QStringLiteral("#401976D2"), // 25% accent
+        .selectionText  = QStringLiteral("#212121"),   // = textPrimary
     };
 }
 
