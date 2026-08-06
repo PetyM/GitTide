@@ -676,6 +676,67 @@ private slots:
         QVERIFY(!m.isSourceRow(-1));     // before the start
     }
 
+    // A source registered on a folder that IS a repository gives the group and
+    // its sole child the identical path. Path lookups must resolve to the
+    // repository: resolving to the folder put head/sync state on a row that has
+    // none, and applySubmodules then wiped the repository's node out of the tree
+    // entirely — the row simply vanished from the sidebar.
+    void a_self_source_never_captures_its_repos_state()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto repo = (tmp / "gittide-selfsrc").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = repo}}, {gittide::RepoSource{.path = repo, .maxDepth = 1}});
+
+        QCOMPARE(m.rowCount(), 1);
+        const QModelIndex group = m.index(0, 0);
+        QCOMPARE(m.rowCount(group), 1);
+
+        QVERIFY(m.setRepoHeadByPath(QString::fromStdString(repo), QStringLiteral("main"), false,
+                                    QStringLiteral("abc1234"), 2));
+        QVERIFY(m.setSyncCountsByPath(QString::fromStdString(repo), 3, 1, true));
+
+        // The child carries the state; the folder row carries none.
+        const QModelIndex child = m.index(0, 0, group);
+        QCOMPARE(m.data(child, RepoListModel::BranchRole).toString(), QStringLiteral("main"));
+        QCOMPARE(m.data(child, RepoListModel::AheadRole).toInt(), 3);
+        QCOMPARE(m.data(group, RepoListModel::BranchRole).toString(), QString());
+        QCOMPARE(m.data(group, RepoListModel::AheadRole).toInt(), 0);
+
+        // And the repo node survives a submodule pass aimed at that same path.
+        m.applySubmodules(QString::fromStdString(repo), {});
+        QCOMPARE(m.rowCount(m.index(0, 0)), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 1);
+    }
+
+    // resetFetchStates used to walk roots positionally, so a grouped repo kept a
+    // stale Failed badge across every later fleet fetch — most visibly one that
+    // fetchAll deliberately skips because it is missing on disk.
+    void resetFetchStates_clears_grouped_repos_too()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-resetgrp").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = root + "/api"}}, {gittide::RepoSource{.path = root, .maxDepth = 1}});
+
+        const QString apiPath = QString::fromStdString(root + "/api");
+        QVERIFY(m.setFetchStateByPath(apiPath, RepoListModel::FetchState::Failed, QStringLiteral("boom")));
+        QVERIFY(m.setSyncCountsByPath(apiPath, 2, 5, true));
+
+        m.resetFetchStates();
+
+        const QModelIndex child = m.index(0, 0, m.index(0, 0));
+        QCOMPARE(m.data(child, RepoListModel::FetchStateRole).toInt(),
+                 static_cast<int>(RepoListModel::FetchState::Idle));
+        QCOMPARE(m.data(child, RepoListModel::FetchErrorRole).toString(), QString());
+        QCOMPARE(m.data(child, RepoListModel::AheadRole).toInt(), 0);
+        QCOMPARE(m.data(child, RepoListModel::BehindRole).toInt(), 0);
+    }
+
     void a_group_node_does_not_shift_state_onto_the_wrong_repo()
     {
         const auto tmp  = std::filesystem::temp_directory_path();

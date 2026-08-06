@@ -97,6 +97,8 @@ public:
     /// collapsed under its parent on launch.
     Q_INVOKABLE QModelIndex indexForRepoPath(const QString& path) const;
 
+    /// Number of root rows — source groups plus ungrouped repositories, NOT the
+    /// repository count: a grouped repository lives one level down.
     int  topLevelCount() const;
     void resetFetchStates();
 

@@ -304,7 +304,10 @@ Rectangle {
                 // user is acting on. Matched by path so it tracks auto-open too,
                 // not just click-selection; a submodule opened as a repo lights up
                 // the same way.
-                readonly property bool activeRepo: repoVm && repoVm.repoOpen
+                // `!isSource` matters: a source registered on a folder that is
+                // itself a repository carries that repository's path, and would
+                // otherwise light up the folder row as the active repo too.
+                readonly property bool activeRepo: repoVm && repoVm.repoOpen && !row.isSource
                                                    && model.repoPath === repoVm.repoPath
 
                 // A greyed-down blue for the branch/detached line: the accent

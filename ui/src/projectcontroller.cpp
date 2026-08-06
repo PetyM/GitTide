@@ -654,7 +654,13 @@ void ProjectController::removeSource(const QString& path)
     if (m_activeId.isEmpty())
         return;
     if (m_store->removeSource(m_activeId.toStdString(), path.toStdString()))
+    {
         saveStore();
+        // The source is a visible row now, so unregistering it has to redraw the
+        // tree: its group disappears and the repositories it held — which stay in
+        // the project — return to the top level.
+        refreshRepoModel();
+    }
 }
 
 void ProjectController::clearIgnoredForSource(const QString& path)
@@ -662,7 +668,12 @@ void ProjectController::clearIgnoredForSource(const QString& path)
     if (m_activeId.isEmpty())
         return;
     if (m_store->clearIgnored(m_activeId.toStdString(), path.toStdString()))
+    {
         saveStore();
+        // Nothing on the row shows the ignore count today, but keeping this in
+        // step with removeSource means a future badge cannot go stale silently.
+        refreshRepoModel();
+    }
 }
 
 void ProjectController::removeProject()

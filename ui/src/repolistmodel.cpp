@@ -79,7 +79,9 @@ QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
 {
     if (path.isEmpty())
         return {};
-    // Depth-first search for the node carrying this exact path.
+    // Depth-first search for the repository node carrying this exact path. A
+    // source node is skipped even on an exact match: it is a folder, and one
+    // registered on a repository carries that repository's own path.
     const Node* match = nullptr;
     auto search = [&](auto&& self, const std::vector<std::unique_ptr<Node>>& nodes) -> void
     {
@@ -87,7 +89,7 @@ QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
         {
             if (match)
                 return;
-            if (n->path == path)
+            if (!n->isSource && n->path == path)
             {
                 match = n.get();
                 return;
@@ -313,15 +315,30 @@ int RepoListModel::topLevelCount() const
 
 void RepoListModel::resetFetchStates()
 {
-    for (std::size_t i = 0; i < m_roots.size(); ++i)
+    // Repositories, not roots: a root may be a source group, which has no fetch
+    // state of its own and holds its repositories one level down. Clearing by
+    // root position would both write onto folder rows and leave every grouped
+    // repository's stale badge in place — including one that fetchAll skips
+    // because it is missing on disk.
+    auto reset = [&](Node& n)
     {
-        Node& n     = *m_roots[i];
         n.fetchState = FetchState::Idle;
         n.fetchError.clear();
         n.ahead  = 0;
         n.behind = 0;
-        const QModelIndex idx = createIndex(static_cast<int>(i), 0, &n);
+        const QModelIndex idx = createIndex(rowOf(&n), 0, &n);
         emit dataChanged(idx, idx, {FetchStateRole, FetchErrorRole, AheadRole, BehindRole});
+    };
+
+    for (const auto& root : m_roots)
+    {
+        if (!root->isSource)
+        {
+            reset(*root);
+            continue;
+        }
+        for (const auto& child : root->children)
+            reset(*child);
     }
 }
 
@@ -390,7 +407,12 @@ RepoListModel::Node* RepoListModel::findByPath(const QString& path)
         {
             if (match)
                 return;
-            if (n->path == path)
+            // Source nodes share the namespace but are never repositories, and a
+            // source registered on a folder that IS a repository carries the very
+            // same path as its child. Skipping them keeps repository state — head,
+            // sync counts, fetch state, the submodule subtree — off the folder row
+            // and on the repository the caller meant.
+            if (!n->isSource && n->path == path)
             {
                 match = n.get();
                 return;

@@ -354,6 +354,36 @@ private slots:
                  QString::fromStdString((root / "web").generic_string()));
     }
 
+    // Removing a source is the context menu's headline action, and the group is
+    // a visible row now — so the tree has to redraw. It used to only save, and
+    // the folder row stayed on screen until something else rebuilt the model.
+    void removeSource_drops_the_group_and_keeps_its_repos()
+    {
+        using gittide::ui::RepoListModel;
+
+        const auto root = makeScanRoot({"api"});
+
+        ProjectStore store;
+        store.projects().push_back(Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+        controller.addRepos({QString::fromStdString((root / "api").generic_string())}, {},
+                            QString::fromStdString(root.generic_string()), 1);
+
+        QCOMPARE(controller.repos()->rowCount(), 1); // the group
+        QCOMPARE(controller.repos()->data(controller.repos()->index(0, 0),
+                                          RepoListModel::IsSourceRole).toBool(), true);
+
+        controller.removeSource(QString::fromStdString(root.generic_string()));
+
+        // Group gone, repo back at the top level — without any further refresh.
+        QCOMPARE(controller.repos()->rowCount(), 1);
+        QCOMPARE(controller.repos()->data(controller.repos()->index(0, 0),
+                                          RepoListModel::IsSourceRole).toBool(), false);
+        QCOMPARE(repoRowCount(controller.repos()), 1);
+        QCOMPARE(static_cast<int>(store.projects()[0].sources.size()), 0);
+    }
+
     void refreshRepoModel_groups_repos_under_their_source()
     {
         using gittide::ui::RepoListModel;
