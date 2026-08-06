@@ -117,8 +117,18 @@ private slots:
         QmlTheme theme(&mgr);
 
         RepoListModel repoModel;
-        std::vector<gittide::RepoRef>    repos{gittide::RepoRef{.path = "/tmp/gittide-src/api", .alias = "api"}};
-        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = "/tmp/gittide-src", .maxDepth = 1}};
+        // TWO sources, each holding a repo. One source cannot catch the bug the
+        // expansion loop had: expanding the first group inserts rows and shifts
+        // every later view row, so a forwards loop tested the wrong index for
+        // the second group and left it collapsed.
+        std::vector<gittide::RepoRef> repos{
+            gittide::RepoRef{.path = "/tmp/gittide-src/api", .alias = "api"},
+            gittide::RepoRef{.path = "/tmp/gittide-other/web", .alias = "web"},
+        };
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = "/tmp/gittide-src", .maxDepth = 1},
+            gittide::RepoSource{.path = "/tmp/gittide-other", .maxDepth = 1},
+        };
         repoModel.setRepos(repos, sources);
 
         QQmlApplicationEngine engine;
@@ -128,12 +138,13 @@ private slots:
         QObject* root = engine.rootObjects().first();
 
         QVERIFY(repoModel.isSourceRow(0));
+        QVERIFY(repoModel.isSourceRow(1));
 
         QObject* tree = root->findChild<QObject*>(QStringLiteral("repoTree"));
         QVERIFY(tree != nullptr);
-        // Both the group and the repo inside it are visible rows: the group was
-        // expanded on the model reset rather than left collapsed like a repo.
-        QTRY_COMPARE(tree->property("rows").toInt(), 2);
+        // Four visible rows = both groups AND both repos inside them. Three
+        // would mean the second group was left collapsed.
+        QTRY_COMPARE(tree->property("rows").toInt(), 4);
 
         QVERIFY(root->findChild<QObject*>(QStringLiteral("sourceContextMenu")) != nullptr);
     }

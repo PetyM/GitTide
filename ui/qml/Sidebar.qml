@@ -236,7 +236,15 @@ Rectangle {
             function expandSourceRows() {
                 if (!repoTree.model || !repoTree.model.isSourceRow)
                     return
-                for (var r = 0; r < repoTree.rows; ++r)
+                // Walk BACKWARDS. `rows` counts flattened visible rows while
+                // isSourceRow() indexes the model's roots; the two agree only
+                // while everything is still collapsed, because expanding a row
+                // inserts children after it and shifts every later row. Going
+                // high-to-low, the rows still ahead of us sit before anything we
+                // have expanded, so their indices are untouched and the two
+                // spaces stay in step. Forwards, a second source silently missed
+                // its own row and stayed collapsed.
+                for (var r = repoTree.rows - 1; r >= 0; --r)
                     if (repoTree.model.isSourceRow(r))
                         repoTree.expand(r)
             }

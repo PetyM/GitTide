@@ -202,9 +202,6 @@ AppDialog {
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
-                    // Keep the digit clear of both indicator cells.
-                    leftPadding: 28
-                    rightPadding: 28
                 }
                 background: Rectangle {
                     implicitWidth: 104

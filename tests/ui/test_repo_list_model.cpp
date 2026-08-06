@@ -655,6 +655,27 @@ private slots:
         QCOMPARE(m.data(m.index(0, 0), RepoListModel::IsSourceRole).toBool(), false);
     }
 
+    // isSourceRow is what keeps QML off a numeric role literal, so it needs its
+    // own coverage: a wrong-but-plausible implementation (always true, or a
+    // missing bounds guard) would otherwise pass the whole suite.
+    void isSourceRow_reports_groups_only_and_is_bounds_safe()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-issrc").generic_string();
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = root + "/api"},
+                    RepoRef{.path = (tmp / "gittide-issrc-loose").generic_string()}},
+                   {gittide::RepoSource{.path = root, .maxDepth = 1}});
+
+        QCOMPARE(m.rowCount(), 2);
+        QVERIFY(m.isSourceRow(0));       // the group
+        QVERIFY(!m.isSourceRow(1));      // the ungrouped repo
+        QVERIFY(!m.isSourceRow(2));      // past the end
+        QVERIFY(!m.isSourceRow(-1));     // before the start
+    }
+
     void a_group_node_does_not_shift_state_onto_the_wrong_repo()
     {
         const auto tmp  = std::filesystem::temp_directory_path();
