@@ -131,6 +131,11 @@ An autoscroll `Timer` runs while the pointer is past the viewport's top or
 bottom edge, stepping `contentY` by an amount proportional to the overshoot and
 re-extending the selection at the new position.
 
+A view embedding `DiffSelectionOverlay` **must** also set its `scrollBar`
+property to the list's `AppScrollBar`, or the overlay — sized over the whole
+viewport — swallows presses meant for the scrollbar. A third embedding that
+forgets this wiring would silently reintroduce that bug.
+
 ## Interaction
 
 | Input | Result |

@@ -291,8 +291,8 @@ Wiring in `DiffSelectionOverlay.qml`:
 DiffContextMenu {
     id: contextMenu
     hasSelection: overlay.selection ? overlay.selection.hasSelection : false
-    onCopy: overlay.copyRequested(overlay.selection.copyText(false))
-    onCopyWithMarkers: overlay.copyRequested(overlay.selection.copyText(true))
+    onCopy: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(false))
+    onCopyWithMarkers: if (overlay.selection) overlay.copyRequested(overlay.selection.copyText(true))
     onSelectAll: if (overlay.selection) overlay.selection.selectAll()
 }
 ```
