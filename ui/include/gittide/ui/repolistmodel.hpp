@@ -39,6 +39,9 @@ public:
         HasUpstreamRole,
         BusyRole,
         OwnerRepoPathRole,
+        IsSourceRole,
+        RepoCountRole,
+        AvailableRole,
     };
 
     explicit RepoListModel(QObject* parent = nullptr);
@@ -51,12 +54,17 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    /// Rebuild the top-level rows from `repos`. Does **no** git I/O: it runs on
-    /// the UI thread on every project switch, so it only fills in display name,
-    /// path and on-disk presence. Branch, dirty count, sync counts and the
-    /// submodule subtree are hydrated afterwards, off-thread, by
-    /// ProjectController's poll pass.
-    void setRepos(const std::vector<gittide::RepoRef>& repos);
+    /// Rebuild the top-level rows from `repos`, grouped by `sources`. Each
+    /// source becomes a collapsible group node — in store order, before any
+    /// ungrouped repo — holding the repositories that live beneath its folder;
+    /// a repo joins the *deepest* source containing it, and repos under no
+    /// source follow as ordinary top-level rows. Passing no sources yields a
+    /// flat list. Does **no** git I/O: it runs on the UI thread on every project
+    /// switch, so it only fills in display name, path and on-disk presence.
+    /// Branch, dirty count, sync counts and the submodule subtree are hydrated
+    /// afterwards, off-thread, by ProjectController's poll pass.
+    void setRepos(const std::vector<gittide::RepoRef>& repos,
+                  const std::vector<gittide::RepoSource>& sources = {});
 
     /// Replace the submodule children of the top-level repo node identified by
     /// `repoPath`. When the new subtree is structurally identical (path + status
@@ -107,6 +115,11 @@ private:
         bool                               isSubmodule = false;
         bool                               missing     = false;
         bool                               busy        = false;
+        /// A source node is a registered folder, not a repository: it has no git
+        /// state of its own and its children are the repos that live beneath it.
+        bool                               isSource    = false;
+        /// Source nodes only: false when the folder no longer exists on disk.
+        bool                               available   = true;
         QString                            shortOid;
         gittide::SubmoduleStatus           status = gittide::SubmoduleStatus::Clean;
         FetchState                         fetchState = FetchState::Idle;
@@ -123,6 +136,9 @@ private:
 
     // Build child Nodes from a submodule subtree, linking parent pointers.
     void appendSubmodules(Node& parent, const std::vector<gittide::SubmoduleNode>& subs);
+    // Build one top-level repo node (display name, path, on-disk presence) from
+    // a RepoRef. No git I/O — see the note on setRepos.
+    std::unique_ptr<Node> makeRepoNode(const gittide::RepoRef& ref) const;
     // The Node behind an index (nullptr → the invisible root / top-level list).
     Node* nodeFor(const QModelIndex& index) const;
     // Row of `node` within its sibling list.

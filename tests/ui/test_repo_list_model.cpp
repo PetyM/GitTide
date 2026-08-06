@@ -546,6 +546,138 @@ private slots:
     // git I/O: opening each repo and reading head/status/sync/submodules there is
     // what stalled the window when switching projects. It now builds the rows from
     // the RepoRefs alone and leaves hydration to the (async) poll.
+    void sources_become_groups_holding_the_repos_beneath_them()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-src").generic_string();
+
+        std::vector<RepoRef> repos{
+            RepoRef{.path = root + "/api"},
+            RepoRef{.path = root + "/web"},
+            RepoRef{.path = (tmp / "gittide-loose").generic_string()},
+        };
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        // Group first, loose repo after it.
+        QCOMPARE(m.rowCount(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::IsSourceRole).toBool(), true);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::PathRole).toString(), QString::fromStdString(root));
+        QCOMPARE(m.rowCount(m.index(0, 0)), 2);
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::IsSourceRole).toBool(), false);
+    }
+
+    void a_repo_joins_the_deepest_containing_source()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto outer = (tmp / "gittide-outer").generic_string();
+        const auto inner = outer + "/team";
+
+        std::vector<RepoRef> repos{RepoRef{.path = inner + "/api"}};
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = outer, .maxDepth = 3},
+            gittide::RepoSource{.path = inner, .maxDepth = 1},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.rowCount(), 2);                                   // both groups, in store order
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0); // outer is empty
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::RepoCountRole).toInt(), 1); // inner owns it
+    }
+
+    void a_sibling_prefix_folder_does_not_capture_a_repo()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<RepoRef> repos{RepoRef{.path = (tmp / "gittide-projects" / "api").generic_string()}};
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = (tmp / "gittide-proj").generic_string(), .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0); // group empty
+        QCOMPARE(m.rowCount(), 2);                                                // repo stayed loose
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::IsSourceRole).toBool(), false);
+    }
+
+    void a_source_that_is_itself_a_repo_holds_that_repo()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        const auto repo = (tmp / "gittide-self").generic_string();
+
+        std::vector<RepoRef> repos{RepoRef{.path = repo}};
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = repo, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        QCOMPARE(m.rowCount(), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 1);
+    }
+
+    void an_empty_source_is_still_shown_and_reports_availability()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        std::vector<gittide::RepoSource> sources{
+            gittide::RepoSource{.path = tmp.generic_string(), .maxDepth = 1},
+            gittide::RepoSource{.path = "/no/such/folder/gittide", .maxDepth = 1},
+        };
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({}, sources);
+
+        QCOMPARE(m.rowCount(), 2);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::RepoCountRole).toInt(), 0);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::AvailableRole).toBool(), true);
+        QCOMPARE(m.data(m.index(1, 0), RepoListModel::AvailableRole).toBool(), false);
+    }
+
+    void no_sources_yields_todays_flat_list()
+    {
+        const auto tmp = std::filesystem::temp_directory_path();
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos({RepoRef{.path = tmp.generic_string(), .alias = "one"}});
+
+        QCOMPARE(m.rowCount(), 1);
+        QCOMPARE(m.data(m.index(0, 0), RepoListModel::IsSourceRole).toBool(), false);
+    }
+
+    void a_group_node_does_not_shift_state_onto_the_wrong_repo()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-shift").generic_string();
+
+        std::vector<RepoRef> repos{
+            RepoRef{.path = root + "/api", .alias = "api"},
+            RepoRef{.path = root + "/web", .alias = "web"},
+        };
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+        RepoListModel m;
+        QAbstractItemModelTester tester(&m);
+        m.setRepos(repos, sources);
+
+        // Root row 0 is now the GROUP, not "api" — a positional update would
+        // have landed here. The by-path update must reach the repo itself.
+        QVERIFY(m.setSyncCountsByPath(QString::fromStdString(root + "/api"), 4, 0, true));
+
+        const QModelIndex group = m.index(0, 0);
+        QCOMPARE(m.data(m.index(0, 0, group), RepoListModel::AheadRole).toInt(), 4);
+        QCOMPARE(m.data(m.index(1, 0, group), RepoListModel::AheadRole).toInt(), 0);
+        QCOMPARE(m.data(group, RepoListModel::AheadRole).toInt(), 0);
+    }
+
     void setRepos_does_no_git_io()
     {
         using namespace gittide::test;

@@ -12,6 +12,21 @@ QString submoduleDisplayOid(const gittide::SubmoduleNode& s)
 {
     return QString::fromStdString(s.headShortOid.empty() ? s.shortOid : s.headShortOid);
 }
+
+/// True when `repoPath` is the folder `sourcePath` itself, or lies inside it.
+/// The boundary test matters: "/home/u/proj" must not capture
+/// "/home/u/projects/api". Both are generic (forward-slash) paths.
+bool containsRepo(const QString& sourcePath, const QString& repoPath)
+{
+    if (sourcePath.isEmpty())
+        return false;
+    if (repoPath == sourcePath)
+        return true; // a source registered on a folder that is itself a repo
+    if (!repoPath.startsWith(sourcePath))
+        return false;
+    return sourcePath.endsWith(QLatin1Char('/')) || repoPath.at(sourcePath.size()) == QLatin1Char('/');
+}
+
 } // namespace
 
 namespace gittide::ui {
@@ -78,35 +93,83 @@ QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
     return createIndex(rowOf(match), 0, const_cast<Node*>(match));
 }
 
-void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos)
+std::unique_ptr<RepoListModel::Node> RepoListModel::makeRepoNode(const gittide::RepoRef& ref) const
+{
+    const std::filesystem::path p(ref.path);
+    std::error_code ec;
+    const bool present = std::filesystem::exists(p, ec) && !ec;
+
+    // Display name: an explicit alias wins; otherwise the directory's own
+    // name. A path may carry a trailing separator (e.g. "/home/u/api/"),
+    // which leaves path::filename() empty — fall back to the parent's name
+    // so the row never renders blank.
+    std::filesystem::path base = p.has_filename() ? p.filename() : p.parent_path().filename();
+    auto node                  = std::make_unique<Node>();
+    node->displayName          = !ref.alias.empty()           ? QString::fromStdString(ref.alias)
+                                 : !base.generic_string().empty() ? QString::fromStdString(base.generic_string())
+                                                                   : QString::fromStdString(ref.path);
+    node->path                 = QString::fromStdString(ref.path);
+    node->isSubmodule = false;
+    node->missing     = !present;
+
+    // Deliberately no git I/O here. setRepos runs on the UI thread on every
+    // project switch; opening each repo to read head/status/sync/submodules
+    // stalled the window for as long as that took. The rows render at once
+    // from the RepoRef alone and ProjectController hydrates them off-thread
+    // (see its pollRepos, kicked immediately by activate()).
+    return node;
+}
+
+void RepoListModel::setRepos(const std::vector<gittide::RepoRef>& repos,
+                             const std::vector<gittide::RepoSource>& sources)
 {
     beginResetModel();
     m_roots.clear();
+
+    // One group per source, in store order, before any ungrouped repo.
+    std::vector<Node*> groups;
+    groups.reserve(sources.size());
+    for (const auto& s : sources)
+    {
+        const std::filesystem::path sp(s.path);
+        std::error_code             ec;
+
+        auto g = std::make_unique<Node>();
+        std::filesystem::path base = sp.has_filename() ? sp.filename() : sp.parent_path().filename();
+        g->displayName = base.generic_string().empty() ? QString::fromStdString(s.path)
+                                                       : QString::fromStdString(base.generic_string());
+        g->path      = QString::fromStdString(s.path);
+        g->isSource  = true;
+        g->available = std::filesystem::is_directory(sp, ec) && !ec;
+
+        groups.push_back(g.get());
+        m_roots.push_back(std::move(g));
+    }
+
     for (const auto& r : repos)
     {
-        const std::filesystem::path p(r.path);
-        std::error_code ec;
-        const bool present = std::filesystem::exists(p, ec) && !ec;
+        auto node = makeRepoNode(r);
 
-        // Display name: an explicit alias wins; otherwise the directory's own
-        // name. A path may carry a trailing separator (e.g. "/home/u/api/"),
-        // which leaves path::filename() empty — fall back to the parent's name
-        // so the row never renders blank.
-        std::filesystem::path base = p.has_filename() ? p.filename() : p.parent_path().filename();
-        auto root                  = std::make_unique<Node>();
-        root->displayName          = !r.alias.empty()           ? QString::fromStdString(r.alias)
-                                     : !base.generic_string().empty() ? QString::fromStdString(base.generic_string())
-                                                                       : QString::fromStdString(r.path);
-        root->path                 = QString::fromStdString(r.path);
-        root->isSubmodule = false;
-        root->missing     = !present;
+        // Deepest containing source wins, so a source nested inside another
+        // takes its repos rather than both listing them.
+        Node* owner = nullptr;
+        for (Node* g : groups)
+        {
+            if (!containsRepo(g->path, node->path))
+                continue;
+            if (!owner || g->path.size() > owner->path.size())
+                owner = g;
+        }
 
-        // Deliberately no git I/O here. setRepos runs on the UI thread on every
-        // project switch; opening each repo to read head/status/sync/submodules
-        // stalled the window for as long as that took. The rows render at once
-        // from the RepoRef alone and ProjectController hydrates them off-thread
-        // (see its pollRepos, kicked immediately by activate()).
-        m_roots.push_back(std::move(root));
+        if (owner)
+        {
+            node->parent = owner;
+            owner->children.push_back(std::move(node));
+        }
+        else
+        {
+            m_roots.push_back(std::move(node));
+        }
     }
     endResetModel();
 }
@@ -196,6 +259,12 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
         return node->busy;
     case OwnerRepoPathRole:
         return node->parent ? node->parent->path : node->path;
+    case IsSourceRole:
+        return node->isSource;
+    case RepoCountRole:
+        return node->isSource ? static_cast<int>(node->children.size()) : 0;
+    case AvailableRole:
+        return node->isSource ? node->available : true;
     default:
         return {};
     }
@@ -219,6 +288,9 @@ QHash<int, QByteArray> RepoListModel::roleNames() const
     roles[HasUpstreamRole]    = "hasUpstream";
     roles[BusyRole]           = "submoduleBusy";
     roles[OwnerRepoPathRole]  = "ownerRepoPath";
+    roles[IsSourceRole]  = "isSource";
+    roles[RepoCountRole] = "repoCount";
+    roles[AvailableRole] = "available";
     return roles;
 }
 
