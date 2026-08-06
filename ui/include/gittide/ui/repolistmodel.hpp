@@ -100,6 +100,9 @@ public:
     /// Number of root rows — source groups plus ungrouped repositories, NOT the
     /// repository count: a grouped repository lives one level down.
     int  topLevelCount() const;
+    /// Clear fetch state and ahead/behind on every repository — ungrouped roots
+    /// and the repositories inside each source group alike. Source nodes are
+    /// left alone; a folder has no fetch state of its own.
     void resetFetchStates();
 
     /// Set the current-branch / dirty state of the node at the exact `path`, at
@@ -158,7 +161,10 @@ private:
     // (path + status + shortOid, recursively) — lets applySubmodules no-op.
     bool submodulesEqual(const Node& node,
                          const std::vector<gittide::SubmoduleNode>& subs) const;
-    // Any node by exact path (depth-first), or nullptr.
+    // A repository or submodule node by exact path (depth-first), or nullptr.
+    // Source nodes are skipped even on an exact match: a source registered on a
+    // folder that is itself a repository carries that repository's own path, and
+    // repository state must never land on the folder row.
     Node* findByPath(const QString& path);
     // Shared bodies behind the by-path setters: field writes + the dataChanged
     // role list, factored out of the *ByPath entry point that resolves `path`.

@@ -502,6 +502,18 @@ reason. A fetch failure's display name is read back through
 `setRepos`' full alias → basename → raw-path fallback instead of duplicating
 a partial copy of it.
 
+**Invariant: a path lookup never resolves to a source node.** Group nodes also
+ended the assumption that a node's path is unique — a source registered on a
+folder that is itself a repository gives the group and its only child the very
+same path. Resolving such a lookup to the group is not a cosmetic mix-up: it
+puts head and sync state on a row that has none, and a submodule pass aimed at
+that path reconciles the *group's* children against the repository's submodules
+and deletes the repository node outright, so the row disappears from the
+sidebar. `findByPath` and `indexForRepoPath` therefore skip source nodes even on
+an exact match, and every future by-path accessor must do the same. For the same
+reason `resetFetchStates` walks repositories — ungrouped roots plus each group's
+children — rather than roots.
+
 Two more reads had to be made group-aware once a root row could be a folder
 rather than a repository: `firstRepoPath()` (which seeds the startup
 auto-open) walks the roots and descends into a group for its first child,
