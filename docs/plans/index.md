@@ -67,6 +67,7 @@ New plans follow [`TEMPLATE.md`](TEMPLATE.md).
 | [Plan 47 — Rebase: fewer forced prompts (squash · reorder · Undo toast)](2026-07-24-plan47-rebase-fewer-prompts.md) | 2026-07-24 | done | product · engineering · core · ui · design |
 | [Plan 48 — Refresh coherence: one truth for "what changed" and "what is selected"](2026-08-04-plan48-refresh-coherence.md) | 2026-08-04 | done | engineering · ui |
 | [Bulk-add repositories — folder scan and repository sources](../superpowers/plans/2026-08-05-bulk-add-repos.md) | 2026-08-05 | done | product · design · engineering · core · ui |
+| [Source group nodes in the repository list](../superpowers/plans/2026-08-05-source-groups.md) | 2026-08-05 | done | product · design · engineering · core · ui |
 
 > Migration note: these plans were authored under the earlier
 > `docs/superpowers/` layout and carried over into this structure. The "Realises

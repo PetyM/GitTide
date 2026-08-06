@@ -186,6 +186,20 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   `border` guide rail + elbow connector. (Like the history graph's multi-colour
   lanes, the status dot is a sanctioned reuse of git-state tokens for repository
   structure, not a new palette.)
+- **Source group rows.** A registered [source](../product/product.md#bulk-add--repository-sources)
+  is a single-line row, height 30 (the same single-line height an uninitialised
+  submodule row already uses) rather than the two-line 46px a repo row reserves
+  for its branch line — a source has no branch. Folder basename at
+  `text.primary` (`text.muted` when the folder is gone), full path on hover;
+  a trailing count in `text.muted`, or — when the folder no longer exists —
+  *"folder not found"* in `state.deleted`, matching the wording Project
+  Options uses for the same condition. Clicking the row toggles its
+  subtree instead of opening anything (there is no repository behind a folder);
+  right-click opens the source context menu (*Rescan now* / *Clear ignored* /
+  *Remove source*) rather than the repo one. Source rows sit first among the
+  top-level rows, in the order the sources were registered, ahead of any
+  ungrouped repository, and — unlike a repo or submodule row — start
+  **expanded**: seeing what a folder holds is the point of grouping it.
 - **Tabs** (`mainTabs`). The list column's Changes | History sub-tabs. Flat;
   active tab marked by a 2px `accent` underline, inactive in `text.secondary`.
 - **Changed-files list** (`changedFilesList`). One row per changed file: a
@@ -321,15 +335,23 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   addFromFolderDialog`). Built entirely from the existing `AppDialog` /
   `DialogColumn` / `DialogButtons` / `AppButton` / `AppCheckBox` primitives — no
   bespoke chrome. A folder-picker row (path + elided subtext, "Choose…") sits
-  above a scan-depth `SpinBox` and a live "N repositories found" caption; the
-  result area is one of scanning / error / "no repositories found" / the
-  checklist, never more than one at once. The checklist (`addFromFolderList`)
-  is a `ListView` of `AppCheckBox` rows — a name over its full path in
-  `text.muted`, every not-already-added row pre-checked; a repo already in the
-  project is disabled and unchecked, carrying an "already added" trailing
-  label rather than being hidden. A
-  bottom row's checkbox (`addFromFolderKeepSource`) reads "Keep this folder as
-  a source — add new repositories automatically". The footer's primary
+  above a scan-depth `SpinBox` (`depthBox`, opens at **1**) and a live "N
+  repositories found" caption; the result area is one of scanning / error /
+  "no repositories found" / the checklist, never more than one at once. The
+  stepper's up/down cells are drawn from theme tokens rather than the Basic
+  style's stock indicators — unthemed, and sitting on top of the control's
+  own themed background, which is what read as broken. One `theme.surfaceBase`
+  background (radius 6, `theme.border`, `theme.accent` on focus) spans the
+  whole control; each `−`/`+` cell tints `theme.surfaceRaised` on hover, its
+  glyph `theme.textSecondary` (`theme.accent` on hover, `theme.textMuted`
+  while disabled), with the value centred between them. The checklist
+  (`addFromFolderList`) is a `ListView` of `AppCheckBox` rows — a name over its
+  full path in `text.muted`, every not-already-added row pre-checked; a repo
+  already in the project is disabled and unchecked, carrying an "already
+  added" trailing label rather than being hidden. A bottom row's checkbox
+  (`addFromFolderKeepSource`) — **checked by default** on opening the dialog —
+  reads "Keep this folder as a source — add new repositories automatically".
+  The footer's primary
   **Add** button (`addFromFolderConfirm`) is disabled while a scan is in
   flight, or with nothing checked *and* the source checkbox unchecked —
   registering a source with zero repositories checked (every candidate
