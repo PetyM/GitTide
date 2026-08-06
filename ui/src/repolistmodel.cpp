@@ -60,9 +60,14 @@ void RepoListModel::appendSubmodules(Node& parent, const std::vector<gittide::Su
 
 QString RepoListModel::firstRepoPath() const
 {
-    if (m_roots.empty())
-        return {};
-    return m_roots.front()->path;
+    for (const auto& root : m_roots)
+    {
+        if (!root->isSource)
+            return root->path;
+        if (!root->children.empty())
+            return root->children.front()->path;
+    }
+    return {};
 }
 
 QModelIndex RepoListModel::indexForRepoPath(const QString& path) const
@@ -258,7 +263,9 @@ QVariant RepoListModel::data(const QModelIndex& index, int role) const
     case BusyRole:
         return node->busy;
     case OwnerRepoPathRole:
-        return node->parent ? node->parent->path : node->path;
+        // A source-group parent is a folder, not a repository, so a
+        // top-level repo grouped under one reports itself as its own owner.
+        return (node->parent && !node->parent->isSource) ? node->parent->path : node->path;
     case IsSourceRole:
         return node->isSource;
     case RepoCountRole:

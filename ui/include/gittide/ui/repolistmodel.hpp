@@ -77,9 +77,13 @@ public:
     /// absolute `submodulePath` and emit `dataChanged` for `BusyRole`.
     void setSubmoduleBusy(const QString& submodulePath, bool busy);
 
-    /// Path of the first top-level repository, or an empty string when the
-    /// active project has no repositories. Used to auto-open a repo so the
-    /// main area shows working state rather than the empty page.
+    /// Path of the first repository reachable by walking the root rows in
+    /// order: an ordinary root is itself a repository, while a source-group
+    /// root is not — its first child (if any) is used instead, and an empty
+    /// group is skipped in favour of the next root. Returns an empty string
+    /// when no root yields a repository (no roots, or every source group is
+    /// empty). Used to auto-open a repo so the main area shows working state
+    /// rather than the empty page.
     Q_INVOKABLE QString firstRepoPath() const;
 
     /// Index of the repo or submodule node whose path matches `path` (exact

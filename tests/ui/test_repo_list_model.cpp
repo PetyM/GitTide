@@ -542,10 +542,6 @@ private slots:
                  static_cast<int>(RepoListModel::FetchState::Idle));
     }
 
-    // setRepos runs on the UI thread on every project switch, so it must not do
-    // git I/O: opening each repo and reading head/status/sync/submodules there is
-    // what stalled the window when switching projects. It now builds the rows from
-    // the RepoRefs alone and leaves hydration to the (async) poll.
     void sources_become_groups_holding_the_repos_beneath_them()
     {
         const auto tmp = std::filesystem::temp_directory_path();
@@ -569,6 +565,12 @@ private slots:
         QCOMPARE(m.data(m.index(0, 0), RepoListModel::PathRole).toString(), QString::fromStdString(root));
         QCOMPARE(m.rowCount(m.index(0, 0)), 2);
         QCOMPARE(m.data(m.index(1, 0), RepoListModel::IsSourceRole).toBool(), false);
+
+        // A source group is a folder, not a repository: a grouped repo reports
+        // itself as its own owner, not the group's folder path.
+        const QModelIndex grouped = m.index(0, 0, m.index(0, 0));
+        QCOMPARE(m.data(grouped, RepoListModel::OwnerRepoPathRole).toString(),
+                 QString::fromStdString(root + "/api"));
     }
 
     void a_repo_joins_the_deepest_containing_source()
@@ -678,6 +680,120 @@ private slots:
         QCOMPARE(m.data(group, RepoListModel::AheadRole).toInt(), 0);
     }
 
+    // firstRepoPath() feeds Main.qml's startup auto-open (repoVm.open(...)): it
+    // must never hand back a source-group's folder path, since that folder is
+    // not a repository and cannot be opened as one.
+    void firstRepoPath_descends_into_a_leading_source_group()
+    {
+        const auto tmp  = std::filesystem::temp_directory_path();
+        const auto root = (tmp / "gittide-first").generic_string();
+
+        // A leading group holding repos: the first repo *inside* it, not the
+        // group's own path.
+        {
+            std::vector<RepoRef> repos{
+                RepoRef{.path = root + "/api"},
+                RepoRef{.path = root + "/web"},
+            };
+            std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = root, .maxDepth = 1}};
+
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos(repos, sources);
+
+            QCOMPARE(m.firstRepoPath(), QString::fromStdString(root + "/api"));
+        }
+
+        // Every root is an empty source group: no repository anywhere to open.
+        {
+            std::vector<gittide::RepoSource> sources{
+                gittide::RepoSource{.path = tmp.generic_string(), .maxDepth = 1}};
+
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos({}, sources);
+
+            QCOMPARE(m.firstRepoPath(), QString());
+        }
+
+        // No sources: unchanged behaviour — the first (only) root is a plain repo.
+        {
+            RepoListModel m;
+            QAbstractItemModelTester tester(&m);
+            m.setRepos({RepoRef{.path = tmp.generic_string(), .alias = "one"}});
+
+            QCOMPARE(m.firstRepoPath(), QString::fromStdString(tmp.generic_string()));
+        }
+    }
+
+    // The group -> repo -> submodule shape is new ground: every prior
+    // source-group test stops at two levels (group + repo), and every prior
+    // submodule test stops at two levels (repo + submodule) with no sources.
+    // Exercise all three levels together — through QAbstractItemModelTester,
+    // which validates index()/parent() round-tripping at every depth — to
+    // confirm reconcileChildren's parentIdx still resolves correctly one level
+    // deeper than it has ever been driven before.
+    void a_group_repo_can_grow_a_submodule_subtree()
+    {
+        gittide::test::TempRepo child;
+        child.writeFile("a.txt", "x\n");
+        child.commitAll("child");
+
+        gittide::test::TempRepo parent;
+        parent.writeFile("top.txt", "p\n");
+        parent.commitAll("parent");
+        parent.addSubmodule("libchild", child.path());
+        parent.commitAll("add submodule");
+
+        const auto sourceDir = parent.path().parent_path().generic_string();
+        std::vector<RepoRef> repos{RepoRef{.path = parent.path().generic_string(), .alias = "parent"}};
+        std::vector<gittide::RepoSource> sources{gittide::RepoSource{.path = sourceDir, .maxDepth = 1}};
+
+        RepoListModel model;
+        QAbstractItemModelTester tester(&model);
+        model.setRepos(repos, sources);
+
+        const QModelIndex group = model.index(0, 0);
+        QCOMPARE(model.data(group, RepoListModel::IsSourceRole).toBool(), true);
+        QCOMPARE(model.rowCount(group), 1); // just the repo, before the submodule arrives
+
+        const QModelIndex repoIdx = model.index(0, 0, group);
+        QVERIFY(repoIdx.isValid());
+        QCOMPARE(model.data(repoIdx, RepoListModel::PathRole).toString(),
+                 QString::fromStdString(parent.path().generic_string()));
+
+        // setRepos does no git I/O; the subtree arrives through applySubmodules,
+        // exactly as it does for an ungrouped repo.
+        auto opened = gittide::GitRepo::open(parent.path());
+        QVERIFY(opened.has_value());
+        auto tree = opened->submoduleTree();
+        QVERIFY(tree.has_value());
+        model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+
+        QCOMPARE(model.rowCount(group), 1);    // still just the repo under the group...
+        QCOMPARE(model.rowCount(repoIdx), 1);  // ...the submodule landed under the REPO, not the group
+
+        const QModelIndex subIdx = model.index(0, 0, repoIdx);
+        QVERIFY(subIdx.isValid());
+        QCOMPARE(model.parent(subIdx), repoIdx); // round-trips at the third level
+        QCOMPARE(model.parent(repoIdx), group);
+        QCOMPARE(model.data(subIdx, RepoListModel::IsSubmoduleRole).toBool(), true);
+        QCOMPARE(model.data(subIdx, Qt::DisplayRole).toString(), QStringLiteral("libchild"));
+
+        // Re-applying an identical subtree three levels down is still a no-op.
+        QSignalSpy inserted(&model, &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed(&model, &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changed(&model, &QAbstractItemModel::dataChanged);
+        model.applySubmodules(QString::fromStdString(parent.path().generic_string()), *tree);
+        QCOMPARE(inserted.count(), 0);
+        QCOMPARE(removed.count(), 0);
+        QCOMPARE(changed.count(), 0);
+    }
+
+    // setRepos runs on the UI thread on every project switch, so it must not do
+    // git I/O: opening each repo and reading head/status/sync/submodules there is
+    // what stalled the window when switching projects. It now builds the rows from
+    // the RepoRefs alone and leaves hydration to the (async) poll.
     void setRepos_does_no_git_io()
     {
         using namespace gittide::test;
