@@ -45,6 +45,9 @@ public:
     QCoro::Task<gittide::Expected<gittide::WatchTargets>> watchTargets();
     QCoro::Task<gittide::Expected<gittide::DiffResult>> diff(gittide::DiffTarget target, std::filesystem::path file);
     QCoro::Task<gittide::Expected<void>> stage(gittide::StageSelection sel);
+    /// Stage a whole selection set in one worker hop. Hunk indices resolve against
+    /// one diff snapshot per file — see GitRepo::stage(const std::vector<...>&).
+    QCoro::Task<gittide::Expected<void>> stageAll(std::vector<gittide::StageSelection> sels);
     QCoro::Task<gittide::Expected<void>> unstage(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discard(gittide::StageSelection sel);
     QCoro::Task<gittide::Expected<void>> discardAll();

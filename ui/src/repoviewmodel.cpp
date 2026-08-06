@@ -35,6 +35,13 @@ RepoViewModel::RepoViewModel(QObject* parent)
     , m_stashes(new StashListModel(this))
 {
     connect(m_controller, &RepoController::statusChanged, this, &RepoViewModel::onStatus);
+    connect(m_controller,
+            &RepoController::selectionCommitted,
+            this,
+            [this](const QString&)
+            {
+                onSelectionCommitted();
+            });
     connect(m_controller, &RepoController::stashCountChanged, this, &RepoViewModel::onStashCount);
     connect(m_controller, &RepoController::diffReady, this, &RepoViewModel::onDiff);
     connect(m_controller, &RepoController::headChanged, this, &RepoViewModel::onHead);
@@ -433,8 +440,15 @@ void RepoViewModel::commit(const QString& summary, const QString& description)
     if (!description.isEmpty())
         message += "\n\n" + description.toStdString();
 
-    QCoro::connect(m_controller->commitSelection(gittide::CommitRequest{.message = message}, std::move(selections)), this,
-        [this]() { emit committedOk(); });
+    // Only a commit that landed clears the message fields: the task completes on
+    // failure too, and a failed commit must keep what the user typed.
+    QCoro::connect(m_controller->commitSelection(gittide::CommitRequest{.message = message}, std::move(selections)),
+                   this,
+                   [this](bool ok)
+                   {
+                       if (ok)
+                           emit committedOk();
+                   });
 }
 
 void RepoViewModel::switchBranch(const QString& name)
@@ -646,6 +660,22 @@ void RepoViewModel::squashCommitInto(int fromRow, int toRow)
     QCoro::connect(
         m_controller->startInteractiveRebase(base, actions, oids, QStringLiteral("Commit squashed")),
         this, [] {});
+}
+
+void RepoViewModel::onSelectionCommitted()
+{
+    for (auto& [path, fs] : m_sel)
+    {
+        fs.checkedLinesByHunk.clear();
+        fs.state      = ChangedFilesModel::Unchecked;
+        const int row = m_files->rowForPath(path);
+        if (row >= 0)
+            m_files->setCheckState(row, fs.state);
+    }
+    // The diff on screen still shows the pre-commit checkboxes; the status refresh
+    // that follows re-loads it from the retired state above.
+    m_diff->setAllChecked(false);
+    emit checkedChanged();
 }
 
 void RepoViewModel::onStatus(const std::vector<gittide::FileStatus>& files)

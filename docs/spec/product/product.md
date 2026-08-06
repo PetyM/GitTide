@@ -94,7 +94,10 @@ present and at least one change is checked).
 Committing builds the commit from exactly the **checked** set — checked whole
 files and checked lines within partially-checked files. Staging is an invisible
 implementation detail (the git index is rebuilt from the checked set at commit
-time), not a place files live. **Discard** is available from a right-click
+time), not a place files live. Once the commit lands, the boxes it consumed are
+retired: a file that only partly went in comes back **unchecked**, because what
+is left of it is exactly what the user chose to leave out. A commit that fails
+changes nothing — the message stays typed and the checked set stands. **Discard** is available from a right-click
 context menu on a file or a line selection. Discarding a **submodule** entry
 resets the submodule to its **pinned** commit (`git submodule update --force`):
 a plain checkout of the gitlink only rewrites the superproject's index and would

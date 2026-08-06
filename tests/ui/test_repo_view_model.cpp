@@ -503,6 +503,43 @@ private slots:
         // One line was left unstaged → the file is still dirty after the commit.
         QCOMPARE(vm.changedFiles()->rowCount(QModelIndex()), 1);
 
+        // What survives is exactly what the user left out, so the row drops to
+        // Unchecked and no stale per-line check state survives into the new diff:
+        // the committed line is gone, and its old index would now mark a different
+        // line checked.
+        QCOMPARE(vm.changedFiles()->checkState(0), Check::Unchecked);
+        QCOMPARE(vm.checkedCount(), 0);
+        for (int i = 0; i < vm.diffLines()->rowCount(QModelIndex()); ++i)
+        {
+            const QModelIndex idx = vm.diffLines()->index(i, 0);
+            if (idx.data(gittide::ui::DiffLinesModel::CheckableRole).toBool())
+                QVERIFY(!idx.data(gittide::ui::DiffLinesModel::CheckedRole).toBool());
+        }
+
+        repo_view_model_test::remove_repo_dir(dir);
+    }
+
+    // A commit that fails must not clear the message fields: committedOk is the
+    // "message consumed" signal, so it may only fire when the commit landed.
+    void failed_commit_does_not_report_success()
+    {
+        const auto dir = repo_view_model_test::make_dirty_repo();
+
+        RepoViewModel vm;
+        QSignalSpy filesSpy(vm.changedFiles(), &QAbstractItemModel::modelReset);
+        vm.open(QString::fromStdString(dir.generic_string()));
+        QVERIFY(filesSpy.wait(15000));
+
+        // Uncheck everything → nothing to commit → the controller reports a failure.
+        vm.setAllFilesChecked(false);
+        QSignalSpy committedSpy(&vm, &RepoViewModel::committedOk);
+        QSignalSpy failedSpy(&vm, &RepoViewModel::operationFailed);
+        vm.commit(QStringLiteral("nothing"), QString());
+        // The rejection is reported while the coroutine runs its first steps, so it
+        // may already be in the spy before wait() gets a chance to block.
+        QVERIFY(failedSpy.count() >= 1 || failedSpy.wait(15000));
+        QCOMPARE(committedSpy.count(), 0);
+
         repo_view_model_test::remove_repo_dir(dir);
     }
 

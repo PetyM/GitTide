@@ -450,6 +450,12 @@ private:
     };
 
     void onStatus(const std::vector<gittide::FileStatus>& files);
+    /// Retire the check state a successful commit consumed, before the refreshed
+    /// status arrives. Every checked line went into the commit, so what survives in
+    /// a partially-checked file is exactly what the user left out: its per-line map
+    /// is stale (its hunk indices no longer address the new diff) and the file drops
+    /// to unchecked. Files left unchecked keep that state.
+    void onSelectionCommitted();
     /// Announce the open repo's current head + dirty count on
     /// activeRepoStateChanged. Called after every status and head refresh; cheap
     /// (a row count and cached strings), and the sidebar row it feeds only ever

@@ -587,11 +587,34 @@ the place that touches the index. This shapes two flows.
   (whole files, or specific line indices within a file) as ViewModel state, not
   in the git index. On commit, `RepoController` rebuilds the index to match
   exactly the checked set and then commits it: reset the index to `HEAD`, stage
-  each checked whole-file and each checked line-selection (reusing the existing
-  file/hunk/line `stage` patch-synthesis, D11), then `commit`. The index is an
-  invisible build buffer; the user never manages it. This needs one new core
-  primitive — **reset the index to `HEAD`** (`git_reset_default` over all paths /
-  unborn-safe) — alongside the existing `stage` / `commit`.
+  the whole checked set in **one** `stage(std::vector<StageSelection>)` call, then
+  `commit`. The index is an invisible build buffer; the user never manages it.
+  This needs one new core primitive — **reset the index to `HEAD`**
+  (`git_reset_default` over all paths / unborn-safe) — alongside the existing
+  `stage` / `commit`.
+- **Hunk indices are only valid against the snapshot they came from.** A
+  `StageSelection`'s `hunkIndex` addresses one `DiffResult`; applying a patch moves
+  the index and renumbers whatever is left, so staging a multi-hunk selection one
+  call at a time either fails ("hunk index out of range") or silently stages the
+  wrong hunk. Core therefore resolves a whole selection set against **one diff
+  snapshot per file** and emits **one patch buffer per file** — hunks in ascending
+  order, each header numbered against the base being patched (the new-side start
+  when the patch is reversed) and shifted by the net line delta of the hunks before
+  it. A file with no index entry yet (an untracked file being partially staged) is
+  framed as an addition (`new file mode` + `--- /dev/null`), because `git_apply`
+  resolves `--- a/<path>` against the index and would otherwise reject it.
+- **A failed commit leaves the index where the user believes it is.** If staging or
+  the commit itself fails, `commitSelection` resets the index back to `HEAD` before
+  refreshing. Otherwise a half-built index would make the (invisible)
+  `WorktreeVsIndex` base disagree with the `WorktreeVsHead` diff on screen, and
+  every later hunk operation would land on the wrong lines.
+- **A commit retires the check state it consumed.** Everything checked went into
+  the commit, so what survives in a partially-checked file is exactly what the user
+  left out: on `selectionCommitted` — emitted *before* the status refresh — the
+  ViewModel clears every per-line map and drops those files to unchecked. Keeping
+  the old map would paint the new diff with line indices that now address different
+  lines. `committedOk` (which clears the message fields) fires only when the commit
+  actually landed.
 - **History shares the diff view.** Inspecting a commit reuses the same diff
   panel as working changes, so `core/` gains read-only commit-diff endpoints:
   **list a commit's changed files** and **diff one file in a commit** (its tree

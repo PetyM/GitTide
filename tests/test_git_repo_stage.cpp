@@ -219,3 +219,116 @@ TEST_CASE("stage a single line of a multi-line addition", "[stage]")
     REQUIRE(unstaged.has_value());
     REQUIRE(unstaged->hunks.size() == 1);
 }
+
+TEST_CASE("staging two hunks of one file resolves both against one snapshot", "[stage]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    std::string base, edited;
+    for (int i = 1; i <= 30; ++i)
+    {
+        base += std::to_string(i) + "\n";
+        edited += (i == 1 ? "ONE\n" : i == 15 ? "FIFTEEN\n" : i == 30 ? "THIRTY\n" : std::to_string(i) + "\n");
+    }
+    tmp.writeFile("a.txt", base);
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", edited);
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto d = repo->diff(gittide::DiffTarget::WorktreeVsHead, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 3);
+
+    // Hunk indices come from ONE diff snapshot, exactly as the commit checkboxes
+    // collect them: staging hunk 0 first would renumber hunk 2 out of existence.
+    const std::vector<gittide::StageSelection> sels{
+        gittide::StageSelection{"a.txt", 0, {}},
+        gittide::StageSelection{"a.txt", 2, {}},
+    };
+    auto r = repo->stage(sels);
+    if (!r)
+        WARN(r.error().message);
+    REQUIRE(r.has_value());
+
+    auto staged = repo->diff(gittide::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 2);
+    // What stayed behind is the middle hunk, untouched.
+    auto unstaged = repo->diff(gittide::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(unstaged.has_value());
+    REQUIRE(unstaged->hunks.size() == 1);
+    REQUIRE(unstaged->hunks[0].lines[3].text == "15");
+    REQUIRE(unstaged->hunks[0].lines[4].text == "FIFTEEN");
+}
+
+TEST_CASE("staging lines from two hunks of one file keeps both selections", "[stage]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    std::string base, edited;
+    for (int i = 1; i <= 30; ++i)
+    {
+        base += std::to_string(i) + "\n";
+        edited += (i == 1 ? "ONE\nONE-B\n" : i == 30 ? "THIRTY\nTHIRTY-B\n" : std::to_string(i) + "\n");
+    }
+    tmp.writeFile("a.txt", base);
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", edited);
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto d = repo->diff(gittide::DiffTarget::WorktreeVsHead, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 2);
+
+    // One added line out of each hunk (the '+' lines sit after the '-' line).
+    auto addedIndex = [](const gittide::DiffHunk& h)
+    {
+        for (int i = 0; i < static_cast<int>(h.lines.size()); ++i)
+            if (h.lines[i].origin == gittide::DiffLineOrigin::Added)
+                return i;
+        return -1;
+    };
+    const std::vector<gittide::StageSelection> sels{
+        gittide::StageSelection{"a.txt", 0, {addedIndex(d->hunks[0])}},
+        gittide::StageSelection{"a.txt", 1, {addedIndex(d->hunks[1])}},
+    };
+    auto r = repo->stage(sels);
+    if (!r)
+        WARN(r.error().message);
+    REQUIRE(r.has_value());
+
+    auto staged = repo->diff(gittide::DiffTarget::IndexVsHead, "a.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 2);
+}
+
+TEST_CASE("stage some lines of an untracked file", "[stage]")
+{
+    gittide::test::TempRepo tmp;
+    tmp.setIdentity("Test", "test@example.com");
+    tmp.writeFile("seed.txt", "seed\n");
+    tmp.commitAll("init");
+    tmp.writeFile("new.txt", "a\nb\nc\n");
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+    auto d = repo->diff(gittide::DiffTarget::WorktreeVsHead, "new.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 1);
+
+    // An untracked file has no index entry: the patch must be framed as an add.
+    auto r = repo->stage(gittide::StageSelection{"new.txt", 0, {0, 1}});
+    if (!r)
+        WARN(r.error().message);
+    REQUIRE(r.has_value());
+
+    auto staged = repo->diff(gittide::DiffTarget::IndexVsHead, "new.txt");
+    REQUIRE(staged.has_value());
+    REQUIRE(staged->hunks.size() == 1);
+    REQUIRE(staged->hunks[0].lines.size() == 2);
+    REQUIRE(staged->hunks[0].lines[0].text == "a");
+    REQUIRE(staged->hunks[0].lines[1].text == "b");
+}

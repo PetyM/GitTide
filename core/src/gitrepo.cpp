@@ -55,6 +55,28 @@ bool pathInHead(git_repository* repo, const std::string& p)
     return rc == 0;
 }
 
+// True if `p` (repo-relative, forward slashes) has an index entry, i.e. git
+// already tracks a blob for it. An untracked file has none, so a patch against
+// it must be framed as an addition.
+bool pathInIndex(git_repository* repo, const std::string& p)
+{
+    git_index* index = nullptr;
+    if (git_repository_index(&index, repo) != 0)
+        return false;
+    std::unique_ptr<git_index, decltype(&git_index_free)> idx_guard(index, git_index_free);
+    return git_index_get_bypath(index, p.c_str(), GIT_INDEX_STAGE_NORMAL) != nullptr;
+}
+
+// The git file mode to record for a worktree file: executable bit or not.
+unsigned worktreeFileMode(const std::filesystem::path& abs)
+{
+    std::error_code ec;
+    const auto perms = std::filesystem::status(abs, ec).permissions();
+    if (!ec && (perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none)
+        return 0100755;
+    return 0100644;
+}
+
 gittide::StatusFlag mapStatus(unsigned int s)
 {
     using gittide::StatusFlag;
@@ -439,7 +461,7 @@ Expected<WatchTargets> GitRepo::watchTargets() const
     return t;
 }
 
-Expected<void> GitRepo::stage(const StageSelection& sel)
+Expected<void> GitRepo::stageWholeFile(const std::filesystem::path& path)
 {
     git_index* index = nullptr;
     int rc           = git_repository_index(&index, m_repo);
@@ -447,27 +469,54 @@ Expected<void> GitRepo::stage(const StageSelection& sel)
         return std::unexpected(lastGitError(rc));
     std::unique_ptr<git_index, decltype(&git_index_free)> idx_guard(index, git_index_free);
 
-    if (isWholeFile(sel))
+    std::string p = toGitPath(path);
+    // If the file is gone from the worktree, stage its deletion.
+    std::filesystem::path abs = path.is_absolute() ? path : workdir() / path;
+    if (!std::filesystem::exists(abs))
     {
-        std::string p = toGitPath(sel.path);
-        // If the file is gone from the worktree, stage its deletion.
-        std::filesystem::path abs = sel.path.is_absolute() ? sel.path : workdir() / sel.path;
-        if (!std::filesystem::exists(abs))
-        {
-            rc = git_index_remove_bypath(index, p.c_str());
-        }
-        else
-        {
-            rc = git_index_add_bypath(index, p.c_str());
-        }
-        if (rc < 0)
-            return std::unexpected(lastGitError(rc));
-        rc = git_index_write(index);
-        if (rc < 0)
-            return std::unexpected(lastGitError(rc));
-        return {};
+        rc = git_index_remove_bypath(index, p.c_str());
     }
-    return applyPartial(sel, /*stage=*/true);
+    else
+    {
+        rc = git_index_add_bypath(index, p.c_str());
+    }
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    rc = git_index_write(index);
+    if (rc < 0)
+        return std::unexpected(lastGitError(rc));
+    return {};
+}
+
+Expected<void> GitRepo::stage(const StageSelection& sel)
+{
+    if (isWholeFile(sel))
+        return stageWholeFile(sel.path);
+    return applyPartial({sel}, /*stage=*/true);
+}
+
+Expected<void> GitRepo::stage(const std::vector<StageSelection>& sels)
+{
+    // Group by path, keeping first-appearance order so staging stays predictable.
+    std::vector<std::filesystem::path> order;
+    std::map<std::filesystem::path, std::vector<StageSelection>> byPath;
+    for (const StageSelection& sel : sels)
+    {
+        auto [it, inserted] = byPath.try_emplace(sel.path);
+        if (inserted)
+            order.push_back(sel.path);
+        it->second.push_back(sel);
+    }
+
+    for (const std::filesystem::path& path : order)
+    {
+        const std::vector<StageSelection>& fileSels = byPath[path];
+        const bool whole                            = std::any_of(fileSels.begin(), fileSels.end(), isWholeFile);
+        auto r                                      = whole ? stageWholeFile(path) : applyPartial(fileSels, /*stage=*/true);
+        if (!r)
+            return r;
+    }
+    return {};
 }
 
 Expected<void> GitRepo::unstage(const StageSelection& sel)
@@ -504,23 +553,46 @@ Expected<void> GitRepo::unstage(const StageSelection& sel)
             return std::unexpected(lastGitError(rc));
         return {};
     }
-    return applyPartial(sel, /*stage=*/false);
+    return applyPartial({sel}, /*stage=*/false);
 }
 
-Expected<void> GitRepo::applyPartial(const StageSelection& sel, bool stage)
+Expected<void> GitRepo::applyPartial(const std::vector<StageSelection>& sels, bool stage)
 {
-    // 1. Get the diff that contains the selected hunk.
+    if (sels.empty())
+        return {};
+    const std::filesystem::path& path = sels.front().path;
+
+    // 1. Get the diff that contains the selected hunks — ONE snapshot for all of
+    //    them, since their hunk indices were collected against a single diff.
     DiffTarget target = stage ? DiffTarget::WorktreeVsIndex : DiffTarget::IndexVsHead;
-    auto fileDiff     = diff(target, sel.path);
+    auto fileDiff     = diff(target, path);
     if (!fileDiff)
         return std::unexpected(fileDiff.error());
 
-    int hi = sel.hunkIndex.value_or(-1);
-    if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
-        return std::unexpected(GitError{-1, "hunk index out of range"});
+    std::vector<StageSelection> ordered = sels;
+    std::sort(ordered.begin(),
+              ordered.end(),
+              [](const StageSelection& a, const StageSelection& b)
+              {
+                  return a.hunkIndex.value_or(-1) < b.hunkIndex.value_or(-1);
+              });
+    for (const StageSelection& sel : ordered)
+    {
+        const int hi = sel.hunkIndex.value_or(-1);
+        if (hi < 0 || hi >= static_cast<int>(fileDiff->hunks.size()))
+            return std::unexpected(GitError{-1, "hunk index out of range"});
+    }
 
-    // 2. Build the patch buffer. Unstage reverses the index->HEAD diff.
-    std::string patch = buildPatch(toGitPath(sel.path), fileDiff->hunks[hi], sel, /*reverse=*/!stage);
+    // 2. Build the patch buffer. Unstage reverses the index->HEAD diff. A file the
+    //    base does not have yet (an untracked file being partially staged) needs an
+    //    add-file header, otherwise git_apply rejects it as missing from the index.
+    PatchOptions opt{.reverse = !stage};
+    if (stage && !pathInIndex(m_repo, toGitPath(path)))
+    {
+        opt.addFile  = true;
+        opt.fileMode = worktreeFileMode(path.is_absolute() ? path : workdir() / path);
+    }
+    std::string patch = buildPatch(toGitPath(path), *fileDiff, ordered, opt);
 
     // 3. Parse the buffer into a git_diff and apply it to the index.
     git_diff* raw = nullptr;

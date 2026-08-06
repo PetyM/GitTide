@@ -188,3 +188,38 @@ TEST_CASE("discard resets a moved submodule to its pinned commit", "[discard][su
     REQUIRE(std::none_of(st2->begin(), st2->end(),
                          [](const gittide::FileStatus& f) { return f.path == "libchild"; }));
 }
+
+// A hunk after an earlier insertion sits at different old- and new-side line
+// numbers. Reverse-applying it to the worktree must be numbered against the
+// worktree (the new side), otherwise the patch lands on the wrong lines.
+TEST_CASE("discard a shifted later hunk reverts only that region", "[discard]")
+{
+    gittide::test::TempRepo tmp;
+    std::string base, edited;
+    for (int i = 1; i <= 20; ++i)
+    {
+        base += std::to_string(i) + "\n";
+        edited += (i == 1 ? "1\nEXTRA-A\nEXTRA-B\n" : i == 20 ? "TWENTY\n" : std::to_string(i) + "\n");
+    }
+    tmp.writeFile("a.txt", base);
+    tmp.commitAll("init");
+    tmp.writeFile("a.txt", edited);
+
+    auto repo = gittide::GitRepo::open(tmp.path());
+    REQUIRE(repo.has_value());
+
+    auto d = repo->diff(gittide::DiffTarget::WorktreeVsIndex, "a.txt");
+    REQUIRE(d.has_value());
+    REQUIRE(d->hunks.size() == 2);
+    REQUIRE(d->hunks[1].newStart != d->hunks[1].oldStart); // the shift under test
+
+    auto r = repo->discard(gittide::StageSelection{"a.txt", 1, {}});
+    if (!r)
+        WARN(r.error().message);
+    REQUIRE(r.has_value());
+
+    const std::string after = read_file(tmp.path() / "a.txt");
+    REQUIRE(after.find("TWENTY") == std::string::npos);  // reverted
+    REQUIRE(after.find("EXTRA-A") != std::string::npos); // kept
+    REQUIRE(after.find("EXTRA-B") != std::string::npos);
+}

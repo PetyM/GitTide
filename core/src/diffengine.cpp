@@ -79,7 +79,19 @@ Expected<DiffResult> DiffEngine::parse(git_diff* diff)
     return out;
 }
 
-std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const StageSelection& sel, bool reverse)
+namespace {
+
+/// One hunk rendered as patch body text, with the line counts its header needs.
+struct HunkBody
+{
+    std::string body;
+    int oldCount = 0; ///< lines present on the base being patched
+    int newCount = 0; ///< lines present in the result
+};
+
+/// Render @p hunk's selected lines. @p sel.lineIndices empty takes the whole hunk;
+/// @p reverse swaps added/removed so the body applies to the diff's new side.
+HunkBody renderHunk(const DiffHunk& hunk, const StageSelection& sel, bool reverse)
 {
     const bool whole_hunk = sel.lineIndices.empty();
     std::set<int> selected(sel.lineIndices.begin(), sel.lineIndices.end());
@@ -88,9 +100,8 @@ std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const S
         return whole_hunk || selected.count(i) > 0;
     };
 
-    // Build the body and count old/new lines as we go.
+    HunkBody out;
     std::ostringstream body;
-    int oldCount = 0, newCount = 0;
     for (int i = 0; i < static_cast<int>(hunk.lines.size()); ++i)
     {
         const DiffLine& ln    = hunk.lines[i];
@@ -114,15 +125,15 @@ std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const S
         if (origin == DiffLineOrigin::Context)
         {
             emit(' ');
-            ++oldCount;
-            ++newCount;
+            ++out.oldCount;
+            ++out.newCount;
         }
         else if (origin == DiffLineOrigin::Added)
         {
             if (isSelected(i))
             {
                 emit('+');
-                ++newCount;
+                ++out.newCount;
             }
             // unselected added line: drop entirely.
         }
@@ -131,24 +142,56 @@ std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const S
             if (isSelected(i))
             {
                 emit('-');
-                ++oldCount;
+                ++out.oldCount;
             }
             else
             {
                 emit(' ');
-                ++oldCount;
-                ++newCount;
+                ++out.oldCount;
+                ++out.newCount;
             } // keep as context
         }
     }
+    out.body = body.str();
+    return out;
+}
 
+} // namespace
+
+std::string buildPatch(const std::string& gitPath, const DiffResult& diff, const std::vector<StageSelection>& sels,
+                       PatchOptions opt)
+{
     std::ostringstream out;
-    out << "diff --git a/" << gitPath << " b/" << gitPath << '\n'
-        << "--- a/" << gitPath << '\n'
-        << "+++ b/" << gitPath << '\n'
-        << "@@ -" << hunk.oldStart << ',' << oldCount << " +" << hunk.newStart << ',' << newCount << " @@\n"
-        << body.str();
+    out << "diff --git a/" << gitPath << " b/" << gitPath << '\n';
+    if (opt.addFile)
+        out << "new file mode " << std::oct << opt.fileMode << std::dec << '\n';
+    out << (opt.addFile ? "--- /dev/null\n" : "--- a/" + gitPath + "\n") << "+++ b/" << gitPath << '\n';
+
+    // Every hunk header is numbered against the base being patched. Earlier hunks
+    // in this buffer shift the result's line numbers, so carry their net delta.
+    int delta = 0;
+    for (const StageSelection& sel : sels)
+    {
+        const int hi = sel.hunkIndex.value_or(-1);
+        if (hi < 0 || hi >= static_cast<int>(diff.hunks.size()))
+            continue;
+        const DiffHunk& hunk = diff.hunks[hi];
+        const HunkBody h     = renderHunk(hunk, sel, opt.reverse);
+        // Reverse applies to the diff's new side, so that side supplies the start.
+        const int baseStart = opt.reverse ? hunk.newStart : hunk.oldStart;
+        out << "@@ -" << baseStart << ',' << h.oldCount << " +" << (baseStart + delta) << ',' << h.newCount << " @@\n" << h.body;
+        delta += h.newCount - h.oldCount;
+    }
     return out.str();
+}
+
+std::string buildPatch(const std::string& gitPath, const DiffHunk& hunk, const StageSelection& sel, bool reverse)
+{
+    DiffResult one;
+    one.hunks.push_back(hunk);
+    StageSelection only = sel;
+    only.hunkIndex      = 0;
+    return buildPatch(gitPath, one, {only}, PatchOptions{.reverse = reverse});
 }
 
 } // namespace gittide

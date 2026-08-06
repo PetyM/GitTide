@@ -441,6 +441,55 @@ private slots:
         { std::error_code rec; std::filesystem::remove_all(dir, rec); }
     }
 
+    // Staging is invisible (D23): when one selection fails to stage, the ones that
+    // already went in must not stay in the index — the diff on screen is computed
+    // against HEAD, and a half-built index would renumber every later hunk op.
+    void failed_commit_selection_leaves_the_index_at_head()
+    {
+        const auto dir = repo_controller_test::make_repo_with_commit();
+        RepoController controller;
+        controller.open(QString::fromStdString(dir.generic_string()));
+
+        {
+            std::ofstream(dir / "keep.txt") << "keep\n";
+        }
+        {
+            std::ofstream(dir / "other.txt") << "other\n";
+        }
+
+        QSignalSpy committed(&controller, &RepoController::committed);
+        QSignalSpy failed(&controller, &RepoController::operationFailed);
+        // The second selection names a hunk that does not exist, so staging fails
+        // once the first selection has already landed in the index.
+        std::vector<gittide::StageSelection> sel{
+            {"keep.txt", std::nullopt, {}},
+            {"other.txt", 99, {}},
+        };
+        const bool ok = QCoro::waitFor(controller.commitSelection(gittide::CommitRequest{"nope"}, sel));
+
+        QVERIFY(!ok);
+        QCOMPARE(committed.count(), 0);
+        QCOMPARE(failed.count(), 1);
+
+        // keep.txt is back to untracked — nothing was left staged.
+        auto repo = gittide::ui::AsyncRepo::open(dir);
+        auto st   = QCoro::waitFor(repo->status());
+        QVERIFY(st.has_value());
+        auto it = std::find_if(st->begin(),
+                               st->end(),
+                               [](const auto& f)
+                               {
+                                   return f.path.generic_string() == "keep.txt";
+                               });
+        QVERIFY(it != st->end());
+        QVERIFY(gittide::hasFlag(it->flags, gittide::StatusFlag::WtNew));
+        QVERIFY(!gittide::hasFlag(it->flags, gittide::StatusFlag::IndexNew));
+        {
+            std::error_code rec;
+            std::filesystem::remove_all(dir, rec);
+        }
+    }
+
     void refresh_commit_files_emits_for_a_commit()
     {
         const auto dir = repo_controller_test::make_repo_with_commit();

@@ -102,8 +102,11 @@ public slots:
     QCoro::Task<void> renameBranch(QString oldName, QString newName);
     // Stage-on-commit (D23): reset index to HEAD, stage each selection, commit,
     // then refresh status + history. Empty selections => no-op + operationFailed.
-    QCoro::Task<void> commitSelection(gittide::CommitRequest req,
-                                      std::vector<gittide::StageSelection> selections);
+    /// Rebuild the index from @p selections and commit it. Resolves true once the
+    /// commit landed and the status/history refresh that follows it finished;
+    /// false on any failure (nothing selected, staging, or the commit itself),
+    /// which operationFailed has already reported.
+    QCoro::Task<bool> commitSelection(gittide::CommitRequest req, std::vector<gittide::StageSelection> selections);
     // Read-only history diff:
     QCoro::Task<void> refreshCommitFiles(QString oid);
     // Fetch summary/body/author/stats for a commit; emits commitDetailReady on success.
@@ -239,6 +242,10 @@ signals:
     void statusChanged(const std::vector<gittide::FileStatus>& files);
     void diffReady(const QString& path, const gittide::DiffResult& result);
     void committed(const QString& oid);
+    /// A commitSelection() succeeded — emitted before the status refresh that
+    /// follows it, so a listener can retire the check state that was just
+    /// committed before the refreshed file list is applied to it.
+    void selectionCommitted(const QString& oid);
     void historyReady(gittide::GraphLayout layout);
     void graphReady(gittide::GraphLayout layout);
     void refTipsReady(QHash<QString, QVariantList> oidToChips);

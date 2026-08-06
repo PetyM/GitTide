@@ -124,6 +124,14 @@ public:
     Expected<void> stage(const StageSelection& sel);
     Expected<void> unstage(const StageSelection& sel);
 
+    /// Stage several selections at once. Hunk indices in @p sels are resolved
+    /// against ONE diff snapshot per file, so a caller that collected them from a
+    /// single view (the commit checkboxes) gets what it asked for — staging them
+    /// one call at a time would move the index between calls and renumber the
+    /// hunks still to come. Selections are grouped by path in first-appearance
+    /// order; a whole-file selection wins over any hunk selection for that path.
+    Expected<void> stage(const std::vector<StageSelection>& sels);
+
     // Reset the index to HEAD (git reset --mixed HEAD): unstage everything, leave the
     // working tree untouched. On an unborn branch the index is cleared. Used to
     // rebuild the index from a checked selection before committing.
@@ -448,8 +456,17 @@ private:
     }
     git_repository* m_repo = nullptr;
 
-    std::filesystem::path workdir() const;                              // repo working directory
-    Expected<void> applyPartial(const StageSelection& sel, bool stage); // filled by a later task
+    std::filesystem::path workdir() const; // repo working directory
+
+    /// Stage or unstage hunk/line selections that all name the SAME file, from one
+    /// diff snapshot and one git_apply. @p sels carry hunk indices into that
+    /// snapshot, so they must never be applied in separate calls: the first apply
+    /// moves the index and renumbers the rest.
+    Expected<void> applyPartial(const std::vector<StageSelection>& sels, bool stage);
+
+    /// Stage a whole file: add its worktree content to the index, or record its
+    /// deletion when it is gone from the worktree.
+    Expected<void> stageWholeFile(const std::filesystem::path& path);
 
     // Resolve a commit's tree and its first-parent tree (parentTree == nullptr for a
     // root commit). Both out-trees are owned by the caller (git_tree_free).

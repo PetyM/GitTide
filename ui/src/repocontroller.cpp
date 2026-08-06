@@ -664,61 +664,70 @@ QCoro::Task<void> RepoController::renameBranch(QString oldName, QString newName)
     co_await refreshBranches();
 }
 
-QCoro::Task<void> RepoController::commitSelection(gittide::CommitRequest req,
-                                                  std::vector<gittide::StageSelection> selections)
+QCoro::Task<bool> RepoController::commitSelection(gittide::CommitRequest req, std::vector<gittide::StageSelection> selections)
 {
     if (!m_repo)
-        co_return;
+        co_return false;
     if (selections.empty())
     {
         emit operationFailed(QStringLiteral("Nothing selected to commit"));
-        co_return;
+        co_return false;
     }
     QPointer<RepoController> self = this;
     WatchMute                mute(m_watcher);
     auto reset = co_await m_repo->resetIndexToHead();
     if (!self)
-        co_return;
+        co_return false;
     if (!reset)
     {
         emit operationFailed(QString::fromStdString(reset.error().message));
-        co_return;
+        co_return false;
     }
-    for (const auto& sel : selections)
+    // One call, not one per selection: hunk indices were collected against a single
+    // diff of each file, and staging them separately would renumber the rest.
+    auto s = co_await m_repo->stageAll(selections);
+    if (!self)
+        co_return false;
+    if (!s)
     {
-        auto s = co_await m_repo->stage(sel);
+        emit operationFailed(QString::fromStdString(s.error().message));
         if (!self)
-            co_return;
-        if (!s)
-        {
-            emit operationFailed(QString::fromStdString(s.error().message));
-            if (!self)
-                co_return;
-            co_await refreshStatus(); // leave the user in a consistent state
-            co_return;
-        }
+            co_return false;
+        // Staging is invisible (D23): a half-built index would silently rebase every
+        // later hunk operation on content the diff on screen does not show. Put it
+        // back where the user believes it is.
+        co_await m_repo->resetIndexToHead();
+        if (!self)
+            co_return false;
+        co_await refreshStatus(); // leave the user in a consistent state
+        co_return false;
     }
     auto oid = co_await m_repo->commit(req);
     if (!self)
-        co_return;
+        co_return false;
     if (!oid)
     {
         emit operationFailed(QString::fromStdString(oid.error().message));
         if (!self)
-            co_return;
+            co_return false;
+        co_await m_repo->resetIndexToHead();
+        if (!self)
+            co_return false;
         co_await refreshStatus();
-        co_return;
+        co_return false;
     }
     emit committed(QString::fromStdString(*oid));
+    emit selectionCommitted(QString::fromStdString(*oid));
     if (!self)
-        co_return;
+        co_return false;
     co_await refreshStatus();
     if (!self)
-        co_return;
+        co_return false;
     co_await refreshHistory();
     if (!self)
-        co_return;
+        co_return false;
     co_await refreshSyncStatus(); // ahead count grew — refresh so Push reflects it
+    co_return true;
 }
 
 QCoro::Task<void> RepoController::refreshCommitFiles(QString oid)

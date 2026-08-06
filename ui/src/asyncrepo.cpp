@@ -74,6 +74,17 @@ QCoro::Task<gittide::Expected<void>> AsyncRepo::stage(gittide::StageSelection se
         });
 }
 
+QCoro::Task<gittide::Expected<void>> AsyncRepo::stageAll(std::vector<gittide::StageSelection> sels)
+{
+    auto impl = m_impl;
+    co_return co_await QtConcurrent::run(
+        [impl, sels = std::move(sels)]()
+        {
+            std::scoped_lock lock(impl->mutex);
+            return impl->repo.stage(sels);
+        });
+}
+
 QCoro::Task<gittide::Expected<void>> AsyncRepo::unstage(gittide::StageSelection sel)
 {
     auto impl = m_impl;

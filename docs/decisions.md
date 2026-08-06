@@ -68,6 +68,15 @@ an entry with a newer one if it changes.
   *Why:* fast, safe wins that stand alone, leaving the multi-select model and
   commit menu as the home for the deferred verbs. →
   [`product`](spec/product/history-editing.md)
+- **D65 — A commit retires the check state it consumed.** After a successful
+  commit, every per-line map is cleared and a partially-committed file comes back
+  **unchecked**: what survives in it is precisely what the user chose to leave out.
+  *Rejected:* re-checking everything that is still dirty (re-arms lines the user
+  deliberately excluded, so the next commit quietly picks them up); keeping the old
+  per-line map (its hunk/line indices address the pre-commit diff and now mark
+  unrelated lines). *Why:* the checkboxes must never claim a selection the user did
+  not make. → [`product`](spec/product/product.md),
+  [`engineering`](spec/engineering/engineering.md)
 
 ## Engineering
 
