@@ -32,11 +32,21 @@ MouseArea {
     property point hoverPos: Qt.point(-1, -1)
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton
-    hoverEnabled: true
     // I-beam only where a press would actually start a selection; everywhere
     // else (checkboxes, gutter, sign column, conflict buttons, the scrollbar)
     // keeps the ordinary arrow, matching what's actually clickable there.
     cursorShape: canSelectAt(hoverPos.x, hoverPos.y) ? Qt.IBeamCursor : Qt.ArrowCursor
+
+    // Tracks hoverPos for the cursorShape binding above, without hoverEnabled:
+    // a MouseArea with hoverEnabled true accepts hover events and stops their
+    // delivery to items beneath it, so every checkbox, Accept button and
+    // scrollbar handle under this full-viewport overlay would lose its hover
+    // tint. HoverHandler does not consume hover (its `blocking` property
+    // defaults to false), so it observes the same pointer without blocking it.
+    HoverHandler {
+        id: hoverTracker
+        onPointChanged: overlay.hoverPos = hovered ? point.position : Qt.point(-1, -1)
+    }
 
     // --- hit testing -------------------------------------------------------
 
@@ -80,12 +90,17 @@ MouseArea {
         return code.positionAt(local.x, local.y)
     }
 
-    // True when (x, y) falls inside the scrollbar's current on-screen rect.
-    // Only checked while the bar is actually visible, so a hidden/AsNeeded
-    // bar (or one whose width changes with the style) never blocks a press —
-    // there is nothing there to protect.
+    // True when (x, y) falls inside the scrollbar's current on-screen rect,
+    // and the bar is actually interactive right now. `visible` alone is not
+    // enough: AppScrollBar's policy is ScrollBar.AsNeeded, and the Basic
+    // style's ScrollBar is `visible: control.policy !== ScrollBar.AlwaysOff`
+    // — true whenever the policy isn't AlwaysOff, regardless of whether the
+    // content actually overflows. AsNeeded hides only the *handle*, which
+    // AppScrollBar ties to `size < 1.0` (see its opacity binding) — so that's
+    // the check that tells a real, clickable bar from an always-`visible`,
+    // nothing-to-drag one on a diff short enough to need no scrolling.
     function inScrollBar(x, y) {
-        if (!scrollBar || !scrollBar.visible)
+        if (!scrollBar || !scrollBar.visible || scrollBar.size >= 1.0)
             return false
         const topLeft = scrollBar.mapToItem(overlay, 0, 0)
         return x >= topLeft.x && x <= topLeft.x + scrollBar.width &&
@@ -149,6 +164,20 @@ MouseArea {
     function endDrag() {
         dragging = false
         autoScroll.running = false
+    }
+
+    // Ends the drag the same way endDrag() does, but also clears the gesture
+    // flags endDrag()'s own callers (handleRelease()) clear themselves once
+    // they're done reading them. onCanceled has no such follow-up: a grab
+    // cancelled mid-drag (window deactivation, another handler stealing it)
+    // would otherwise leave `moved`/`shiftExtendPress` at their pre-cancel
+    // values, and the next plain click's release would misread them as "this
+    // click is its own gesture" (see handleRelease) and silently skip
+    // clearing the selection.
+    function cancelDrag() {
+        endDrag()
+        moved = false
+        shiftExtendPress = false
     }
 
     // count: 1 = plain click (clears), 2 = word, 3 = whole row.
@@ -275,7 +304,7 @@ MouseArea {
     // another handler stealing it) without ever delivering a release. Without
     // this, "dragging" stays true forever and the autoscroll timer keeps
     // stepping contentY and extending the selection on its own.
-    onCanceled: endDrag()
+    onCanceled: cancelDrag()
 
     Keys.onPressed: function(event) {
         event.accepted = handleKey(event.key, event.modifiers)

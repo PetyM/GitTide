@@ -108,7 +108,11 @@ void captureMessages(QtMsgType, const QMessageLogContext&, const QString& messag
 //
 // @p withScrollBar (default false) adds a 6px-wide stand-in scrollbar item
 // docked to the host's right edge (x in [394, 400]) and wires it as the
-// overlay's `scrollBar`, so a press there can be asserted as rejected.
+// overlay's `scrollBar`, so a press there can be asserted as rejected. The
+// stub carries a settable `size` property (default 0.5, mirroring
+// ScrollBar.size < 1.0 — "content overflows, the handle is shown, the bar is
+// interactive") so a test can flip it to 1.0 ("no overflow, handle hidden")
+// and assert a press at the same spot is no longer swallowed.
 //
 // On a QML error, @p errorOut (if given) receives the component's error
 // string and the returned pointer is null.
@@ -131,6 +135,7 @@ std::unique_ptr<QObject> buildOverlayHost(QQmlEngine& engine, int noCodeRow = -1
             Rectangle {
                 id: scrollBarStub
                 objectName: "scrollBarStub"
+                property real size: 0.5
                 x: host.width - width
                 y: 0
                 width: 6
@@ -539,6 +544,57 @@ private slots:
         // Just to its left, still inside the code column: a normal press.
         QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
                                   Q_ARG(QVariant, 380), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(handled.toBool());
+    }
+
+    // AppScrollBar's policy is ScrollBar.AsNeeded, and the Basic style's
+    // ScrollBar is `visible: control.policy !== ScrollBar.AlwaysOff` — true
+    // regardless of whether the content actually overflows. `visible` alone
+    // is therefore not a correct proxy for "there is a real, clickable bar
+    // here": on a diff short enough to need no scrolling, gating on it alone
+    // would still refuse a press in the scrollbar's screen rect even though
+    // there is nothing there to protect. What actually distinguishes an
+    // interactive bar is its handle being shown, which AppScrollBar ties to
+    // `size < 1.0` — so a press at the same spot must be rejected while the
+    // stub bar reports itself "active" (size < 1.0, overflowing content) and
+    // accepted once it reports "inactive" (size >= 1.0, nothing to scroll).
+    void overlay_rejects_the_scrollbar_only_while_it_is_actually_interactive()
+    {
+        ThemeManager mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root =
+            buildOverlayHost(engine, /*noCodeRow=*/-1, &error, /*hiddenCodeRow=*/-1, /*withScrollBar=*/true);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QObject* scrollBarStub = root->findChild<QObject*>(QStringLiteral("scrollBarStub"));
+        QVERIFY(overlay != nullptr);
+        QVERIFY(scrollBarStub != nullptr);
+
+        // Default size (0.5, < 1.0): the bar is "active" — a press at its
+        // screen rect is rejected, same as overlay_rejects_a_press_on_the_
+        // scrollbar_but_accepts_beside_it above.
+        QVariant handled;
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 397), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
+        QVERIFY(!handled.toBool());
+
+        // size 1.0: no overflow, the handle is hidden, `visible` alone (the
+        // pre-fix check) would still say true — the same press must now be
+        // accepted as an ordinary text-selection press.
+        scrollBarStub->setProperty("size", 1.0);
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_RETURN_ARG(QVariant, handled),
+                                  Q_ARG(QVariant, 397), Q_ARG(QVariant, 25), Q_ARG(QVariant, 0));
         QVERIFY(handled.toBool());
     }
 
@@ -1050,12 +1106,59 @@ private slots:
         QVERIFY(!overlay->property("dragging").toBool());
     }
 
+    // endDrag() (what onCanceled ran, above) only ever cleared `dragging` and
+    // the autoscroll timer — it left `moved` at whatever the cancelled drag
+    // had set it to. The very next plain click's release then finds `moved`
+    // still true and takes handleRelease()'s "this click is its own gesture"
+    // branch (the one a real drag's own release takes), which skips clickAt()
+    // entirely — silently failing to clear the selection, exactly once.
+    void a_cancelled_grab_leaves_no_gesture_state_for_the_next_click()
+    {
+        ThemeManager mgr;
+        QmlTheme theme(&mgr);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("theme"), &theme);
+        DiffLinesModel model;
+        model.setDiff(twoLineDiff(), {}, false);
+        DiffSelection selection;
+        selection.setModel(&model);
+        engine.rootContext()->setContextProperty(QStringLiteral("testSelection"), &selection);
+
+        QString error;
+        std::unique_ptr<QObject> root = buildOverlayHost(engine, -1, &error);
+        QVERIFY2(root != nullptr, qPrintable(error));
+        QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
+        QVERIFY(overlay != nullptr);
+
+        // Start a drag on row 1 and move — same setup as
+        // a_cancelled_grab_ends_the_drag, so `moved` is true when the grab is
+        // cancelled instead of released normally.
+        QMetaObject::invokeMethod(overlay, "pressAt", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25),
+                                  Q_ARG(QVariant, 0));
+        QMetaObject::invokeMethod(overlay, "moveTo", Q_ARG(QVariant, 150), Q_ARG(QVariant, 45));
+        QVERIFY(overlay->property("moved").toBool());
+        QVERIFY(selection.property("hasSelection").toBool()); // the drag itself selected text
+
+        QVERIFY(QMetaObject::invokeMethod(overlay, "canceled"));
+        QVERIFY(!overlay->property("dragging").toBool());
+
+        // A plain click on the same row right after: with the fix this is a
+        // fresh click (clears); with the bug it inherits `moved` == true from
+        // the cancelled drag and handleRelease() silently returns without
+        // ever calling clickAt().
+        QMetaObject::invokeMethod(overlay, "handleRelease", Q_ARG(QVariant, 100), Q_ARG(QVariant, 25));
+        QVERIFY(!selection.property("hasSelection").toBool());
+    }
+
     // The overlay is topmost across the whole viewport, so a static I-beam
     // cursor would show over the checkboxes, gutter, sign column, Accept
     // buttons and scrollbar too. cursorShape is driven from canSelectAt(),
-    // the same hit test pressAt() uses, via the hoverPos property that
-    // onPositionChanged keeps updated — set directly here since the
-    // offscreen platform delivers no real hover events.
+    // the same hit test pressAt() uses, via the hoverPos property that a
+    // HoverHandler (real usage) or onPositionChanged (mid-drag) keeps
+    // updated — set directly here since the offscreen platform delivers no
+    // real hover events, so this cannot exercise the HoverHandler wiring
+    // itself, only that the cursor binding still resolves through the same
+    // hit test once hoverPos changes.
     void cursor_shape_follows_the_hover_hit_test()
     {
         ThemeManager mgr;
@@ -1074,6 +1177,16 @@ private slots:
         QVERIFY2(root != nullptr, qPrintable(error));
         QObject* overlay = root->findChild<QObject*>(QStringLiteral("overlay"));
         QVERIFY(overlay != nullptr);
+
+        // hoverEnabled must stay false: a MouseArea with it true accepts
+        // hover events and stops their delivery to items underneath (the
+        // staging checkboxes, conflict Accept buttons, and the scrollbar's
+        // own hover tint), even though this overlay covers their whole area.
+        // The cursor still works via cursorShape (below), which a MouseArea
+        // applies whenever the pointer is within its bounds regardless of
+        // hoverEnabled — only hover *event delivery* is what hoverEnabled
+        // would block.
+        QVERIFY(!overlay->property("hoverEnabled").toBool());
 
         // Over the code column: I-beam.
         overlay->setProperty("hoverPos", QPointF(150, 25));
