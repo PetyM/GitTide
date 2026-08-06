@@ -244,6 +244,12 @@ Rectangle {
                 // have expanded, so their indices are untouched and the two
                 // spaces stay in step. Forwards, a second source silently missed
                 // its own row and stayed collapsed.
+                //
+                // This relies on the tree being fully collapsed when the pass
+                // starts, which holds at both call sites: setRepos builds every
+                // node childless (submodules hydrate later, off-thread), and
+                // Component.onCompleted runs before any reveal. Make submodule
+                // hydration synchronous-on-reset and this needs revisiting.
                 for (var r = repoTree.rows - 1; r >= 0; --r)
                     if (repoTree.model.isSourceRow(r))
                         repoTree.expand(r)
