@@ -2569,3 +2569,38 @@ git commit -m "docs: close out diff text selection and copy"
   the overlay's hit-testing logic against a stub list, not a real `ListView` with
   those controls composited underneath it. A manual pass through Task 9 Step 5 and
   Task 10 Step 5 is still owed before this is trusted in the running app.
+
+### After the whole-branch review
+
+The final review found three defects no headless test could reach, all now fixed
+and re-verified:
+
+- **Highlighted rows selected and copied the wrong characters.** `DiffSelection`
+  columns index the model's raw `lineText`, but `TextEdit.positionAt()`/`select()`
+  use *document* positions, and `QTextDocument` collapses HTML whitespace — so on
+  any indented line the copy was shifted and the highlight painted over the wrong
+  run. `DiffCodeText.qml` now wraps the highlighted fragment in
+  `<span style="white-space:pre">`, which restores the mapping character for
+  character on both the rich-text and plain-text paths. The test that was meant to
+  pin this passed vacuously (its sample had no indentation); it now carries an
+  indented, multi-space, tab-containing line.
+- **Conflict-start rows swallowed presses**, leaving the Accept buttons dead:
+  `findCode` matched the delegate's *invisible* `DiffCodeText`, because the
+  delegate instantiates the normal row layout and merely hides it. The overlay now
+  skips invisible subtrees.
+- **The overlay covered the scrollbar**, removing drag-scrolling from both panes.
+  `pressAt` now rejects presses inside the bar's mapped rect — gated on the handle
+  actually being shown (`size < 1.0`), since an `AsNeeded` bar reports
+  `visible: true` regardless. A view embedding the overlay must wire its
+  `scrollBar` property; the design spec records that.
+
+Also fixed in the same pass: `Shift+click` extended the selection and then its own
+release cleared it; the I-beam cursor covered the whole pane rather than only
+selectable text; a cancelled mouse grab left the drag running; and the invariant
+that `DiffCodeText`'s paint bindings depend on `selectionChanged()` firing on
+*every* mutation is now documented on the signal and pinned by a test.
+
+Final state: **22 commits**, ctest `100% tests passed, 0 tests failed out of 221`,
+the `gittide_ui_tests` binary at 517 passed / 0 failed. The manual pass above
+remains owed — the fixes above make it more important, not less, since all three
+Criticals lived exactly where the headless harness cannot see.
