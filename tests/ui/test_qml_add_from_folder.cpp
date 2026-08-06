@@ -62,6 +62,40 @@ private slots:
         QVERIFY(root->findChild<QObject*>(QStringLiteral("addFromFolderCta")) != nullptr);
     }
 
+    // The dialog's defaults: depth 1 (the common ~/projects/<repo> layout), and
+    // "keep this folder as a source" already ticked, since a folder the user
+    // points at is usually somewhere repositories keep appearing.
+    void dialog_opens_at_depth_one_with_keep_as_source_checked()
+    {
+        gittide::ProjectStore store;
+        store.projects().push_back(gittide::Project{.id = "id-a", .name = "Work"});
+        ProjectController controller(&store);
+        controller.activate(QStringLiteral("id-a"));
+
+        ThemeManager  mgr;
+        mgr.setMode(ThemeManager::Mode::Dark);
+        QmlTheme      theme(&mgr);
+        RepoListModel repoModel;
+
+        QQmlApplicationEngine engine;
+        installQmlContext(engine.rootContext(), &theme, &repoModel, &controller, nullptr);
+        engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        QObject* root = engine.rootObjects().first();
+
+        QObject* dlg = root->findChild<QObject*>(QStringLiteral("addFromFolderDialog"));
+        QVERIFY(dlg != nullptr);
+        QVERIFY(QMetaObject::invokeMethod(dlg, "openDialog"));
+
+        QObject* depth = root->findChild<QObject*>(QStringLiteral("addFromFolderDepth"));
+        QVERIFY(depth != nullptr);
+        QCOMPARE(depth->property("value").toInt(), 1);
+
+        QObject* keep = root->findChild<QObject*>(QStringLiteral("addFromFolderKeepSource"));
+        QVERIFY(keep != nullptr);
+        QCOMPARE(keep->property("checked").toBool(), true);
+    }
+
     // Covers review finding 1: a scan started in one dialog session must never
     // populate a later, fresh session's checklist. Closing (openDialog() reset)
     // and reopening before the in-flight scanFolder() call resolves used to
@@ -334,7 +368,10 @@ private slots:
 
         QCOMPARE(addedSpy.at(0).at(0).toInt(), 1); // only "api" — "web" never resubmitted
         QCOMPARE(addedSpy.at(0).at(1).toStringList().size(), 0);
-        QCOMPARE(controller.repos()->rowCount(), 2); // web (pre-existing) + api (new)
+        // Assert against the store, not the model's top-level rowCount: with
+        // keep-as-source on by default the confirm also registers the folder, so
+        // the repos are grouped under it and the roots count groups, not repos.
+        QCOMPARE(static_cast<int>(store.projects()[0].repos.size()), 2); // web (pre-existing) + api (new)
     }
 
 private:

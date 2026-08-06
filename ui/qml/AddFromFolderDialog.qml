@@ -49,7 +49,9 @@ AppDialog {
         // Invalidate any request still in flight from a previous session —
         // its eventual response must not populate this fresh checklist.
         scanToken++
-        keepSource.checked = false
+        // A folder the user points at is usually somewhere repos keep appearing,
+        // so registering it as a source is the default rather than the opt-in.
+        keepSource.checked = true
         open()
     }
 
@@ -158,19 +160,54 @@ AppDialog {
                 objectName: "addFromFolderDepth"
                 from: 1
                 to: 5
-                value: 2
+                value: 1
                 editable: false
                 enabled: !dialog.scanning
                 onValueChanged: if (dialog.folder.length > 0) dialog.startScan()
+                // The Basic style's own up/down indicators are unthemed and get
+                // painted over a custom background, which is what made this
+                // control look broken. Draw both from theme tokens instead, and
+                // inset the value between them so nothing overlaps.
+                component Step: Rectangle {
+                    property string glyph: ""
+                    property bool   armed: false
+                    implicitWidth: 28
+                    radius: 6
+                    color: armed && depthBox.enabled ? theme.surfaceRaised : "transparent"
+                    Label {
+                        anchors.centerIn: parent
+                        text: parent.glyph
+                        color: !depthBox.enabled ? theme.textMuted
+                                                 : (parent.armed ? theme.accent : theme.textSecondary)
+                        font.pixelSize: 14
+                    }
+                }
+
+                down.indicator: Step {
+                    x: 0
+                    height: depthBox.height
+                    glyph: "−"
+                    armed: depthBox.down.hovered
+                }
+                up.indicator: Step {
+                    x: depthBox.width - width
+                    height: depthBox.height
+                    glyph: "+"
+                    armed: depthBox.up.hovered
+                }
+
                 contentItem: Label {
                     text: depthBox.value
-                    color: theme.textPrimary
+                    color: depthBox.enabled ? theme.textPrimary : theme.textMuted
                     font.pixelSize: 12
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
+                    // Keep the digit clear of both indicator cells.
+                    leftPadding: 28
+                    rightPadding: 28
                 }
                 background: Rectangle {
-                    implicitWidth: 96
+                    implicitWidth: 104
                     radius: 6
                     color: theme.surfaceBase
                     border.color: depthBox.activeFocus ? theme.accent : theme.border

@@ -111,7 +111,9 @@ Expected<ProjectStore> ProjectStore::from_json(const std::string& text)
                             continue; // skip malformed source entries
                         RepoSource s;
                         s.path     = js.value("path", std::string{});
-                        s.maxDepth = js.value("maxDepth", 2);
+                        // Fall back to the struct's own default rather than
+                        // repeating the literal, so the two cannot drift apart.
+                        s.maxDepth = js.value("maxDepth", s.maxDepth);
                         if (js.contains("ignored") && js.at("ignored").is_array())
                         {
                             for (const auto& ji : js.at("ignored"))

@@ -248,7 +248,7 @@ TEST_CASE("malformed source entries are skipped, not fatal", "[store][sources]")
     REQUIRE(loaded.has_value());
     REQUIRE(loaded->projects()[0].sources.size() == 1);
     REQUIRE(loaded->projects()[0].sources[0].path == "/home/u/projects");
-    REQUIRE(loaded->projects()[0].sources[0].maxDepth == 2); // default
+    REQUIRE(loaded->projects()[0].sources[0].maxDepth == 1); // default
 }
 
 TEST_CASE("addSource appends a source to the project", "[store][sources]")
