@@ -824,6 +824,29 @@ an entry with a newer one if it changes.
   [`product`](spec/product/product.md#diff-selection--copy),
   [`context-menus §4.6`](spec/product/context-menus.md#46-diffcontextmenuqml)
 
+- **D65 — `System` theme mode asks the XDG desktop portal first, not
+  `QStyleHints`.** `ThemeManager` resolves `System` through a `SystemColorScheme`
+  interface; `PortalColorScheme` reads `org.freedesktop.appearance` /
+  `color-scheme` over D-Bus and only falls back to `QStyleHints::colorScheme()`
+  when the portal has no preference or no session bus. *Why:* Qt loads the
+  **gtk3** platform theme on GNOME, which derives the scheme from GTK's
+  `gtk-application-prefer-dark-theme` / theme name rather than from the desktop's
+  actual `color-scheme`. A session set to `prefer-dark` but carrying
+  `gtk-application-prefer-dark-theme=0` (or a light-named GTK theme) made Qt
+  report Light, so GitTide opened light on a dark desktop — a real user hit this
+  on two machines and had to rename their GTK theme to work around it.
+  *Rejected — tell users to set `QT_QPA_PLATFORMTHEME=xdgdesktopportal`:* a
+  per-machine environment fix for a bug every GNOME user hits, and it swaps the
+  whole platform theme (losing gtk3 font/icon integration) to correct one bit.
+  *Rejected — sniff the GTK theme name ourselves:* the same broken heuristic Qt
+  already uses. *Consequence:* `ui/` links `Qt6::DBus` when present, guarded by
+  `GITTIDE_HAVE_QTDBUS`; the portal read is one blocking 500 ms-capped call at
+  construction, refreshed on `SettingChanged`. *Gotcha:* QtDBus binds a signal to
+  a slot taking a *prefix* of its arguments, so `refreshFromPortal()` takes none
+  and re-reads — which also means it wakes on unrelated portal settings, hence
+  the "only emit when the value moved" guard. →
+  [`design §Theming`](spec/design/design.md#theming)
+
 ## Process
 
 - **D20 — A living spec, not append-only dated specs.** Design lands in a

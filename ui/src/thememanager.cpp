@@ -1,26 +1,27 @@
 #include "gittide/ui/thememanager.hpp"
 
-#include <QGuiApplication>
-#include <QStyleHints>
-
 namespace gittide::ui {
 
 ThemeManager::ThemeManager(QObject* parent)
+    : ThemeManager(new PortalColorScheme, parent)
+{
+    m_source->setParent(this); // the default source is ours to own
+}
+
+ThemeManager::ThemeManager(SystemColorScheme* source, QObject* parent)
     : QObject(parent)
+    , m_source(source)
 {
     // Re-emit live when the OS color scheme changes (only matters in System mode);
     // QML bindings on QmlTheme refresh from themeChanged().
-    if (auto* hints = QGuiApplication::styleHints())
-    {
-        connect(hints,
-                &QStyleHints::colorSchemeChanged,
-                this,
-                [this](Qt::ColorScheme)
-                {
-                    if (m_mode == Mode::System)
-                        emit themeChanged();
-                });
-    }
+    connect(m_source,
+            &SystemColorScheme::changed,
+            this,
+            [this]
+            {
+                if (m_mode == Mode::System)
+                    emit themeChanged();
+            });
 }
 
 bool ThemeManager::resolveDark() const
@@ -33,11 +34,8 @@ bool ThemeManager::resolveDark() const
         return false;
     case Mode::System:
     default:
-    {
-        const auto scheme = QGuiApplication::styleHints()->colorScheme();
         // Unknown/Dark → dark (brand's primary look).
-        return scheme != Qt::ColorScheme::Light;
-    }
+        return m_source->colorScheme() != Qt::ColorScheme::Light;
     }
 }
 

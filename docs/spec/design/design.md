@@ -118,9 +118,18 @@ a second accent hue (the one-accent rule, D17, governs emphasis/action colour).
   rotate System → Dark → Light → System; its glyph reflects the mode
   (☾ dark / ☀ light / ◐ system). The override is **session-only** — settings
   persistence is deferred.
-- **OS-driven default:** read `QStyleHints::colorScheme()`; subscribe to
-  `colorSchemeChanged` and re-emit live while in `System` mode (the brand's
-  primary look is dark, so Unknown/Dark → dark). Default is `System`.
+- **OS-driven default:** `System` mode resolves through a `SystemColorScheme`
+  source, not `QStyleHints` alone. The production source (`PortalColorScheme`)
+  prefers the **XDG desktop portal**'s `org.freedesktop.appearance` /
+  `color-scheme` and falls back to `QStyleHints::colorScheme()` when the portal
+  has no preference or is unreachable (Windows, macOS, Qt built without D-Bus).
+  *Why:* on GNOME, Qt loads the **gtk3** platform theme, which reads GTK's
+  `gtk-application-prefer-dark-theme` / theme name — so a desktop set to
+  `prefer-dark` is reported as **Light** whenever GTK disagrees (a light-named
+  theme, or `gtk-application-prefer-dark-theme=0` in `settings.ini`), and the app
+  opened light on a dark desktop. Live switches re-emit while in `System` mode,
+  from the portal's `SettingChanged` **or** `colorSchemeChanged`. The brand's
+  primary look is dark, so Unknown/Dark → dark. Default mode is `System`.
 - **Icon swap:** dark uses `gittide-icon.svg`, light uses
   `gittide-icon-light.svg`, surfaced as `theme.iconSource` (a `qrc:/…` URL) and
   followed by the sidebar wordmark / empty-state art.

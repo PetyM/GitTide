@@ -3,6 +3,12 @@
 # for headless unit tests, Concurrent for off-main-thread git ops.
 find_package(Qt6 REQUIRED COMPONENTS Gui Test Concurrent Svg Qml Quick QuickControls2 QuickTest Network)
 
+# DBus is optional and Linux-only in practice: it reads the XDG desktop portal's
+# `color-scheme` so `System` theme mode follows the desktop even where Qt's own
+# hint is wrong (see PortalColorScheme). Without it the app falls back to
+# QStyleHints, which is the right answer on Windows and macOS anyway.
+find_package(Qt6 QUIET COMPONENTS DBus)
+
 # Qt's FindWrapOpenGL.cmake puts the legacy AGL framework in the
 # WrapOpenGL::WrapOpenGL link interface, which Qt6::Gui pulls in transitively.
 # The current Xcode SDK removed AGL, so anything linking Qt Gui (our app,

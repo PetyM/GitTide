@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QString>
 
+#include "gittide/ui/systemcolorscheme.hpp"
 #include "gittide/ui/theme.hpp"
 
 namespace gittide::ui {
@@ -21,7 +22,11 @@ public:
         Light
     };
 
+    /// Resolves System mode against a PortalColorScheme it owns.
     explicit ThemeManager(QObject* parent = nullptr);
+    /// Resolves System mode against an injected source (borrowed — it must
+    /// outlive the manager). For tests and for callers with their own source.
+    explicit ThemeManager(SystemColorScheme* source, QObject* parent = nullptr);
 
     void setMode(Mode mode);
     Mode mode() const
@@ -35,8 +40,9 @@ signals:
     void themeChanged();
 
 private:
-    bool resolveDark() const; // System → QStyleHints::colorScheme; else forced
+    bool resolveDark() const; // System → m_source->colorScheme(); else forced
     Mode m_mode = Mode::System;
+    SystemColorScheme* m_source; // borrowed; owned only in the default ctor
 };
 
 } // namespace gittide::ui

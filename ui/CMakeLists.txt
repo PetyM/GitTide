@@ -49,6 +49,8 @@ add_library(gittide_ui STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/graphcolumn.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/theme.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/theme.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/systemcolorscheme.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/systemcolorscheme.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/thememanager.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/gittide/ui/thememanager.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/qmltheme.cpp
@@ -67,6 +69,11 @@ target_compile_features(gittide_ui PUBLIC cxx_std_23)
 target_link_libraries(gittide_ui PUBLIC
   gittide_core Qt6::Gui Qt6::Concurrent Qt6::Network Qt6::Svg Qt6::Qml Qt6::Quick Qt6::QuickControls2 QCoro6::Core)
 target_link_libraries(gittide_ui PRIVATE KF6::SyntaxHighlighting Qt6Keychain::Qt6Keychain)
+# Present on Linux; absent builds fall back to QStyleHints (see systemcolorscheme.cpp).
+if(TARGET Qt6::DBus)
+  target_link_libraries(gittide_ui PRIVATE Qt6::DBus)
+  target_compile_definitions(gittide_ui PRIVATE GITTIDE_HAVE_QTDBUS)
+endif()
 # QtKeychain (like libgit2) does not export its headers via INTERFACE include dirs
 # when built from source, so pull the source + generated-export dirs in manually.
 if(qtkeychain_SOURCE_DIR)
